@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "date_utc": "2026-10-30",
+  "about": "Golden fixtures: Jon's manual capture on October 30, 2026, of Anthropic's October 2 snapshot (revision 35). Saved by hand, so the exact fetch time, HTTP status and response headers were not recorded. These SHA-256 values match the spec's golden fixtures table.",
+  "runs": [
+    {
+      "run_id": "manual-2026-10-30",
+      "trigger": "manual capture by Jon (browser save)",
+      "started_utc": null,
+      "finished_utc": null,
+      "base_url": "https://red.anthropic.com/2026/cvd/",
+      "user_agent": "not recorded",
+      "robots": "not recorded",
+      "files": [
+        {
+          "name": "dashboard.html",
+          "url": "https://red.anthropic.com/2026/cvd/",
+          "final_url": null,
+          "status": null,
+          "fetched_utc": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "size_bytes": 124082,
+          "sha256": "07570f8dffddefd8a8ee27a5870aa90331eff2cdad13a64a1f35a71d57f93b64",
+          "headers": "not recorded",
+          "stored_at": "captures/2026/10/30/dashboard.html",
+          "newly_stored": true
+        },
+        {
+          "name": "payload.json",
+          "url": "https://red.anthropic.com/2026/cvd/data/payload.json",
+          "final_url": null,
+          "status": null,
+          "fetched_utc": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "size_bytes": 5743534,
+          "sha256": "22b45c8fe1695b940609be0282a5e07e9522516c540ead8891af9ed402da38d3",
+          "headers": "not recorded",
+          "stored_at": "captures/2026/10/30/payload.json",
+          "newly_stored": true
+        },
+        {
+          "name": "ledger.json",
+          "url": "https://red.anthropic.com/2026/cvd/data/ledger.json",
+          "final_url": null,
+          "status": null,
+          "fetched_utc": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "size_bytes": 5127011,
+          "sha256": "c366fc69afa1dcaac3c0a89da46867a78faaa682dd3be375fee32ccf03099ba4",
+          "headers": "not recorded",
+          "stored_at": "captures/2026/10/30/ledger.json",
+          "newly_stored": true
+        },
+        {
+          "name": "about.html",
+          "url": "https://red.anthropic.com/2026/cvd/about/index.html",
+          "final_url": null,
+          "status": null,
+          "fetched_utc": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "size_bytes": 9640,
+          "sha256": "c022329f17815b0eb09e3773dea3e603b2c2d65da55c763eeb0a19178221a5f5",
+          "headers": "not recorded",
+          "stored_at": "captures/2026/10/30/about.html",
+          "newly_stored": true
+        },
+        {
+          "name": "archive.html",
+          "url": "https://red.anthropic.com/2026/cvd/archive/index.html",
+          "final_url": null,
+          "status": null,
+          "fetched_utc": null,
+          "etag": null,
+          "last_modified": null,
+          "content_type": null,
+          "size_bytes": 2408,
+          "sha256": "94135f2f080cc6fa79f343eb6b29b80828192aa1b5d119ef59c81835d8c8d3c8",
+          "headers": "not recorded",
+          "stored_at": "captures/2026/10/30/archive.html",
+          "newly_stored": true
+        }
+      ],
+      "internet_archive": "not recorded"
+    }
+  ]
+}
