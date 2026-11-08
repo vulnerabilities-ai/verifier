@@ -1,0 +1,126 @@
+# Daily capture of Anthropic's coordinated vulnerability disclosure dashboard.
+# Plain-language summary: once a day this fetches the dashboard and its data
+# files, records their fingerprints (SHA-256), asks the Internet Archive to save
+# a copy, and commits the result under captures/ only. If anything goes wrong,
+# it opens an issue (and GitHub emails the repository owners).
+name: Capture
+
+on:
+  schedule:
+    - cron: "23 6 * * *" # 06:23 UTC daily; the real fetch time is recorded, never assumed
+  workflow_dispatch:
+    inputs:
+      test_base_url:
+        description: "Testing only: a deliberately different (broken) address. Leave EMPTY for a normal capture. Test runs store nothing except a log row."
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: write # commit under captures/
+      issues: write # open an issue when a run fails
+      actions: write # monthly keep-alive (re-enable this schedule)
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0 (2026-07-16)
+
+      - name: Capture
+        id: capture
+        env:
+          TEST_BASE_URL: ${{ inputs.test_base_url }}
+        run: |
+          set +e
+          PYTHONPATH=src python3 -m verifier capture \
+            --test-base-url="${TEST_BASE_URL}" \
+            --run-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --trigger "${GITHUB_EVENT_NAME}" \
+            --summary-file "${RUNNER_TEMP}/summary.txt"
+          code=$?
+          echo "exit_code=${code}" >> "${GITHUB_OUTPUT}"
+          cat "${RUNNER_TEMP}/summary.txt" >> "${GITHUB_STEP_SUMMARY}" || true
+          exit 0
+
+      - name: Commit (captures/ only)
+        if: always()
+        run: |
+          set -euo pipefail
+          outside=$(git ls-files --modified --deleted --others --exclude-standard | grep -v '^captures/' || true)
+          if [ -n "${outside}" ]; then
+            echo "::error::The capture changed files outside captures/. Refusing to commit: ${outside}"
+            exit 1
+          fi
+          deleted=$(git ls-files --deleted)
+          if [ -n "${deleted}" ]; then
+            echo "::error::A file in the archive was deleted. Refusing to commit: ${deleted}"
+            exit 1
+          fi
+          git add captures
+          if git diff --cached --quiet; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Capture $(date -u +%Y-%m-%dT%H:%M:%SZ) (run ${GITHUB_RUN_ID})"
+          for wait in 2 4 8 16; do
+            if git push -q origin HEAD:main; then exit 0; fi
+            sleep "${wait}"
+            git pull -q --rebase origin main
+          done
+          echo "::error::Could not push the capture commit."
+          exit 1
+
+      - name: Fail the run if the capture failed
+        if: steps.capture.outputs.exit_code != '0'
+        run: |
+          echo "::error::Capture finished with exit code ${{ steps.capture.outputs.exit_code }}. See the summary above."
+          exit 1
+
+      - name: Open or update an issue about the failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXIT_CODE: ${{ steps.capture.outputs.exit_code }}
+          TEST_BASE_URL: ${{ inputs.test_base_url }}
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ "${EXIT_CODE:-}" = "3" ]; then
+            title="Capture stopped: robots.txt disallows a path (decision needed)"
+            next="A robots.txt file now disallows a page the pipeline needs. The pipeline stopped and will not fetch it. Jon decides what to do next."
+          elif [ -n "${TEST_BASE_URL:-}" ]; then
+            title="Capture failed (deliberate test)"
+            next="This was a deliberate test with a broken address. Nothing was stored except a log row marked failed-test. Close this issue once checked."
+          else
+            title="Capture failed"
+            next="The daily capture did not complete. Forward the GitHub email to Jon, or ask Claude Code to look at the run."
+          fi
+          summary=$(cat "${RUNNER_TEMP}/summary.txt" 2>/dev/null || echo "No summary was written; see the run log.")
+          body=$(printf '%s\n\n**Run:** %s\n**Time (UTC):** %s\n\n```\n%s\n```\n\n_Opened automatically by the capture workflow._' \
+            "${next}" "${run_url}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${summary}")
+          existing=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --limit 100 \
+            --json number,title --jq ".[] | select(.title == \"${title}\") | .number" | head -n1)
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
+          fi
+
+      - name: Monthly keep-alive (stops GitHub pausing the daily schedule)
+        if: success() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%d)" = "01" ]; then
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/capture.yml/enable"
+            echo "Keep-alive sent."
+          fi
