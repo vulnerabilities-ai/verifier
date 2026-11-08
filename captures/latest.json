@@ -1,0 +1,27 @@
+{
+  "last_capture_utc": "2026-11-08T23:16:45Z",
+  "last_capture_date": "2026-11-08",
+  "manifest": "captures/2026/11/08/MANIFEST.json",
+  "files": {
+    "dashboard.html": {
+      "sha256": "a7b8618612754ef94b08a43a1bf67a59305576bed9a587604526ee91edd182db",
+      "stored_at": "captures/2026/11/08/dashboard.html"
+    },
+    "payload.json": {
+      "sha256": "9c28aaedc9b15fc495281ff5b837b369992df7084d8112642549be3215618536",
+      "stored_at": "captures/2026/11/08/payload.json"
+    },
+    "ledger.json": {
+      "sha256": "33524eaeea981fe88cfac5d581d80fa38da9aff3250db093a48c105c75a5430b",
+      "stored_at": "captures/2026/11/08/ledger.json"
+    },
+    "about.html": {
+      "sha256": "e3876e9168bd878d8ab1eb4a1ac6de789ff95a7f18b0893122da7045a8a29278",
+      "stored_at": "captures/2026/11/08/about.html"
+    },
+    "archive.html": {
+      "sha256": "59a946afb21df151169fd4d6014f9c44dabde335c032f53e5cd1906dc292a283",
+      "stored_at": "captures/2026/11/08/archive.html"
+    }
+  }
+}
