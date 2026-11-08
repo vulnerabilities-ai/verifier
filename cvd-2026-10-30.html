@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anthropic's coordinated vulnerability disclosure dashboard</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="assets/site.css">
+<link rel="stylesheet" href="assets/ledger.css">
+<style>
+  #hubspot-form-container ul,
+  #hubspot-form-container li {
+    list-style: none;
+    padding-left: 0;
+    margin-left: 0;
+  }
+</style>
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>Anthropic's coordinated vulnerability disclosure dashboard</h1>
+<nav class="site-nav muted">
+Overview  ·
+<a href="ledger/index.html">Ledger</a>  ·
+<a href="archive/index.html">Archive</a>  ·
+<a href="about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<p class="muted last-updated">Last updated 2026-10-02 19:47 UTC.</p>
+<p>Anthropic uses Claude models, including an early snapshot of Claude Mythos Preview, to find security vulnerabilities in open-source software. We partner with external security research firms to triage findings, validate them, and report human-reviewed vulnerabilities, prioritizing critical- and high-severity ones, to the software's maintainers under our <a href="https://www.anthropic.com/coordinated-vulnerability-disclosure">Coordinated Vulnerability Disclosure policy</a>. This page tracks the findings that we've disclosed, and, in line with our policy, publishes details of the ones whose disclosure window has now closed.</p>
+<p>As of October 2, 2026, we've disclosed 6,157 vulnerabilities across 591 open source projects. To our knowledge, 516 of these have been patched. Across all findings in the ledger, 584 identifiers have been issued: 219 CVE records and 365 GitHub Security Advisories (a single finding may carry both). In other cases, maintainers have shipped a fix without publishing an advisory. The number of vulnerabilities we've disclosed is a subset of the total number of vulnerabilities that Mythos Preview (and other Claude models) has found, since the process of independent human triage and review is the rate limiting step.</p>
+<p>This page covers a headline count of the vulnerabilities we've disclosed. For those vulnerabilities we've disclosed and where the disclosure window has now closed, it also includes identifier records (CVE &amp; GHSA) and finding details, further below.</p>
+<p>Finally, it includes a disclosure ledger. The ledger lists hash commitments for findings we have reported or plan to report. The details we publish later can be checked against them.</p>
+
+<span id="filters" class="filter-anchor" aria-hidden="true"></span>
+<div class="filters" id="overview-filters" hidden>
+  <div class="filter-row">
+    <span class="filters-label">Assessed by</span>
+    <div class="filter-chips">
+      <button type="button" class="filter-chip is-on" data-basis="claude" aria-pressed="true" title="The severity Claude assigned when it first analyzed the finding, recorded on the canonical report before any external review.">Claude-assessed</button>
+      <button type="button" class="filter-chip is-on" data-basis="vendor" aria-pressed="true" title="The severity assigned by an external security research firm during triage. It exists only for findings a firm has reviewed.">Firm-assessed</button>
+      <button type="button" class="filter-chip is-on" data-basis="maintainer" aria-pressed="true" title="The severity assigned by the project maintainer, typically through a published security advisory. It exists only when the maintainer has provided one.">Maintainer-assessed</button>
+    </div>
+  </div>
+  <div class="filter-row">
+    <span class="filters-label">Severity</span>
+    <div class="filter-chips">
+      <button type="button" class="filter-chip is-on" data-sev="critical" aria-pressed="true" title="Include findings rated critical by any selected source">critical</button>
+      <button type="button" class="filter-chip is-on" data-sev="high" aria-pressed="true" title="Include findings rated high by any selected source">high</button>
+      <button type="button" class="filter-chip is-on" data-sev="medium" aria-pressed="true" title="Include findings rated medium by any selected source">medium</button>
+      <button type="button" class="filter-chip is-on" data-sev="low" aria-pressed="true" title="Include findings rated low by any selected source">low</button>
+    </div>
+  </div>
+  <div class="filter-row">
+    <label class="filters-label" for="filter-from">Discovered</label>
+    <div class="filter-dates">
+      <input type="date" id="filter-from" aria-label="Discovered from" value="2025-11-01">
+      <label class="filters-sep" for="filter-to">to</label>
+      <input type="date" id="filter-to" aria-label="Discovered to" value="2026-10-02">
+    </div>
+    <button type="button" class="filter-reset" id="overview-filters-clear" title="Reset to every assessment source, every severity, and the default date range">Clear</button>
+  </div>
+  <div class="filter-foot">
+    <p class="filter-scope" id="severity-filter-scope">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</p>
+    <p class="filter-remainder" id="severity-filter-remainder" hidden></p>
+    <p class="filter-note">The date range filters by discovery date and combines with the severity selection. The flowchart, the disclosure ledger, the identifier records, and the severity-agreement heatmap reflect findings discovered in the selected window.</p>
+  </div>
+</div>
+
+<div id="stat-flow">
+  <span class="flow-stage flow-stage-discovered">Discovered</span>
+  <span class="flow-stage flow-stage-triaged">Triaged</span>
+  <a class="flow-box flow-neutral flow-pos-candidate" data-flow="analyzed" href="#ledger">
+    <span class="n">29,439 findings</span>
+    <span class="l">Candidates</span>
+  </a>
+  <span class="flow-fork flow-fork-up" aria-hidden="true"></span>
+  <span class="flow-fork flow-fork-down" aria-hidden="true"></span>
+  <a class="flow-box flow-firm flow-pos-triaged" data-flow="triaged" href="#ledger">
+    <span class="n">6,123 findings</span>
+    <span class="l">Reviewed by external security firms</span>
+  </a>
+  <span class="flow-arrow flow-arrow-firm flow-pos-arrow-tv" aria-hidden="true"></span>
+  <a class="flow-box flow-firm flow-pos-verified" data-flow="verified" href="#ledger">
+    <span class="n">5,674 findings</span>
+    <span class="l">Confirmed valid</span>
+    <span class="sub">92.7% true positives of 6,123</span>
+  </a>
+  <span class="flow-arrow flow-arrow-firm flow-pos-arrow-vc" aria-hidden="true"></span>
+  <a class="flow-box flow-firm flow-pos-confirmed" data-flow="confirmed_reported" href="#ledger">
+    <span class="n">1,333 findings</span>
+    <span class="l">Reported to maintainers</span>
+  </a>
+  <a class="flow-box flow-direct flow-pos-direct" data-flow="reported_without_review" href="#ledger">
+    <span class="n">4,824 findings</span>
+    <span class="l">Reported direct to maintainers by Anthropic</span>
+    <span class="sub">May contain false positives</span>
+  </a>
+  <span class="flow-drop" aria-hidden="true"><span class="fc-firm"></span><span class="fc-firm-drop"></span></span>
+  <div class="flow-converge" aria-hidden="true">
+    <span class="fc-direct"></span><span class="fc-direct-drop"></span>
+  </div>
+  <span class="flow-stage flow-stage-disclosed">Disclosed</span>
+  <span class="flow-stage flow-stage-remediated">Remediated</span>
+  <a class="flow-box flow-neutral flow-pos-disclosed" data-flow="disclosed" href="#ledger">
+    <span class="n">6,157 findings</span>
+    <span class="l">Total reported to maintainers</span>
+  </a>
+  <span class="flow-arrow flow-pos-arrow-da" aria-hidden="true"></span>
+  <a class="flow-box flow-neutral flow-pos-acked" data-flow="acknowledged" href="#ledger">
+    <span class="n">5,103 findings</span>
+    <span class="l">Acknowledged by maintainer</span>
+  </a>
+  <span class="flow-arrow flow-pos-arrow-ap" aria-hidden="true"></span>
+  <a class="flow-box flow-neutral flow-pos-patched" data-flow="fixed_in_response" href="#ledger">
+    <span class="n">516 findings</span>
+    <span class="l">Patched upstream</span>
+  </a>
+  <span class="flow-arrow flow-pos-arrow-pa" aria-hidden="true"></span>
+  <a class="flow-box flow-neutral flow-pos-advisories" data-flow="advisories" data-noun="advisories" data-noun-one="advisory" href="#ledger">
+    <span class="n">584 advisories</span>
+    <span class="l">CVEs and GHSAs assigned</span>
+  </a>
+  <span class="flow-caption">Counts as of October 2, 2026 <a class="filter-flag" data-filter-flag="flowchart" href="#filters" title="Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026." aria-label="No filters narrowed on this section"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path d="M1.5 2.5h13l-5 6v4.5l-3 1.5v-6z"/></svg><span class="filter-flag-tip">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</span></a></span>
+</div>
+
+<div class="section-intro stat-note">
+<p>The statistics above reflect all bugs found by Claude Mythos Preview and other Claude models. They can also be filtered by severity under at least one of three assessment sources: Claude's own assessment, the assessment of the external security research firm that triaged the finding, or the project maintainer's assessment. Each source is defined in the glossary on the <a href="about/index.html">About</a> page, and the filtered view states how many findings the selected sources have not assessed. These figures are designed to reflect our coordinated vulnerability disclosure process, which works approximately as follows. A glossary of the terms is available on the <a href="about/index.html">About</a> page.</p>
+<p>First, our models find candidate vulnerabilities, which we add to a list for human triage. This is the figure at the top. The count includes candidates from Mythos Preview, other Mythos-class models and other Claude models.</p>
+<p>Then, in order to disclose a vulnerability to a maintainer, we take one of two steps.</p>
+<p><strong>Triage:</strong> We pass them to one of six external security research firms that we have engaged for this endeavor. The security research firms reproduce each issue, assess whether it is a real bug (and if so, assess how severe it is), and then write a report for confirmed bugs that will go to the project's maintainer. Importantly, there are many additional bugs that we or our security partners have investigated and confirmed are real but that we have not yet reported to maintainers, due to capacity limitations.</p>
+<p>In our triage process, the "true positive rate" (the number of findings confirmed as valid, as a share of the number of findings manually reviewed) reflects how often the external security research firms determined that a finding Mythos Preview (and other Claude models) produced was a real vulnerability. This includes real bugs that we later discover have already been reported, and "won't fix" findings (the bug is real, but the maintainer is unlikely to address it—e.g. because it falls outside the project's threat model, or affects code that isn't typically reachable). We include these in the true positive rate because we're reliant on our security research partners (rather than maintainers) to tell us how many bugs they've confirmed, and it's only <em>after</em> the maintainers have received the report and assessed the vulnerability that we'll learn whether a vulnerability is one they plan to fix. For this reason, it's also possible that a vendor has marked a vulnerability as a true positive (or a false positive) in error. Given this, the number of "true positives" in the dashboard above should only be taken as one proxy for impact. Another, more reliable one is the number of patches created, though this is only a lagging indicator of progress, since patches take a long time to create.</p>
+<p><strong>Direct disclosure:</strong> Other vulnerabilities are disclosed to maintainers directly, without the same independent check. This also happens when maintainers specifically request that we provide them un-triaged findings.</p>
+<p>Once bugs have either been triaged or directly disclosed, "Acknowledged by maintainer" counts all bugs whose reports maintainers have responded to. "Patched upstream" counts the reported vulnerabilities that maintainers have since created and released fixes for, whether or not they replied to the report, though this does not guarantee that those patches have been widely installed. Finally, "CVEs and GHSAs assigned" counts the CVE records and GitHub Security Advisories issued across all findings in the ledger, whether or not a patch has shipped (a finding may carry both). Some advisories are now public, and we list them out further down on this page. We leave whether to create a security advisory up to the discretion of maintainers.</p>
+<p>See <a href="about/index.html">About</a> for more information.</p>
+</div>
+
+<div class="marker" id="ledger">DISCLOSURE LEDGER <a class="filter-flag" data-filter-flag="ledger" href="#filters" title="Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026." aria-label="No filters narrowed on this section"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path d="M1.5 2.5h13l-5 6v4.5l-3 1.5v-6z"/></svg><span class="filter-flag-tip">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</span></a></div>
+<p class="section-intro">Each entry is a SHA-3-512 hash of one finding's details. "Date committed" comes from our records. It can be earlier than the date the hash was computed or first listed here. Each ledger entry shows more detail as it progresses through disclosure: before the maintainer has been notified, only the commitment hash and the commitment date are published; once the report has been sent, the status and the severity assessments are shown and the discovery date is published (it drives the date filter); and the identifier, project, and bug class are revealed only when the disclosure window closes. A commitment that is withdrawn at any stage keeps its hash and commitment date and is marked withdrawn in the status column; a commitment withdrawn before the finding was revealed is also struck through in the table.</p>
+<div class="ledger-dash compact" data-root="" data-statuses='["disclosed", "fixed", "pre-disclosure", "withdrawn", "merged"]' data-compact="1" data-page-size="10">
+<p class="compact-headline"><span id="ld-match-count">6,597 / 6,597</span> <span id="ld-prefilter-note"></span> · <a href="ledger/index.html">View full ledger &rarr;</a></p>
+
+<div class="controls">
+  <div class="controls-search">
+    <div class="search">
+      <label for="ld-search">Search</label>
+      <input type="text" id="ld-search" placeholder="hash, project, identifier, bug class…">
+    </div>
+    <label class="ld-revealed"><input type="checkbox" id="ld-revealed-only"> Revealed only</label>
+    <button id="ld-clear" type="button">Clear</button>
+  </div>
+  <div class="controls-fields">
+    <div>
+      <label for="ld-project">Project</label>
+      <select id="ld-project"><option value="">All projects</option></select>
+    </div>
+    <div>
+      <label for="ld-bugclass">Bug class</label>
+      <select id="ld-bugclass"><option value="">All classes</option></select>
+    </div>
+    <div>
+      <label for="ld-status">Status</label>
+      <select id="ld-status"><option value="">All statuses</option></select>
+    </div>
+    <div>
+      <label for="ld-source">Assessed by</label>
+      <select id="ld-source">
+        <option value="">Page filters</option>
+<option value="any">Any source</option>        <option value="claude">Claude-assessed</option>
+        <option value="vendor">Firm-assessed</option>
+        <option value="maintainer">Maintainer-assessed</option>
+      </select>
+    </div>
+    <div>
+      <label for="ld-severity">Severity</label>
+      <select id="ld-severity">
+        <option value="">Page filters</option>
+<option value="any">Any severity</option>        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+      </select>
+    </div>
+    <div class="ld-dates-group">
+      <label for="ld-from">Discovered</label>
+      <div class="ld-dates">
+        <input type="date" id="ld-from" aria-label="Discovered from">
+        <label for="ld-to">to</label>
+        <input type="date" id="ld-to" aria-label="Discovered to">
+      </div>
+    </div>
+  </div>
+</div>
+<p class="ld-override-note" id="ld-override-note" hidden>Local filters are overriding the page filters for this table. <button id="ld-use-page" type="button">Use page filters</button></p>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col" data-sort="committed_at" aria-sort="descending"><button type="button">Date committed <span class="sort-ind" aria-hidden="true"></span></button></th>
+        <th scope="col" data-sort="ant_id"><button type="button">Hash / identifier <span class="sort-ind" aria-hidden="true"></span></button></th>
+        <th scope="col" data-sort="project"><button type="button">Project <span class="sort-ind" aria-hidden="true"></span></button></th>
+        <th scope="col" data-sort="bug_class"><button type="button">Bug class <span class="sort-ind" aria-hidden="true"></span></button></th>
+        <th scope="col">Severity assessments <span class="sort-ind" aria-hidden="true"></span></th>
+        <th scope="col" data-sort="status"><button type="button">Status <span class="sort-ind" aria-hidden="true"></span></button></th>
+      </tr>
+    </thead>
+<tbody id="ld-tbody">
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="425c35d5b403485da0bdeb32252bb0abd618637bbddb5681e8ad8048b25709afdf56cc8bc45fc2aede3cf1b7b0458d94e4a37561e271d14145a00f2972a7db90">425c35d5b403…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="6e35454ade4c90f28cc538a6a45e17455237d7a5943be71a9c14b9100a1f781602b31683580b2b7223606764a7c3613cb9dc0dead5ec8baab96c65d595e66515">6e35454ade4c…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="ac8c9b7be18e2994f42dcd89f403b56ae86d87df35f42ba4670c479048d5ceb222786be54b2411b36839671b97d4c1299f68b89919f93475ea13ab4ba8dfffc2">ac8c9b7be18e…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="d374165be765d159432f3d4a7cade518af2f9b7541cfa98fe680248bf6c767e88ca011174b31d1c4c49fa178fa8556558c931de002eabbc7a033a5d88f922584">d374165be765…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="0aa4a1d9f1155fabb3f4c4401c671f65d36b6b6122d3135527c50b2e563c235813976cfd5548e48d9575730d674c73d36ee7efd37957829133bd05bca4c11ea0">0aa4a1d9f115…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-low" title="Assessed low by Claude">Claude: low</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="5b928ab1e814957714b3b98feea2f52f6240e65acf6f07c9e519f67494e0227158c606c1b7352f8cb59b89160ea88bf00774a6ffa14a4ad8e5186d4a42fcf7e2">5b928ab1e814…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="60b187740e40f297e179f1c25ba1e6c0ded3825f6caa41c80f111b582d6759b346a1b60fb7ea517d5fa5696bf4d7b63888993721029e59ec38432b030bf00175">60b187740e40…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-critical" title="Assessed critical by Claude">Claude: critical</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="10864ef6de77876f6a1f00004f1b46efc783f3a81becc25472eca1ef973a707ab0b973cc21a9ced1914d6354c6dba0bb8aafca0b7f793e66dd011d10d056d320">10864ef6de77…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="442eb7982813893880c3fbb2fde513ba02bfb0a5315bf1dc286cc3320470a008491e6fbd5c1ac1e0911514779ca5820bb0c0e992bbc84338795af1fbf38ec4bd">442eb7982813…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-medium" title="Assessed medium by Claude">Claude: medium</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+      <tr>
+        <td class="mono">2026-10-02</td>
+        <td><span class="mono" title="7fd14ea02d40cef3f4353b2908a09c49d0310330b6d32012e6b93105b02a7a7b4273aa6dc1e03570695d212ec674f5b2956bbeaaa208e28a60a26e2cc1e64ca9">7fd14ea02d40…</span></td>
+        <td class="withheld">—</td><td class="withheld">—</td>
+        <td class="sev-cell"><span class="sev-chip sev-high" title="Assessed high by Claude">Claude: high</span></td>
+        <td><span class="badge disclosed">disclosed</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="pager">
+    <div class="info" id="ld-pager-info"></div>
+    <div>
+      <button id="ld-prev" type="button">&lsaquo; Prev</button>
+      <button id="ld-next" type="button">Next &rsaquo;</button>
+    </div>
+  </div>
+<a class="full-link" href="ledger/index.html">View all 6,597 entries &rarr;</a></div>
+
+<noscript><p class="subtitle">Filtering, sorting, and pagination require JavaScript. The full data is available at <a href="data/ledger.json">ledger.json</a>.</p></noscript>
+</div>
+<div class="marker" id="cves-section">CVEs <a class="filter-flag" data-filter-flag="cves" href="#filters" title="Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026." aria-label="No filters narrowed on this section"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path d="M1.5 2.5h13l-5 6v4.5l-3 1.5v-6z"/></svg><span class="filter-flag-tip">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</span></a></div>
+<p class="section-intro">Common Vulnerabilities and Exposures records assigned to findings disclosed through this program. The records below are publicly available. Identifiers not listed belong to findings whose disclosure window has not yet closed, or have not yet been published by the assigning authority.</p>
+<div class="id-record-list" data-paginate="10">
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-24" data-sev-cells="high|high|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-12340" rel="noopener noreferrer">CVE-2026-12340</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-87DJGDRB.html">ANT-2026-87DJGDRB</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sha.c:733</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-09" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-13002" rel="noopener noreferrer">CVE-2026-13002</a>
+    <span class="id-record-meta">dnsmasq · denial-of-service · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-QRYCJNAP.html">ANT-2026-QRYCJNAP</a></span>
+<span class="id-record-title">DNSSEC NSEC typemap infinite loop hangs daemon</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-20" data-sev-cells="critical|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-13595" rel="noopener noreferrer">CVE-2026-13595</a>
+    <span class="id-record-meta">util-linux/util-linux · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-ZRDQDR79.html">ANT-2026-ZRDQDR79</a></span>
+<span class="id-record-title">Heap-use-after-free in blkid_partition_get_start at partitions.c:1447 via nested BSD disklabel in DOS partition table</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-15165" rel="noopener noreferrer">CVE-2026-15165</a>
+    <span class="id-record-meta">wireshark/wireshark · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-Y5M37QY4.html">ANT-2026-Y5M37QY4</a></span>
+<span class="id-record-title">TLS ECH transcript reconstruction heap overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-15166" rel="noopener noreferrer">CVE-2026-15166</a>
+    <span class="id-record-meta">wireshark/wireshark · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-WT5AMKP5.html">ANT-2026-WT5AMKP5</a></span>
+<span class="id-record-title">802.11 EAPOL key-data decryption stack buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-15170" rel="noopener noreferrer">CVE-2026-15170</a>
+    <span class="id-record-meta">wireshark/wireshark · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-3FWTCMVC.html">ANT-2026-3FWTCMVC</a></span>
+<span class="id-record-title">Z39.50 MARC directory count floor/ceil mismatch overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-19694" rel="noopener noreferrer">CVE-2026-19694</a>
+    <span class="id-record-meta">wireshark/wireshark · buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-EKGJXN5A.html">ANT-2026-EKGJXN5A</a></span>
+<span class="id-record-title">TTL reader fixed-offset write into undersized buffer</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-20213" rel="noopener noreferrer">CVE-2026-20213</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-VVPEMVDE.html">ANT-2026-VVPEMVDE</a></span>
+<span class="id-record-title">Integer overflow in PE rebuild section size summation in Aspack unpacker</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-20214" rel="noopener noreferrer">CVE-2026-20214</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-underflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-Z477W54M.html">ANT-2026-Z477W54M</a></span>
+<span class="id-record-title">Unsigned integer underflow in FSG unpacker section loop</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-20215" rel="noopener noreferrer">CVE-2026-20215</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-8DRZW7VM.html">ANT-2026-8DRZW7VM</a></span>
+<span class="id-record-title">Integer overflow in 7z SubStreams count leading to heap buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-02-15" data-sev-cells="critical|not_assessed|critical">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-26980" rel="noopener noreferrer">CVE-2026-26980</a>
+    <span class="id-record-meta">tryghost/ghost · sql-injection · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-69D8H6RP.html">ANT-2026-69D8H6RP</a></span>
+<span class="id-record-title">Critical Vulnerability (CVSS 9.1) : SQLi from unauthenticated user; arbitrary DB reads</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-20" data-sev-cells="high|critical|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-27654" rel="noopener noreferrer">CVE-2026-27654</a>
+    <span class="id-record-meta">nginx/nginx · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-HY56VRSB.html">ANT-2026-HY56VRSB</a></span>
+<span class="id-record-title">Heap buffer overflow in ngx_http_dav_copy_move_handler at ngx_http_dav_module.c:703 via short Destination header with alias directive</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-02-20" data-sev-cells="critical|not_assessed|critical">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-29198" rel="noopener noreferrer">CVE-2026-29198</a>
+    <span class="id-record-meta">rocketchat/rocket.chat · sql-injection · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-GEM3N3N3.html">ANT-2026-GEM3N3N3</a></span>
+<span class="id-record-title">Critical vulnerability (cvss 9.8): complete authentication bypass to admin permissions</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-24" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-31554" rel="noopener noreferrer">CVE-2026-31554</a>
+    <span class="id-record-meta">torvalds/linux · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-1BCAFJCC.html">ANT-2026-1BCAFJCC</a></span>
+<span class="id-record-title">futex: UAF in private-hash teardown via cross-process sys_futex_requeue leading giving LPE</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-32316" rel="noopener noreferrer">CVE-2026-32316</a>
+    <span class="id-record-meta">jqlang/jq · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-EBDTPNVH.html">ANT-2026-EBDTPNVH</a></span>
+<span class="id-record-title">Integer overflow in string concatenation leading to 1 GB memcpy heap buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-33721" rel="noopener noreferrer">CVE-2026-33721</a>
+    <span class="id-record-meta">mapserver · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-9SZMPW41.html">ANT-2026-9SZMPW41</a></span>
+<span class="id-record-title">Heap buffer overflow in SLD categorize threshold parsing due to wrong counter variable in reallocation guard</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-33901" rel="noopener noreferrer">CVE-2026-33901</a>
+    <span class="id-record-meta">imagemagick/imagemagick · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-T44WA684.html">ANT-2026-T44WA684</a></span>
+<span class="id-record-title">Heap buffer overflow in MVG pattern rendering via CopyMagickString without bounds check</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-05-14" data-sev-cells="high|not_assessed|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-34580" rel="noopener noreferrer">CVE-2026-34580</a>
+    <span class="id-record-meta">randombit/botan · improper-cert-validation · <span class="sev-high">high</span> · <a href="findings/ANT-2026-2FETJP49.html">ANT-2026-2FETJP49</a></span>
+<span class="id-record-title">[security] certificate_known(): Complete x509 bypass</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-29" data-sev-cells="low|low|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-35590" rel="noopener noreferrer">CVE-2026-35590</a>
+    <span class="id-record-meta">libvips/libvips · oob-write · <span class="sev-low">low</span> · <a href="findings/ANT-2026-JBKARRJ7.html">ANT-2026-JBKARRJ7</a></span>
+<span class="id-record-title">Out-of-bounds IFD array access in EXIF metadata processing leading to write through corrupted pointer</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40033" rel="noopener noreferrer">CVE-2026-40033</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-RXYVE4DZ.html">ANT-2026-RXYVE4DZ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40383" rel="noopener noreferrer">CVE-2026-40383</a>
+    <span class="id-record-meta">joomla/joomla-cms · path-traversal · <span class="sev-high">high</span> · <a href="findings/ANT-2026-HHD77M82.html">ANT-2026-HHD77M82</a></span>
+<span class="id-record-title">Path Traversal in `layout` Parameter Leads to Arbitrary PHP File Inclusion (LFI → RCE)</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40384" rel="noopener noreferrer">CVE-2026-40384</a>
+    <span class="id-record-meta">joomla/joomla-cms · path-traversal · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-GSV3GS1G.html">ANT-2026-GSV3GS1G</a></span>
+<span class="id-record-title">Path Traversal via Glob Injection in com_media Search</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-29" data-sev-cells="low|low|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40528" rel="noopener noreferrer">CVE-2026-40528</a>
+    <span class="id-record-meta">opensc · stack-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-GSDN3H7W.html">ANT-2026-GSDN3H7W</a></span>
+<span class="id-record-title">Stack buffer overflow in do_key_value profile parsing via unbounded memcpy into 32-byte buffer</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40685" rel="noopener noreferrer">CVE-2026-40685</a>
+    <span class="id-record-meta">exim/exim · off-by-one · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-B615AQ9E.html">ANT-2026-B615AQ9E</a></span>
+<span class="id-record-title">Exim dewrap() Off-By-One OOB Read → Code Execution</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-41401" rel="noopener noreferrer">CVE-2026-41401</a>
+    <span class="id-record-meta">cesnet/libyang · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-TZQ1KH7E.html">ANT-2026-TZQ1KH7E</a></span>
+<span class="id-record-title">Heap use-after-free write in metadata list management during XML data parsing due to incorrect list head pointer update</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-09" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-41579" rel="noopener noreferrer">CVE-2026-41579</a>
+    <span class="id-record-meta">opencontainers/runc · symlink-following · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-N6TD9MF6.html">ANT-2026-N6TD9MF6</a></span>
+<span class="id-record-title">Host filesystem write via /dev symlink in container image</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|not_assessed|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-41990" rel="noopener noreferrer">CVE-2026-41990</a>
+    <span class="id-record-meta">gpg/libgcrypt · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-GSPVGEYA.html">ANT-2026-GSPVGEYA</a></span>
+<span class="id-record-title">ML-DSA context string stack buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-05-14" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-43074" rel="noopener noreferrer">CVE-2026-43074</a>
+    <span class="id-record-meta">torvalds/linux · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-CM0TCREP.html">ANT-2026-CM0TCREP</a></span>
+<span class="id-record-title">UAF in ep_get_upwards_depth_proc() giving unprivileged LPE</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44235" rel="noopener noreferrer">CVE-2026-44235</a>
+    <span class="id-record-meta">rabbitmq-c · integer-underflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-GTGXBRXN.html">ANT-2026-GTGXBRXN</a></span>
+<span class="id-record-title">size_t underflow in AMQP frame length computation leading to massive out-of-bounds read</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-24" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44236" rel="noopener noreferrer">CVE-2026-44236</a>
+    <span class="id-record-meta">rabbitmq-c · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-D7FC4YDQ.html">ANT-2026-D7FC4YDQ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in rabbitmq-c</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44420" rel="noopener noreferrer">CVE-2026-44420</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-H97FY6C8.html">ANT-2026-H97FY6C8</a></span>
+<span class="id-record-title">Heap-buffer-overflow in cliprdr_main.c:547</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44421" rel="noopener noreferrer">CVE-2026-44421</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-RXYVE4DZ.html">ANT-2026-RXYVE4DZ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-28" data-sev-cells="high|high|critical">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45447" rel="noopener noreferrer">CVE-2026-45447</a>
+    <span class="id-record-meta">openssl/openssl · use-after-free · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-AYWQW7P2.html">ANT-2026-AYWQW7P2</a></span>
+<span class="id-record-title">PKCS7_verify frees caller-owned `indata` BIO when `digestAlgorithms` SET is empty</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-24" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45696" rel="noopener noreferrer">CVE-2026-45696</a>
+    <span class="id-record-meta">openexr · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-QQ2P9M9V.html">ANT-2026-QQ2P9M9V</a></span>
+<span class="id-record-title">Heap-buffer-overflow in internal_ht.cpp:305</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45700" rel="noopener noreferrer">CVE-2026-45700</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-HN9XZXJ9.html">ANT-2026-HN9XZXJ9</a></span>
+<span class="id-record-title">heap-buffer-overflow write (attacker-controlled offset, partially-controlled data via rle delta values; up to ~15kb overwrite past ptempdata with these parameters, further with larger nxdst) in planar.c:472</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-27" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45751" rel="noopener noreferrer">CVE-2026-45751</a>
+    <span class="id-record-meta">oisf/suricata · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-WCSVRYAX.html">ANT-2026-WCSVRYAX</a></span>
+<span class="id-record-title">heap-use-after-free in suricata</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-24" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45752" rel="noopener noreferrer">CVE-2026-45752</a>
+    <span class="id-record-meta">oisf/suricata · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-61Y3NTY3.html">ANT-2026-61Y3NTY3</a></span>
+<span class="id-record-title">Use-after-free in mod.rs:547</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46348" rel="noopener noreferrer">CVE-2026-46348</a>
+    <span class="id-record-meta">mastodon/mastodon · ssrf · <span class="sev-high">high</span> · <a href="findings/ANT-2026-6DSMTXZ8.html">ANT-2026-6DSMTXZ8</a></span>
+<span class="id-record-title">SSRF Bypass via IPv6 Unspecified Address (`::`) in Mastodon</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46349" rel="noopener noreferrer">CVE-2026-46349</a>
+    <span class="id-record-meta">mastodon/mastodon · signature-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-P2DWB2SK.html">ANT-2026-P2DWB2SK</a></span>
+<span class="id-record-title">LD-Signature bypass via JSON-LD named-graph restructuring</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-04-19" data-sev-cells="high|high|critical">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46633" rel="noopener noreferrer">CVE-2026-46633</a>
+    <span class="id-record-meta">twigphp/twig · code-injection · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-J3EVXWDY.html">ANT-2026-J3EVXWDY</a></span>
+<span class="id-record-title">PHP code injection via single quote in {% use %} template name</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-19" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46639" rel="noopener noreferrer">CVE-2026-46639</a>
+    <span class="id-record-meta">twigphp/twig · auth-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-203E7E95.html">ANT-2026-203E7E95</a></span>
+<span class="id-record-title">Sandbox bypass via object-destructuring assignment</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-47345" rel="noopener noreferrer">CVE-2026-47345</a>
+    <span class="id-record-meta">typo3 · xss · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-MHJX7J31.html">ANT-2026-MHJX7J31</a></span>
+<span class="id-record-title">Stored XSS in TYPO3 HTML Sanitizer via `xmlns` Namespace URI Injection</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-20" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-4747" rel="noopener noreferrer">CVE-2026-4747</a>
+    <span class="id-record-meta">freebsd/freebsd-src · stack-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-MVVACQKN.html">ANT-2026-MVVACQKN</a></span>
+<span class="id-record-title">Unauthenticated remote code execution via svc_rpc_gss_validate stack overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-09" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-4890" rel="noopener noreferrer">CVE-2026-4890</a>
+    <span class="id-record-meta">dnsmasq · denial-of-service · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-QRYCJNAP.html">ANT-2026-QRYCJNAP</a></span>
+<span class="id-record-title">DNSSEC NSEC typemap infinite loop hangs daemon</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-09" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-4892" rel="noopener noreferrer">CVE-2026-4892</a>
+    <span class="id-record-meta">dnsmasq · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PCBAKVPB.html">ANT-2026-PCBAKVPB</a></span>
+<span class="id-record-title">Heap overflow in privileged helper via oversized DHCPv6 client identifier</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-48929" rel="noopener noreferrer">CVE-2026-48929</a>
+    <span class="id-record-meta">rocketchat/rocket.chat · auth-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-QXNF2N9K.html">ANT-2026-QXNF2N9K</a></span>
+<span class="id-record-title">Unauthenticated Arbitrary File Deletion via `deleteFileMessage` Meteor Method</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-26" data-sev-cells="critical|not_assessed|critical">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5194" rel="noopener noreferrer">CVE-2026-5194</a>
+    <span class="id-record-meta">wolfssl/wolfssl · other · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-7DG11TPA.html">ANT-2026-7DG11TPA</a></span>
+<span class="id-record-title">[SECURITY: critical] Universal ECDSA certificate forgery for arbitrary hosts</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-22" data-sev-cells="critical|not_assessed|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5199" rel="noopener noreferrer">CVE-2026-5199</a>
+    <span class="id-record-meta">temporalio/temporal · broken-access-control · <span class="sev-low">low</span> · <a href="findings/ANT-2026-DJBBBBPE.html">ANT-2026-DJBBBBPE</a></span>
+<span class="id-record-title">Cross-namespace manipulation (including deletion) of workflows on the same cluster</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5295" rel="noopener noreferrer">CVE-2026-5295</a>
+    <span class="id-record-meta">wolfssl/wolfssl · buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-JS5D1Z2X.html">ANT-2026-JS5D1Z2X</a></span>
+<span class="id-record-title">Stack buffer overflow in PKCS#7 OtherRecipientInfo OID copy</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-19" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5398" rel="noopener noreferrer">CVE-2026-5398</a>
+    <span class="id-record-meta">freebsd/freebsd-src · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-5DFBSQR9.html">ANT-2026-5DFBSQR9</a></span>
+<span class="id-record-title">Local privilege escalation via tty_drop_ctty t_session UAF + pmap_pkru_update_range PDPE walk</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5446" rel="noopener noreferrer">CVE-2026-5446</a>
+    <span class="id-record-meta">wolfssl/wolfssl · crypto-failure · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-SB4PHA43.html">ANT-2026-SB4PHA43</a></span>
+<span class="id-record-title">ARIA-GCM Nonce Reuse in TLS 1.2 Record Encryption in wolfSSL</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-27" data-sev-cells="high|medium|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5447" rel="noopener noreferrer">CVE-2026-5447</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-VV0PRKKV.html">ANT-2026-VV0PRKKV</a></span>
+<span class="id-record-title">wolfSSL: heap buffer overflow in CertFromX509() from AuthorityKeyIdentifier size mismatch</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-26" data-sev-cells="medium|medium|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5448" rel="noopener noreferrer">CVE-2026-5448</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-6615Y595.html">ANT-2026-6615Y595</a></span>
+<span class="id-record-title">Final Assessment: 2-Byte Heap Overflow in wolfSSL_X509_notAfter / wolfSSL_X509_notBefore</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5466" rel="noopener noreferrer">CVE-2026-5466</a>
+    <span class="id-record-meta">wolfssl/wolfssl · signature-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-KNXJMVYC.html">ANT-2026-KNXJMVYC</a></span>
+<span class="id-record-title">Universal ECCSI signature forgery in wolfSSL wc_VerifyEccsiHash via r = 0, s = 0</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5477" rel="noopener noreferrer">CVE-2026-5477</a>
+    <span class="id-record-meta">wolfssl/wolfssl · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-ZZY4987K.html">ANT-2026-ZZY4987K</a></span>
+<span class="id-record-title">wolfCrypt wc_CmacUpdate: 32-bit totalSz wraparound enables CMAC forgery on &gt;4 GiB messages</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5479" rel="noopener noreferrer">CVE-2026-5479</a>
+    <span class="id-record-meta">wolfssl/wolfssl · crypto-failure · <span class="sev-high">high</span> · <a href="findings/ANT-2026-RSSMAMA7.html">ANT-2026-RSSMAMA7</a></span>
+<span class="id-record-title">wolfSSL EVP_CipherFinal does not verify the Poly1305 tag on ChaCha20-Poly1305 decrypt</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5500" rel="noopener noreferrer">CVE-2026-5500</a>
+    <span class="id-record-meta">wolfssl/wolfssl · crypto-failure · <span class="sev-high">high</span> · <a href="findings/ANT-2026-P23DVQM2.html">ANT-2026-P23DVQM2</a></span>
+<span class="id-record-title">wolfSSL PKCS#7 AuthEnvelopedData decoder accepts truncated AES-GCM authentication tags</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5501" rel="noopener noreferrer">CVE-2026-5501</a>
+    <span class="id-record-meta">wolfssl/wolfssl · improper-cert-validation · <span class="sev-high">high</span> · <a href="findings/ANT-2026-K8YY7WWS.html">ANT-2026-K8YY7WWS</a></span>
+<span class="id-record-title">wolfssl x509 verify cert leaf signature verification by</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5503" rel="noopener noreferrer">CVE-2026-5503</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-0JRYQPCF.html">ANT-2026-0JRYQPCF</a></span>
+<span class="id-record-title">wolfSSL ECH: heap buffer overflow in TLSX_EchChangeSNI via publicName SNI pollution</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-16" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-55084" rel="noopener noreferrer">CVE-2026-55084</a>
+    <span class="id-record-meta">dhis2/dhis2-core · sql-injection · <span class="sev-high">high</span> · <a href="findings/ANT-2026-FW0V6SAJ.html">ANT-2026-FW0V6SAJ</a></span>
+<span class="id-record-title">SQL Injection via Unquoted Column Name in SqlView Filter Parameter</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-20" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-56132" rel="noopener noreferrer">CVE-2026-56132</a>
+    <span class="id-record-meta">libexpat/libexpat · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-X3EB6DN3.html">ANT-2026-X3EB6DN3</a></span>
+<span class="id-record-title">Heap-buffer-overflow in doProlog at xmlparse.c:5957 via deeply nested DTD with external entity interaction</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|not_assessed|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5747" rel="noopener noreferrer">CVE-2026-5747</a>
+    <span class="id-record-meta">firecracker-microvm/firecracker · oob-read · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PQ3CNCCK.html">ANT-2026-PQ3CNCCK</a></span>
+<span class="id-record-title">Virtio-PCI queue size writable after activation enables host OOB</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-58435" rel="noopener noreferrer">CVE-2026-58435</a>
+    <span class="id-record-meta">go-gitea/gitea · idor · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-VN61PHA0.html">ANT-2026-VN61PHA0</a></span>
+<span class="id-record-title">Gitea LFS Deploy-Key Privilege Escalation — Cross-Repository Data Exfiltration</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6039" rel="noopener noreferrer">CVE-2026-6039</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-8FZYKRTH.html">ANT-2026-8FZYKRTH</a></span>
+<span class="id-record-title">Heap buffer overflow in DXF LWPOLYLINE import via integer truncation from sal_Int32 to sal_uInt16</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6040" rel="noopener noreferrer">CVE-2026-6040</a>
+    <span class="id-record-meta">libreoffice/core · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-6X60WXT0.html">ANT-2026-6X60WXT0</a></span>
+<span class="id-record-title">Heap use-after-free write in number format blank-width parsing via out-of-bounds remove() on freed buffer</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6045" rel="noopener noreferrer">CVE-2026-6045</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-G7GNYY68.html">ANT-2026-G7GNYY68</a></span>
+<span class="id-record-title">Heap Buffer Overflow via Integer Overflow in EMF+ Brush Blend Point Parsing</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6047" rel="noopener noreferrer">CVE-2026-6047</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-0HC68EK6.html">ANT-2026-0HC68EK6</a></span>
+<span class="id-record-title">Heap Buffer Overflow via Unsafe static_cast in OOXML VML Textbox Replay</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63272" rel="noopener noreferrer">CVE-2026-63272</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-CRFDC4JM.html">ANT-2026-CRFDC4JM</a></span>
+<span class="id-record-title">WMF Unicode-escape text DX-array heap overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63273" rel="noopener noreferrer">CVE-2026-63273</a>
+    <span class="id-record-meta">libreoffice/core · oob-write · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-J00S1S9Y.html">ANT-2026-J00S1S9Y</a></span>
+<span class="id-record-title">PDF encryption key-length field drives out-of-bounds key buffer write</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63274" rel="noopener noreferrer">CVE-2026-63274</a>
+    <span class="id-record-meta">libreoffice/core · other · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-QT406EDT.html">ANT-2026-QT406EDT</a></span>
+<span class="id-record-title">Heap overflow from unclamped /Length in hybrid-PDF stream extraction</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63275" rel="noopener noreferrer">CVE-2026-63275</a>
+    <span class="id-record-meta">libreoffice/core · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-RNHRV8B9.html">ANT-2026-RNHRV8B9</a></span>
+<span class="id-record-title">CFF hint-stack bound compared against double the array size</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63276" rel="noopener noreferrer">CVE-2026-63276</a>
+    <span class="id-record-meta">libreoffice/core · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-YA6ADR86.html">ANT-2026-YA6ADR86</a></span>
+<span class="id-record-title">CFF charstring to Type1 conversion stack buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63559" rel="noopener noreferrer">CVE-2026-63559</a>
+    <span class="id-record-meta">open62541/open62541 · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PJV7Z0AR.html">ANT-2026-PJV7Z0AR</a></span>
+<span class="id-record-title">Integer overflow in variant dimension validation allowing wild-address write via arrayDimensions product overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63633" rel="noopener noreferrer">CVE-2026-63633</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-EWM7B5QP.html">ANT-2026-EWM7B5QP</a></span>
+<span class="id-record-title">Opus audio decode resizes wrong stream, overflows output</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63652" rel="noopener noreferrer">CVE-2026-63652</a>
+    <span class="id-record-meta">freerdp/freerdp · double-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-ZPF40VKS.html">ANT-2026-ZPF40VKS</a></span>
+<span class="id-record-title">Audio server double-free of client format list</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-19" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6386" rel="noopener noreferrer">CVE-2026-6386</a>
+    <span class="id-record-meta">freebsd/freebsd-src · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-5DFBSQR9.html">ANT-2026-5DFBSQR9</a></span>
+<span class="id-record-title">Local privilege escalation via tty_drop_ctty t_session UAF + pmap_pkru_update_range PDPE walk</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-64620" rel="noopener noreferrer">CVE-2026-64620</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-K9VH6KBR.html">ANT-2026-K9VH6KBR</a></span>
+<span class="id-record-title">Pre-auth server heap overflow decrypting client random</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-64621" rel="noopener noreferrer">CVE-2026-64621</a>
+    <span class="id-record-meta">freerdp/freerdp · double-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-XQVPKKPB.html">ANT-2026-XQVPKKPB</a></span>
+<span class="id-record-title">Double-free of MonitorIds when parsing malformed selectedmonitors</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-64624" rel="noopener noreferrer">CVE-2026-64624</a>
+    <span class="id-record-meta">freerdp/freerdp · rce · <span class="sev-high">high</span> · <a href="findings/ANT-2026-TAV704VS.html">ANT-2026-TAV704VS</a></span>
+<span class="id-record-title">.rdp file lines injected as CLI options enabling command execution</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6479" rel="noopener noreferrer">CVE-2026-6479</a>
+    <span class="id-record-meta">postgres/postgres · denial-of-service · <span class="sev-high">high</span> · <a href="findings/ANT-2026-CJQWKW82.html">ANT-2026-CJQWKW82</a></span>
+<span class="id-record-title">Pre-auth unbounded recursion in ProcessStartupPacket: alternating SSL/GSS negotiation requests cause infinite recursion when both are rejected. ssl_done/gss_done flags oscillate (true,false)-&gt;(false,true) endlessly. No check_stack_depth. Pre-authentication.</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-65423" rel="noopener noreferrer">CVE-2026-65423</a>
+    <span class="id-record-meta">open62541/open62541 · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PJV7Z0AR.html">ANT-2026-PJV7Z0AR</a></span>
+<span class="id-record-title">Integer overflow in variant dimension validation allowing wild-address write via arrayDimensions product overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-11" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-66032" rel="noopener noreferrer">CVE-2026-66032</a>
+    <span class="id-record-meta">libssh2/libssh2 · double-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-Q5A1RHS0.html">ANT-2026-Q5A1RHS0</a></span>
+<span class="id-record-title">SFTP double-free via server-controlled FXP_STATUS packet length</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6678" rel="noopener noreferrer">CVE-2026-6678</a>
+    <span class="id-record-meta">wolfssl/wolfssl · buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-JS5D1Z2X.html">ANT-2026-JS5D1Z2X</a></span>
+<span class="id-record-title">Stack buffer overflow in PKCS#7 OtherRecipientInfo OID copy</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="medium|medium|high">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6772" rel="noopener noreferrer">CVE-2026-6772</a>
+    <span class="id-record-meta">nss · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-1ZNMP148.html">ANT-2026-1ZNMP148</a></span>
+<span class="id-record-title">Off-by-one heap buffer overflow in TLS extension negotiation due to SSL_MAX_EXTENSIONS (22) being too small for 23 extensions</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-68579" rel="noopener noreferrer">CVE-2026-68579</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-D5W3VWPN.html">ANT-2026-D5W3VWPN</a></span>
+<span class="id-record-title">Windows clipboard stream read ignores caller buffer size</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-73241" rel="noopener noreferrer">CVE-2026-73241</a>
+    <span class="id-record-meta">freerdp/freerdp · auth-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-TVG98XT0.html">ANT-2026-TVG98XT0</a></span>
+<span class="id-record-title">RDSTLS server authentication bypass via PDU-type confusion</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-73242" rel="noopener noreferrer">CVE-2026-73242</a>
+    <span class="id-record-meta">freerdp/freerdp · oob-write · <span class="sev-high">high</span> · <a href="findings/ANT-2026-S1E4Y69J.html">ANT-2026-S1E4Y69J</a></span>
+<span class="id-record-title">Kerberos wrap-token EC field drives out-of-bounds decrypt</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-04-02" data-sev-cells="high|high|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-76888" rel="noopener noreferrer">CVE-2026-76888</a>
+    <span class="id-record-meta">wireshark/wireshark · heap-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-05VXN1Y6.html">ANT-2026-05VXN1Y6</a></span>
+<span class="id-record-title">RDP ZGFX decompressor history buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-04-02" data-sev-cells="high|high|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-76890" rel="noopener noreferrer">CVE-2026-76890</a>
+    <span class="id-record-meta">wireshark/wireshark · other · <span class="sev-low">low</span> · <a href="findings/ANT-2026-GACTPNVK.html">ANT-2026-GACTPNVK</a></span>
+<span class="id-record-title">sharkd iograph error path leaks stack-array listeners</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-04-02" data-sev-cells="high|high|low">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-76891" rel="noopener noreferrer">CVE-2026-76891</a>
+    <span class="id-record-meta">wireshark/wireshark · other · <span class="sev-low">low</span> · <a href="findings/ANT-2026-27KVBTTP.html">ANT-2026-27KVBTTP</a></span>
+<span class="id-record-title">sharkd tap request leaves dangling stack-object listeners</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-24" data-sev-cells="critical|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-8356" rel="noopener noreferrer">CVE-2026-8356</a>
+    <span class="id-record-meta">libreoffice/core · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-TNXYTAEH.html">ANT-2026-TNXYTAEH</a></span>
+<span class="id-record-title">Stack-buffer-overflow in libreoffice</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-24" data-sev-cells="critical|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-8357" rel="noopener noreferrer">CVE-2026-8357</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-XV1EVAMH.html">ANT-2026-XV1EVAMH</a></span>
+<span class="id-record-title">Heap-buffer-overflow in libreoffice</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-24" data-sev-cells="critical|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-8358" rel="noopener noreferrer">CVE-2026-8358</a>
+    <span class="id-record-meta">libreoffice/core · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-YN5QG0SH.html">ANT-2026-YN5QG0SH</a></span>
+<span class="id-record-title">Heap-buffer-overflow in libreoffice</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-19" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://nvd.nist.gov/vuln/detail/CVE-2026-8462" rel="noopener noreferrer">CVE-2026-8462</a>
+    <span class="id-record-meta">openmeterio/openmeter · sql-injection · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-KC1Y51NF.html">ANT-2026-KC1Y51NF</a></span>
+<span class="id-record-title">SQL injection in ClickHouse JSONPath validation</span>  </div>
+  <p class="id-record-empty" hidden>No published records fall inside the default discovery window.</p>
+</div>
+<div class="pager"><button type="button" class="id-record-prev">‹</button> <span class="id-record-page"></span> <button type="button" class="id-record-next">›</button></div>
+
+<div class="marker" id="ghsas-section">GHSAs <a class="filter-flag" data-filter-flag="ghsas" href="#filters" title="Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026." aria-label="No filters narrowed on this section"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path d="M1.5 2.5h13l-5 6v4.5l-3 1.5v-6z"/></svg><span class="filter-flag-tip">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</span></a></div>
+<p class="section-intro">GitHub Security Advisory records assigned to findings disclosed through this program. The records below are publicly available. Identifiers not listed belong to findings whose disclosure window has not yet closed, or have not yet been published by the assigning authority.</p>
+<div class="id-record-list" data-paginate="10">
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-3q2h-7599-7r76" rel="noopener noreferrer">GHSA-3q2h-7599-7r76</a>
+    <span class="id-record-meta">wireshark/wireshark · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-Y5M37QY4.html">ANT-2026-Y5M37QY4</a></span>
+<span class="id-record-title">TLS ECH transcript reconstruction heap overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-20" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-425r-vwq2-26qv" rel="noopener noreferrer">GHSA-425r-vwq2-26qv</a>
+    <span class="id-record-meta">libexpat/libexpat · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-X3EB6DN3.html">ANT-2026-X3EB6DN3</a></span>
+<span class="id-record-title">Heap-buffer-overflow in doProlog at xmlparse.c:5957 via deeply nested DTD with external entity interaction</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/CESNET/libyang/security/advisories/GHSA-44h9-v855-6rj3" rel="noopener noreferrer">GHSA-44h9-v855-6rj3</a>
+    <span class="id-record-meta">cesnet/libyang · stack-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-573F8CSS.html">ANT-2026-573F8CSS</a></span>
+<span class="id-record-title">Stack buffer overflow storing LYB integer values</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-47qf-hp3h-rwmm" rel="noopener noreferrer">GHSA-47qf-hp3h-rwmm</a>
+    <span class="id-record-meta">wolfssl/wolfssl · signature-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-KNXJMVYC.html">ANT-2026-KNXJMVYC</a></span>
+<span class="id-record-title">Universal ECCSI signature forgery in wolfSSL wc_VerifyEccsiHash via r = 0, s = 0</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-04-10" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://github.com/asterisk/asterisk/security/advisories/GHSA-589g-qgf8-m6mx" rel="noopener noreferrer">GHSA-589g-qgf8-m6mx</a>
+    <span class="id-record-meta">asterisk/asterisk · stack-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-HFGGE6HR.html">ANT-2026-HFGGE6HR</a></span>
+<span class="id-record-title">Stack buffer overflow in parse_simple_message_summary via unbounded sscanf %s (SIP MWI NOTIFY)</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-27" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/OISF/suricata/security/advisories/GHSA-59q6-j4w8-8pjx" rel="noopener noreferrer">GHSA-59q6-j4w8-8pjx</a>
+    <span class="id-record-meta">oisf/suricata · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-WCSVRYAX.html">ANT-2026-WCSVRYAX</a></span>
+<span class="id-record-title">heap-use-after-free in suricata</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-26" data-sev-cells="medium|medium|low">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-5jqq-xpcr-q3r7" rel="noopener noreferrer">GHSA-5jqq-xpcr-q3r7</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-6615Y595.html">ANT-2026-6615Y595</a></span>
+<span class="id-record-title">Final Assessment: 2-Byte Heap Overflow in wolfSSL_X509_notAfter / wolfSSL_X509_notBefore</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-65xm-pfx9-g5p3" rel="noopener noreferrer">GHSA-65xm-pfx9-g5p3</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-0JRYQPCF.html">ANT-2026-0JRYQPCF</a></span>
+<span class="id-record-title">wolfSSL ECH: heap buffer overflow in TLSX_EchChangeSNI via publicName SNI pollution</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-6gff-7f37-2v35" rel="noopener noreferrer">GHSA-6gff-7f37-2v35</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-8DRZW7VM.html">ANT-2026-8DRZW7VM</a></span>
+<span class="id-record-title">Integer overflow in 7z SubStreams count leading to heap buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-72j9-356v-88xq" rel="noopener noreferrer">GHSA-72j9-356v-88xq</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-EWM7B5QP.html">ANT-2026-EWM7B5QP</a></span>
+<span class="id-record-title">Opus audio decode resizes wrong stream, overflows output</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|not_assessed|not_assessed">
+    <a class="id-record-id" href="https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-776c-mpj7-jm3r" rel="noopener noreferrer">GHSA-776c-mpj7-jm3r</a>
+    <span class="id-record-meta">firecracker-microvm/firecracker · oob-read · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PQ3CNCCK.html">ANT-2026-PQ3CNCCK</a></span>
+<span class="id-record-title">Virtio-PCI queue size writable after activation enables host OOB</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|not_assessed|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-78pv-qq8x-94px" rel="noopener noreferrer">GHSA-78pv-qq8x-94px</a>
+    <span class="id-record-meta">gpg/libgcrypt · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-GSPVGEYA.html">ANT-2026-GSPVGEYA</a></span>
+<span class="id-record-title">ML-DSA context string stack buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-04-19" data-sev-cells="high|high|critical">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-7p85-w9px-jpjp" rel="noopener noreferrer">GHSA-7p85-w9px-jpjp</a>
+    <span class="id-record-meta">twigphp/twig · code-injection · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-J3EVXWDY.html">ANT-2026-J3EVXWDY</a></span>
+<span class="id-record-title">PHP code injection via single quote in {% use %} template name</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/jetty/jetty.project/security/advisories/GHSA-85fq-fc5f-7j7g" rel="noopener noreferrer">GHSA-85fq-fc5f-7j7g</a>
+    <span class="id-record-meta">jetty/jetty.project · denial-of-service · <span class="sev-high">high</span> · <a href="findings/ANT-2026-Y9CTVKPP.html">ANT-2026-Y9CTVKPP</a></span>
+<span class="id-record-title">WebSocket reserved opcode bypasses frame size limits</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-86w7-h9x4-hpxv" rel="noopener noreferrer">GHSA-86w7-h9x4-hpxv</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-underflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-Z477W54M.html">ANT-2026-Z477W54M</a></span>
+<span class="id-record-title">Unsigned integer underflow in FSG unpacker section loop</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://github.com/CESNET/libyang/security/advisories/GHSA-9f49-8x56-jmjc" rel="noopener noreferrer">GHSA-9f49-8x56-jmjc</a>
+    <span class="id-record-meta">cesnet/libyang · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-TZQ1KH7E.html">ANT-2026-TZQ1KH7E</a></span>
+<span class="id-record-title">Heap use-after-free write in metadata list management during XML data parsing due to incorrect list head pointer update</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-9g22-w2gr-vcmp" rel="noopener noreferrer">GHSA-9g22-w2gr-vcmp</a>
+    <span class="id-record-meta">freerdp/freerdp · double-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-ZPF40VKS.html">ANT-2026-ZPF40VKS</a></span>
+<span class="id-record-title">Audio server double-free of client format list</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="medium|medium|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-c2q7-642g-3vwr" rel="noopener noreferrer">GHSA-c2q7-642g-3vwr</a>
+    <span class="id-record-meta">nss · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-1ZNMP148.html">ANT-2026-1ZNMP148</a></span>
+<span class="id-record-title">Off-by-one heap buffer overflow in TLS extension negotiation due to SSL_MAX_EXTENSIONS (22) being too small for 23 extensions</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-cc7p-2j3x-x7xf" rel="noopener noreferrer">GHSA-cc7p-2j3x-x7xf</a>
+    <span class="id-record-meta">craftcms/cms · privilege-escalation · <span class="sev-high">high</span> · <a href="findings/ANT-2026-ZQ8AY22X.html">ANT-2026-ZQ8AY22X</a></span>
+<span class="id-record-title">Privilege Escalation/Bypass through UsersController-&gt;actionImpersonateWithToken()</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-chgx-jx3p-rf73" rel="noopener noreferrer">GHSA-chgx-jx3p-rf73</a>
+    <span class="id-record-meta">mastodon/mastodon · signature-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-P2DWB2SK.html">ANT-2026-P2DWB2SK</a></span>
+<span class="id-record-title">LD-Signature bypass via JSON-LD named-graph restructuring</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-crr4-7rm4-8gpw" rel="noopener noreferrer">GHSA-crr4-7rm4-8gpw</a>
+    <span class="id-record-meta">mastodon/mastodon · ssrf · <span class="sev-high">high</span> · <a href="findings/ANT-2026-6DSMTXZ8.html">ANT-2026-6DSMTXZ8</a></span>
+<span class="id-record-title">SSRF Bypass via IPv6 Unspecified Address (`::`) in Mastodon</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-10" data-sev-cells="high|not_assessed|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-f26g-jm89-4g65" rel="noopener noreferrer">GHSA-f26g-jm89-4g65</a>
+    <span class="id-record-meta">gitoxidelabs/gitoxide · rce · <span class="sev-high">high</span> · <a href="findings/ANT-2026-6SNS6KMP.html">ANT-2026-6SNS6KMP</a></span>
+<span class="id-record-title">RCE when updating a Git submodule of a malicious repository</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-f27x-frr8-j9hc" rel="noopener noreferrer">GHSA-f27x-frr8-j9hc</a>
+    <span class="id-record-meta">freerdp/freerdp · double-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-XQVPKKPB.html">ANT-2026-XQVPKKPB</a></span>
+<span class="id-record-title">Double-free of MonitorIds when parsing malformed selectedmonitors</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-28" data-sev-cells="high|high|critical">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-f684-cpcq-j565" rel="noopener noreferrer">GHSA-f684-cpcq-j565</a>
+    <span class="id-record-meta">openssl/openssl · use-after-free · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-AYWQW7P2.html">ANT-2026-AYWQW7P2</a></span>
+<span class="id-record-title">PKCS7_verify frees caller-owned `indata` BIO when `digestAlgorithms` SET is empty</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-grqc-3vmg-p68x" rel="noopener noreferrer">GHSA-grqc-3vmg-p68x</a>
+    <span class="id-record-meta">wolfssl/wolfssl · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-ZZY4987K.html">ANT-2026-ZZY4987K</a></span>
+<span class="id-record-title">wolfCrypt wc_CmacUpdate: 32-bit totalSz wraparound enables CMAC forgery on &gt;4 GiB messages</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-h9wc-3j4p-q5g3" rel="noopener noreferrer">GHSA-h9wc-3j4p-q5g3</a>
+    <span class="id-record-meta">wireshark/wireshark · stack-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-WT5AMKP5.html">ANT-2026-WT5AMKP5</a></span>
+<span class="id-record-title">802.11 EAPOL key-data decryption stack buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-02" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-hfrj-29vh-pcf2" rel="noopener noreferrer">GHSA-hfrj-29vh-pcf2</a>
+    <span class="id-record-meta">wireshark/wireshark · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-3FWTCMVC.html">ANT-2026-3FWTCMVC</a></span>
+<span class="id-record-title">Z39.50 MARC directory count floor/ceil mismatch overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-hg75-4cmp-f367" rel="noopener noreferrer">GHSA-hg75-4cmp-f367</a>
+    <span class="id-record-meta">wolfssl/wolfssl · improper-cert-validation · <span class="sev-high">high</span> · <a href="findings/ANT-2026-K8YY7WWS.html">ANT-2026-K8YY7WWS</a></span>
+<span class="id-record-title">wolfssl x509 verify cert leaf signature verification by</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-hr66-rv65-f5r4" rel="noopener noreferrer">GHSA-hr66-rv65-f5r4</a>
+    <span class="id-record-meta">joomla/joomla-cms · path-traversal · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-GSV3GS1G.html">ANT-2026-GSV3GS1G</a></span>
+<span class="id-record-title">Path Traversal via Glob Injection in com_media Search</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-hwfh-mh4f-m67f" rel="noopener noreferrer">GHSA-hwfh-mh4f-m67f</a>
+    <span class="id-record-meta">postgres/postgres · denial-of-service · <span class="sev-high">high</span> · <a href="findings/ANT-2026-CJQWKW82.html">ANT-2026-CJQWKW82</a></span>
+<span class="id-record-title">Pre-auth unbounded recursion in ProcessStartupPacket: alternating SSL/GSS negotiation requests cause infinite recursion when both are rejected. ssl_done/gss_done flags oscillate (true,false)-&gt;(false,true) endlessly. No check_stack_depth. Pre-authentication.</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|not_assessed|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-j273-m5qq-6825" rel="noopener noreferrer">GHSA-j273-m5qq-6825</a>
+    <span class="id-record-meta">junrar · path-traversal · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-9VJ9JJXQ.html">ANT-2026-9VJ9JJXQ</a></span>
+<span class="id-record-title">Arbitrary file write due to backslash path traversal</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-29" data-sev-cells="low|low|not_assessed">
+    <a class="id-record-id" href="https://github.com/libvips/libvips/security/advisories/GHSA-jmwm-wc68-mhwm" rel="noopener noreferrer">GHSA-jmwm-wc68-mhwm</a>
+    <span class="id-record-meta">libvips/libvips · oob-write · <span class="sev-low">low</span> · <a href="findings/ANT-2026-JBKARRJ7.html">ANT-2026-JBKARRJ7</a></span>
+<span class="id-record-title">Out-of-bounds IFD array access in EXIF metadata processing leading to write through corrupted pointer</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-m37j-jcr2-8gcc" rel="noopener noreferrer">GHSA-m37j-jcr2-8gcc</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-D5W3VWPN.html">ANT-2026-D5W3VWPN</a></span>
+<span class="id-record-title">Windows clipboard stream read ignores caller buffer size</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-09" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-m62j-63mf-xr95" rel="noopener noreferrer">GHSA-m62j-63mf-xr95</a>
+    <span class="id-record-meta">dnsmasq · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-PCBAKVPB.html">ANT-2026-PCBAKVPB</a></span>
+<span class="id-record-title">Heap overflow in privileged helper via oversized DHCPv6 client identifier</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-m77r-vqw2-hffx" rel="noopener noreferrer">GHSA-m77r-vqw2-hffx</a>
+    <span class="id-record-meta">wolfssl/wolfssl · crypto-failure · <span class="sev-high">high</span> · <a href="findings/ANT-2026-P23DVQM2.html">ANT-2026-P23DVQM2</a></span>
+<span class="id-record-title">wolfSSL PKCS#7 AuthEnvelopedData decoder accepts truncated AES-GCM authentication tags</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-19" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-mm6w-gr99-p3jj" rel="noopener noreferrer">GHSA-mm6w-gr99-p3jj</a>
+    <span class="id-record-meta">twigphp/twig · auth-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-203E7E95.html">ANT-2026-203E7E95</a></span>
+<span class="id-record-title">Sandbox bypass via object-destructuring assignment</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mpxh-8fq3-x8mh" rel="noopener noreferrer">GHSA-mpxh-8fq3-x8mh</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-H97FY6C8.html">ANT-2026-H97FY6C8</a></span>
+<span class="id-record-title">Heap-buffer-overflow in cliprdr_main.c:547</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-HN9XZXJ9.html">ANT-2026-HN9XZXJ9</a></span>
+<span class="id-record-title">heap-buffer-overflow write (attacker-controlled offset, partially-controlled data via rle delta values; up to ~15kb overwrite past ptempdata with these parameters, further with larger nxdst) in planar.c:472</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-RXYVE4DZ.html">ANT-2026-RXYVE4DZ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mvpx-xj7r-3p3r" rel="noopener noreferrer">GHSA-mvpx-xj7r-3p3r</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-H97FY6C8.html">ANT-2026-H97FY6C8</a></span>
+<span class="id-record-title">Heap-buffer-overflow in cliprdr_main.c:547</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-HN9XZXJ9.html">ANT-2026-HN9XZXJ9</a></span>
+<span class="id-record-title">heap-buffer-overflow write (attacker-controlled offset, partially-controlled data via rle delta values; up to ~15kb overwrite past ptempdata with these parameters, further with larger nxdst) in planar.c:472</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-RXYVE4DZ.html">ANT-2026-RXYVE4DZ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-27" data-sev-cells="high|medium|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-mx4j-fjqx-f8qj" rel="noopener noreferrer">GHSA-mx4j-fjqx-f8qj</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-VV0PRKKV.html">ANT-2026-VV0PRKKV</a></span>
+<span class="id-record-title">wolfSSL: heap buffer overflow in CertFromX509() from AuthorityKeyIdentifier size mismatch</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-p5j5-4j3q-8mq8" rel="noopener noreferrer">GHSA-p5j5-4j3q-8mq8</a>
+    <span class="id-record-meta">typo3 · xss · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-MHJX7J31.html">ANT-2026-MHJX7J31</a></span>
+<span class="id-record-title">Stored XSS in TYPO3 HTML Sanitizer via `xmlns` Namespace URI Injection</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-p6r2-4hgm-m6ff" rel="noopener noreferrer">GHSA-p6r2-4hgm-m6ff</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-H97FY6C8.html">ANT-2026-H97FY6C8</a></span>
+<span class="id-record-title">Heap-buffer-overflow in cliprdr_main.c:547</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-HN9XZXJ9.html">ANT-2026-HN9XZXJ9</a></span>
+<span class="id-record-title">heap-buffer-overflow write (attacker-controlled offset, partially-controlled data via rle delta values; up to ~15kb overwrite past ptempdata with these parameters, further with larger nxdst) in planar.c:472</span>    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-RXYVE4DZ.html">ANT-2026-RXYVE4DZ</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-20" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/libass/libass/security/advisories/GHSA-pjjp-65r7-ppgm" rel="noopener noreferrer">GHSA-pjjp-65r7-ppgm</a>
+    <span class="id-record-meta">libass/libass · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-9WB9SMM6.html">ANT-2026-9WB9SMM6</a></span>
+<span class="id-record-title">Heap-buffer-overflow in wrap_lines_measure at ass_render.c:1902 via malformed ASS/SSA subtitle</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-pjqx-v446-x7fc" rel="noopener noreferrer">GHSA-pjqx-v446-x7fc</a>
+    <span class="id-record-meta">freerdp/freerdp · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-K9VH6KBR.html">ANT-2026-K9VH6KBR</a></span>
+<span class="id-record-title">Pre-auth server heap overflow decrypting client random</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-16" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/dhis2/dhis2-core/security/advisories/GHSA-pwmg-mvjw-4m23" rel="noopener noreferrer">GHSA-pwmg-mvjw-4m23</a>
+    <span class="id-record-meta">dhis2/dhis2-core · sql-injection · <span class="sev-high">high</span> · <a href="findings/ANT-2026-FW0V6SAJ.html">ANT-2026-FW0V6SAJ</a></span>
+<span class="id-record-title">SQL Injection via Unquoted Column Name in SqlView Filter Parameter</span>  </div>
+  <div class="card id-record" data-sev="low" data-discovered="2026-03-24" data-sev-cells="high|high|low">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-q349-x427-xg3w" rel="noopener noreferrer">GHSA-q349-x427-xg3w</a>
+    <span class="id-record-meta">wolfssl/wolfssl · heap-buffer-overflow · <span class="sev-low">low</span> · <a href="findings/ANT-2026-87DJGDRB.html">ANT-2026-87DJGDRB</a></span>
+<span class="id-record-title">Heap-buffer-overflow in sha.c:733</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://github.com/jqlang/jq/security/advisories/GHSA-q3h9-m34w-h76f" rel="noopener noreferrer">GHSA-q3h9-m34w-h76f</a>
+    <span class="id-record-meta">jqlang/jq · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-EBDTPNVH.html">ANT-2026-EBDTPNVH</a></span>
+<span class="id-record-title">Integer overflow in string concatenation leading to 1 GB memcpy heap buffer overflow</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-24" data-sev-cells="critical|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/OISF/suricata/security/advisories/GHSA-qmc9-vqq2-8mv3" rel="noopener noreferrer">GHSA-qmc9-vqq2-8mv3</a>
+    <span class="id-record-meta">oisf/suricata · use-after-free · <span class="sev-high">high</span> · <a href="findings/ANT-2026-61Y3NTY3.html">ANT-2026-61Y3NTY3</a></span>
+<span class="id-record-title">Use-after-free in mod.rs:547</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-20" data-sev-cells="critical|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-qpmf-9p9c-455w" rel="noopener noreferrer">GHSA-qpmf-9p9c-455w</a>
+    <span class="id-record-meta">util-linux/util-linux · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-ZRDQDR79.html">ANT-2026-ZRDQDR79</a></span>
+<span class="id-record-title">Heap-use-after-free in blkid_partition_get_start at partitions.c:1447 via nested BSD disklabel in DOS partition table</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-30" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-rh79-75qm-gwjr" rel="noopener noreferrer">GHSA-rh79-75qm-gwjr</a>
+    <span class="id-record-meta">go-gitea/gitea · idor · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-VN61PHA0.html">ANT-2026-VN61PHA0</a></span>
+<span class="id-record-title">Gitea LFS Deploy-Key Privilege Escalation — Cross-Repository Data Exfiltration</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-rjvx-x4g3-vr6w" rel="noopener noreferrer">GHSA-rjvx-x4g3-vr6w</a>
+    <span class="id-record-meta">cisco-talos/clamav · integer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-VVPEMVDE.html">ANT-2026-VVPEMVDE</a></span>
+<span class="id-record-title">Integer overflow in PE rebuild section size summation in Aspack unpacker</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-rq8f-9xjh-pr3m" rel="noopener noreferrer">GHSA-rq8f-9xjh-pr3m</a>
+    <span class="id-record-meta">freerdp/freerdp · rce · <span class="sev-high">high</span> · <a href="findings/ANT-2026-TAV704VS.html">ANT-2026-TAV704VS</a></span>
+<span class="id-record-title">.rdp file lines injected as CLI options enabling command execution</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-rqgv-grx4-xm6x" rel="noopener noreferrer">GHSA-rqgv-grx4-xm6x</a>
+    <span class="id-record-meta">freerdp/freerdp · auth-bypass · <span class="sev-high">high</span> · <a href="findings/ANT-2026-TVG98XT0.html">ANT-2026-TVG98XT0</a></span>
+<span class="id-record-title">RDSTLS server authentication bypass via PDU-type confusion</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-05-14" data-sev-cells="high|not_assessed|not_assessed">
+    <a class="id-record-id" href="https://github.com/randombit/botan/security/advisories/GHSA-v782-6fq4-q827" rel="noopener noreferrer">GHSA-v782-6fq4-q827</a>
+    <span class="id-record-meta">randombit/botan · improper-cert-validation · <span class="sev-high">high</span> · <a href="findings/ANT-2026-2FETJP49.html">ANT-2026-2FETJP49</a></span>
+<span class="id-record-title">[security] certificate_known(): Complete x509 bypass</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-v7jp-vmx6-5429" rel="noopener noreferrer">GHSA-v7jp-vmx6-5429</a>
+    <span class="id-record-meta">cesnet/libyang · use-after-free · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-TZQ1KH7E.html">ANT-2026-TZQ1KH7E</a></span>
+<span class="id-record-title">Heap use-after-free write in metadata list management during XML data parsing due to incorrect list head pointer update</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-30" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-v8h9-9g8j-w7h4" rel="noopener noreferrer">GHSA-v8h9-9g8j-w7h4</a>
+    <span class="id-record-meta">joomla/joomla-cms · path-traversal · <span class="sev-high">high</span> · <a href="findings/ANT-2026-HHD77M82.html">ANT-2026-HHD77M82</a></span>
+<span class="id-record-title">Path Traversal in `layout` Parameter Leads to Arbitrary PHP File Inclusion (LFI → RCE)</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-vgv9-mv66-mpc7" rel="noopener noreferrer">GHSA-vgv9-mv66-mpc7</a>
+    <span class="id-record-meta">wolfssl/wolfssl · crypto-failure · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-SB4PHA43.html">ANT-2026-SB4PHA43</a></span>
+<span class="id-record-title">ARIA-GCM Nonce Reuse in TLS 1.2 Record Encryption in wolfSSL</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-04-02" data-sev-cells="high|high|not_assessed">
+    <a class="id-record-id" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-vv64-95pc-vj9v" rel="noopener noreferrer">GHSA-vv64-95pc-vj9v</a>
+    <span class="id-record-meta">freerdp/freerdp · oob-write · <span class="sev-high">high</span> · <a href="findings/ANT-2026-S1E4Y69J.html">ANT-2026-S1E4Y69J</a></span>
+<span class="id-record-title">Kerberos wrap-token EC field drives out-of-bounds decrypt</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-02-15" data-sev-cells="critical|not_assessed|critical">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-w52v-v783-gw97" rel="noopener noreferrer">GHSA-w52v-v783-gw97</a>
+    <span class="id-record-meta">tryghost/ghost · sql-injection · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-69D8H6RP.html">ANT-2026-69D8H6RP</a></span>
+<span class="id-record-title">Critical Vulnerability (CVSS 9.1) : SQLi from unauthenticated user; arbitrary DB reads</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-19" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-wc3v-3457-c8cm" rel="noopener noreferrer">GHSA-wc3v-3457-c8cm</a>
+    <span class="id-record-meta">openmeterio/openmeter · sql-injection · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-KC1Y51NF.html">ANT-2026-KC1Y51NF</a></span>
+<span class="id-record-title">SQL injection in ClickHouse JSONPath validation</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-03-29" data-sev-cells="medium|medium|not_assessed">
+    <a class="id-record-id" href="https://github.com/libgit2/libgit2/security/advisories/GHSA-wfx7-g85r-q6vw" rel="noopener noreferrer">GHSA-wfx7-g85r-q6vw</a>
+    <span class="id-record-meta">libgit2/libgit2 · heap-buffer-overflow · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-RVPC18B1.html">ANT-2026-RVPC18B1</a></span>
+<span class="id-record-title">Heap buffer overflow in bundled PCRE regex compilation via pre-compile/compile phase mismatch in atomic wrapping</span>  </div>
+  <div class="card id-record" data-sev="critical" data-discovered="2026-03-24" data-sev-cells="critical|critical|not_assessed">
+    <a class="id-record-id" href="https://github.com/wasm-micro-runtime/wasm-micro-runtime/security/advisories/GHSA-wj3p-xhqm-pffc" rel="noopener noreferrer">GHSA-wj3p-xhqm-pffc</a>
+    <span class="id-record-meta">bytecodealliance/wasm-micro-runtime · heap-buffer-overflow · <span class="sev-critical">critical</span> · <a href="findings/ANT-2026-P7DSVPH6.html">ANT-2026-P7DSVPH6</a></span>
+<span class="id-record-title">Heap-buffer-overflow in posix.c:2253</span>  </div>
+  <div class="card id-record" data-sev="high" data-discovered="2026-03-29" data-sev-cells="high|high|high">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-x9h5-r9v2-vcww" rel="noopener noreferrer">GHSA-x9h5-r9v2-vcww</a>
+    <span class="id-record-meta">imagemagick/imagemagick · heap-buffer-overflow · <span class="sev-high">high</span> · <a href="findings/ANT-2026-T44WA684.html">ANT-2026-T44WA684</a></span>
+<span class="id-record-title">Heap buffer overflow in MVG pattern rendering via CopyMagickString without bounds check</span>  </div>
+  <div class="card id-record" data-sev="medium" data-discovered="2026-04-09" data-sev-cells="high|high|medium">
+    <a class="id-record-id" href="https://github.com/advisories/GHSA-xjvp-4fhw-gc47" rel="noopener noreferrer">GHSA-xjvp-4fhw-gc47</a>
+    <span class="id-record-meta">opencontainers/runc · symlink-following · <span class="sev-medium">medium</span> · <a href="findings/ANT-2026-N6TD9MF6.html">ANT-2026-N6TD9MF6</a></span>
+<span class="id-record-title">Host filesystem write via /dev symlink in container image</span>  </div>
+  <p class="id-record-empty" hidden>No published records fall inside the default discovery window.</p>
+</div>
+<div class="pager"><button type="button" class="id-record-prev">‹</button> <span class="id-record-page"></span> <button type="button" class="id-record-next">›</button></div>
+
+<div class="marker">SEVERITY AGREEMENT <a class="filter-flag" data-filter-flag="heatmap" href="#filters" title="Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026." aria-label="No filters narrowed on this section"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" focusable="false"><path d="M1.5 2.5h13l-5 6v4.5l-3 1.5v-6z"/></svg><span class="filter-flag-tip">Showing all assessment sources and severities for findings discovered between November 1, 2025 and October 2, 2026.</span></a></div>
+<p class="section-intro">This graph compares Claude's initial severity assessments against the external security research firms' assessments, for those findings that have completed triage. Cells on the diagonal indicate agreement. The number assessed here represents the subset of vulnerabilities included on our disclosure ledger that were reviewed by our security partners, rather than disclosed by us directly.</p>
+<div class="figure" id="severity-figure">
+  <svg class="heatmap" viewBox="0 0 316 316" width="100%" xmlns="http://www.w3.org/2000/svg"><text class="axis" x="196.0" y="10" text-anchor="middle"><tspan x="196.0">External security research</tspan><tspan x="196.0" dy="12">firm-assessed</tspan></text><text class="axis" x="14" y="196.0" text-anchor="middle" transform="rotate(-90 14 196.0)">Claude-assessed</text><text class="axis" x="78" y="116.0" text-anchor="end">critical</text><rect class="heat-cell heat-sep" x="84" y="84" width="56" height="56" data-count="116" fill="rgba(204,0,0,0.19)"><title>Claude-assessed critical vs external security research firm-assessed critical: 116</title></rect><text class="axis heat-count" x="112.0" y="116.0" text-anchor="middle">116</text><rect class="heat-cell heat-sep" x="140" y="84" width="56" height="56" data-count="121" fill="rgba(204,0,0,0.20)"><title>Claude-assessed critical vs external security research firm-assessed high: 121</title></rect><text class="axis heat-count" x="168.0" y="116.0" text-anchor="middle">121</text><rect class="heat-cell heat-sep" x="196" y="84" width="56" height="56" data-count="7" fill="rgba(204,0,0,0.09)"><title>Claude-assessed critical vs external security research firm-assessed medium: 7</title></rect><text class="axis heat-count" x="224.0" y="116.0" text-anchor="middle">7</text><rect class="heat-cell heat-sep" x="252" y="84" width="56" height="56" data-count="15" fill="rgba(204,0,0,0.09)"><title>Claude-assessed critical vs external security research firm-assessed low: 15</title></rect><text class="axis heat-count" x="280.0" y="116.0" text-anchor="middle">15</text><text class="axis" x="78" y="172.0" text-anchor="end">high</text><rect class="heat-cell heat-sep" x="84" y="140" width="56" height="56" data-count="14" fill="rgba(204,0,0,0.09)"><title>Claude-assessed high vs external security research firm-assessed critical: 14</title></rect><text class="axis heat-count" x="112.0" y="172.0" text-anchor="middle">14</text><rect class="heat-cell heat-sep" x="140" y="140" width="56" height="56" data-count="828" fill="rgba(204,0,0,0.90)"><title>Claude-assessed high vs external security research firm-assessed high: 828</title></rect><text class="axis heat-count on-dark" x="168.0" y="172.0" text-anchor="middle">828</text><rect class="heat-cell heat-sep" x="196" y="140" width="56" height="56" data-count="23" fill="rgba(204,0,0,0.10)"><title>Claude-assessed high vs external security research firm-assessed medium: 23</title></rect><text class="axis heat-count" x="224.0" y="172.0" text-anchor="middle">23</text><rect class="heat-cell heat-sep" x="252" y="140" width="56" height="56" data-count="12" fill="rgba(204,0,0,0.09)"><title>Claude-assessed high vs external security research firm-assessed low: 12</title></rect><text class="axis heat-count" x="280.0" y="172.0" text-anchor="middle">12</text><text class="axis" x="78" y="228.0" text-anchor="end">medium</text><rect class="heat-cell heat-sep" x="84" y="196" width="56" height="56" data-count="2" fill="rgba(204,0,0,0.08)"><title>Claude-assessed medium vs external security research firm-assessed critical: 2</title></rect><text class="axis heat-count" x="112.0" y="228.0" text-anchor="middle">2</text><rect class="heat-cell heat-sep" x="140" y="196" width="56" height="56" data-count="25" fill="rgba(204,0,0,0.10)"><title>Claude-assessed medium vs external security research firm-assessed high: 25</title></rect><text class="axis heat-count" x="168.0" y="228.0" text-anchor="middle">25</text><rect class="heat-cell heat-sep" x="196" y="196" width="56" height="56" data-count="148" fill="rgba(204,0,0,0.23)"><title>Claude-assessed medium vs external security research firm-assessed medium: 148</title></rect><text class="axis heat-count" x="224.0" y="228.0" text-anchor="middle">148</text><rect class="heat-cell heat-sep" x="252" y="196" width="56" height="56" data-count="2" fill="rgba(204,0,0,0.08)"><title>Claude-assessed medium vs external security research firm-assessed low: 2</title></rect><text class="axis heat-count" x="280.0" y="228.0" text-anchor="middle">2</text><text class="axis" x="78" y="284.0" text-anchor="end">low</text><rect class="heat-cell heat-sep" x="84" y="252" width="56" height="56" data-count="3" fill="rgba(204,0,0,0.08)"><title>Claude-assessed low vs external security research firm-assessed critical: 3</title></rect><text class="axis heat-count" x="112.0" y="284.0" text-anchor="middle">3</text><rect class="heat-cell heat-sep" x="140" y="252" width="56" height="56" data-count="0" fill="rgba(204,0,0,0.00)"><title>Claude-assessed low vs external security research firm-assessed high: 0</title></rect><rect class="heat-cell heat-sep" x="196" y="252" width="56" height="56" data-count="3" fill="rgba(204,0,0,0.08)"><title>Claude-assessed low vs external security research firm-assessed medium: 3</title></rect><text class="axis heat-count" x="224.0" y="284.0" text-anchor="middle">3</text><rect class="heat-cell heat-sep" x="252" y="252" width="56" height="56" data-count="18" fill="rgba(204,0,0,0.10)"><title>Claude-assessed low vs external security research firm-assessed low: 18</title></rect><text class="axis heat-count" x="280.0" y="284.0" text-anchor="middle">18</text><text class="axis" x="112.0" y="76" text-anchor="middle">critical</text><text class="axis" x="168.0" y="76" text-anchor="middle">high</text><text class="axis" x="224.0" y="76" text-anchor="middle">medium</text><text class="axis" x="280.0" y="76" text-anchor="middle">low</text></svg>
+  <figcaption>
+    Claude-assessed (rows) against external security research firm-assessed (columns), n = 1337.
+    83.0% exact agreement, 97.1% within one band.
+  </figcaption>
+</div>
+<p class="section-intro">Anthropic's severity assessments are produced before any maintainer input. Project maintainers often apply project-specific severity rules that Claude does not have access to at run time, so what one maintainer rates as critical another may rate as low. The external security research firms incorporate that context, which is why their assessments tend to be lower.</p>
+
+<div class="marker">PROVENANCE</div>
+<p class="section-intro">This snapshot was generated on 2026-10-02 19:47 UTC. The manifest hash below is the SHA-3-512 hash of the structured payload and is republished with every dated snapshot so any figure on this page can be verified against the <a href="data/payload.json">machine-readable record</a>.</p>
+<p class="hash full">Revision 35 · checksum 1fca6b3bafbdab0c2a55896e88c547016e90b28c554dc0b051895fc5639b0e5160b07598ccb6d2dcbfb9277b09a99ea81b4a4ba49cf36796a76fa7b6d97888f9</p>
+</main>
+<aside aria-label="Subscribe">
+<hr style="margin-top: 60px; margin-bottom: 40px; border: none; border-bottom: 1px solid var(--hairline);">
+<h2 style="margin-top: 0;">Subscribe</h2>
+<div id="hubspot-form-container" style="margin-bottom: 40px;"></div>
+<script charset="utf-8" type="text/javascript" src="//js.hsforms.net/forms/embed/v2.js"></script>
+<script>
+  hbspt.forms.create({
+    portalId: "23987127",
+    formId: "a1b9e951-ba1d-4c55-9876-cb69d3f81518",
+    region: "na1",
+    target: "#hubspot-form-container"
+  });
+</script>
+</aside>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-10-02 19:47 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>1fca6b3bafbdab0c2a55896e…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="data/payload.json">payload.json</a></p>
+</footer>
+<script src="assets/figures.js" data-root=""></script>
+<script src="assets/ledger.js"></script>
+</body>
+</html>
