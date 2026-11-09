@@ -39,8 +39,24 @@ SNAPSHOT_DEFAULT_DATA = ["data/payload.json", "data/ledger.json"]
 # Anthropic's disclosure policy page, copied once a month (spec rule R5).
 POLICY_URL = "https://www.anthropic.com/coordinated-vulnerability-disclosure"
 
-# Internet Archive "Save Page Now".
-SPN_PREFIX = "https://web.archive.org/save/"
+# Internet Archive.
+WAYBACK_BASE = "https://web.archive.org/"
+SPN_PREFIX = WAYBACK_BASE + "save/"  # anonymous Save Page Now: GET save/<url>
+AVAILABILITY_URL = "https://archive.org/wayback/available"
+# Files we ask the Archive to save (they hold the commitment hashes).
+ARCHIVE_FILES = ["dashboard.html", "ledger.json", "payload.json"]
+ARCHIVE_SPACING_SECONDS = 20  # at least this long between save requests
+ARCHIVE_BACKOFF_SECONDS = (60, 180, 600)  # waits before retry rounds 2, 3, 4
+ARCHIVE_BUDGET_SECONDS = 30 * 60  # stop retrying after this long
+ARCHIVE_POLL_INTERVAL_SECONDS = 10  # authenticated mode: job status polling
+ARCHIVE_POLL_TIMEOUT_SECONDS = 180
+# A snapshot counts as a receipt for our fetch only if dated no later than this
+# after our fetch (or, if the Archive reused an older snapshot, see METHODOLOGY).
+ARCHIVE_RECEIPT_WINDOW_SECONDS = 24 * 3600
+# Look back this many days for earlier runs still waiting for a receipt.
+LATE_RECEIPT_LOOKBACK_DAYS = 7
+# Open an issue when this many consecutive capture days have no receipt.
+ARCHIVE_STALE_DAYS = 3
 
 # Politeness: at least this many seconds between requests to the same host.
 MIN_INTERVAL_SECONDS = 1.0

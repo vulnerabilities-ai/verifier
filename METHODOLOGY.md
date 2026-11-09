@@ -24,15 +24,29 @@ Pinned definitions for this repository. They are copied from the build spec (`do
   - the actual UTC fetch time. The scheduled cron time is never assumed, because scheduled runs can start late.
 - **All or nothing.** The five files are fetched and validated before anything is written. A non-200 status, an empty file, invalid JSON or a page that is not HTML fails the run loudly, and nothing is stored except a log row.
 - **Store only when changed.** If a file's bytes are identical (same SHA-256) to a copy already in the archive, the file is not saved again, and `stored_at` points to the existing copy. If a file changes more than once in one UTC day, later copies get a time suffix such as `payload.T142301Z.json`.
-- **Internet Archive.** Each run asks Save Page Now to save the dashboard address. The snapshot address and timestamp it returns are recorded as returned. The Archive may reuse a recent snapshot instead of making a new one (this happened on October 30, 2026), and when the returned timestamp is earlier than the request, the manifest notes it. If saving fails after one retry, the capture is still kept, and the run is marked `ok-archive-failed` and opens an issue.
+- **Internet Archive.** See the section below. An Archive problem never fails the run when the capture itself succeeded.
 - **Capture log.** `captures/capture-log.csv` gets one row per run, whatever the outcome. Statuses:
-  - `ok`;
-  - `ok-archive-failed`;
+  - `ok` (capture stored and an Archive receipt for every file asked about);
+  - `archive-pending` (capture stored; at least one Archive receipt is still missing, so the run is green with a warning);
+  - `ok-archive-failed` (used only by runs on November 8 and 9, 2026, before this rule changed);
   - `ok-with-errors` (the main capture is kept, but the backfill or policy copy failed);
   - `failed`;
   - `stopped-robots`;
   - `failed-test` and `passed-test`, for deliberate test runs with a different address. Test runs store nothing except the log row and never contact the Internet Archive.
 - **Integrity.** `python -m verifier audit` checks that every stored file matches the SHA-256 in its manifest, and that every raw file is listed in a manifest. It runs on every pull request.
+
+### Internet Archive receipts
+
+The receipts are an outside check on our own fetch times. Our own archive does not depend on them.
+
+- **What is saved.** Each run asks Save Page Now to save the dashboard page, `data/ledger.json` and `data/payload.json`, the files that hold the commitment hashes. Requests are at least 20 seconds apart. The pipeline uses authenticated Save Page Now when the repository secrets `IA_ACCESS_KEY` and `IA_SECRET_KEY` exist, and anonymous mode otherwise. The mode is recorded. The keys are never written or printed.
+- **Retries.** Requests that fail are retried in rounds after 1, 3 and 10 minutes, within a 30-minute budget. HTTP 429 is recorded as "Archive busy". Every attempt is recorded with its time and outcome.
+- **Availability check.** After any failed or ambiguous request, the pipeline asks the Archive's availability API (`archive.org/wayback/available`) whether a snapshot dated at or after our fetch exists, and records the answer. This matters because a request can fail on our side while the Archive still makes the capture. On November 8, 2026, a snapshot was created two seconds after a request that returned an error.
+- **Raw-copy check.** For every receipt, the pipeline fetches the Archive's raw copy (the `id_` form of the snapshot address, which serves the bytes as captured) and compares its SHA-256 with ours. It records `match`, `mismatch` or `unavailable`, plus the Archive's hash. A mismatch is recorded as a fact, not judged. For example, the Archive may have captured a different version of the page.
+- **Reused snapshots.** Save Page Now often returns an existing recent snapshot instead of making a new one. This happened on October 30, 2026 and in the November 8 and 9 runs. The pipeline records the timestamp exactly as returned. When it is earlier than our fetch, the receipt is marked `reused_existing_snapshot` with a negative `seconds_after_our_fetch`. A reused snapshot shows what the Archive held at its own timestamp. It is not a copy of our fetch, and the raw-copy check shows whether the bytes are the same.
+- **Receipt window.** A snapshot found through the availability API counts as a receipt for our fetch only if it is dated no more than 24 hours after our fetch.
+- **Late receipts.** Each run looks back 7 days for earlier runs still waiting for a receipt and asks the availability API again. It also retries raw-copy checks that were unavailable. Anything found is appended to that day's MANIFEST.json under `appended_notes`, with the date it was found. What was already written is never changed.
+- **When it alerts.** An Archive problem alone never fails a run. An issue opens only if the capture itself failed, or if there has been no Archive receipt at all for 3 consecutive capture days. Late receipts count.
 
 ### Backfill of Anthropic's own archive
 
@@ -46,7 +60,20 @@ Once a month, the pipeline saves a dated copy of `https://www.anthropic.com/coor
 
 ## First seen by us
 
-The UTC time of the earliest daily capture (`captures/YYYY/MM/DD/`) that contains a hash. Captures are daily, so the resolution is about a day, and the Internet Archive receipts give an outside check. The backfill copies under `captures/anthropic-archive/` never count. Our archive begins with Jon's manual capture on October 30, 2026, whose exact fetch time and headers were not recorded.
+**Definition.** The UTC fetch time of the earliest daily capture (`captures/YYYY/MM/DD/`) whose stored files contain a hash, taken from that capture's manifest. Captures are daily, so the resolution is about a day.
+
+**What counts as evidence, strongest first:**
+
+1. **Our capture.** The raw bytes, their SHA-256 and the fetch time in the manifest, all committed to this public repository. The git commit date is an independent, though not tamper-proof, timestamp.
+2. **A matching Internet Archive receipt.** A snapshot dated at or after our fetch, and within 24 hours of it, whose raw copy has the same SHA-256 as our file. This is an outside, third-party record that those exact bytes were public by the snapshot's time.
+3. **A non-matching or reused receipt.** This shows only what the Archive held at its own timestamp. It supports the first-seen time only if the hash in question also appears in the Archive's copy. That check belongs to later phases, and is never assumed.
+
+**What never counts:**
+- the backfill copies under `captures/anthropic-archive/`;
+- Anthropic's own dates (for example `committed_at`), which are Lab-reported;
+- the cron time a run was scheduled for.
+
+Our archive begins with Jon's manual capture on October 30, 2026, whose exact fetch time and headers were not recorded.
 
 ## Verification labels
 

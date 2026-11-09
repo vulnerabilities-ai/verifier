@@ -24,19 +24,24 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60 # the Archive step may retry for up to 30 minutes
     permissions:
       contents: write # commit under captures/
       issues: write # open an issue when a run fails
       actions: write # monthly keep-alive (re-enable this schedule)
     steps:
       - name: Check out the repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.1.0 (2026-07-16)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Capture
         id: capture
         env:
           TEST_BASE_URL: ${{ inputs.test_base_url }}
+          # Optional. If both are set, authenticated Save Page Now is used;
+          # otherwise anonymous. GitHub masks secret values in logs, and the
+          # program never prints or writes them.
+          IA_ACCESS_KEY: ${{ secrets.IA_ACCESS_KEY }}
+          IA_SECRET_KEY: ${{ secrets.IA_SECRET_KEY }}
         run: |
           set +e
           PYTHONPATH=src python3 -m verifier capture \
@@ -79,14 +84,17 @@ jobs:
           echo "::error::Could not push the capture commit."
           exit 1
 
+      # Exit codes: 0 ok (Archive problems are warnings only), 4 capture ok but
+      # no Archive receipt for 3 consecutive days (green run + issue),
+      # 1 capture failed, 3 stopped by robots.txt.
       - name: Fail the run if the capture failed
-        if: steps.capture.outputs.exit_code != '0'
+        if: steps.capture.outputs.exit_code != '0' && steps.capture.outputs.exit_code != '4'
         run: |
           echo "::error::Capture finished with exit code ${{ steps.capture.outputs.exit_code }}. See the summary above."
           exit 1
 
-      - name: Open or update an issue about the failure
-        if: failure()
+      - name: Open or update an issue
+        if: failure() || steps.capture.outputs.exit_code == '4'
         env:
           GH_TOKEN: ${{ github.token }}
           EXIT_CODE: ${{ steps.capture.outputs.exit_code }}
@@ -94,7 +102,10 @@ jobs:
         run: |
           set -euo pipefail
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          if [ "${EXIT_CODE:-}" = "3" ]; then
+          if [ "${EXIT_CODE:-}" = "4" ]; then
+            title="Internet Archive: no receipt for 3 consecutive days"
+            next="The daily captures are fine, but the Internet Archive has not given a receipt for 3 days in a row. Our own archive is unaffected. Later runs keep checking and will append any receipts they find. Ask Claude Code to look if this continues."
+          elif [ "${EXIT_CODE:-}" = "3" ]; then
             title="Capture stopped: robots.txt disallows a path (decision needed)"
             next="A robots.txt file now disallows a page the pipeline needs. The pipeline stopped and will not fetch it. Jon decides what to do next."
           elif [ -n "${TEST_BASE_URL:-}" ]; then

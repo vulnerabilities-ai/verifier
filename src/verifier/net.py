@@ -94,9 +94,14 @@ class Fetcher:
                 time.sleep(self.min_interval - gap)
         self._last_request[host] = time.monotonic()
 
-    def _raw_get(self, url: str, timeout: float | None = None) -> Response:
+    def _raw_get(self, url: str, timeout: float | None = None, *, method: str = "GET",
+                 data: bytes | None = None, headers: dict[str, str] | None = None) -> Response:
+        """One HTTP request. Request headers (which may carry credentials) are
+        never stored in the Response or put into error messages."""
         self._wait_turn(url)
-        req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+        h = {"User-Agent": self.user_agent}
+        h.update(headers or {})
+        req = urllib.request.Request(url, data=data, headers=h, method=method)
         fetched = utc_now()
         try:
             with self.opener.open(req, timeout=timeout or self.timeout) as r:
@@ -106,7 +111,8 @@ class Fetcher:
             body = e.read() if e.fp else b""
             return Response(url, e.geturl() or url, e.code, dict(e.headers.items()) if e.headers else {}, body, fetched)
         except (urllib.error.URLError, OSError) as e:
-            raise CaptureError(f"Could not reach {url}: {e}") from e
+            reason = getattr(e, "reason", e)
+            raise CaptureError(f"Could not reach {url}: {type(reason).__name__}: {reason}") from None
 
     # -- robots.txt -------------------------------------------------------
     def _robots_for(self, url: str):
@@ -154,9 +160,10 @@ class Fetcher:
         return {h: r.as_dict() for h, (_, r) in self._robots.items()}
 
     # -- fetching ---------------------------------------------------------
-    def get(self, url: str, timeout: float | None = None) -> Response:
+    def get(self, url: str, timeout: float | None = None, *, method: str = "GET",
+            data: bytes | None = None, headers: dict[str, str] | None = None) -> Response:
         rp, result = self._robots_for(url)
         if not rp.can_fetch(config.UA_TOKEN, url):
             raise RobotsDisallowed(f"robots.txt disallows {url}. Jon must decide how to proceed.")
         result.checked_urls.setdefault(url, True)
-        return self._raw_get(url, timeout)
+        return self._raw_get(url, timeout, method=method, data=data, headers=headers)

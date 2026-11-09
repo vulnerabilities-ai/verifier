@@ -1,0 +1,79 @@
+"""Shared test setup: fake Anthropic site, fake Internet Archive, fake policy
+host, and a fake clock so retry waits take no real time."""
+
+import csv
+import tempfile
+import unittest
+from pathlib import Path
+
+from fakeserver import FakeArchive, FakeSite, dashboard_routes, policy_routes, snapshot_routes
+
+from verifier import config
+from verifier.archive_org import ArchiveClient
+from verifier.capture import RunInfo
+from verifier.net import Fetcher
+from verifier.runner import run
+
+LABELS = config.ANTHROPIC_SNAPSHOT_LABELS
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps: list[float] = []
+
+    def clock(self):
+        return self.now
+
+    def sleep(self, s):
+        self.sleeps.append(s)
+        self.now += s
+
+
+def files_under(root: Path) -> list[str]:
+    cap = root / "captures"
+    if not cap.exists():
+        return []
+    return sorted(p.relative_to(root).as_posix() for p in cap.rglob("*") if p.is_file())
+
+
+class CaptureCase(unittest.TestCase):
+    access_key = None
+    secret_key = None
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        routes = dashboard_routes()
+        routes.update(snapshot_routes(LABELS))
+        self.site = FakeSite(routes)
+        self.base = self.site.url + "/2026/cvd/"
+        content = {self.base + p[len("/2026/cvd/"):]: r[1]
+                   for p, r in routes.items() if p.startswith("/2026/cvd/")}
+        self.ia = FakeArchive(content)
+        self.policy = FakeSite(policy_routes())
+        self.fake = FakeClock()
+
+    def tearDown(self):
+        for s in (self.site, self.ia, self.policy):
+            s.close()
+        self.tmp.cleanup()
+
+    def client(self, fetcher, **kw):
+        args = dict(wayback_base=self.ia.url + "/",
+                    availability_url=self.ia.url + "/wayback/available",
+                    access_key=self.access_key, secret_key=self.secret_key,
+                    poll_interval=1, sleep=self.fake.sleep, clock=self.fake.clock)
+        args.update(kw)
+        return ArchiveClient(fetcher, **args)
+
+    def capture(self, mode="normal", base=None, run_id="r1", **client_kw):
+        fetcher = Fetcher(min_interval=0)
+        return run(self.root, base_url=base or self.base,
+                   run=RunInfo(run_id=run_id, trigger="test", mode=mode),
+                   fetcher=fetcher, client=self.client(fetcher, **client_kw),
+                   policy_url=self.policy.url + "/coordinated-vulnerability-disclosure")
+
+    def log(self):
+        with open(self.root / "captures" / "capture-log.csv", encoding="utf-8") as f:
+            return list(csv.DictReader(f))
