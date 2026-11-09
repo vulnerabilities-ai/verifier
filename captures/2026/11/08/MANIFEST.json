@@ -429,5 +429,41 @@
         "note": "The Archive returned a snapshot dated before this request (it may have reused a recent snapshot). Recorded as returned."
       }
     }
+  ],
+  "appended_notes": [
+    {
+      "note_type": "late-archive-receipt",
+      "appended_utc": "2026-11-09T20:56:06Z",
+      "run_id": "42534385479-1",
+      "name": "dashboard.html",
+      "url": "https://red.anthropic.com/2026/cvd/",
+      "our_fetched_utc": "2026-11-08T23:16:45Z",
+      "availability_check": {
+        "checked_utc": "2026-11-09T20:56:05Z",
+        "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20261108231645",
+        "our_fetched_utc": "2026-11-08T23:16:45Z",
+        "status": 200,
+        "closest_timestamp": "20261108231652",
+        "closest_url": "http://web.archive.org/web/20261108231652/https://red.anthropic.com/2026/cvd/",
+        "closest_status": "200",
+        "result": "found_after_our_fetch",
+        "seconds_after_our_fetch": 7
+      },
+      "receipt": {
+        "source": "availability-api",
+        "snapshot_timestamp": "20261108231652",
+        "snapshot_timestamp_utc": "2026-11-08T23:16:52Z",
+        "snapshot_url": "https://web.archive.org/web/20261108231652/https://red.anthropic.com/2026/cvd/",
+        "seconds_after_our_fetch": 7,
+        "raw_check": {
+          "raw_url": "https://web.archive.org/web/20261108231652id_/https://red.anthropic.com/2026/cvd/",
+          "checked_utc": "2026-11-09T20:56:06Z",
+          "status": 200,
+          "final_url": "https://web.archive.org/web/20261108231652id_/https://red.anthropic.com/2026/cvd/",
+          "raw_sha256": "88c5464fb37b8245701a34bb7b6e5898e13ea9f9585611b23eafdcfa4d7ff50c",
+          "result": "mismatch"
+        }
+      }
+    }
   ]
 }
