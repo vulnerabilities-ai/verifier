@@ -67,8 +67,13 @@ class CaptureCase(unittest.TestCase):
         args.update(kw)
         return ArchiveClient(fetcher, **args)
 
+    def fetcher(self):
+        # The fake Archive stands in for web.archive.org and archive.org, so it
+        # is the only destination allowed to receive the (fake) keys.
+        return Fetcher(min_interval=0, credential_destinations=frozenset({self.ia.url}))
+
     def capture(self, mode="normal", base=None, run_id="r1", **client_kw):
-        fetcher = Fetcher(min_interval=0)
+        fetcher = self.fetcher()
         return run(self.root, base_url=base or self.base,
                    run=RunInfo(run_id=run_id, trigger="test", mode=mode),
                    fetcher=fetcher, client=self.client(fetcher, **client_kw),

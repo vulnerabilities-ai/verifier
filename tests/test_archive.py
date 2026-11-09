@@ -8,6 +8,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
+from fakeserver import FakeSite
 from helpers import CaptureCase
 
 from verifier import config
@@ -256,3 +257,102 @@ class WorkflowFiles(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CredentialRedirects(CaptureCase):
+    """The Archive keys travel only to the Archive's own hosts, even when a
+    server redirects somewhere else."""
+
+    access_key = "AKEY-redirect-test"
+    secret_key = "SKEY-redirect-test"
+
+    def setUp(self):
+        super().setUp()
+        self.evil = FakeSite({"*": (200, b'{"status": "pending"}', {})})
+        self.evil.routes = {"/*": (200, b'{"status": "pending"}', {})}
+
+    def tearDown(self):
+        self.evil.close()
+        super().tearDown()
+
+    def assert_no_keys_reached(self, site):
+        self.assertTrue(site.requests, "the redirect was not followed")
+        for r in site.requests:
+            for k, v in r.headers.items():
+                self.assertNotEqual(k.lower(), "authorization")
+                self.assertNotIn("AKEY", v)
+                self.assertNotIn("SKEY", v)
+
+    def test_redirect_from_save_address_to_other_host_drops_keys(self):
+        self.ia.routes["/save"] = (302, b"", {"Location": self.evil.url + "/collect"})
+        fetcher = self.fetcher()
+        client = self.client(fetcher)
+        res = client.save(self.base)
+        self.assertEqual(res["outcome"], "error")  # no job id from the other host
+        posts = [r for r in self.ia.requests if r.method == "POST"]
+        self.assertEqual([r.headers.get("Authorization") for r in posts],
+                         [f"LOW {self.access_key}:{self.secret_key}"])  # the Archive got the keys
+        self.assert_no_keys_reached(self.evil)  # the other host did not
+        self.assertEqual(fetcher.redirects.dropped, [self.evil.url])
+
+    def test_redirect_from_status_address_to_other_host_drops_keys(self):
+        self.ia.routes["/save/status/*"] = (302, b"", {"Location": self.evil.url + "/status"})
+        fetcher = self.fetcher()
+        client = self.client(fetcher, poll_timeout=5)
+        res = client.save(self.base)
+        self.assertEqual(res["outcome"], "ambiguous")  # the other host only says "pending"
+        self.assert_no_keys_reached(self.evil)
+        self.assertIn(self.evil.url, fetcher.redirects.dropped)
+        # The save request itself (to the Archive) did carry the keys.
+        self.assertEqual(self.ia.auth_seen[0], f"LOW {self.access_key}:{self.secret_key}")
+
+    def test_full_capture_with_redirecting_archive_never_leaks(self):
+        self.ia.routes["/save/status/*"] = (302, b"", {"Location": self.evil.url + "/status"})
+        out = self.capture(poll_timeout=5)
+        self.assertEqual(out.exit_code, EXIT_OK)
+        self.assert_no_keys_reached(self.evil)
+        for f in (self.root / "captures").rglob("*"):
+            if f.is_file():
+                self.assertNotIn(b"KEY-redirect-test", f.read_bytes(), f)
+
+    def test_redirect_within_the_archive_keeps_keys(self):
+        self.ia.routes["/save/status/*"] = (
+            302, b"", {"Location": self.ia.url + "/internal/status/x"})
+        self.ia.routes["/internal/status/*"] = lambda req: (
+            self.ia.auth_seen.append(req.headers.get("Authorization", "")) or
+            (200, b'{"status": "success", "timestamp": "20261109000000"}', {}))
+        res = self.client(self.fetcher()).save(self.base)
+        self.assertEqual(res["outcome"], "snapshot")
+        self.assertTrue(all(a.startswith("LOW ") for a in self.ia.auth_seen))
+
+    def test_keys_never_sent_to_a_host_that_is_not_allowed(self):
+        from verifier.net import CaptureError, Fetcher
+        f = Fetcher(min_interval=0)  # production allow-list: web.archive.org, archive.org
+        with self.assertRaises(CaptureError):
+            f.get(self.evil.url + "/x", headers={"Authorization": "LOW a:b"})
+        self.assertEqual(self.evil.paths(), ["/robots.txt"])  # only robots.txt, no keys
+
+
+class RedirectHandlerUnit(unittest.TestCase):
+    def redirect(self, src, dst, allowed=frozenset({"https://web.archive.org", "https://archive.org"})):
+        import email.message
+        import urllib.request
+        from verifier.net import CredentialSafeRedirectHandler
+        h = CredentialSafeRedirectHandler(allowed)
+        req = urllib.request.Request(src, headers={"Authorization": "LOW a:b"})
+        return h.redirect_request(req, None, 302, "Found", email.message.Message(), dst)
+
+    def test_rules(self):
+        keep = [("https://web.archive.org/save", "https://web.archive.org/save/status/1"),
+                ("https://web.archive.org/save", "https://archive.org/x")]
+        drop = [("https://web.archive.org/save", "https://evil.example/x"),
+                ("https://web.archive.org/save", "http://web.archive.org/x"),  # https -> http
+                ("https://web.archive.org/save", "https://web.archive.org:8443/x"),  # other port
+                ("https://web.archive.org/save", "https://web.archive.org.evil.example/x"),
+                ("https://web.archive.org/save", "https://user@evil.example/x")]
+        for src, dst in keep:
+            with self.subTest(dst=dst):
+                self.assertTrue(self.redirect(src, dst).has_header("Authorization"))
+        for src, dst in drop:
+            with self.subTest(dst=dst):
+                self.assertFalse(self.redirect(src, dst).has_header("Authorization"))
