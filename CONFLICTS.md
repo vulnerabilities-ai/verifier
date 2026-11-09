@@ -8,7 +8,7 @@ Listed from the day each begins. Most recent changes at the top of each section.
 | --- | --- | --- | --- |
 | Claude Code | Anthropic | Writing, testing and explaining this repository's code and documents | 2026-11-08 |
 | GitHub and GitHub Actions | GitHub (Microsoft) | Hosting, scheduled capture, issues | 2026-11-08 |
-| Internet Archive, Save Page Now | Internet Archive | Independent third-party snapshots of the dashboard | 2026-11-08 |
+| Internet Archive, Save Page Now and availability API | Internet Archive | Independent third-party snapshots of the dashboard, ledger.json and payload.json. From 2026-11-09 the pipeline uses an Internet Archive account's API keys, held as repository secrets | 2026-11-08 |
 | Cross-check model | Not chosen | Off until Jon chooses a provider. The checker may not come from the party whose program is being checked | — |
 
 ## The Anthropic conflict, and how it is controlled

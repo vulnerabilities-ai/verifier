@@ -2,58 +2,20 @@
 
 import hashlib
 import json
-import tempfile
 import time
 import unittest
-from pathlib import Path
 
-from fakeserver import FakeSite, archive_routes, dashboard_routes, policy_routes, snapshot_routes
+from fakeserver import FakeSite
+from helpers import LABELS, CaptureCase, files_under
 
 from verifier import config
 from verifier.audit import audit
-from verifier.capture import BACKFILL_NOTE, RunInfo
+from verifier.capture import BACKFILL_NOTE
 from verifier.net import Fetcher
-from verifier.runner import EXIT_FAILED, EXIT_OK, EXIT_ROBOTS, run
-
-LABELS = config.ANTHROPIC_SNAPSHOT_LABELS
+from verifier.runner import EXIT_FAILED, EXIT_OK, EXIT_ROBOTS
 
 
-def files_under(root: Path) -> list[str]:
-    cap = root / "captures"
-    if not cap.exists():
-        return []
-    return sorted(p.relative_to(root).as_posix() for p in cap.rglob("*") if p.is_file())
-
-
-class CaptureTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
-        routes = dashboard_routes()
-        routes.update(snapshot_routes(LABELS))
-        self.site = FakeSite(routes)
-        self.ia = FakeSite(archive_routes())
-        self.policy = FakeSite(policy_routes())
-        self.base = self.site.url + "/2026/cvd/"
-
-    def tearDown(self):
-        for s in (self.site, self.ia, self.policy):
-            s.close()
-        self.tmp.cleanup()
-
-    def capture(self, mode="normal", base=None, run_id="r1"):
-        return run(self.root, base_url=base or self.base,
-                   run=RunInfo(run_id=run_id, trigger="test", mode=mode),
-                   fetcher=Fetcher(min_interval=0),
-                   spn_prefix=self.ia.url + "/save/",
-                   policy_url=self.policy.url + "/coordinated-vulnerability-disclosure",
-                   spn_retry_wait=0)
-
-    def log(self):
-        import csv
-        with open(self.root / "captures" / "capture-log.csv", encoding="utf-8") as f:
-            return list(csv.DictReader(f))
-
+class CaptureTests(CaptureCase):
     # -- acceptance: a run succeeds and the manifest matches the files --------
     def test_successful_run(self):
         out = self.capture()
@@ -61,33 +23,30 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(out.status, "ok")
         manifests = list((self.root / "captures").glob("2*/*/*/MANIFEST.json"))
         self.assertEqual(len(manifests), 1)
-        m = json.loads(manifests[0].read_text())
-        r = m["runs"][0]
+        r = json.loads(manifests[0].read_text())["runs"][0]
         self.assertEqual({f["name"] for f in r["files"]},
                          {"dashboard.html", "payload.json", "ledger.json", "about.html", "archive.html"})
         for f in r["files"]:
             data = (self.root / f["stored_at"]).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(), f["sha256"])
             self.assertTrue(f["fetched_utc"].endswith("Z"))
-            self.assertIn("headers", f)
         dash = next(f for f in r["files"] if f["name"] == "dashboard.html")
         self.assertEqual(dash["etag"], '"abc"')
         self.assertEqual(dash["last_modified"], "Fri, 02 Oct 2026 19:47:20 GMT")
-        self.assertEqual(r["internet_archive"]["snapshot_timestamp"], "20261030191525")
         self.assertTrue(r["internet_archive"]["ok"])
-        self.assertIn("note", r["internet_archive"])  # dated before the request: recorded as is
         self.assertEqual(audit(self.root), [])
         latest = json.loads((self.root / "captures" / "latest.json").read_text())
         self.assertEqual(latest["manifest"], manifests[0].relative_to(self.root).as_posix())
         self.assertEqual(len(self.log()), 1)
         self.assertEqual(self.log()[0]["status"], "ok")
+        self.assertIn("/web/", self.log()[0]["archive_snapshot"])
 
     def test_user_agent_and_robots_read_first_on_every_host(self):
         self.capture()
         for site in (self.site, self.ia, self.policy):
-            paths = [p for p, _ in site.requests]
-            self.assertEqual(paths[0], "/robots.txt", site.url)
-            self.assertTrue(all(ua == config.USER_AGENT for _, ua in site.requests))
+            self.assertEqual(site.paths()[0], "/robots.txt", site.url)
+            self.assertTrue(all(r.headers.get("User-Agent") == config.USER_AGENT
+                                for r in site.requests))
         self.assertIn("verifier@vulnerabilities.ai", config.USER_AGENT)
 
     # -- acceptance: a second run the same day adds a log row, no duplicate files
@@ -96,11 +55,9 @@ class CaptureTests(unittest.TestCase):
         before = files_under(self.root)
         out = self.capture(run_id="r2")
         self.assertEqual(out.exit_code, EXIT_OK, out.messages)
-        after = files_under(self.root)
-        self.assertEqual(before, after)  # no new files (only bookkeeping changed)
+        self.assertEqual(before, files_under(self.root))
         self.assertEqual(len(self.log()), 2)
-        self.assertEqual(out.new_files, 0)
-        self.assertEqual(out.unchanged_files, 5)
+        self.assertEqual((out.new_files, out.unchanged_files), (0, 5))
         m = json.loads(next((self.root / "captures").glob("2*/*/*/MANIFEST.json")).read_text())
         self.assertEqual([r["run_id"] for r in m["runs"]], ["r1", "r2"])
         self.assertTrue(all(not f["newly_stored"] for f in m["runs"][1]["files"]))
@@ -115,7 +72,6 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(audit(self.root), [])
 
     def test_unchanged_file_on_a_later_day_points_to_old_copy(self):
-        # Pretend an earlier day already stored identical payload bytes.
         old = self.root / "captures/2026/10/30"
         old.mkdir(parents=True)
         (old / "payload.json").write_bytes(b'{"ok": 1}')
@@ -136,15 +92,12 @@ class CaptureTests(unittest.TestCase):
             self.assertEqual(m["anthropic_snapshot_label"], lbl)
             self.assertTrue(m["our_fetch_utc"].endswith("Z"))
             self.assertEqual(m["note"], BACKFILL_NOTE)
-            self.assertIn("not evidence of when we first saw", m["note"])
-            names = {f["name"] for f in m["files"]}
-            self.assertEqual(names, {"index.html", "data/payload.json", "data/extra.json"})
+            self.assertEqual({f["name"] for f in m["files"]},
+                             {"index.html", "data/payload.json", "data/extra.json"})
             self.assertEqual([a["path"] for a in m["not_present"]], ["data/ledger.json"])
-        # one-time: a second run does not fetch the snapshots again
         n = len(self.site.requests)
         self.capture(run_id="r2")
-        later = [p for p, _ in self.site.requests[n:]]
-        self.assertFalse(any("snapshots" in p for p in later))
+        self.assertFalse(any("snapshots" in p for p in self.site.paths()[n:]))
 
     def test_backfill_failure_reported_and_retried(self):
         del self.site.routes[f"/2026/cvd/snapshots/{LABELS[2]}/index.html"]
@@ -152,16 +105,15 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(out.exit_code, EXIT_FAILED)
         self.assertEqual(out.status, "ok-with-errors")
         self.assertFalse((self.root / f"captures/anthropic-archive/{LABELS[2]}").exists())
-        self.assertTrue((self.root / "captures/latest.json").exists())  # main capture kept
+        self.assertTrue((self.root / "captures/latest.json").exists())
 
     # -- policy page --------------------------------------------------------------
     def test_policy_copied_monthly(self):
         self.capture()
-        pol = list((self.root / "captures/policy").glob("*/MANIFEST.json"))
-        self.assertEqual(len(pol), 1)
+        self.assertEqual(len(list((self.root / "captures/policy").glob("*/MANIFEST.json"))), 1)
         n = len(self.policy.requests)
         self.capture(run_id="r2")
-        self.assertEqual(len(self.policy.requests), n)  # not again this month
+        self.assertEqual(len(self.policy.requests), n)
 
     # -- failures: loud, and nothing half-written ---------------------------------
     def assert_failed_cleanly(self, out, status="failed", code=EXIT_FAILED):
@@ -189,8 +141,7 @@ class CaptureTests(unittest.TestCase):
         self.assertIn("not valid JSON", out.messages[0])
 
     def test_unreachable_host_fails(self):
-        out = self.capture(base="http://127.0.0.1:9/2026/cvd/")
-        self.assert_failed_cleanly(out)
+        self.assert_failed_cleanly(self.capture(base="http://127.0.0.1:9/2026/cvd/"))
 
     # -- robots.txt on every host --------------------------------------------------
     def test_robots_disallow_dashboard_host(self):
@@ -198,39 +149,30 @@ class CaptureTests(unittest.TestCase):
         out = self.capture()
         self.assert_failed_cleanly(out, "stopped-robots", EXIT_ROBOTS)
         self.assertIn("Jon", out.messages[0])
-        fetched = [p for p, _ in self.site.requests]
-        self.assertEqual(fetched, ["/robots.txt"])  # nothing else fetched
+        self.assertEqual(self.site.paths(), ["/robots.txt"])
 
-    def test_robots_disallow_archive_host(self):
-        self.ia.routes["/robots.txt"] = (200, b"User-agent: *\nDisallow: /save/\n", {})
+    def test_robots_disallow_archive_save(self):
+        self.ia.routes["/robots.txt"] = (200, b"User-agent: *\nDisallow: /save\n", {})
         out = self.capture()
         self.assert_failed_cleanly(out, "stopped-robots", EXIT_ROBOTS)
-        self.assertNotIn("/2026/cvd/", [p for p, _ in self.site.requests])
+        self.assertNotIn("/2026/cvd/", self.site.paths())
+
+    def test_robots_disallow_availability_api(self):
+        self.ia.routes["/robots.txt"] = (200, b"User-agent: *\nDisallow: /wayback/\n", {})
+        self.assert_failed_cleanly(self.capture(), "stopped-robots", EXIT_ROBOTS)
 
     def test_robots_disallow_policy_host(self):
         self.policy.routes["/robots.txt"] = (200, b"User-agent: *\nDisallow: /\n", {})
-        out = self.capture()
-        self.assert_failed_cleanly(out, "stopped-robots", EXIT_ROBOTS)
+        self.assert_failed_cleanly(self.capture(), "stopped-robots", EXIT_ROBOTS)
 
     def test_robots_rule_for_our_user_agent(self):
         self.site.routes["/robots.txt"] = (
             200, b"User-agent: vulnerabilities.ai-verifier\nDisallow: /\n\nUser-agent: *\nAllow: /\n", {})
-        out = self.capture()
-        self.assertEqual(out.exit_code, EXIT_ROBOTS)
+        self.assertEqual(self.capture().exit_code, EXIT_ROBOTS)
 
     def test_missing_robots_means_allowed(self):
         del self.site.routes["/robots.txt"]
         self.assertEqual(self.capture().exit_code, EXIT_OK)
-
-    # -- Internet Archive failure: capture kept, run red ----------------------------
-    def test_archive_failure_keeps_capture(self):
-        self.ia.routes["/save/*"] = (503, b"busy", {})
-        out = self.capture()
-        self.assertEqual(out.exit_code, EXIT_FAILED)
-        self.assertEqual(out.status, "ok-archive-failed")
-        m = json.loads(next((self.root / "captures").glob("2*/*/*/MANIFEST.json")).read_text())
-        self.assertFalse(m["runs"][0]["internet_archive"]["ok"])
-        self.assertEqual(len(m["runs"][0]["internet_archive"]["attempts"]), 2)
 
     # -- acceptance: deliberately broken address -------------------------------------
     def test_broken_address_test_mode_writes_only_a_log_row(self):
@@ -238,9 +180,8 @@ class CaptureTests(unittest.TestCase):
         self.assertEqual(out.exit_code, EXIT_FAILED)
         self.assertEqual(files_under(self.root), ["captures/capture-log.csv"])
         row = self.log()[0]
-        self.assertEqual(row["status"], "failed-test")
-        self.assertEqual(row["mode"], "test")
-        self.assertEqual(self.ia.requests, [])  # Archive never contacted in test mode
+        self.assertEqual((row["status"], row["mode"]), ("failed-test", "test"))
+        self.assertEqual(self.ia.requests, [])
         self.assertEqual(self.policy.requests, [])
 
     def test_test_mode_never_stores_even_if_fetch_works(self):

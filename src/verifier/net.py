@@ -73,16 +73,61 @@ class RobotsResult:
         }
 
 
+# Hosts allowed to receive the Internet Archive keys (exact host names).
+CREDENTIAL_HOSTS = frozenset({"web.archive.org", "archive.org"})
+SENSITIVE_HEADERS = ("Authorization", "Cookie", "Proxy-Authorization")
+
+
+def credential_destination(url: str) -> str:
+    """scheme://host[:port] of a URL, lower-cased: what must match to carry keys."""
+    parts = urlsplit(url)
+    return f"{parts.scheme.lower()}://{parts.netloc.lower()}"
+
+
+class CredentialSafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follows redirects, but drops credentials unless the new address is an
+    allowed host reached with the same scheme.
+
+    Python's default redirect handler copies request headers, including
+    Authorization, to whatever address a server redirects to. This handler
+    removes them when the redirect points anywhere else: a different host,
+    a different port, or from https to http.
+    """
+
+    def __init__(self, allowed: frozenset[str]):
+        super().__init__()
+        self.allowed = allowed  # set of "scheme://host[:port]"
+        self.dropped: list[str] = []  # destinations credentials were withheld from
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is None:
+            return None
+        had = [h for h in SENSITIVE_HEADERS if req.has_header(h) or new.has_header(h)]
+        dest = credential_destination(new.full_url)
+        same_scheme = urlsplit(req.full_url).scheme.lower() == urlsplit(new.full_url).scheme.lower()
+        if had and not (dest in self.allowed and same_scheme):
+            for h in SENSITIVE_HEADERS:
+                new.remove_header(h)
+            self.dropped.append(dest)
+        return new
+
+
 class Fetcher:
     def __init__(self, user_agent: str = config.USER_AGENT,
                  min_interval: float = config.MIN_INTERVAL_SECONDS,
-                 timeout: float = config.TIMEOUT_SECONDS):
+                 timeout: float = config.TIMEOUT_SECONDS,
+                 credential_destinations: frozenset[str] | None = None):
         self.user_agent = user_agent
         self.min_interval = min_interval
         self.timeout = timeout
         self._last_request: dict[str, float] = {}
         self._robots: dict[str, tuple[urllib.robotparser.RobotFileParser, RobotsResult]] = {}
-        self.opener = urllib.request.build_opener()
+        if credential_destinations is None:
+            credential_destinations = frozenset(f"https://{h}" for h in CREDENTIAL_HOSTS)
+        self.credential_destinations = frozenset(credential_destinations)
+        self.redirects = CredentialSafeRedirectHandler(self.credential_destinations)
+        self.opener = urllib.request.build_opener(self.redirects)
 
     # -- politeness -------------------------------------------------------
     def _wait_turn(self, url: str) -> None:
@@ -94,9 +139,18 @@ class Fetcher:
                 time.sleep(self.min_interval - gap)
         self._last_request[host] = time.monotonic()
 
-    def _raw_get(self, url: str, timeout: float | None = None) -> Response:
+    def _raw_get(self, url: str, timeout: float | None = None, *, method: str = "GET",
+                 data: bytes | None = None, headers: dict[str, str] | None = None) -> Response:
+        """One HTTP request. Request headers (which may carry credentials) are
+        never stored in the Response or put into error messages."""
         self._wait_turn(url)
-        req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+        h = {"User-Agent": self.user_agent}
+        h.update(headers or {})
+        if any(k.lower() in {x.lower() for x in SENSITIVE_HEADERS} for k in h) \
+                and credential_destination(url) not in self.credential_destinations:
+            raise CaptureError(f"Refusing to send credentials to {credential_destination(url)}: "
+                               "not an allowed Internet Archive host.")
+        req = urllib.request.Request(url, data=data, headers=h, method=method)
         fetched = utc_now()
         try:
             with self.opener.open(req, timeout=timeout or self.timeout) as r:
@@ -106,7 +160,8 @@ class Fetcher:
             body = e.read() if e.fp else b""
             return Response(url, e.geturl() or url, e.code, dict(e.headers.items()) if e.headers else {}, body, fetched)
         except (urllib.error.URLError, OSError) as e:
-            raise CaptureError(f"Could not reach {url}: {e}") from e
+            reason = getattr(e, "reason", e)
+            raise CaptureError(f"Could not reach {url}: {type(reason).__name__}: {reason}") from None
 
     # -- robots.txt -------------------------------------------------------
     def _robots_for(self, url: str):
@@ -154,9 +209,10 @@ class Fetcher:
         return {h: r.as_dict() for h, (_, r) in self._robots.items()}
 
     # -- fetching ---------------------------------------------------------
-    def get(self, url: str, timeout: float | None = None) -> Response:
+    def get(self, url: str, timeout: float | None = None, *, method: str = "GET",
+            data: bytes | None = None, headers: dict[str, str] | None = None) -> Response:
         rp, result = self._robots_for(url)
         if not rp.can_fetch(config.UA_TOKEN, url):
             raise RobotsDisallowed(f"robots.txt disallows {url}. Jon must decide how to proceed.")
         result.checked_urls.setdefault(url, True)
-        return self._raw_get(url, timeout)
+        return self._raw_get(url, timeout, method=method, data=data, headers=headers)

@@ -9,13 +9,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from . import config
+from .archive_org import ArchiveClient
 from .audit import audit
 from .capture import RunInfo
-from .net import sha256_hex
+from .net import Fetcher, sha256_hex
 from .parse_headline import parse_headline
 from .runner import run
 
@@ -48,9 +50,21 @@ def main(argv: list[str] | None = None) -> int:
         test = bool(args.test_base_url.strip())
         base = args.test_base_url.strip() if test else config.BASE_URL
         info = RunInfo(run_id=args.run_id, trigger=args.trigger, mode="test" if test else "normal")
-        out = run(Path(args.root), base_url=base, run=info)
-        text = f"Status: {out.status}\n" + "\n".join(f"- {m}" for m in out.messages) + "\n"
+        fetcher = Fetcher()
+        # Keys come only from the environment (GitHub Actions secrets). They are
+        # handed to the client and never printed, logged or written to a file.
+        client = ArchiveClient(fetcher,
+                               access_key=os.environ.get("IA_ACCESS_KEY", "").strip() or None,
+                               secret_key=os.environ.get("IA_SECRET_KEY", "").strip() or None)
+        out = run(Path(args.root), base_url=base, run=info, fetcher=fetcher, client=client)
+        lines = [f"Status: {out.status}", f"Internet Archive mode: {client.mode}"]
+        lines += [f"- {m}" for m in out.messages]
+        lines += [f"- Warning: {w}" for w in out.warnings]
+        text = "\n".join(lines) + "\n"
         print(text)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            for w in out.warnings:
+                print(f"::warning title=Internet Archive::{w}")
         if args.summary_file:
             Path(args.summary_file).write_text(text, encoding="utf-8")
         return out.exit_code

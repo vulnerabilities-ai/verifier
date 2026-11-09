@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import re
-import time
 from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
@@ -65,59 +64,6 @@ def time_suffix(ts: str) -> str:
 
 
 # --------------------------------------------------------------------------
-# Internet Archive
-# --------------------------------------------------------------------------
-_WAYBACK_TS = re.compile(r"/web/(\d{14})")
-
-
-def save_page_now(fetcher: Fetcher, url: str, spn_prefix: str = config.SPN_PREFIX,
-                  retry_wait: float = 15.0) -> dict:
-    """Ask the Internet Archive to save `url`. Record what it returns, as is.
-
-    The Archive may hand back a recent existing snapshot instead of a new one;
-    we record the timestamp it returns and do not treat that as an error.
-    """
-    request_url = spn_prefix + url
-    attempts = []
-    for attempt in (1, 2):
-        requested = utc_now()
-        try:
-            resp = fetcher.get(request_url, timeout=config.SPN_TIMEOUT_SECONDS)
-            candidates = [resp.final_url, resp.header("Content-Location") or "",
-                          resp.header("Location") or ""]
-            snap = next((c for c in candidates if _WAYBACK_TS.search(c)), None)
-            info = {"attempt": attempt, "requested_utc": requested, "status": resp.status,
-                    "final_url": resp.final_url,
-                    "content_location": resp.header("Content-Location")}
-            if resp.status < 400 and snap:
-                ts = _WAYBACK_TS.search(snap).group(1)
-                snapshot_url = snap if snap.startswith("http") else urljoin("https://web.archive.org/", snap)
-                ts_iso = f"{ts[0:4]}-{ts[4:6]}-{ts[6:8]}T{ts[8:10]}:{ts[10:12]}:{ts[12:14]}Z"
-                result = {
-                    "ok": True,
-                    "request_url": request_url,
-                    "requested_utc": requested,
-                    "snapshot_url": snapshot_url,
-                    "snapshot_timestamp": ts,
-                    "snapshot_timestamp_utc": ts_iso,
-                    "attempts": attempts + [info],
-                }
-                if ts_iso < requested[:-4]:  # older than the minute we asked
-                    result["note"] = ("The Archive returned a snapshot dated before this "
-                                      "request (it may have reused a recent snapshot). "
-                                      "Recorded as returned.")
-                return result
-            info["error"] = "no snapshot address in the response"
-        except CaptureError as e:
-            info = {"attempt": attempt, "requested_utc": requested, "error": str(e)}
-        attempts.append(info)
-        if attempt == 1:
-            time.sleep(retry_wait)
-    return {"ok": False, "request_url": request_url, "attempts": attempts,
-            "error": attempts[-1].get("error", "failed")}
-
-
-# --------------------------------------------------------------------------
 # main daily capture
 # --------------------------------------------------------------------------
 @dataclass
@@ -142,8 +88,11 @@ def fetch_targets(fetcher: Fetcher, base_url: str) -> list[tuple[str, Response]]
 
 
 def store_daily(archive: Archive, fetched: list[tuple[str, Response]], run: RunInfo,
-                base_url: str, robots: dict, ia: dict | None) -> dict:
-    """Write today's files (only changed ones), the manifest, and latest.json."""
+                base_url: str, robots: dict) -> dict:
+    """Write today's files (only changed ones), the manifest, and latest.json.
+
+    The Internet Archive step runs afterwards (it can take many minutes) and
+    fills in this run's "internet_archive" field via record_archive_result."""
     first_fetch = fetched[0][1].fetched_utc
     y, m, d = first_fetch[0:4], first_fetch[5:7], first_fetch[8:10]
     folder = f"captures/{y}/{m}/{d}"
@@ -176,7 +125,7 @@ def store_daily(archive: Archive, fetched: list[tuple[str, Response]], run: RunI
         "user_agent": config.USER_AGENT,
         "robots": robots,
         "files": files,
-        "internet_archive": ia,
+        "internet_archive": {"status": "in progress"},
     }
     manifest["runs"].append(run_entry)
     archive.save_json(manifest_rel, manifest)
@@ -187,7 +136,18 @@ def store_daily(archive: Archive, fetched: list[tuple[str, Response]], run: RunI
         "manifest": manifest_rel,
         "files": {f["name"]: {"sha256": f["sha256"], "stored_at": f["stored_at"]} for f in files},
     })
-    return {"manifest": manifest_rel, "files": files}
+    return {"manifest": manifest_rel, "files": files, "run_index": len(manifest["runs"]) - 1}
+
+
+def record_archive_result(archive: Archive, manifest_rel: str, run_index: int,
+                          run_id: str, result: dict) -> None:
+    """Fill in the Archive result for THIS run only. Earlier runs are untouched."""
+    manifest = archive.load_json(manifest_rel)
+    entry = manifest["runs"][run_index]
+    if entry.get("run_id") != run_id or entry.get("internet_archive") != {"status": "in progress"}:
+        raise RuntimeError("Refusing to change a run record other than the current one.")
+    entry["internet_archive"] = result
+    archive.save_json(manifest_rel, manifest)
 
 
 # --------------------------------------------------------------------------
