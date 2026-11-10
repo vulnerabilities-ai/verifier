@@ -64,7 +64,9 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
          + ", ".join(f"{k} {v}" for k, v in summary["lookups"].items()) + ".",
          f"- Identifiers found in public records: " + ", ".join(f"{k} {v}" for k, v in summary["ids_exist"].items()) + ".",
          f"- Fix merged into the default branch: " + ", ".join(f"{k} {v}" for k, v in summary["fix_merged"].items()) + ".",
-         f"- Fully checked: {summary['checked_n']} of {summary['checked_of']}.", ""]
+         f"- Fully checked: {summary['checked_n']} of {summary['checked_of']}. A finding is fully checked when "
+         "its hash check is conclusive (match, mismatch or preimage withheld), its identifiers are confirmed in "
+         "public records or it has none, and whether its fix was merged has been determined.", ""]
     ic = summary["interval_comparisons"]
     L += ["Intervals from the cards' dates (rule R5; descriptive only):", ""]
     names = {"days_report_to_patch": "report to patch", "days_patch_to_reveal": "patch to reveal",

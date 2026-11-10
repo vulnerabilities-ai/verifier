@@ -185,10 +185,12 @@ VERIFICATION_META = [
     ("cwe_nvd", "list", "CWE IDs in NVD.", "NVD: weaknesses", PUBLIC),
     ("advisory_review_status", "string", "GitHub's review status for the advisory (reviewed or unreviewed).", "GitHub: type", PUBLIC),
     ("advisory_packages", "list", "Packages the GitHub advisory names (ecosystem:name).", "GitHub: vulnerabilities", PUBLIC),
-    ("lookup_status", "string", "ok, rate_limited (resumes next run), lookup_unreadable (reason in notes), "
+    ("lookup_status", "string", "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so "
+     "there was nothing to look up), rate_limited (resumes next run), lookup_unreadable (reason in notes), "
      "network_error or not_checked.", None, None),
-    ("checked", "string", "yes when the hash check is final (match, mismatch or preimage_withheld) and every lookup "
-     "that can run has been read.", None, None),
+    ("checked", "string", "Fully checked: yes only when ALL of these hold: the hash check is conclusive (match, "
+     "mismatch or preimage_withheld); the identifiers are confirmed or there are none (ids_exist verified or "
+     "not_applicable); and the fix's merge status was determined (fix_merged yes or no). Otherwise no.", None, None),
     ("method", "string", "How the row was checked.", None, None),
     ("label_hash_check", "string", "Label for hash_check.", None, None),
     ("label_ids_exist", "string", "Label for ids_exist.", None, None),
@@ -239,7 +241,8 @@ SUMMARY_FIELDS = [
     ("merged_with_target", "integer", "Merged entries that name a target."),
     ("earliest_commitment", "date", "Earliest committed_at."),
     ("latest_commitment", "date", "Latest committed_at."),
-    ("checked_n", "integer", "Verification rows with checked = yes."),
+    ("checked_n", "integer", "Fully checked findings: hash check conclusive (match, mismatch or preimage_withheld), "
+     "identifiers confirmed or none, and fix_merged yes or no."),
     ("checked_of", "integer", "Verification rows (revealed findings)."),
     ("hash_matches", "integer", "R2 match."),
     ("hash_mismatches", "integer", "R2 mismatch (recorded, not an error)."),
@@ -255,7 +258,7 @@ SUMMARY_FIELDS = [
     ("fixed_itemized_share_of_reported_pct", "number", "fixed_itemized / reported_total x 100."),
     ("fix_merged", "object", "Verification rows per fix_merged value."),
     ("ids_exist", "object", "Verification rows per ids_exist value."),
-    ("lookups", "object", "Verification rows per lookup_status."),
+    ("lookups", "object", "Verification rows per lookup_status (no_identifiers is counted separately from ok)."),
     ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "
      "patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts "
      "within (at or under) and above. Descriptive only."),

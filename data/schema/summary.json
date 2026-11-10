@@ -142,7 +142,7 @@
     {
       "name": "checked_n",
       "type": "integer",
-      "meaning": "Verification rows with checked = yes.",
+      "meaning": "Fully checked findings: hash check conclusive (match, mismatch or preimage_withheld), identifiers confirmed or none, and fix_merged yes or no.",
       "source_field": null,
       "label": null
     },
@@ -254,7 +254,7 @@
     {
       "name": "lookups",
       "type": "object",
-      "meaning": "Verification rows per lookup_status.",
+      "meaning": "Verification rows per lookup_status (no_identifiers is counted separately from ok).",
       "source_field": null,
       "label": null
     },

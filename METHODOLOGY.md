@@ -139,6 +139,15 @@ When a finding card says the preimage is withheld (a paragraph the program marks
 - **Tolerance.** A response with an unexpected shape, a missing field, a body that is not JSON, or an unexpected status never stops the run. It is kept as received, and the result is `lookup_unreadable` with a plain reason. Before the first full run, a `sample_only` run looks up 5 findings (wolfSSL first) so the real response shapes can be checked.
 - **NVD notice.** *This product uses data from the NVD API but is not endorsed or certified by the NVD.*
 
+### Fully checked
+
+A finding counts as **fully checked** only when all three hold:
+- its hash check is conclusive (`match`, `mismatch` or `preimage_withheld`);
+- its identifiers are confirmed in public records, or it has none (`ids_exist` is `verified` or `not_applicable`);
+- whether its fix was merged has been determined (`fix_merged` is `yes` or `no`).
+
+A finding whose fix was not checked (`not_checked`, including fixes not on GitHub), or whose lookups were rate-limited or unreadable, is never counted as fully checked. A finding with no CVE or GHSA identifiers has `lookup_status` `no_identifiers`, not `ok`, because there was nothing to look up. The summary's `checked_n` of `checked_of` uses this definition. On 2026-11-10, before the first real lookups, it is 0 of 237.
+
 ### R5: intervals
 
 - **The intervals.** From each card's timeline:

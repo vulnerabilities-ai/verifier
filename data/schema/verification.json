@@ -283,14 +283,14 @@
     {
       "name": "lookup_status",
       "type": "string",
-      "meaning": "ok, rate_limited (resumes next run), lookup_unreadable (reason in notes), network_error or not_checked.",
+      "meaning": "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so there was nothing to look up), rate_limited (resumes next run), lookup_unreadable (reason in notes), network_error or not_checked.",
       "source_field": null,
       "label": null
     },
     {
       "name": "checked",
       "type": "string",
-      "meaning": "yes when the hash check is final (match, mismatch or preimage_withheld) and every lookup that can run has been read.",
+      "meaning": "Fully checked: yes only when ALL of these hold: the hash check is conclusive (match, mismatch or preimage_withheld); the identifiers are confirmed or there are none (ids_exist verified or not_applicable); and the fix's merge status was determined (fix_merged yes or no). Otherwise no.",
       "source_field": null,
       "label": null
     },

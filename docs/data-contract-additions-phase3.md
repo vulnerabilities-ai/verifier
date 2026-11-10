@@ -40,7 +40,7 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | `cwe_github`, `cwe_nvd` | CWE IDs from each source (lists). | `["CWE-125"]` |
 | `advisory_review_status` | GitHub's `reviewed` or `unreviewed`. | `unreviewed` |
 | `advisory_packages` | Packages the GitHub advisory names, as `ecosystem:name`. | |
-| `lookup_status` | `ok`, `rate_limited` (resumes next run), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
+| `lookup_status` | `ok` (every lookup read), `no_identifiers` (the finding has no CVE or GHSA ID, so there was nothing to look up; not the same as `ok`), `rate_limited` (resumes next run), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
 | `label_hash_check`, `label_ids_exist`, `label_fix_merged`, `label_dates`, `label_intervals`, `label_severity` | The verification label for each metric, from METHODOLOGY. | `Independently verified` |
 | `notes` | Plain notes: differences between the ledger and public records (recorded, not judged), lookup reasons, card notes. | |
 
@@ -48,7 +48,12 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 - **`severity_github`** is the API's value. GitHub's website shows `medium` as "Moderate", so the page may show it that way, attributed to GitHub.
 - **Severities from different sources are never merged into one.**
 - **`days_report_to_patch`, `days_patch_to_reveal`, `days_report_to_reveal` and `days_report_to_merge`** are descriptive. **Never label a row "overdue", "late" or "in violation"**, and never colour a row by them. The comparison with the policy references is published only as counts, in `summary.interval_comparisons`.
-- **`checked`** is `yes` when the hash check is final (`match`, `mismatch` or `preimage_withheld`) and every lookup that can run has been read. This drives "N of 237 checked".
+- **`checked`** means "fully checked". It is `yes` only when all three hold:
+  - the hash check is conclusive (`match`, `mismatch` or `preimage_withheld`);
+  - the identifiers are confirmed in public records, or there are none (`ids_exist` is `verified` or `not_applicable`);
+  - the fix's merge status was determined (`fix_merged` is `yes` or `no`).
+
+  A finding whose fix was not checked is never fully checked. This drives "N of 237 fully checked", which is 0 of 237 until the first real lookups.
 
 ## 3. severity (new file)
 
@@ -83,7 +88,8 @@ This file has the R-B fields. Additions and clarifications:
 | `itemized_share_of_reported_pct` | **An exact alias of `revealed_share_of_reported_pct`** (the contract's name). | `4.66` |
 | `fixed_itemized_share_of_patched_claimed_pct` | fixed_itemized ÷ patched_lab_count × 100. | `34.5` |
 | `fixed_itemized_share_of_reported_pct` | fixed_itemized ÷ reported_total × 100. | `4.27` |
-| `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. | |
+| `checked_n`, `checked_of` | Fully checked findings, and all revealed findings. Fully checked means: hash check conclusive (match, mismatch or preimage_withheld), identifiers confirmed or none, and fix_merged `yes` or `no`. | `0`, `237` |
+| `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. `lookups` counts `no_identifiers` separately from `ok`. | |
 | `interval_comparisons` | For each interval, the reference in days, the rows with both dates, and counts `within` (at or under) and `above` the reference. | |
 | `policy_source` | Our dated copy of the policy page the references come from. | |
 

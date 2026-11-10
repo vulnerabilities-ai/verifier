@@ -140,6 +140,8 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
         report, patch, reveal = dates.get("report_date"), dates.get("patch_released_date"), dates.get("reveal_date")
         merged_at = fix.get("fix_merged_at")
         status = _worst(lookup_statuses)
+        if status == "ok" and not inp["cve_ids"] and not inp["ghsa_ids"]:
+            status = "no_identifiers"  # nothing to look up: not the same as a successful lookup
         nvd_first = sorted(nvd_rec, key=lambda n: n.get("published") or "")[0] if nvd_rec else None
         row = {
             "program": PROGRAM, "finding_id": fid, "hash": e.get("hash"), "project": e.get("project"),
@@ -168,13 +170,23 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "advisory_review_status": (gh_first or {}).get("review_status"),
             "advisory_packages": sorted({p for a in gh_adv for p in a.get("packages", [])}),
             "lookup_status": status,
-            "checked": "yes" if hash_check in FINAL_HASH and status == "ok" else "no",
+            "checked": "yes" if fully_checked(hash_check, ids_exist, fix["fix_merged"]) else "no",
             "method": "automated: R2 finding card; R3 GitHub Advisory Database and NVD; R4 GitHub",
             **LABELS,
             "notes": " ".join(notes) or None,
         }
         rows.append(row)
     return rows
+
+
+# "Fully checked" (Jon, 2026-11-10): the hash check is conclusive, the identifiers are
+# confirmed or there are none, AND the fix's merge status was actually determined.
+IDS_CONCLUSIVE = frozenset({"verified", "not_applicable"})
+FIX_CONCLUSIVE = frozenset({"yes", "no"})
+
+
+def fully_checked(hash_check: str, ids_exist: str, fix_merged: str) -> bool:
+    return hash_check in FINAL_HASH and ids_exist in IDS_CONCLUSIVE and fix_merged in FIX_CONCLUSIVE
 
 
 def _ids_exist(detail: dict) -> str:

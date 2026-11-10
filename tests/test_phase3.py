@@ -452,6 +452,59 @@ class PublishedPhase3(Phase3Case):
             self.assertEqual(find(ok), [], ok)
 
 
+class FullyChecked(Phase3Case):
+    """Jon, 2026-11-10: fully checked = hash conclusive AND identifiers confirmed or none
+    AND fix_merged determined. A finding whose fix was not checked never counts."""
+
+    def test_rule(self):
+        from verifier.build.phase3 import fully_checked
+        for h in ("match", "mismatch", "preimage_withheld", "unavailable", "not_checked"):
+            for ids in ("verified", "not_applicable", "not_found", "not_checked", "rate_limited", "lookup_unreadable"):
+                self.assertFalse(fully_checked(h, ids, "not_checked"), (h, ids))  # never, whatever else holds
+                for fix in ("yes", "no"):
+                    expected = h in ("match", "mismatch", "preimage_withheld") and ids in ("verified", "not_applicable")
+                    self.assertEqual(fully_checked(h, ids, fix), expected, (h, ids, fix))
+        for fix in ("rate_limited", "lookup_unreadable", "network_error", "not_applicable"):
+            self.assertFalse(fully_checked("match", "verified", fix), fix)
+
+    def test_today_zero_of_237_and_no_identifiers(self):
+        r = build(self.root)  # no public-record lookups yet
+        s = r["summary"]
+        self.assertEqual((s["checked_n"], s["checked_of"]), (0, 237))
+        for v in r["tables"]["verification"]:
+            if not v["cve_ids"] and not v["ghsa_ids"]:
+                self.assertEqual(v["lookup_status"], "no_identifiers", v["finding_id"])
+            self.assertNotEqual(v["lookup_status"], "ok")  # nothing has been looked up
+            if v["fix_merged"] == "not_checked":
+                self.assertEqual(v["checked"], "no", v["finding_id"])
+        n = sum(1 for v in r["tables"]["verification"] if v["lookup_status"] == "no_identifiers")
+        self.assertGreater(n, 0)
+        self.assertEqual(s["lookups"].get("no_identifiers"), n)
+        self.assertNotIn("ok", s["lookups"])
+        text = weekly_report(self.root, "2026-01-01")
+        self.assertIn("Fully checked: 0 of 237.", text)
+
+    def test_fix_not_checked_is_never_fully_checked(self):
+        # every other part conclusive for wolfSSL, but the fix is not on GitHub -> fix_merged not_checked
+        run_lookups(self.root, self.wolf_only(), self.record_fetcher())
+        r = build(self.root)
+        w = next(v for v in r["tables"]["verification"] if v["finding_id"] == WOLF_ID)
+        self.assertEqual((w["checked"], w["fix_merged"], w["ids_exist"]), ("yes", "yes", "verified"))
+        from verifier.build import phase3
+        real = phase3.RecordReader.fix_merged
+
+        def not_checked(self_, *a):
+            return {"status": "not_checked", "fix_merged": "not_checked", "reason": "the fix is not on GitHub",
+                    "address": "https://example.org/fix"}
+        with mock.patch.object(phase3.RecordReader, "fix_merged", not_checked):
+            r = build(self.root)
+        w = next(v for v in r["tables"]["verification"] if v["finding_id"] == WOLF_ID)
+        self.assertEqual((w["hash_check"], w["ids_exist"], w["fix_merged"]), ("match", "verified", "not_checked"))
+        self.assertEqual(w["checked"], "no")
+        self.assertEqual(r["summary"]["checked_n"], 0)
+        self.assertTrue(real)
+
+
 class Publishing(unittest.TestCase):
     def test_site_data_zip(self):
         with tempfile.TemporaryDirectory() as t:
