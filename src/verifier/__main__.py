@@ -43,6 +43,15 @@ def main(argv: list[str] | None = None) -> int:
     b = sub.add_parser("build", help="rebuild data/ and cards/*/verification.json (no network)")
     b.add_argument("--root", default=".")
 
+    rp = sub.add_parser("review-pr", help="write the review pull request's title and description")
+    rp.add_argument("--root", default=".")
+    rp.add_argument("--cards-summary", default="")
+    for k in ("cards", "build", "tests", "audit"):
+        rp.add_argument(f"--{k}", default="success", help=f"outcome of the {k} step")
+    rp.add_argument("--date", required=True)
+    rp.add_argument("--title-out", required=True)
+    rp.add_argument("--body-out", required=True)
+
     rs = sub.add_parser("review-summary", help="write the plain-language tally for the review PR")
     rs.add_argument("--root", default=".")
     rs.add_argument("--cards-summary", default="")
@@ -102,6 +111,18 @@ def main(argv: list[str] | None = None) -> int:
         from .build import build
         r = build(Path(args.root))
         print(json.dumps({"generated_utc": r["generated_utc"], "rows": r["rows"], "cards": r["cards"]}, indent=2))
+        return 0
+
+    if args.cmd == "review-pr":
+        from .review import review_pr
+        cards_fetch = (json.loads(Path(args.cards_summary).read_text(encoding="utf-8"))
+                       if args.cards_summary and Path(args.cards_summary).exists() else None)
+        outcomes = {k: getattr(args, k) for k in ("cards", "build", "tests", "audit")}
+        title, body = review_pr(Path(args.root), outcomes, args.date, cards_fetch)
+        Path(args.title_out).write_text(title, encoding="utf-8")
+        Path(args.body_out).write_text(body, encoding="utf-8")
+        print(title)
+        print(body)
         return 0
 
     if args.cmd == "review-summary":

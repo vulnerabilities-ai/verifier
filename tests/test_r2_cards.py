@@ -15,8 +15,9 @@ from verifier.net import Fetcher
 from verifier.r2 import canonical_bytes, extract_preimage, parse_card, r2_check, sha3_512
 
 ROOT = Path(__file__).resolve().parents[1]
-CARD = ROOT / "cards/ANT-2026-87DJGDRB/card.html"
-PREIMAGE = ROOT / "cards/ANT-2026-87DJGDRB/preimage.json"
+FIXTURE = ROOT / "tests/fixtures/wolfssl-card"  # frozen copy; the live card folder keeps growing
+CARD = FIXTURE / "card.html"
+PREIMAGE = FIXTURE / "preimage.json"
 WOLF_ID = "ANT-2026-87DJGDRB"
 WOLF_HASH = ("f35e4f410ec58dab28431670e173e03fd1e5105f8afefc79c7edd5117d684d3a"
              "a377d218762d2f1ab70c6262e31227885bacaf2062958b077e305e5aebc6c37d")
@@ -143,7 +144,7 @@ class CardFetching(unittest.TestCase):
         d = self.root / "cards" / WOLF_ID
         d.mkdir(parents=True)
         for f in ("card.html", "preimage.json", "MANIFEST.json"):
-            shutil.copy(ROOT / "cards" / WOLF_ID / f, d / f)
+            shutil.copy(FIXTURE / f, d / f)
         self.assertTrue(is_due(json.loads((d / "MANIFEST.json").read_text()), "2026-11-10T00:00:00Z"))
         self.site.routes[f"/2026/cvd/findings/{WOLF_ID}.html"] = (200, CARD.read_bytes(), {})
         fetch_cards(self.root, {WOLF_ID: WOLF_HASH}, Fetcher(min_interval=0), self.base)

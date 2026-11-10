@@ -82,3 +82,27 @@ class CaptureCase(unittest.TestCase):
     def log(self):
         with open(self.root / "captures" / "capture-log.csv", encoding="utf-8") as f:
             return list(csv.DictReader(f))
+
+
+# ---------------------------------------------------------------------------
+# Frozen archive: tests never depend on the live archive's growing state
+# (more captures, more cards, more appended notes). They copy a fixed set of
+# capture folders and a frozen copy of the wolfSSL card with Jon's manual
+# manifest, and build into a temporary folder.
+# ---------------------------------------------------------------------------
+import shutil  # noqa: E402
+
+REPO = Path(__file__).resolve().parents[1]
+FIXTURE_CARD = REPO / "tests" / "fixtures" / "wolfssl-card"
+WOLF_ID = "ANT-2026-87DJGDRB"
+FROZEN_CAPTURE_DIRS = ["captures/2026/10/30", "captures/2026/11/08", "captures/anthropic-archive"]
+
+
+def frozen_archive(dst: Path) -> Path:
+    for rel in FROZEN_CAPTURE_DIRS:
+        shutil.copytree(REPO / rel, dst / rel)
+    card_dir = dst / "cards" / WOLF_ID
+    card_dir.mkdir(parents=True)
+    for f in ("card.html", "preimage.json", "MANIFEST.json"):
+        shutil.copy(FIXTURE_CARD / f, card_dir / f)
+    return dst

@@ -98,7 +98,14 @@ The published tables in `data/` are rebuilt by `python -m verifier build` from `
 - **The preimage** comes from the card's download link (`data:` address, percent-decoded UTF-8). The fallback is the visible preimage text, re-serialized canonically: sorted keys, no whitespace between tokens, UTF-8, non-ASCII left unescaped (escaping it changes the hash).
 - **The check.** SHA-3-512 of the preimage is compared with the ledger hash (from our latest capture) and with the hash printed on the card. The pipeline records the raw-bytes match, the canonical-rebuild match, and the outcome `match`, `mismatch` or `unavailable`, with its inputs.
 - **`cards/<ID>/verification.json`** also records the card's timeline as printed, the severities by source, and the links. When the patch date is earlier than "Discovered or logged", it adds a neutral note (quirk 6).
-- **Review before main.** Card results reach main only through the weekly review pull request.
+- **Unavailable results** always carry a plain reason, in `verification.json` (`r2.unavailable_reason`, with a code and words) and in the review pull request. The reasons:
+  - the card could not be fetched (each address tried is listed);
+  - the card has no preimage download link and no visible preimage text;
+  - the download link could not be read (for example, base64 content that does not decode);
+  - the visible preimage text is not valid JSON.
+
+  A base64 `data:` link is decoded before hashing.
+- **Review before main.** Card results reach main only through the weekly review pull request. The fetched raw cards are committed to the review branch even when the rebuild, tests or audit fail afterwards, so fetched evidence is never lost. The pull request title then says "checks failed", and its description begins with what failed. If the rebuild failed, `data/` and the cards' `verification.json` are left as they are on main.
 
 ## Verification labels
 
