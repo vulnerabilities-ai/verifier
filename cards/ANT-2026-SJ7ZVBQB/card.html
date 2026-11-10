@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-SJ7ZVBQB · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-SJ7ZVBQB · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-SJ7ZVBQB: Heap-buffer-overflow in mpeg.h:70</h1>
+<p>While demuxing a crafted TiVo TY file, demux_video() in libavformat/ty.c:404 calls ff_parse_pes_pts() on a PES header located at the very end of the 128 KiB chunk buffer. ff_parse_pes_pts() unconditionally dereferences 5 bytes of timestamp data, and the pointer lands 0 bytes past the end of the 131200-byte heap allocation, producing a READ of size 1 beyond the buffer. An attacker controls the record layout and sizes in the TY container that position the PES header at the buffer boundary. The result is an out-of-bounds read that can crash the process or leak adjacent heap bytes into a parsed PTS value.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>mpeg.h:70</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 1 at 0x747fe6227880 ... heap-buffer-overflow ... in ff_parse_pes_pts /src/ffmpeg/libavformat/mpeg.h:70:22". The faulting address is exactly 0 bytes after a 131200-byte region, meaning demux_video() did not ensure at least 5 bytes remained in the chunk before invoking ff_parse_pes_pts() on the PES timestamp, so the inline helper reads past the allocation boundary.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3263152788
+INFO: Loaded 1 modules   (117549 inline 8-bit counters): 117549 [0x60a860eeafc8, 0x60a860f07af5), 
+INFO: Loaded 1 PC tables (117549 PCs): 117549 [0x60a860f07af8,0x60a8610d2dc8), 
+/out/ffmpeg_dem_TY_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x747fe6227880 at pc 0x60a860764362 bp 0x7ffce231f010 sp 0x7ffce231f008
+READ of size 1 at 0x747fe6227880 thread T0
+    #0 0x60a860764361 in ff_parse_pes_pts /src/ffmpeg/libavformat/mpeg.h:70:22
+    #1 0x60a860764361 in demux_video /src/ffmpeg/libavformat/ty.c:404:34
+    #2 0x60a860764361 in ty_read_packet /src/ffmpeg/libavformat/ty.c:687:19
+    #3 0x60a860526358 in ff_read_packet /src/ffmpeg/libavformat/demux.c:659:15
+    #4 0x60a86052882b in read_frame_internal /src/ffmpeg/libavformat/demux.c:1400:15
+    #5 0x60a8605281cd in av_read_frame /src/ffmpeg/libavformat/demux.c:1599:17
+    #6 0x60a86049694e in LLVMFuzzerTestOneInput /src/ffmpeg/tools/target_dem_fuzzer.c:209:15
+    #7 0x60a860333a7d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    [... 15 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a TY file whose record table places a video record's PES header at the very end of the 128 KiB chunk buffer</li>
+<li>Deliver the file to the target (download, upload pipeline, transcoder, thumbnailer, etc.)</li>
+<li>av_read_frame() → ty_read_packet() → demux_video() calls ff_parse_pes_pts() on the boundary pointer, reading past the allocation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-SJ7ZVBQB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-SJ7ZVBQB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavformat/ty.c b/libavformat/ty.c</span>
+<span class="diff-h">index c637c35e7ca64..9be027fcca35b 100644</span>
+<span class="diff-h">--- a/libavformat/ty.c</span>
+<span class="diff-h">+++ b/libavformat/ty.c</span>
+<span class="diff-h">@@ -396,12 +396,16 @@ static int demux_video(AVFormatContext *s, TyRecHdr *rec_hdr, AVPacket *pkt)</span>
+<span class="diff-c">     int got_packet = 0;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (subrec_type != 0x02 &amp;&amp; subrec_type != 0x0c &amp;&amp;</span>
+<span class="diff-d">-        subrec_type != 0x08 &amp;&amp; rec_size &gt; 4) {</span>
+<span class="diff-a">+        subrec_type != 0x08 &amp;&amp; rec_size &gt; 7) {</span>
+<span class="diff-a">+</span>
+<span class="diff-c">         /* get the PTS from this packet if it has one.</span>
+<span class="diff-c">          * on S1, only 0x06 has PES.  On S2, however, most all do.</span>
+<span class="diff-c">          * Do NOT Pass the PES Header to the MPEG2 codec */</span>
+<span class="diff-c">         es_offset1 = find_es_header(ty_VideoPacket, ty-&gt;chunk + ty-&gt;cur_chunk_pos, 5);</span>
+<span class="diff-c">         if (es_offset1 != -1) {</span>
+<span class="diff-a">+            if (rec_size &lt; es_offset1 + VIDEO_PTS_OFFSET + 5)</span>
+<span class="diff-a">+                return AVERROR_INVALIDDATA;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">             ty-&gt;last_video_pts = ff_parse_pes_pts(</span>
+<span class="diff-c">                     ty-&gt;chunk + ty-&gt;cur_chunk_pos + es_offset1 + VIDEO_PTS_OFFSET);</span>
+<span class="diff-c">             if (subrec_type != 0x06) {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/4492ad7228a381c2f0c8b79d333a59c7657311c9" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/4492ad7228a381c2f0c8b79d333a59c7657311c9</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-17</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">69e72e0559fea11f7d52c6014c97b53d664c439ed2cf9dc0507acf38fa2f6e9d7e20873be9a0ad3cc998b58b3ca3597a415bf96622ea308c0b55af3b29ff79c6</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:45 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-SJ7ZVBQB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-SJ7ZVBQB%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A31%3A24%2B00%3A00%22%2C%22description%22%3A%22While%20demuxing%20a%20crafted%20TiVo%20TY%20file%2C%20demux_video%28%29%20in%20libavformat/ty.c%3A404%20calls%20ff_parse_pes_pts%28%29%20on%20a%20PES%20header%20located%20at%20the%20very%20end%20of%20the%20128%20KiB%20chunk%20buffer.%20ff_parse_pes_pts%28%29%20unconditionally%20dereferences%205%20bytes%20of%20timestamp%20data%2C%20and%20the%20pointer%20lands%200%20bytes%20past%20the%20end%20of%20the%20131200-byte%20heap%20allocation%2C%20producing%20a%20READ%20of%20size%201%20beyond%20the%20buffer.%20An%20attacker%20controls%20the%20record%20layout%20and%20sizes%20in%20the%20TY%20container%20that%20position%20the%20PES%20header%20at%20the%20buffer%20boundary.%20The%20result%20is%20an%20out-of-bounds%20read%20that%20can%20crash%20the%20process%20or%20leak%20adjacent%20heap%20bytes%20into%20a%20parsed%20PTS%20value.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22mpeg.h%3A70%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20TY%20file%20whose%20record%20table%20places%20a%20video%20record%27s%20PES%20header%20at%20the%20very%20end%20of%20the%20128%20KiB%20chunk%20buffer%22%2C%222.%20Deliver%20the%20file%20to%20the%20target%20%28download%2C%20upload%20pipeline%2C%20transcoder%2C%20thumbnailer%2C%20etc.%29%22%2C%223.%20av_read_frame%28%29%20%E2%86%92%20ty_read_packet%28%29%20%E2%86%92%20demux_video%28%29%20calls%20ff_parse_pes_pts%28%29%20on%20the%20boundary%20pointer%2C%20reading%20past%20the%20allocation%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%201%20at%200x747fe6227880%20...%20heap-buffer-overflow%20...%20in%20ff_parse_pes_pts%20/src/ffmpeg/libavformat/mpeg.h%3A70%3A22%5C%22.%20The%20faulting%20address%20is%20exactly%200%20bytes%20after%20a%20131200-byte%20region%2C%20meaning%20demux_video%28%29%20did%20not%20ensure%20at%20least%205%20bytes%20remained%20in%20the%20chunk%20before%20invoking%20ff_parse_pes_pts%28%29%20on%20the%20PES%20timestamp%2C%20so%20the%20inline%20helper%20reads%20past%20the%20allocation%20boundary.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20mpeg.h%3A70%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-SJ7ZVBQB&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:31:24+00:00&#34;,
+  &#34;description&#34;: &#34;While demuxing a crafted TiVo TY file, demux_video() in libavformat/ty.c:404 calls ff_parse_pes_pts() on a PES header located at the very end of the 128 KiB chunk buffer. ff_parse_pes_pts() unconditionally dereferences 5 bytes of timestamp data, and the pointer lands 0 bytes past the end of the 131200-byte heap allocation, producing a READ of size 1 beyond the buffer. An attacker controls the record layout and sizes in the TY container that position the PES header at the buffer boundary. The result is an out-of-bounds read that can crash the process or leak adjacent heap bytes into a parsed PTS value.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;mpeg.h:70&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a TY file whose record table places a video record&#39;s PES header at the very end of the 128 KiB chunk buffer&#34;,
+    &#34;2. Deliver the file to the target (download, upload pipeline, transcoder, thumbnailer, etc.)&#34;,
+    &#34;3. av_read_frame() → ty_read_packet() → demux_video() calls ff_parse_pes_pts() on the boundary pointer, reading past the allocation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 1 at 0x747fe6227880 ... heap-buffer-overflow ... in ff_parse_pes_pts /src/ffmpeg/libavformat/mpeg.h:70:22\&#34;. The faulting address is exactly 0 bytes after a 131200-byte region, meaning demux_video() did not ensure at least 5 bytes remained in the chunk before invoking ff_parse_pes_pts() on the PES timestamp, so the inline helper reads past the allocation boundary.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in mpeg.h:70&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

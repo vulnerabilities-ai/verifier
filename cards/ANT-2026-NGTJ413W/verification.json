@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-NGTJ413W",
+  "hash": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-NGTJ413W/card.html",
+    "sha256": "84c1d8a6affaca97bb4a5bf9a26c89be48f8ea888e92e2bc139976475722963d",
+    "fetched_utc": "2026-11-10T21:06:51Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-NGTJ413W",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+    "printed_hash": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+    "canonical_rebuild_sha3_512": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:51Z",
+  "card_facts": {
+    "printed_hash": "d06d3e204d9da2ea0b35d2a28085d39ab5c1a5311322511d8e09757c756d08227d8136fc82f621634e5fbf6f397529473de34f6664937620858241dca80dd6af",
+    "committed_printed": "2026-05-28 15:01 UTC",
+    "revealed_printed": "2026-08-17 23:43 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-27",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-28",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-06-10",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-27",
+      "report_date": "2026-05-28",
+      "patch_released_date": "2026-06-10",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/FFmpeg/FFmpeg/commit/331b3e9dea484f4974bbff2596e6e31c3d5e4685"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

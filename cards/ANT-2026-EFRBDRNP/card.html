@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-EFRBDRNP · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-EFRBDRNP · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  open-redirect
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-EFRBDRNP: Unvalidated returnTo redirect after organisation creation</h1>
+<p>In Supabase Studio's NewOrgForm component, after a user successfully creates an organisation the code reads <code>returnTo</code> from <code>router.query</code> and calls <code>router.push(returnTo)</code> with no validation. Because Next.js <code>router.push</code> accepts absolute URLs and performs a full-page navigation for external origins, an attacker who gets an authenticated Studio user to open a link like <code>/dashboard/new?returnTo=https://evil.tld</code> will have the victim redirected to the attacker's site immediately after completing the legitimate org-creation flow. This can be used to stage a convincing phishing page that mimics Studio and harvests credentials or PATs.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx:303</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a missing allow-list / relative-path check on the user-controlled <code>returnTo</code> value before it is handed to <code>router.push</code>. <code>router.push</code> will happily navigate to an absolute external URL, so any value the attacker places in the query string becomes the post-action destination.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker crafts a URL to the legitimate Studio new-org page with <code>?returnTo=https://evil.tld/dashboard</code>.</li>
+<li>Attacker distributes the link (e.g. in a community channel) as a helpful quick-start link.</li>
+<li>Victim authenticates (if needed) and submits the new-organisation form on the real dashboard.</li>
+<li>On success, <code>router.push(returnTo)</code> navigates the victim's browser to <code>https://evil.tld/dashboard</code>.</li>
+<li>Attacker's page mimics Studio and prompts for re-authentication or a personal access token.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Only honour <code>returnTo</code> values that are relative paths beginning with a single <code>/</code> (and not <code>//</code>); otherwise fall back to the default dashboard route.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-EFRBDRNP.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-EFRBDRNP<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx b/apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx</span>
+<span class="diff-h">index dd67eda9d45ff..d88e6280a1936 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx</span>
+<span class="diff-h">@@ -57,6 +57,7 @@ import { useConfirmPendingSubscriptionCreateMutation } from &#x27;@/data/subscription</span>
+<span class="diff-c"> import { useIsFeatureEnabled } from &#x27;@/hooks/misc/useIsFeatureEnabled&#x27;</span>
+<span class="diff-c"> import { useLocalStorageQuery } from &#x27;@/hooks/misc/useLocalStorage&#x27;</span>
+<span class="diff-c"> import { PRICING_TIER_LABELS_ORG, STRIPE_PUBLIC_KEY } from &#x27;@/lib/constants&#x27;</span>
+<span class="diff-a">+import { validateReturnTo } from &#x27;@/lib/gotrue&#x27;</span>
+<span class="diff-c"> import { useProfile } from &#x27;@/lib/profile&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> interface NewOrgFormProps {</span>
+<span class="diff-h">@@ -279,7 +280,7 @@ export const NewOrgForm = ({</span>
+<span class="diff-c">       : &#x27;My Project&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (searchParams.returnTo) {</span>
+<span class="diff-d">-      const url = new URL(searchParams.returnTo, window.location.origin)</span>
+<span class="diff-a">+      const url = new URL(validateReturnTo(searchParams.returnTo, &#x27;/&#x27;), window.location.origin)</span>
+<span class="diff-c">       if (searchParams.auth_id) {</span>
+<span class="diff-c">         url.searchParams.set(&#x27;auth_id&#x27;, searchParams.auth_id)</span>
+<span class="diff-c">       }</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/a59b797216d6459ef466a209ee90b404826f9b9b" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/a59b797216d6459ef466a209ee90b404826f9b9b</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">9c08f381eb7b115269163418ec693ce3fdd7c32e96993ae2429967b16ed4d93f4451bfaf7c9fb7f659b486dbb11d9eae68d20cc82ff45113bef8714e6c5e1f17</p>
+<p class="kicker">Committed 2026-05-18 00:54 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-EFRBDRNP-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-EFRBDRNP%22%2C%22bug_class%22%3A%22open-redirect%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A04%3A17%2B00%3A00%22%2C%22description%22%3A%22In%20Supabase%20Studio%27s%20NewOrgForm%20component%2C%20after%20a%20user%20successfully%20creates%20an%20organisation%20the%20code%20reads%20%60returnTo%60%20from%20%60router.query%60%20and%20calls%20%60router.push%28returnTo%29%60%20with%20no%20validation.%20Because%20Next.js%20%60router.push%60%20accepts%20absolute%20URLs%20and%20performs%20a%20full-page%20navigation%20for%20external%20origins%2C%20an%20attacker%20who%20gets%20an%20authenticated%20Studio%20user%20to%20open%20a%20link%20like%20%60/dashboard/new%3FreturnTo%3Dhttps%3A//evil.tld%60%20will%20have%20the%20victim%20redirected%20to%20the%20attacker%27s%20site%20immediately%20after%20completing%20the%20legitimate%20org-creation%20flow.%20This%20can%20be%20used%20to%20stage%20a%20convincing%20phishing%20page%20that%20mimics%20Studio%20and%20harvests%20credentials%20or%20PATs.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx%3A303%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20crafts%20a%20URL%20to%20the%20legitimate%20Studio%20new-org%20page%20with%20%60%3FreturnTo%3Dhttps%3A//evil.tld/dashboard%60.%22%2C%222.%20Attacker%20distributes%20the%20link%20%28e.g.%20in%20a%20community%20channel%29%20as%20a%20helpful%20quick-start%20link.%22%2C%223.%20Victim%20authenticates%20%28if%20needed%29%20and%20submits%20the%20new-organisation%20form%20on%20the%20real%20dashboard.%22%2C%224.%20On%20success%2C%20%60router.push%28returnTo%29%60%20navigates%20the%20victim%27s%20browser%20to%20%60https%3A//evil.tld/dashboard%60.%22%2C%225.%20Attacker%27s%20page%20mimics%20Studio%20and%20prompts%20for%20re-authentication%20or%20a%20personal%20access%20token.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20missing%20allow-list%20/%20relative-path%20check%20on%20the%20user-controlled%20%60returnTo%60%20value%20before%20it%20is%20handed%20to%20%60router.push%60.%20%60router.push%60%20will%20happily%20navigate%20to%20an%20absolute%20external%20URL%2C%20so%20any%20value%20the%20attacker%20places%20in%20the%20query%20string%20becomes%20the%20post-action%20destination.%22%2C%22title%22%3A%22Unvalidated%20returnTo%20redirect%20after%20organisation%20creation%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-EFRBDRNP&#34;,
+  &#34;bug_class&#34;: &#34;open-redirect&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:04:17+00:00&#34;,
+  &#34;description&#34;: &#34;In Supabase Studio&#39;s NewOrgForm component, after a user successfully creates an organisation the code reads `returnTo` from `router.query` and calls `router.push(returnTo)` with no validation. Because Next.js `router.push` accepts absolute URLs and performs a full-page navigation for external origins, an attacker who gets an authenticated Studio user to open a link like `/dashboard/new?returnTo=https://evil.tld` will have the victim redirected to the attacker&#39;s site immediately after completing the legitimate org-creation flow. This can be used to stage a convincing phishing page that mimics Studio and harvests credentials or PATs.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;apps/studio/components/interfaces/Organization/NewOrg/NewOrgForm.tsx:303&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker crafts a URL to the legitimate Studio new-org page with `?returnTo=https://evil.tld/dashboard`.&#34;,
+    &#34;2. Attacker distributes the link (e.g. in a community channel) as a helpful quick-start link.&#34;,
+    &#34;3. Victim authenticates (if needed) and submits the new-organisation form on the real dashboard.&#34;,
+    &#34;4. On success, `router.push(returnTo)` navigates the victim&#39;s browser to `https://evil.tld/dashboard`.&#34;,
+    &#34;5. Attacker&#39;s page mimics Studio and prompts for re-authentication or a personal access token.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a missing allow-list / relative-path check on the user-controlled `returnTo` value before it is handed to `router.push`. `router.push` will happily navigate to an absolute external URL, so any value the attacker places in the query string becomes the post-action destination.&#34;,
+  &#34;title&#34;: &#34;Unvalidated returnTo redirect after organisation creation&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

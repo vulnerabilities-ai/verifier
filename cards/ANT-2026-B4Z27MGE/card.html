@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-B4Z27MGE · gpac</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-B4Z27MGE · gpac</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  format-string
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-B4Z27MGE: gpac/fuzz_route/20251128_202533_unknown/</h1>
+<p>GPAC's DASH manifest handling extracts the printf-style specifier from segment templates such as $Number%05d$ and uses it directly as the format argument to sprintf when resolving segment URLs. The prior sanity check only verified that a 'd', 'i' or 'u' character appeared somewhere in the string, so specifiers like %n, %s or multiple conversions were accepted. The same untrusted-format pattern exists in gf_mpd_resolve_subnumber and in the ROUTE/ATSC3 STSID TOI-template parser. An attacker who serves a malicious MPD manifest or ROUTE STSID can therefore inject an arbitrary format string, leading to memory corruption or information disclosure when the template is expanded.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> gpac<br>
+<strong>Location:</strong> <code>src/media_tools/route_dmx.c:gf_route_service_setup_stsid (unvalidated printf format specifier from S-TSID TOI template; shared root cause also in src/media_tools/mpd.c:gf_mpd_resolve_url)</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that an attacker-controlled string is used as the format parameter of sprintf. The old guard <code>if (!strchr(szPrintFormat,'d') &amp;&amp; !strchr(szPrintFormat,'i') &amp;&amp; !strchr(szPrintFormat,'u')) strcat(szPrintFormat,"d");</code> does not restrict the string to a single integer conversion, so payloads such as <code>%n%d</code> or <code>%4919$s</code> pass validation. In gf_mpd_resolve_subnumber the specifier was passed to sprintf with no validation at all.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-B4Z27MGE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-B4Z27MGE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/gpac/gpac/commit/5db36afe0f20a02ea2344d42521e687820096cf4" rel="noopener noreferrer">https://github.com/gpac/gpac/commit/5db36afe0f20a02ea2344d42521e687820096cf4</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2025-11-28</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3d38a652b5c09d79c4ee53e0357f95d9e120fb9ce3485948d6c4b12cca1f3d0c5e30b639ad887b2c072297749656bb2689666c2801c477804cb6a1ea50701897</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:14 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-B4Z27MGE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-B4Z27MGE%22%2C%22bug_class%22%3Anull%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A34%2B00%3A00%22%2C%22description%22%3A%22GPAC%27s%20DASH%20manifest%20handling%20extracts%20the%20printf-style%20specifier%20from%20segment%20templates%20such%20as%20%24Number%2505d%24%20and%20uses%20it%20directly%20as%20the%20format%20argument%20to%20sprintf%20when%20resolving%20segment%20URLs.%20The%20prior%20sanity%20check%20only%20verified%20that%20a%20%27d%27%2C%20%27i%27%20or%20%27u%27%20character%20appeared%20somewhere%20in%20the%20string%2C%20so%20specifiers%20like%20%25n%2C%20%25s%20or%20multiple%20conversions%20were%20accepted.%20The%20same%20untrusted-format%20pattern%20exists%20in%20gf_mpd_resolve_subnumber%20and%20in%20the%20ROUTE/ATSC3%20STSID%20TOI-template%20parser.%20An%20attacker%20who%20serves%20a%20malicious%20MPD%20manifest%20or%20ROUTE%20STSID%20can%20therefore%20inject%20an%20arbitrary%20format%20string%2C%20leading%20to%20memory%20corruption%20or%20information%20disclosure%20when%20the%20template%20is%20expanded.%22%2C%22discovered_at%22%3A%222025-11-28T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22GPAC%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20an%20attacker-controlled%20string%20is%20used%20as%20the%20format%20parameter%20of%20sprintf.%20The%20old%20guard%20%60if%20%28%21strchr%28szPrintFormat%2C%27d%27%29%20%26%26%20%21strchr%28szPrintFormat%2C%27i%27%29%20%26%26%20%21strchr%28szPrintFormat%2C%27u%27%29%29%20strcat%28szPrintFormat%2C%5C%22d%5C%22%29%3B%60%20does%20not%20restrict%20the%20string%20to%20a%20single%20integer%20conversion%2C%20so%20payloads%20such%20as%20%60%25n%25d%60%20or%20%60%254919%24s%60%20pass%20validation.%20In%20gf_mpd_resolve_subnumber%20the%20specifier%20was%20passed%20to%20sprintf%20with%20no%20validation%20at%20all.%22%2C%22title%22%3A%22gpac/fuzz_route/20251128_202533_unknown/%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-B4Z27MGE&#34;,
+  &#34;bug_class&#34;: null,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:34+00:00&#34;,
+  &#34;description&#34;: &#34;GPAC&#39;s DASH manifest handling extracts the printf-style specifier from segment templates such as $Number%05d$ and uses it directly as the format argument to sprintf when resolving segment URLs. The prior sanity check only verified that a &#39;d&#39;, &#39;i&#39; or &#39;u&#39; character appeared somewhere in the string, so specifiers like %n, %s or multiple conversions were accepted. The same untrusted-format pattern exists in gf_mpd_resolve_subnumber and in the ROUTE/ATSC3 STSID TOI-template parser. An attacker who serves a malicious MPD manifest or ROUTE STSID can therefore inject an arbitrary format string, leading to memory corruption or information disclosure when the template is expanded.&#34;,
+  &#34;discovered_at&#34;: &#34;2025-11-28T00:00:00+00:00&#34;,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;GPAC&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The root cause is that an attacker-controlled string is used as the format parameter of sprintf. The old guard `if (!strchr(szPrintFormat,&#39;d&#39;) &amp;&amp; !strchr(szPrintFormat,&#39;i&#39;) &amp;&amp; !strchr(szPrintFormat,&#39;u&#39;)) strcat(szPrintFormat,\&#34;d\&#34;);` does not restrict the string to a single integer conversion, so payloads such as `%n%d` or `%4919$s` pass validation. In gf_mpd_resolve_subnumber the specifier was passed to sprintf with no validation at all.&#34;,
+  &#34;title&#34;: &#34;gpac/fuzz_route/20251128_202533_unknown/&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

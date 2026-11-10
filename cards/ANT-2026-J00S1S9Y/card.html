@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-J00S1S9Y · libreoffice/core</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-J00S1S9Y · libreoffice/core</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63273">CVE-2026-63273</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-J00S1S9Y: PDF encryption key-length field drives out-of-bounds key buffer write</h1>
+<p>In LibreOffice's PDF import component, PDFFile::setupDecryptionData stores m_nKeyLength = /Length / 8 from the attacker-authored /Encrypt dictionary without clamping to the spec maximum of 16 bytes. PDFFile::decrypt then writes five object-number/generation bytes starting at m_aDecryptionKey[m_nKeyLength], but m_aDecryptionKey is a fixed 21-byte array and the last member of the new-allocated PDFFileImplData struct. The gating check usesSupportedEncryptionFormat() only validates /V and /R, and password_to_key() clamps its return value but never m_nKeyLength, so an attacker who sets /Length to e.g. 65536 and precomputes /U for a chosen password gets a 5-byte write at an attacker-controlled offset (8 KB) past the struct into adjacent heap memory. The path fires when a victim opens an encrypted hybrid PDF and enters any password at the prompt, yielding heap corruption and potential code execution via heap grooming.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libreoffice/core<br>
+<strong>Location:</strong> <code>sdext/source/pdfimport/pdfparse/pdfentries.cxx:1058</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>setupDecryptionData (pdfentries.cxx:1336) derives m_nKeyLength directly from the attacker-controlled /Encrypt /Length field with no upper bound, and decrypt (pdfentries.cxx:1058-1063) uses that value as the starting index for five writes into the fixed-size sal_uInt8[ENCRYPTION_KEY_LEN+5] = 21-byte m_aDecryptionKey array. Because m_aDecryptionKey is the final member of the heap-allocated PDFFileImplData (new'd at :1269), any m_nKeyLength &gt; 16 writes beyond the allocation. No guard on the path — usesSupportedEncryptionFormat() (:1197-1203) checks only /V and /R, and password_to_key() (:1129-1131) clamps its return to 16 but does not write back to m_nKeyLength.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a hybrid PDF with /Encrypt dict setting /V 2, /R 3, and /Length to a large value (e.g. 65536), and precompute /U so a chosen/empty password authenticates</li>
+<li>Include an AdditionalStreams reference whose object number/generation yield the desired 5 payload bytes, and groom the heap via other PDF objects</li>
+<li>Deliver the PDF to the victim (e.g. phishing) and have them open it in LibreOffice</li>
+<li>Victim enters the password at the prompt; setupDecryptionData records m_nKeyLength = /Length / 8</li>
+<li>getAdditionalStream → writeStream → getDeflatedStream → decrypt writes 5 bytes at m_aDecryptionKey[m_nKeyLength..+4], corrupting the adjacent heap allocation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Reject or clamp /Encrypt /Length to the PDF specification maximum (128 bits / 16 bytes) before storing m_nKeyLength, so the per-object key expansion can never index past the fixed key buffer.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-J00S1S9Y.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-J00S1S9Y<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/sdext/source/pdfimport/pdfparse/pdfentries.cxx b/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">index 3ec950e22b755..67ad3af2cb961 100644</span>
+<span class="diff-h">--- a/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">+++ b/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">@@ -1339,7 +1339,15 @@ PDFFileImplData* PDFFile::impl_getData() const</span>
+<span class="diff-c">                         {</span>
+<span class="diff-c">                             PDFNumber* pNum = dynamic_cast&lt;PDFNumber*&gt;(len-&gt;second);</span>
+<span class="diff-c">                             if( pNum )</span>
+<span class="diff-d">-                                m_pData-&gt;m_nKeyLength = static_cast&lt;sal_uInt32&gt;(pNum-&gt;m_fValue) / 8;</span>
+<span class="diff-a">+                            {</span>
+<span class="diff-a">+                                sal_uInt32 nKeyLength = static_cast&lt;sal_uInt32&gt;(pNum-&gt;m_fValue) / 8;</span>
+<span class="diff-a">+                                if (nKeyLength &gt; ENCRYPTION_KEY_LEN)</span>
+<span class="diff-a">+                                {</span>
+<span class="diff-a">+                                    SAL_WARN(&quot;sdext.pdfimport.pdfparse&quot;, &quot;entry has length &quot; &lt;&lt; nKeyLength &lt;&lt; &quot; which is greater than &quot; &lt;&lt; ENCRYPTION_KEY_LEN);</span>
+<span class="diff-a">+                                    nKeyLength = ENCRYPTION_KEY_LEN;</span>
+<span class="diff-a">+                                }</span>
+<span class="diff-a">+                                m_pData-&gt;m_nKeyLength = nKeyLength;</span>
+<span class="diff-a">+                            }</span>
+<span class="diff-c">                         }</span>
+<span class="diff-c">                         PDFName* pFilter = dynamic_cast&lt;PDFName*&gt;(filter-&gt;second);</span>
+<span class="diff-c">                         if( pFilter &amp;&amp; pFilter-&gt;getFilteredName() == &quot;Standard&quot; )</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/LibreOffice/core/commit/21124741e0134f0f1222a42726c223bf6da41dca" rel="noopener noreferrer">https://github.com/LibreOffice/core/commit/21124741e0134f0f1222a42726c223bf6da41dca</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-04</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-24</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e112f4bb26e69f3eda06bb1f6a6d24f86423aa63f50706bdce8d3273f832b6b2b7c2a3a5b46de26ced221d6ed7aad60d28cab303c316f82dfd88e23b9410f33a</p>
+<p class="kicker">Committed 2026-07-22 07:32 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:51 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-J00S1S9Y-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-J00S1S9Y%22%2C%22bug_class%22%3A%22Heap%20Out-of-Bounds%20Write%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A54%3A44%2B00%3A00%22%2C%22description%22%3A%22In%20LibreOffice%27s%20PDF%20import%20component%2C%20PDFFile%3A%3AsetupDecryptionData%20stores%20m_nKeyLength%20%3D%20/Length%20/%208%20from%20the%20attacker-authored%20/Encrypt%20dictionary%20without%20clamping%20to%20the%20spec%20maximum%20of%2016%20bytes.%20PDFFile%3A%3Adecrypt%20then%20writes%20five%20object-number/generation%20bytes%20starting%20at%20m_aDecryptionKey%5Bm_nKeyLength%5D%2C%20but%20m_aDecryptionKey%20is%20a%20fixed%2021-byte%20array%20and%20the%20last%20member%20of%20the%20new-allocated%20PDFFileImplData%20struct.%20The%20gating%20check%20usesSupportedEncryptionFormat%28%29%20only%20validates%20/V%20and%20/R%2C%20and%20password_to_key%28%29%20clamps%20its%20return%20value%20but%20never%20m_nKeyLength%2C%20so%20an%20attacker%20who%20sets%20/Length%20to%20e.g.%2065536%20and%20precomputes%20/U%20for%20a%20chosen%20password%20gets%20a%205-byte%20write%20at%20an%20attacker-controlled%20offset%20%288%20KB%29%20past%20the%20struct%20into%20adjacent%20heap%20memory.%20The%20path%20fires%20when%20a%20victim%20opens%20an%20encrypted%20hybrid%20PDF%20and%20enters%20any%20password%20at%20the%20prompt%2C%20yielding%20heap%20corruption%20and%20potential%20code%20execution%20via%20heap%20grooming.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22sdext/source/pdfimport/pdfparse/pdfentries.cxx%3A1058%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22LibreOffice/core%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20hybrid%20PDF%20with%20/Encrypt%20dict%20setting%20/V%202%2C%20/R%203%2C%20and%20/Length%20to%20a%20large%20value%20%28e.g.%2065536%29%2C%20and%20precompute%20/U%20so%20a%20chosen/empty%20password%20authenticates%22%2C%222.%20Include%20an%20AdditionalStreams%20reference%20whose%20object%20number/generation%20yield%20the%20desired%205%20payload%20bytes%2C%20and%20groom%20the%20heap%20via%20other%20PDF%20objects%22%2C%223.%20Deliver%20the%20PDF%20to%20the%20victim%20%28e.g.%20phishing%29%20and%20have%20them%20open%20it%20in%20LibreOffice%22%2C%224.%20Victim%20enters%20the%20password%20at%20the%20prompt%3B%20setupDecryptionData%20records%20m_nKeyLength%20%3D%20/Length%20/%208%22%2C%225.%20getAdditionalStream%20%E2%86%92%20writeStream%20%E2%86%92%20getDeflatedStream%20%E2%86%92%20decrypt%20writes%205%20bytes%20at%20m_aDecryptionKey%5Bm_nKeyLength..%2B4%5D%2C%20corrupting%20the%20adjacent%20heap%20allocation%22%5D%2C%22technical_details%22%3A%22setupDecryptionData%20%28pdfentries.cxx%3A1336%29%20derives%20m_nKeyLength%20directly%20from%20the%20attacker-controlled%20/Encrypt%20/Length%20field%20with%20no%20upper%20bound%2C%20and%20decrypt%20%28pdfentries.cxx%3A1058-1063%29%20uses%20that%20value%20as%20the%20starting%20index%20for%20five%20writes%20into%20the%20fixed-size%20sal_uInt8%5BENCRYPTION_KEY_LEN%2B5%5D%20%3D%2021-byte%20m_aDecryptionKey%20array.%20Because%20m_aDecryptionKey%20is%20the%20final%20member%20of%20the%20heap-allocated%20PDFFileImplData%20%28new%27d%20at%20%3A1269%29%2C%20any%20m_nKeyLength%20%3E%2016%20writes%20beyond%20the%20allocation.%20No%20guard%20on%20the%20path%20%E2%80%94%20usesSupportedEncryptionFormat%28%29%20%28%3A1197-1203%29%20checks%20only%20/V%20and%20/R%2C%20and%20password_to_key%28%29%20%28%3A1129-1131%29%20clamps%20its%20return%20to%2016%20but%20does%20not%20write%20back%20to%20m_nKeyLength.%22%2C%22title%22%3A%22PDF%20encryption%20key-length%20field%20drives%20out-of-bounds%20key%20buffer%20write%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-J00S1S9Y&#34;,
+  &#34;bug_class&#34;: &#34;Heap Out-of-Bounds Write&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:54:44+00:00&#34;,
+  &#34;description&#34;: &#34;In LibreOffice&#39;s PDF import component, PDFFile::setupDecryptionData stores m_nKeyLength = /Length / 8 from the attacker-authored /Encrypt dictionary without clamping to the spec maximum of 16 bytes. PDFFile::decrypt then writes five object-number/generation bytes starting at m_aDecryptionKey[m_nKeyLength], but m_aDecryptionKey is a fixed 21-byte array and the last member of the new-allocated PDFFileImplData struct. The gating check usesSupportedEncryptionFormat() only validates /V and /R, and password_to_key() clamps its return value but never m_nKeyLength, so an attacker who sets /Length to e.g. 65536 and precomputes /U for a chosen password gets a 5-byte write at an attacker-controlled offset (8 KB) past the struct into adjacent heap memory. The path fires when a victim opens an encrypted hybrid PDF and enters any password at the prompt, yielding heap corruption and potential code execution via heap grooming.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;sdext/source/pdfimport/pdfparse/pdfentries.cxx:1058&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;LibreOffice/core&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a hybrid PDF with /Encrypt dict setting /V 2, /R 3, and /Length to a large value (e.g. 65536), and precompute /U so a chosen/empty password authenticates&#34;,
+    &#34;2. Include an AdditionalStreams reference whose object number/generation yield the desired 5 payload bytes, and groom the heap via other PDF objects&#34;,
+    &#34;3. Deliver the PDF to the victim (e.g. phishing) and have them open it in LibreOffice&#34;,
+    &#34;4. Victim enters the password at the prompt; setupDecryptionData records m_nKeyLength = /Length / 8&#34;,
+    &#34;5. getAdditionalStream → writeStream → getDeflatedStream → decrypt writes 5 bytes at m_aDecryptionKey[m_nKeyLength..+4], corrupting the adjacent heap allocation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;setupDecryptionData (pdfentries.cxx:1336) derives m_nKeyLength directly from the attacker-controlled /Encrypt /Length field with no upper bound, and decrypt (pdfentries.cxx:1058-1063) uses that value as the starting index for five writes into the fixed-size sal_uInt8[ENCRYPTION_KEY_LEN+5] = 21-byte m_aDecryptionKey array. Because m_aDecryptionKey is the final member of the heap-allocated PDFFileImplData (new&#39;d at :1269), any m_nKeyLength &gt; 16 writes beyond the allocation. No guard on the path — usesSupportedEncryptionFormat() (:1197-1203) checks only /V and /R, and password_to_key() (:1129-1131) clamps its return to 16 but does not write back to m_nKeyLength.&#34;,
+  &#34;title&#34;: &#34;PDF encryption key-length field drives out-of-bounds key buffer write&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

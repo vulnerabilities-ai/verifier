@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-VS18SA90",
+  "hash": "70c7065a7506628831667e565053165f8142abd80e67756200c4b6cb0d6c34fe0590d7f2fa655fbfd2cc36da73eeb98d23667209d18f2ca4ba3f2554e8194d1c",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-VS18SA90/card.html",
+    "sha256": "9871b67431d886c4b90ad9af3b356aa22f5122721fb7619aeabce85e35ecf589",
+    "fetched_utc": "2026-11-10T21:07:39Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-VS18SA90",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "70c7065a7506628831667e565053165f8142abd80e67756200c4b6cb0d6c34fe0590d7f2fa655fbfd2cc36da73eeb98d23667209d18f2ca4ba3f2554e8194d1c",
+    "printed_hash": "70c7065a7506628831667e565053165f8142abd80e67756200c4b6cb0d6c34fe0590d7f2fa655fbfd2cc36da73eeb98d23667209d18f2ca4ba3f2554e8194d1c",
+    "extraction_method": null,
+    "printed_hash_equals_ledger_hash": true,
+    "outcome": "unavailable",
+    "raw_bytes_match": null,
+    "canonical_rebuild_match": null,
+    "reason": "no preimage",
+    "unavailable_reason": {
+      "code": "no_preimage_link",
+      "text": "the card has no preimage download link and no visible preimage text: no preimage download link or visible preimage text on the card"
+    }
+  },
+  "hash_checked_at": "2026-11-10T21:07:39Z",
+  "card_facts": {
+    "printed_hash": "70c7065a7506628831667e565053165f8142abd80e67756200c4b6cb0d6c34fe0590d7f2fa655fbfd2cc36da73eeb98d23667209d18f2ca4ba3f2554e8194d1c",
+    "committed_printed": "2026-04-05 23:37 UTC",
+    "revealed_printed": "2026-05-20 07:40 UTC",
+    "timeline": [],
+    "dates": {},
+    "severities": {},
+    "links": {
+      "fix": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-27654"
+      ],
+      "advisory": [],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-27654"
+      ],
+      "ghsa": []
+    },
+    "missing_parts": [
+      "timeline",
+      "severities"
+    ]
+  },
+  "notes": [
+    "Parts not found on the card: timeline, severities."
+  ],
+  "card_hints": {
+    "mentions_of_preimage": 3,
+    "data_addresses": 0,
+    "download_links": 0,
+    "visible_preimage_blocks": 0
+  },
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

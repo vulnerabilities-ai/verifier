@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-7DG11TPA",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-7DG11TPA.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-7DG11TPA",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:05:08Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 7797,
+      "sha256": "a61bc3b16dabd4491dd5f533ef7af07407c7aee37753c31f0929440a0a5d5e3a",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:05:09 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=4HGMyW2fjSS%2BbcT%2FDb69o5WUAOJks3jYIfJGT8iU3rTDHE%2Fmd1ERQmPNyI7wWhMRjoG%2FLIyQJg0CeQ%2BuaXfw019EA%2Fdk%2ByoK9kJolOzjuzGASxp7sKSwEODMDu5XQe03gRBhhw%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a588037ecb9207e8-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-7DG11TPA/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": []
+}

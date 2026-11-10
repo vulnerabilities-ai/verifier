@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-QA1CT79B · artifexsoftware/ghostpdl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-QA1CT79B · artifexsoftware/ghostpdl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>Stack and heap buffer overflows (gdevcups, gstype2, gsfunc0, gdevpx)</h1>
+<p>Created attachment 28006
+The analyses and proof-of-concepts for the described findings</p>
+<p>Hi,</p>
+<p>We're writing from Trail of Bits, a security research firm. We found
+6 security issues in Ghostscript and have prepared patches for each
+one. All findings are rated High. Details are below.</p>
+<p>These issues were batched as the set of instructions, format 
+of the proof-of-concept bins, analyses, and other resources are all 
+uniform from our test runs and triage process.</p>
+<h2>FINDINGS</h2>
+<p>#   Bug Class                    Location                    Severity</p>
+<hr>
+<p>1   Heap buffer overflow         cups/gdevcups.c:3141        High
+  2   Heap buffer overflow (OOB    base/gstype2.c:661          High
+      write)
+  3   Stack buffer overflow (OOB   base/gstype2.c:708          High
+      write)
+  4   Stack buffer overflow (OOB   base/gsfunc0.c:1466         High
+      write)
+  5   Heap buffer overflow (OOB    cups/gdevcups.c:4741        High
+      write)
+  6   Heap buffer overflow (OOB    devices/vector/gdevpx.c:2777  High
+      write)</p>
+<h2>REPRODUCTION</h2>
+<p>Each finding includes a proof-of-concept input (poc.bin) and a
+candidate patch (patch.diff). To reproduce any finding:</p>
+<p>Build fuzzers:
+  python3 infra/helper.py build_fuzzers --sanitizer address ghostscript</p>
+<p>Run the PoC (substitute the appropriate fuzzer entrypoint and PoC file):</p>
+<p>Finding 1:
+  python3 infra/helper.py reproduce ghostscript gstoraster_fuzzer poc.bin</p>
+<p>Finding 2:
+  python3 infra/helper.py reproduce ghostscript gs_device_bmpmono_fuzzer poc.bin</p>
+<p>Finding 3:
+  python3 infra/helper.py reproduce ghostscript gs_device_ps2write_fuzzer poc.bin</p>
+<p>Finding 4:
+  python3 infra/helper.py reproduce ghostscript gstoraster_pdf_fuzzer poc.bin</p>
+<p>Finding 5:
+  python3 infra/helper.py reproduce ghostscript gstoraster_fuzzer_all_colors poc.bin</p>
+<p>Finding 6:
+  python3 infra/helper.py reproduce ghostscript gs_device_pxlcolor_fuzzer poc.bin</p>
+<p>To verify a patch, apply the corresponding patch.diff to the
+Ghostscript source tree (commit 5f1a5c6ba3d61f4f95cb793715728927af1900ba),
+rebuild fuzzers, and re-run the PoC. Each patched build should exit
+cleanly with no ASAN report.</p>
+<h2>ATTACHMENTS</h2>
+<p>We have attached a zip containing:</p>
+<ul>
+<li>Full technical details of each finding</li>
+<li>Reproduction steps and proof-of-concept where applicable</li>
+<li>Candidate patch(es) with regression tests</li>
+</ul>
+<h2>BACKGROUND</h2>
+<p>Anthropic is conducting research into the use of large language models
+for automated vulnerability discovery in open source software. As part
+of that work, Anthropic used Claude to scan a set of widely used open
+source projects for security issues. Anthropic then engaged Trail of
+Bits to independently triage, manually validate, and develop patches
+for the findings. Each issue in this report has been reviewed and
+confirmed by human security researchers at Trail of Bits.</p>
+<h2>NEXT STEPS</h2>
+<p>We are disclosing under Anthropic's coordinated vulnerability
+disclosure policy: https://www.anthropic.com/coordinated-vulnerability-disclosure</p>
+<p>Our disclosure timeline is 90 days from the date of
+this submission, with a 14-day extension available if needed.</p>
+<p>We'd like to work with your maintainers to get these issues fixed. We
+are happy to submit PRs or coordinate with your preferred process. Let
+us know if there's a specific security contact you'd like us to work
+with.</p>
+<p>Thanks for your work on Ghostscript.</p>
+<p>— Trail of Bits, in collaboration with Anthropic</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/cups/gdevcups.c b/cups/gdevcups.c</span>
+<span class="diff-h">index 2b80c346f1..c1e6acf8ea 100644</span>
+<span class="diff-h">--- a/cups/gdevcups.c</span>
+<span class="diff-h">+++ b/cups/gdevcups.c</span>
+<span class="diff-h">@@ -3141,9 +3141,12 @@ cups_put_params(gx_device     *pdev,	/* I - Device info */</span>
+<span class="diff-c">   } \</span>
+<span class="diff-c">   else if (code == 0) \</span>
+<span class="diff-c">   { \</span>
+<span class="diff-a">+    size_t _copylen = stringval.size; \</span>
+<span class="diff-a">+    if (_copylen &gt; sizeof(cups-&gt;header.name) - 1) \</span>
+<span class="diff-a">+      _copylen = sizeof(cups-&gt;header.name) - 1; \</span>
+<span class="diff-c">     strncpy(cups-&gt;header.name, (const char *)(stringval.data),	\</span>
+<span class="diff-d">-            stringval.size); \</span>
+<span class="diff-d">-    cups-&gt;header.name[stringval.size] = &#x27;\0&#x27;; \</span>
+<span class="diff-a">+            _copylen); \</span>
+<span class="diff-a">+    cups-&gt;header.name[_copylen] = &#x27;\0&#x27;; \</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #define intoption(name, sname, type) \</span>
+<span class="diff-h">@@ -4453,6 +4456,11 @@ cups_set_color_info(gx_device *pdev)	/* I - Device info */</span>
+<span class="diff-c">     cups-&gt;header.cupsBitsPerColor = 8;</span>
+<span class="diff-c"> #endif /* !GX_COLOR_INDEX_TYPE */</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+#ifdef GX_COLOR_INDEX_TYPE</span>
+<span class="diff-a">+  if (cups-&gt;header.cupsBitsPerColor &gt; 16)</span>
+<span class="diff-a">+    cups-&gt;header.cupsBitsPerColor = 16;</span>
+<span class="diff-a">+#endif /* GX_COLOR_INDEX_TYPE */</span>
+<span class="diff-a">+</span>
+<span class="diff-c">   switch (cups-&gt;header.cupsColorSpace)</span>
+<span class="diff-c">   {</span>
+<span class="diff-c">     default :</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/ArtifexSoftware/ghostpdl/commit/6889947c9f71d10114c3db9eb8b3acb8e5e749af" rel="noopener noreferrer">https://github.com/ArtifexSoftware/ghostpdl/commit/6889947c9f71d10114c3db9eb8b3acb8e5e749af</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-22</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">034d3713a027342e8dfbdb19a466b0f2b562ed884b40756a2bf3a5363c112a8fc6561ca96be5931ab5ce014b3f0d9628b0e2d2b87bb50e3ffd20c0f33d5020e6</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-QA1CT79B-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-QA1CT79B%22%2C%22bug_class%22%3A%22heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A52%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22Ghostscript%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Heap%20buffer%20overflow%20in%20CUPS%20stringoption%20macro%20leading%20to%20pointer%20corruption%20and%20attacker-controlled%20pointer%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-QA1CT79B&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:52+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;Ghostscript&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Heap buffer overflow in CUPS stringoption macro leading to pointer corruption and attacker-controlled pointer&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-XBE9HJ4Y · moodle/moodle</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-XBE9HJ4Y · moodle/moodle</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  path-traversal
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ophion Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-XBE9HJ4Y: Path Traversal → Arbitrary File Write → RCE in repository_googledocs</h1>
+<p><code>repository_googledocs::download_file()</code> passes the Google Drive file <strong>name</strong> (fetched from the Google API and therefore controlled by the file owner) directly to <code>repository::prepare_file()</code>, which performs a naive string concatenation with no path sanitization. The resulting path is opened with <code>fopen(..., 'w')</code> by <code>curl::download_one()</code>.</p>
+<p>An authenticated Moodle user (student or teacher) who links their Google account can create a Google Drive file named <code>../../../../../../../../var/www/html/public/shell.php</code>, pick it as an <strong>Access Controlled Link</strong>, and submit the form. When Moodle processes the draft → final transition it fetches the file's name from Google, builds a temp path with it, and writes the attacker's file body to that path — escaping the temp directory and landing a PHP web-shell in the Moodle web-root.</p>
+<p>Google Drive uses a flat namespace where <code>name</code> is arbitrary metadata; the <code>/</code> character is fully permitted in Drive file names.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> moodle/moodle<br>
+<strong>Commit:</strong> <code>9a5df8d6da29571e</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Root cause is trusting the externally-supplied <code>name</code> field from the Google Drive v3 files API as a safe local path component. prepare_file() performs naive string concatenation with no '..'/'/'/null-byte stripping, and download_one() calls fopen($options['filepath'], 'w') directly, which follows traversal sequences and creates/truncates the target. Although Moodle HMAC-validates the Drive file <em>ID</em> via sourcekey, the <em>name</em> is re-fetched at commit time and never validated, so attacker-chosen traversal sequences survive to the fopen sink.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-XBE9HJ4Y.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-XBE9HJ4Y<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ophion Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-10</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-23</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-18</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">abdda0ccd741fe8be1684c7434f523327ddb872f9e7acb72e2f95f687850e08db5ae5f2c1d6df22ff433676f6dafa86f2060d13be74b09eeda5b2a0b1c897283</p>
+<p class="kicker">Committed 2026-04-23 07:04 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:10 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-XBE9HJ4Y-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-XBE9HJ4Y%22%2C%22bug_class%22%3A%22Path-traversal%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%229a5df8d6da29571e%22%2C%22created_at%22%3A%222026-03-30T23%3A20%3A07%2B00%3A00%22%2C%22description%22%3A%22%60repository_googledocs%3A%3Adownload_file%28%29%60%20passes%20the%20Google%20Drive%20file%20%2A%2Aname%2A%2A%20%28fetched%20from%20the%20Google%20API%20and%20therefore%20controlled%20by%20the%20file%20owner%29%20directly%20to%20%60repository%3A%3Aprepare_file%28%29%60%2C%20which%20performs%20a%20naive%20string%20concatenation%20with%20no%20path%20sanitization.%20The%20resulting%20path%20is%20opened%20with%20%60fopen%28...%2C%20%27w%27%29%60%20by%20%60curl%3A%3Adownload_one%28%29%60.%5Cn%5CnAn%20authenticated%20Moodle%20user%20%28student%20or%20teacher%29%20who%20links%20their%20Google%20account%20can%20create%20a%20Google%20Drive%20file%20named%20%60../../../../../../../../var/www/html/public/shell.php%60%2C%20pick%20it%20as%20an%20%2A%2AAccess%20Controlled%20Link%2A%2A%2C%20and%20submit%20the%20form.%20When%20Moodle%20processes%20the%20draft%20%E2%86%92%20final%20transition%20it%20fetches%20the%20file%27s%20name%20from%20Google%2C%20builds%20a%20temp%20path%20with%20it%2C%20and%20writes%20the%20attacker%27s%20file%20body%20to%20that%20path%20%E2%80%94%20escaping%20the%20temp%20directory%20and%20landing%20a%20PHP%20web-shell%20in%20the%20Moodle%20web-root.%5Cn%5CnGoogle%20Drive%20uses%20a%20flat%20namespace%20where%20%60name%60%20is%20arbitrary%20metadata%3B%20the%20%60/%60%20character%20is%20fully%20permitted%20in%20Drive%20file%20names.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3A%22e85b8dd500756df02a336874b983832d929bce2409b55f4484b99481743e405f%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22moodle%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22Root%20cause%20is%20trusting%20the%20externally-supplied%20%60name%60%20field%20from%20the%20Google%20Drive%20v3%20files%20API%20as%20a%20safe%20local%20path%20component.%20prepare_file%28%29%20performs%20naive%20string%20concatenation%20with%20no%20%27..%27/%27/%27/null-byte%20stripping%2C%20and%20download_one%28%29%20calls%20fopen%28%24options%5B%27filepath%27%5D%2C%20%27w%27%29%20directly%2C%20which%20follows%20traversal%20sequences%20and%20creates/truncates%20the%20target.%20Although%20Moodle%20HMAC-validates%20the%20Drive%20file%20%2AID%2A%20via%20sourcekey%2C%20the%20%2Aname%2A%20is%20re-fetched%20at%20commit%20time%20and%20never%20validated%2C%20so%20attacker-chosen%20traversal%20sequences%20survive%20to%20the%20fopen%20sink.%22%2C%22title%22%3A%22Path%20Traversal%20%E2%86%92%20Arbitrary%20File%20Write%20%E2%86%92%20RCE%20in%20repository_googledocs%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-XBE9HJ4Y&#34;,
+  &#34;bug_class&#34;: &#34;Path-traversal&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;9a5df8d6da29571e&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:20:07+00:00&#34;,
+  &#34;description&#34;: &#34;`repository_googledocs::download_file()` passes the Google Drive file **name** (fetched from the Google API and therefore controlled by the file owner) directly to `repository::prepare_file()`, which performs a naive string concatenation with no path sanitization. The resulting path is opened with `fopen(..., &#39;w&#39;)` by `curl::download_one()`.\n\nAn authenticated Moodle user (student or teacher) who links their Google account can create a Google Drive file named `../../../../../../../../var/www/html/public/shell.php`, pick it as an **Access Controlled Link**, and submit the form. When Moodle processes the draft → final transition it fetches the file&#39;s name from Google, builds a temp path with it, and writes the attacker&#39;s file body to that path — escaping the temp directory and landing a PHP web-shell in the Moodle web-root.\n\nGoogle Drive uses a flat namespace where `name` is arbitrary metadata; the `/` character is fully permitted in Drive file names.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: &#34;e85b8dd500756df02a336874b983832d929bce2409b55f4484b99481743e405f&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;moodle&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;Root cause is trusting the externally-supplied `name` field from the Google Drive v3 files API as a safe local path component. prepare_file() performs naive string concatenation with no &#39;..&#39;/&#39;/&#39;/null-byte stripping, and download_one() calls fopen($options[&#39;filepath&#39;], &#39;w&#39;) directly, which follows traversal sequences and creates/truncates the target. Although Moodle HMAC-validates the Drive file *ID* via sourcekey, the *name* is re-fetched at commit time and never validated, so attacker-chosen traversal sequences survive to the fopen sink.&#34;,
+  &#34;title&#34;: &#34;Path Traversal → Arbitrary File Write → RCE in repository_googledocs&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

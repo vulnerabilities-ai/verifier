@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-RPE1YJCH · universal-ctags/ctags</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-RPE1YJCH · universal-ctags/ctags</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">an unreleased Anthropic model</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-RPE1YJCH: Heap overflow via integer truncation in field array growth</h1>
+<p>In libreadtags' growFields() (readtags.c:412), the new capacity <code>2 * file-&gt;fields.max</code> is assigned to an <code>unsigned short</code>, so when the array reaches 40960 entries the doubled value 81920 truncates to 16384 and realloc() shrinks the live buffer. Back in parseExtensionFields() the growth guard uses <code>==</code> rather than <code>&gt;=</code>, so with count=40960 and max=16384 it never fires again, and the loop keeps writing field entries at indices 40960..65535. Each write stores two attacker-supplied pointers (key/value into the attacker-controlled line buffer), yielding ~24,576 out-of-bounds 16-byte writes spanning ~400 KB of heap past the shrunken allocation. Any consumer of libreadtags (readtags CLI, editor tag-jump features) that calls tagsFirst/tagsNext/tagsFind on a hostile tags file is affected. A secondary double-free is also latent when max reaches 32768.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> universal-ctags/ctags<br>
+<strong>Version:</strong> commit 34659e2cb02e055c74e929c5bad291470a729570 (still present at HEAD)<br>
+<strong>Location:</strong> <code>libreadtags/readtags.c:412</code>  </p>
+<h2>Technical Details</h2>
+<p>Built readtags with ASAN. Crafted a tags file with one tag line carrying 41,000 tab-separated <code>a:b</code> extension fields (~160KB). <code>readtags -t tags -l</code> crashes: ASAN reports heap-use-after-free WRITE of size 8 at parseExtensionFields (libreadtags/readtags.c:509), with the free site at growFields (readtags.c:414) via realloc. The trace shows the 655,360-byte (40960*16) region was freed by realloc when newCount truncated 81920-&gt;16384, and the subsequent write at index 40960 lands in freed memory exactly as described. The <code>==</code> growth check never fires again because count(40960) != max(16384). This is a library-level bug reachable by any consumer of libreadtags via tagsFirst/tagsNext/tagsFind on a hostile tags file.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>=================================================================
+==7==ERROR: AddressSanitizer: heap-use-after-free on address 0xffffa37bd800 at pc 0xaaaae1b6a5a8 bp 0xffffd4511000 sp 0xffffd4511018
+WRITE of size 8 at 0xffffa37bd800 thread T0
+    #0 0xaaaae1b6a5a4 in parseExtensionFields libreadtags/readtags.c:509
+    #1 0xaaaae1b6a5a4 in parseTagLine libreadtags/readtags.c:669
+    #2 0xaaaae1b6aadc in readNext libreadtags/readtags.c:990
+    #3 0xaaaae1b6c5ac in tagsFirst libreadtags/readtags.c:1333
+    #4 0xaaaae1b71c20 in listTags extra-cmds/readtags-cmd.c:504
+    #5 0xaaaae1b74ed0 in run extra-cmds/readtags-cmd.c:670
+    #6 0xaaaae1b74ed0 in main extra-cmds/readtags-cmd.c:1044
+    #7 0xffffa41a2258  (/lib/aarch64-linux-gnu/libc.so.6+0x22258) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    [... 26 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft tags file: <code>!_TAG_FILE_FORMAT\t2\t//\n!_TAG_FILE_SORTED\t1\t//\nx\tf\t1;"</code> followed by ~41000 repetitions of <code>\ta:b</code> and a newline</li>
+<li>Distribute it (e.g., commit to a Git repo the victim will clone)</li>
+<li>Victim runs <code>readtags -t tags -l</code> or opens the repo in an editor that invokes libreadtags</li>
+<li>Field array doubles 20→…→40960, then 2*40960=81920 truncates to 16384 and realloc shrinks the buffer</li>
+<li>parseExtensionFields continues writing key/value pointer pairs at indices 40960..65535 past the shrunken allocation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-RPE1YJCH.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-RPE1YJCH<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-14</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">cff09a38a975cc598ad21e55eb437bfe3c7df0356d8c7d159b7c301ef380f8a87d754153c008c2fc741be870759e567c3262e0256b15782b19ec5bb74b0cd9bf</p>
+<p class="kicker">Committed 2026-04-16 15:59 UTC</p>
+<p class="kicker">Revealed 2026-07-08 22:59 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-RPE1YJCH-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-RPE1YJCH%22%2C%22bug_class%22%3A%22Use-after-free%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-09T05%3A32%3A11%2B00%3A00%22%2C%22description%22%3A%22In%20libreadtags%27%20growFields%28%29%20%28readtags.c%3A412%29%2C%20the%20new%20capacity%20%602%20%2A%20file-%3Efields.max%60%20is%20assigned%20to%20an%20%60unsigned%20short%60%2C%20so%20when%20the%20array%20reaches%2040960%20entries%20the%20doubled%20value%2081920%20truncates%20to%2016384%20and%20realloc%28%29%20shrinks%20the%20live%20buffer.%20Back%20in%20parseExtensionFields%28%29%20the%20growth%20guard%20uses%20%60%3D%3D%60%20rather%20than%20%60%3E%3D%60%2C%20so%20with%20count%3D40960%20and%20max%3D16384%20it%20never%20fires%20again%2C%20and%20the%20loop%20keeps%20writing%20field%20entries%20at%20indices%2040960..65535.%20Each%20write%20stores%20two%20attacker-supplied%20pointers%20%28key/value%20into%20the%20attacker-controlled%20line%20buffer%29%2C%20yielding%20~24%2C576%20out-of-bounds%2016-byte%20writes%20spanning%20~400%20KB%20of%20heap%20past%20the%20shrunken%20allocation.%20Any%20consumer%20of%20libreadtags%20%28readtags%20CLI%2C%20editor%20tag-jump%20features%29%20that%20calls%20tagsFirst/tagsNext/tagsFind%20on%20a%20hostile%20tags%20file%20is%20affected.%20A%20secondary%20double-free%20is%20also%20latent%20when%20max%20reaches%2032768.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22libreadtags/readtags.c%3A412%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ctags%22%2C%22reproduction%22%3A%5B%221.%20Craft%20tags%20file%3A%20%60%21_TAG_FILE_FORMAT%5C%5Ct2%5C%5Ct//%5C%5Cn%21_TAG_FILE_SORTED%5C%5Ct1%5C%5Ct//%5C%5Cnx%5C%5Ctf%5C%5Ct1%3B%5C%22%60%20followed%20by%20~41000%20repetitions%20of%20%60%5C%5Cta%3Ab%60%20and%20a%20newline%22%2C%222.%20Distribute%20it%20%28e.g.%2C%20commit%20to%20a%20Git%20repo%20the%20victim%20will%20clone%29%22%2C%223.%20Victim%20runs%20%60readtags%20-t%20tags%20-l%60%20or%20opens%20the%20repo%20in%20an%20editor%20that%20invokes%20libreadtags%22%2C%224.%20Field%20array%20doubles%2020%E2%86%92%E2%80%A6%E2%86%9240960%2C%20then%202%2A40960%3D81920%20truncates%20to%2016384%20and%20realloc%20shrinks%20the%20buffer%22%2C%225.%20parseExtensionFields%20continues%20writing%20key/value%20pointer%20pairs%20at%20indices%2040960..65535%20past%20the%20shrunken%20allocation%22%5D%2C%22technical_details%22%3A%22Built%20readtags%20with%20ASAN.%20Crafted%20a%20tags%20file%20with%20one%20tag%20line%20carrying%2041%2C000%20tab-separated%20%60a%3Ab%60%20extension%20fields%20%28~160KB%29.%20%60readtags%20-t%20tags%20-l%60%20crashes%3A%20ASAN%20reports%20heap-use-after-free%20WRITE%20of%20size%208%20at%20parseExtensionFields%20%28libreadtags/readtags.c%3A509%29%2C%20with%20the%20free%20site%20at%20growFields%20%28readtags.c%3A414%29%20via%20realloc.%20The%20trace%20shows%20the%20655%2C360-byte%20%2840960%2A16%29%20region%20was%20freed%20by%20realloc%20when%20newCount%20truncated%2081920-%3E16384%2C%20and%20the%20subsequent%20write%20at%20index%2040960%20lands%20in%20freed%20memory%20exactly%20as%20described.%20The%20%60%3D%3D%60%20growth%20check%20never%20fires%20again%20because%20count%2840960%29%20%21%3D%20max%2816384%29.%20This%20is%20a%20library-level%20bug%20reachable%20by%20any%20consumer%20of%20libreadtags%20via%20tagsFirst/tagsNext/tagsFind%20on%20a%20hostile%20tags%20file.%22%2C%22title%22%3A%22Heap%20overflow%20via%20integer%20truncation%20in%20field%20array%20growth%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-RPE1YJCH&#34;,
+  &#34;bug_class&#34;: &#34;Use-after-free&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-09T05:32:11+00:00&#34;,
+  &#34;description&#34;: &#34;In libreadtags&#39; growFields() (readtags.c:412), the new capacity `2 * file-&gt;fields.max` is assigned to an `unsigned short`, so when the array reaches 40960 entries the doubled value 81920 truncates to 16384 and realloc() shrinks the live buffer. Back in parseExtensionFields() the growth guard uses `==` rather than `&gt;=`, so with count=40960 and max=16384 it never fires again, and the loop keeps writing field entries at indices 40960..65535. Each write stores two attacker-supplied pointers (key/value into the attacker-controlled line buffer), yielding ~24,576 out-of-bounds 16-byte writes spanning ~400 KB of heap past the shrunken allocation. Any consumer of libreadtags (readtags CLI, editor tag-jump features) that calls tagsFirst/tagsNext/tagsFind on a hostile tags file is affected. A secondary double-free is also latent when max reaches 32768.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;libreadtags/readtags.c:412&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ctags&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft tags file: `!_TAG_FILE_FORMAT\\t2\\t//\\n!_TAG_FILE_SORTED\\t1\\t//\\nx\\tf\\t1;\&#34;` followed by ~41000 repetitions of `\\ta:b` and a newline&#34;,
+    &#34;2. Distribute it (e.g., commit to a Git repo the victim will clone)&#34;,
+    &#34;3. Victim runs `readtags -t tags -l` or opens the repo in an editor that invokes libreadtags&#34;,
+    &#34;4. Field array doubles 20→…→40960, then 2*40960=81920 truncates to 16384 and realloc shrinks the buffer&#34;,
+    &#34;5. parseExtensionFields continues writing key/value pointer pairs at indices 40960..65535 past the shrunken allocation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Built readtags with ASAN. Crafted a tags file with one tag line carrying 41,000 tab-separated `a:b` extension fields (~160KB). `readtags -t tags -l` crashes: ASAN reports heap-use-after-free WRITE of size 8 at parseExtensionFields (libreadtags/readtags.c:509), with the free site at growFields (readtags.c:414) via realloc. The trace shows the 655,360-byte (40960*16) region was freed by realloc when newCount truncated 81920-&gt;16384, and the subsequent write at index 40960 lands in freed memory exactly as described. The `==` growth check never fires again because count(40960) != max(16384). This is a library-level bug reachable by any consumer of libreadtags via tagsFirst/tagsNext/tagsFind on a hostile tags file.&#34;,
+  &#34;title&#34;: &#34;Heap overflow via integer truncation in field array growth&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

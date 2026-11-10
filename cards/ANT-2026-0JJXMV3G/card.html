@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-0JJXMV3G · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-0JJXMV3G · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  missing-authentication
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-0JJXMV3G: Passkey registration requires no step-up authentication</h1>
+<p>The POST /passkeys/registration/begin and /finish handlers in internal/api/passkey_registration.go are protected solely by the requireAuthentication middleware, which accepts any valid access token. Unlike MFA factor enrollment, no AAL2, recent re-authentication, or password confirmation is required before binding a new WebAuthn credential. An attacker who has stolen a victim's bearer JWT (via XSS, malware, or leaked logs) can complete the registration ceremony with their own authenticator. Because passkeys serve as a primary sign-in method, the attacker retains access even after the victim rotates their password and revokes all sessions.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/api/passkey_registration.go:107</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The registration endpoints are gated only by requireAuthentication (any valid access token) rather than a step-up check. There is no enforcement of AAL2, fresh re-authentication, or proof of an existing credential before a new WebAuthn authenticator is bound to the user, so possession of a session token alone is sufficient to add a persistent primary login credential.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker steals the victim's bearer JWT (e.g., via XSS on the operator's frontend).</li>
+<li>Attacker calls POST /passkeys/registration/begin with the stolen token and receives WebAuthn creation options.</li>
+<li>Attacker completes the WebAuthn ceremony with their own hardware key and POSTs to /passkeys/registration/finish.</li>
+<li>Server stores the attacker's credential against the victim's user record.</li>
+<li>Victim later changes password and revokes all sessions; attacker still signs in via /passkeys/authentication using the planted credential.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Require step-up authentication (fresh password entry, an existing passkey ceremony, or AAL2) before allowing a new passkey to be registered, and send an out-of-band notification to the user whenever a credential is added.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-0JJXMV3G.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-0JJXMV3G<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/api/passkey_manage.go b/internal/api/passkey_manage.go</span>
+<span class="diff-h">index 0259d0876b..6b6262ea83 100644</span>
+<span class="diff-h">--- a/internal/api/passkey_manage.go</span>
+<span class="diff-h">+++ b/internal/api/passkey_manage.go</span>
+<span class="diff-h">@@ -112,8 +112,13 @@ func (a *API) PasskeyDelete(w http.ResponseWriter, r *http.Request) error {</span>
+<span class="diff-c"> 	ctx := r.Context()</span>
+<span class="diff-c"> 	config := a.config</span>
+<span class="diff-c"> 	user := getUser(ctx)</span>
+<span class="diff-a">+	session := getSession(ctx)</span>
+<span class="diff-c"> 	db := a.db.WithContext(ctx)</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if err := requirePasskeyManagementAAL(user, session); err != nil {</span>
+<span class="diff-a">+		return err</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	passkeyID, err := uuid.FromString(chi.URLParam(r, &quot;passkey_id&quot;))</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		return apierrors.NewNotFoundError(apierrors.ErrorCodeValidationFailed, &quot;Passkey not found&quot;)</span>
+<span class="diff-h">diff --git a/internal/api/passkey_manage_test.go b/internal/api/passkey_manage_test.go</span>
+<span class="diff-h">index eee3167660..ef227b1bcb 100644</span>
+<span class="diff-h">--- a/internal/api/passkey_manage_test.go</span>
+<span class="diff-h">+++ b/internal/api/passkey_manage_test.go</span>
+<span class="diff-h">@@ -238,6 +238,41 @@ func (ts *PasskeyTestSuite) TestPasskeyDeleteUnauthenticated() {</span>
+<span class="diff-c"> 	ts.Equal(http.StatusUnauthorized, w.Code)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+// TestPasskeyDeleteBlockedAtAAL1WhenMFAEnabled verifies that a user enrolled in a</span>
+<span class="diff-a">+// verified MFA factor cannot delete a passkey from an AAL1 session.</span>
+<span class="diff-a">+func (ts *PasskeyTestSuite) TestPasskeyDeleteBlockedAtAAL1WhenMFAEnabled() {</span>
+<span class="diff-a">+	ts.enrollVerifiedFactor(ts.TestUser)</span>
+<span class="diff-a">+	cred := ts.createTestPasskey(ts.TestUser.ID, &quot;Protected&quot;)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-a">+	w := ts.makeRequest(http.MethodDelete, fmt.Sprintf(&quot;http://localhost/passkeys/%s&quot;, cred.ID), nil, withBearerToken(token))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Equal(http.StatusForbidden, w.Code)</span>
+<span class="diff-a">+	var errResp map[string]any</span>
+<span class="diff-a">+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&amp;errResp))</span>
+<span class="diff-a">+	ts.Equal(&quot;insufficient_aal&quot;, errResp[&quot;error_code&quot;])</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	// The passkey must still exist.</span>
+<span class="diff-a">+	_, err := models.FindWebAuthnCredentialByID(ts.API.db, cred.ID)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestPasskeyDeleteAllowedAtAAL2WhenMFAEnabled verifies that a user with a verified</span>
+<span class="diff-a">+// MFA factor who has stepped up to AAL2 can delete a passkey.</span>
+<span class="diff-a">+func (ts *PasskeyTestSuite) TestPasskeyDeleteAllowedAtAAL2WhenMFAEnabled() {</span>
+<span class="diff-a">+	f := ts.enrollVerifiedFactor(ts.TestUser)</span>
+<span class="diff-a">+	ts.elevateSessionToAAL2(ts.TestSession, f.ID)</span>
+<span class="diff-a">+	cred := ts.createTestPasskey(ts.TestUser.ID, &quot;To Delete&quot;)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-a">+	w := ts.makeRequest(http.MethodDelete, fmt.Sprintf(&quot;http://localhost/passkeys/%s&quot;, cred.ID), nil, withBearerToken(token))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Equal(http.StatusNoContent, w.Code)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	_, err := models.FindWebAuthnCredentialByID(ts.API.db, cred.ID)</span>
+<span class="diff-a">+	ts.True(models.IsNotFoundError(err))</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func (ts *PasskeyTestSuite) TestPasskeyManageDisabled() {</span>
+<span class="diff-c"> 	ts.Config.Passkey.Enabled = false</span>
+<span class="diff-c"> 	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-h">diff --git a/internal/api/passkey_registration.go b/internal/api/passkey_registration.go</span>
+<span class="diff-h">index 4b47b095e6..4f772d7106 100644</span>
+<span class="diff-h">--- a/internal/api/passkey_registration.go</span>
+<span class="diff-h">+++ b/internal/api/passkey_registration.go</span>
+<span class="diff-h">@@ -43,12 +43,17 @@ func (a *API) PasskeyRegistrationOptions(w http.ResponseWriter, r *http.Request)</span>
+<span class="diff-c"> 	ctx := r.Context()</span>
+<span class="diff-c"> 	config := a.config</span>
+<span class="diff-c"> 	user := getUser(ctx)</span>
+<span class="diff-a">+	session := getSession(ctx)</span>
+<span class="diff-c"> 	db := a.db.WithContext(ctx)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if user.IsSSOUser {</span>
+<span class="diff-c"> 		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeValidationFailed, &quot;SSO users cannot register passkeys&quot;)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if err := requirePasskeyManagementAAL(user, session); err != nil {</span>
+<span class="diff-a">+		return err</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	// Check passkey limit</span>
+<span class="diff-c"> 	count, err := models.CountWebAuthnCredentialsByUserID(db, user.ID)</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-h">@@ -78,7 +83,7 @@ func (a *API) PasskeyRegistrationOptions(w http.ResponseWriter, r *http.Request)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	webAuthnUser := newWebAuthnUser(user, existingCreds)</span>
+<span class="diff-d">-	options, session, err := webAuthn.BeginRegistration(webAuthnUser, webauthn.WithExclusions(excludeList))</span>
+<span class="diff-a">+	options, webAuthnSessionData, err := webAuthn.BeginRegistration(webAuthnUser, webauthn.WithExclusions(excludeList))</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		return apierrors.NewInternalServerError(&quot;Failed to generate WebAuthn registration options&quot;).WithInternalError(err)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-h">@@ -87,7 +92,7 @@ func (a *API) PasskeyRegistrationOptions(w http.ResponseWriter, r *http.Request)</span>
+<span class="diff-c"> 	challenge := models.NewWebAuthnChallenge(</span>
+<span class="diff-c"> 		&amp;user.ID,</span>
+<span class="diff-c"> 		models.WebAuthnChallengeTypeRegistration,</span>
+<span class="diff-d">-		&amp;models.WebAuthnSessionData{SessionData: session},</span>
+<span class="diff-a">+		&amp;models.WebAuthnSessionData{SessionData: webAuthnSessionData},</span>
+<span class="diff-c"> 		expiresAt,</span>
+<span class="diff-c"> 	)</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -108,12 +113,17 @@ func (a *API) PasskeyRegistrationVerify(w http.ResponseWriter, r *http.Request)</span>
+<span class="diff-c"> 	ctx := r.Context()</span>
+<span class="diff-c"> 	config := a.config</span>
+<span class="diff-c"> 	user := getUser(ctx)</span>
+<span class="diff-a">+	session := getSession(ctx)</span>
+<span class="diff-c"> 	db := a.db.WithContext(ctx)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if user.IsSSOUser {</span>
+<span class="diff-c"> 		return apierrors.NewUnprocessableEntityError(apierrors.ErrorCodeValidationFailed, &quot;SSO users cannot register passkeys&quot;)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if err := requirePasskeyManagementAAL(user, session); err != nil {</span>
+<span class="diff-a">+		return err</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	params := &amp;PasskeyRegistrationVerifyParams{}</span>
+<span class="diff-c"> 	body, err := utilities.GetBodyBytes(r)</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-h">diff --git a/internal/api/passkey_registration_test.go b/internal/api/passkey_registration_test.go</span>
+<span class="diff-h">index 27acd1ab91..fd1e76ee8f 100644</span>
+<span class="diff-h">--- a/internal/api/passkey_registration_test.go</span>
+<span class="diff-h">+++ b/internal/api/passkey_registration_test.go</span>
+<span class="diff-h">@@ -364,3 +364,83 @@ func (ts *PasskeyTestSuite) TestRegisterVerifySSOUser() {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	ts.Equal(http.StatusUnprocessableEntity, w.Code)</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestRegistrationOptionsBlockedAtAAL1WhenMFAEnabled verifies that a user enrolled</span>
+<span class="diff-a">+// in a verified MFA factor cannot get registration options from an AAL1 session.</span>
+<span class="diff-a">+func (ts *PasskeyTestSuite) TestRegistrationOptionsBlockedAtAAL1WhenMFAEnabled() {</span>
+<span class="diff-a">+	ts.enrollVerifiedFactor(ts.TestUser)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-a">+	w := ts.makeRequest(http.MethodPost, &quot;http://localhost/passkeys/registration/options&quot;, nil, withBearerToken(token))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Equal(http.StatusForbidden, w.Code)</span>
+<span class="diff-a">+	var errResp map[string]any</span>
+<span class="diff-a">+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&amp;errResp))</span>
+<span class="diff-a">+	ts.Equal(&quot;insufficient_aal&quot;, errResp[&quot;error_code&quot;])</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestRegistrationVerifyBlockedAtAAL1WhenMFAEnabled verifies that the AAL2 gate on</span>
+<span class="diff-a">+// verify runs before the registration challenge is consumed, so a blocked request</span>
+<span class="diff-a">+// leaves the challenge intact.</span>
+<span class="diff-a">+func (ts *PasskeyTestSuite) TestRegistrationVerifyBlockedAtAAL1WhenMFAEnabled() {</span>
+<span class="diff-a">+	ts.enrollVerifiedFactor(ts.TestUser)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	challenge := models.NewWebAuthnChallenge(</span>
+<span class="diff-a">+		&amp;ts.TestUser.ID,</span>
+<span class="diff-a">+		models.WebAuthnChallengeTypeRegistration,</span>
+<span class="diff-a">+		dummySessionData(),</span>
+<span class="diff-a">+		time.Now().Add(5*time.Minute),</span>
+<span class="diff-a">+	)</span>
+<span class="diff-a">+	require.NoError(ts.T(), ts.API.db.Create(challenge))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-a">+	w := ts.makeRequest(http.MethodPost, &quot;http://localhost/passkeys/registration/verify&quot;, map[string]any{</span>
+<span class="diff-a">+		&quot;challenge_id&quot;: challenge.ID.String(),</span>
+<span class="diff-a">+		&quot;credential&quot;:   map[string]any{},</span>
+<span class="diff-a">+	}, withBearerToken(token))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Equal(http.StatusForbidden, w.Code)</span>
+<span class="diff-a">+	var errResp map[string]any</span>
+<span class="diff-a">+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&amp;errResp))</span>
+<span class="diff-a">+	ts.Equal(&quot;insufficient_aal&quot;, errResp[&quot;error_code&quot;])</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	// The challenge must not have been consumed by a request that failed the gate.</span>
+<span class="diff-a">+	_, err := models.FindWebAuthnChallengeByID(ts.API.db, challenge.ID)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestRegisterPasskeyAAL2HappyPathWhenMFAEnabled verifies that a user with a</span>
+<span class="diff-a">+// verified MFA factor who has stepped up to AAL2 can still register a passkey</span>
+<span class="diff-a">+// end-to-end (both the options and verify endpoints pass the gate).</span>
+<span class="diff-a">+func (ts *PasskeyTestSuite) TestRegisterPasskeyAAL2HappyPathWhenMFAEnabled() {</span>
+<span class="diff-a">+	f := ts.enrollVerifiedFactor(ts.TestUser)</span>
+<span class="diff-a">+	ts.elevateSessionToAAL2(ts.TestSession, f.ID)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	token := ts.generateToken(ts.TestUser, &amp;ts.TestSession.ID)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	// Step 1: options succeed at AAL2</span>
+<span class="diff-a">+	w := ts.makeRequest(http.MethodPost, &quot;http://localhost/passkeys/registration/options&quot;, nil, withBearerToken(token))</span>
+<span class="diff-a">+	ts.Require().Equal(http.StatusOK, w.Code)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	var optionsResp PasskeyRegistrationOptionsResponse</span>
+<span class="diff-a">+	require.NoError(ts.T(), json.NewDecoder(w.Body).Decode(&amp;optionsResp))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	// Step 2: simulate the authenticator creating a credential</span>
+<span class="diff-a">+	authenticator := &amp;virtualAuthenticator{</span>
+<span class="diff-a">+		rpID:   ts.Config.WebAuthn.RPID,</span>
+<span class="diff-a">+		origin: ts.Config.WebAuthn.</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/7e6f2e473e5d4ac8bb09bb06c55cc2ed4e20a102" rel="noopener noreferrer">https://github.com/supabase/auth/commit/7e6f2e473e5d4ac8bb09bb06c55cc2ed4e20a102</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">266e4585a462c1297304b7868a86da419c2a64e3953f6e70bb5bf146646e27cc72942dcf203827eb14de71a63d4a9796e63a95030dadaf93aab3539449f63cff</p>
+<p class="kicker">Committed 2026-05-18 01:02 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-0JJXMV3G-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-0JJXMV3G%22%2C%22bug_class%22%3A%22privilege-escalation%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A00%3A24%2B00%3A00%22%2C%22description%22%3A%22The%20POST%20/passkeys/registration/begin%20and%20/finish%20handlers%20in%20internal/api/passkey_registration.go%20are%20protected%20solely%20by%20the%20requireAuthentication%20middleware%2C%20which%20accepts%20any%20valid%20access%20token.%20Unlike%20MFA%20factor%20enrollment%2C%20no%20AAL2%2C%20recent%20re-authentication%2C%20or%20password%20confirmation%20is%20required%20before%20binding%20a%20new%20WebAuthn%20credential.%20An%20attacker%20who%20has%20stolen%20a%20victim%27s%20bearer%20JWT%20%28via%20XSS%2C%20malware%2C%20or%20leaked%20logs%29%20can%20complete%20the%20registration%20ceremony%20with%20their%20own%20authenticator.%20Because%20passkeys%20serve%20as%20a%20primary%20sign-in%20method%2C%20the%20attacker%20retains%20access%20even%20after%20the%20victim%20rotates%20their%20password%20and%20revokes%20all%20sessions.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/api/passkey_registration.go%3A107%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%22Attacker%20steals%20the%20victim%27s%20bearer%20JWT%20%28e.g.%2C%20via%20XSS%20on%20the%20operator%27s%20frontend%29.%22%2C%22Attacker%20calls%20POST%20/passkeys/registration/begin%20with%20the%20stolen%20token%20and%20receives%20WebAuthn%20creation%20options.%22%2C%22Attacker%20completes%20the%20WebAuthn%20ceremony%20with%20their%20own%20hardware%20key%20and%20POSTs%20to%20/passkeys/registration/finish.%22%2C%22Server%20stores%20the%20attacker%27s%20credential%20against%20the%20victim%27s%20user%20record.%22%2C%22Victim%20later%20changes%20password%20and%20revokes%20all%20sessions%3B%20attacker%20still%20signs%20in%20via%20/passkeys/authentication%20using%20the%20planted%20credential.%22%5D%2C%22technical_details%22%3A%22The%20registration%20endpoints%20are%20gated%20only%20by%20requireAuthentication%20%28any%20valid%20access%20token%29%20rather%20than%20a%20step-up%20check.%20There%20is%20no%20enforcement%20of%20AAL2%2C%20fresh%20re-authentication%2C%20or%20proof%20of%20an%20existing%20credential%20before%20a%20new%20WebAuthn%20authenticator%20is%20bound%20to%20the%20user%2C%20so%20possession%20of%20a%20session%20token%20alone%20is%20sufficient%20to%20add%20a%20persistent%20primary%20login%20credential.%22%2C%22title%22%3A%22Passkey%20registration%20requires%20no%20step-up%20authentication%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-0JJXMV3G&#34;,
+  &#34;bug_class&#34;: &#34;privilege-escalation&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:00:24+00:00&#34;,
+  &#34;description&#34;: &#34;The POST /passkeys/registration/begin and /finish handlers in internal/api/passkey_registration.go are protected solely by the requireAuthentication middleware, which accepts any valid access token. Unlike MFA factor enrollment, no AAL2, recent re-authentication, or password confirmation is required before binding a new WebAuthn credential. An attacker who has stolen a victim&#39;s bearer JWT (via XSS, malware, or leaked logs) can complete the registration ceremony with their own authenticator. Because passkeys serve as a primary sign-in method, the attacker retains access even after the victim rotates their password and revokes all sessions.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/api/passkey_registration.go:107&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Attacker steals the victim&#39;s bearer JWT (e.g., via XSS on the operator&#39;s frontend).&#34;,
+    &#34;Attacker calls POST /passkeys/registration/begin with the stolen token and receives WebAuthn creation options.&#34;,
+    &#34;Attacker completes the WebAuthn ceremony with their own hardware key and POSTs to /passkeys/registration/finish.&#34;,
+    &#34;Server stores the attacker&#39;s credential against the victim&#39;s user record.&#34;,
+    &#34;Victim later changes password and revokes all sessions; attacker still signs in via /passkeys/authentication using the planted credential.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The registration endpoints are gated only by requireAuthentication (any valid access token) rather than a step-up check. There is no enforcement of AAL2, fresh re-authentication, or proof of an existing credential before a new WebAuthn authenticator is bound to the user, so possession of a session token alone is sufficient to add a persistent primary login credential.&#34;,
+  &#34;title&#34;: &#34;Passkey registration requires no step-up authentication&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

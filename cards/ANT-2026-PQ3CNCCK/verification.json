@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-PQ3CNCCK",
+  "hash": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-PQ3CNCCK/card.html",
+    "sha256": "2cc7857d22a105dc89424d8459739b96b731c708f9e27034f8f908507d37612f",
+    "fetched_utc": "2026-11-10T21:06:59Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-PQ3CNCCK",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+    "printed_hash": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+    "canonical_rebuild_sha3_512": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:59Z",
+  "card_facts": {
+    "printed_hash": "97cd06851823987565a3f40bce0a69f65bdf9fe68e2ab7303ee3b5d58780e4e5a65f21cd44d70f53e4d97898416ddc420f50c71d4bb4164bedef94b9e5f03077",
+    "committed_printed": "2026-04-01",
+    "revealed_printed": "2026-08-17 23:50 UTC",
+    "timeline": [
+      {
+        "date": "2026-04-01",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-04-01",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-04-02",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-07",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "report_date": "2026-04-01",
+      "acknowledged_date": "2026-04-01",
+      "discovered_or_logged_date": "2026-04-02",
+      "patch_released_date": "2026-04-07",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-776c-mpj7-jm3r"
+      ],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-5747"
+      ],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

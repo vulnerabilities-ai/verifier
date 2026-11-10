@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-G1XC2M5V · cgif</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-G1XC2M5V · cgif</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-G1XC2M5V: cgif/cgif_fuzzer/20251218_020844_unknown/</h1>
+<p>cgif's LZW encoder computes a conservative upper bound for the compressed output buffer but the formula only covers the initial clear code, numPixel data codes, and the termination code. It fails to account for the N reset clear codes emitted whenever the LZW dictionary fills and is reset. For inputs whose pixel patterns force many dictionary resets, the encoder emits more codes than the allocated buffer can hold, producing a heap buffer write overflow. An attacker who can influence the pixel data fed to the encoder (e.g., via an image-processing pipeline that re-encodes to GIF) could trigger this corruption.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> cgif<br>
+<strong>Location:</strong> <code>src/cgif_raw.c:LZW_GenerateStream</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Root cause is an incomplete worst-case size formula: the buffer must hold at most 1 initial clear code + numPixel data codes + N reset clear codes + 1 termination code, but the N reset clear codes term was missing, so the malloc is undersized and subsequent code emission overruns it.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-G1XC2M5V.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-G1XC2M5V<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/dloebl/cgif/pull/84" rel="noopener noreferrer">https://github.com/dloebl/cgif/pull/84</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2025-12-18</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-01-19</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-01-19</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:13 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-G1XC2M5V-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-G1XC2M5V%22%2C%22bug_class%22%3Anull%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A33%2B00%3A00%22%2C%22description%22%3A%22cgif%27s%20LZW%20encoder%20computes%20a%20conservative%20upper%20bound%20for%20the%20compressed%20output%20buffer%20but%20the%20formula%20only%20covers%20the%20initial%20clear%20code%2C%20numPixel%20data%20codes%2C%20and%20the%20termination%20code.%20It%20fails%20to%20account%20for%20the%20N%20reset%20clear%20codes%20emitted%20whenever%20the%20LZW%20dictionary%20fills%20and%20is%20reset.%20For%20inputs%20whose%20pixel%20patterns%20force%20many%20dictionary%20resets%2C%20the%20encoder%20emits%20more%20codes%20than%20the%20allocated%20buffer%20can%20hold%2C%20producing%20a%20heap%20buffer%20write%20overflow.%20An%20attacker%20who%20can%20influence%20the%20pixel%20data%20fed%20to%20the%20encoder%20%28e.g.%2C%20via%20an%20image-processing%20pipeline%20that%20re-encodes%20to%20GIF%29%20could%20trigger%20this%20corruption.%22%2C%22discovered_at%22%3A%222025-12-18T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22CGIF%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22Root%20cause%20is%20an%20incomplete%20worst-case%20size%20formula%3A%20the%20buffer%20must%20hold%20at%20most%201%20initial%20clear%20code%20%2B%20numPixel%20data%20codes%20%2B%20N%20reset%20clear%20codes%20%2B%201%20termination%20code%2C%20but%20the%20N%20reset%20clear%20codes%20term%20was%20missing%2C%20so%20the%20malloc%20is%20undersized%20and%20subsequent%20code%20emission%20overruns%20it.%22%2C%22title%22%3A%22cgif/cgif_fuzzer/20251218_020844_unknown/%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-G1XC2M5V&#34;,
+  &#34;bug_class&#34;: null,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:33+00:00&#34;,
+  &#34;description&#34;: &#34;cgif&#39;s LZW encoder computes a conservative upper bound for the compressed output buffer but the formula only covers the initial clear code, numPixel data codes, and the termination code. It fails to account for the N reset clear codes emitted whenever the LZW dictionary fills and is reset. For inputs whose pixel patterns force many dictionary resets, the encoder emits more codes than the allocated buffer can hold, producing a heap buffer write overflow. An attacker who can influence the pixel data fed to the encoder (e.g., via an image-processing pipeline that re-encodes to GIF) could trigger this corruption.&#34;,
+  &#34;discovered_at&#34;: &#34;2025-12-18T00:00:00+00:00&#34;,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;CGIF&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;Root cause is an incomplete worst-case size formula: the buffer must hold at most 1 initial clear code + numPixel data codes + N reset clear codes + 1 termination code, but the N reset clear codes term was missing, so the malloc is undersized and subsequent code emission overruns it.&#34;,
+  &#34;title&#34;: &#34;cgif/cgif_fuzzer/20251218_020844_unknown/&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

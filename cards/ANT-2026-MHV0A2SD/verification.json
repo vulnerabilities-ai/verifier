@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-MHV0A2SD",
+  "hash": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-MHV0A2SD/card.html",
+    "sha256": "af168db27a888b832a9d7e78cfe250d82a15698250cd428a78fd2c45525becb8",
+    "fetched_utc": "2026-11-10T21:06:45Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-MHV0A2SD",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+    "printed_hash": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+    "canonical_rebuild_sha3_512": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:45Z",
+  "card_facts": {
+    "printed_hash": "9d79a6e25b54371b04cb288170cb834ebc4e1a8a252c47277ce0386742a21844e7b508515d9365e459ac69b784159f4a44d5b9631223abc400c41c3593134ef1",
+    "committed_printed": "2026-04-09 18:49 UTC",
+    "revealed_printed": "2026-08-17 20:02 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-22",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-03-22",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-03-29",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-09",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "report_date": "2026-03-22",
+      "patch_released_date": "2026-03-22",
+      "discovered_or_logged_date": "2026-03-29",
+      "acknowledged_date": "2026-05-09",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "medium",
+      "firm": "medium",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/freetype/freetype/commit/238dd13d7d0f114d10ef7dc233538f4c2dea5405"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [
+    "The card's 'Patch released' date (2026-03-22) is earlier than its 'Discovered or logged' date (2026-03-29)."
+  ],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

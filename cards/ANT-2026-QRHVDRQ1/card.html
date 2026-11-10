@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-QRHVDRQ1 · unicorn</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-QRHVDRQ1 · unicorn</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-QRHVDRQ1: Heap buffer overflow via MIPS CP0 SRSCtl shadow register set OOB write due to invalid PSS/ESS values</h1>
+<p>Invalid PSS/ESS values in the MIPS CP0 SRSCtl register cause an out-of-bounds write into the shadow register set array on the heap.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> unicorn<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The PSS/ESS fields of the CP0 SRSCtl register are used to index the shadow register set without proper bounds validation; an invalid value leads to a heap OOB write when the selected shadow register set is accessed.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-QRHVDRQ1.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-QRHVDRQ1<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-04</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">ab25ae3cdb064e2c16ac9958c21cc3a81fb8bc7b2a53eebbe7150cdad3f753702e34a46e8d56fd5b54bd78c6f8ddff8c2c7475e0566fa9257dd93664779b31c5</p>
+<p class="kicker">Committed 2026-04-09 18:50 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-QRHVDRQ1-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-QRHVDRQ1%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A28%2B00%3A00%22%2C%22description%22%3A%22Invalid%20PSS/ESS%20values%20in%20the%20MIPS%20CP0%20SRSCtl%20register%20cause%20an%20out-of-bounds%20write%20into%20the%20shadow%20register%20set%20array%20on%20the%20heap.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22Unicorn%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20PSS/ESS%20fields%20of%20the%20CP0%20SRSCtl%20register%20are%20used%20to%20index%20the%20shadow%20register%20set%20without%20proper%20bounds%20validation%3B%20an%20invalid%20value%20leads%20to%20a%20heap%20OOB%20write%20when%20the%20selected%20shadow%20register%20set%20is%20accessed.%22%2C%22title%22%3A%22Heap%20buffer%20overflow%20via%20MIPS%20CP0%20SRSCtl%20shadow%20register%20set%20OOB%20write%20due%20to%20invalid%20PSS/ESS%20values%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-QRHVDRQ1&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:28+00:00&#34;,
+  &#34;description&#34;: &#34;Invalid PSS/ESS values in the MIPS CP0 SRSCtl register cause an out-of-bounds write into the shadow register set array on the heap.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;Unicorn&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The PSS/ESS fields of the CP0 SRSCtl register are used to index the shadow register set without proper bounds validation; an invalid value leads to a heap OOB write when the selected shadow register set is accessed.&#34;,
+  &#34;title&#34;: &#34;Heap buffer overflow via MIPS CP0 SRSCtl shadow register set OOB write due to invalid PSS/ESS values&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

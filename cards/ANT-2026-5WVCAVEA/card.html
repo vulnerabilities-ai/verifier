@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-5WVCAVEA · upx</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-5WVCAVEA · upx</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-5WVCAVEA: Heap buffer overflow in un_DT_INIT relocation restore due to attacker-controlled offset near buffer end</h1>
+<p>An attacker-controlled offset near the end of a heap buffer leads to an out-of-bounds access during DT_INIT relocation restore.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> upx<br>
+<strong>Location:</strong> <code>un_DT_INIT</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "heap-buffer-overflow ... WRITE of size 8 at 0x7df4f56f1a8f ... located 3 bytes after 22668-byte region". The root cause is a missing bounds check after elf_find_dynamic(): the returned pointer is validated only as <code>t &lt; file_size_u</code>, guaranteeing the start is in-bounds but not that <code>rp + sizeof(Elf64_Rela)</code> is. The assignments <code>rp-&gt;r_info = ...</code> (offset +8) and <code>rp-&gt;r_addend = ...</code> (offset +16) therefore write past the end of the file_image MemBuffer. A parallel missing check on dynsym[0] allows an out-of-bounds read of the source values.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-5WVCAVEA.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-5WVCAVEA<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+<div class="report-body" tabindex="0"><p>This issue tracker is <strong>ONLY</strong> used for reporting bugs.
+Please use <a href="https://stackoverflow.com">stackoverflow</a> for supporting issues.</p>
+
+
+<h2>What's the problem (or question)?</h2>
+<p>From Anthropic "Trail of Bits" report:</p>
+<h2>Vulnerability Header</h2>
+<ul>
+<li><strong>Vulnerability Title &amp; ID:</strong> Heap Buffer Overflow in <code>un_DT_INIT</code> Relocation Restore — UPX (Bug 083)</li>
+<li><strong>Security-Relevant:</strong> Yes</li>
+<li><strong>Severity Rating:</strong> Medium</li>
+<li><strong>Bug Category:</strong> Heap Buffer Overflow (Out-of-Bounds Write)</li>
+<li><strong>Source Commit:</strong> https://github.com/upx/upx @ 36babe770e83d2104f752c0c10d61eb945321f65 (oss-fuzz builder image, 2026-03-05)</li>
+<li><strong>Status:</strong> Confirmed (not fixed upstream as of Source Commit)</li>
+</ul>
+<h2>Executive Summary</h2>
+<p>A heap buffer overflow (WRITE of 8 bytes, 3 bytes past end of buffer) exists in UPX's <code>PackLinuxElf64::un_DT_INIT</code> function when processing a crafted UPX-packed ELF binary. The vulnerability is triggered during the <code>--test</code> or <code>--decompress</code> operations when restoring DT_INIT_ARRAY relocations. A pointer derived from attacker-controlled dynamic section data can point near the end of the <code>file_image</code> buffer, causing writes to <code>Elf64_Rela</code> fields to overflow the heap allocation.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>When UPX tests or decompresses a packed ELF64 binary, <code>un_DT_INIT()</code> processes the dynamic section to restore original DT_INIT_ARRAY entries. At <code>p_lx_elf.cpp:7659</code>, the code retrieves a relocation entry pointer:</p>
+<pre tabindex="0"><code class="language-cpp">Elf64_Rela *rp = (Elf64_Rela *)elf_find_dynamic(dyn_null-&gt;d_val);
+</code></pre>
+<p>The <code>elf_find_dynamic()</code> function (line 8373) converts an RVA to a file offset and returns a pointer into <code>file_image</code>:</p>
+<pre tabindex="0"><code class="language-cpp">upx_uint64_t const t = elf_get_offset_from_address(get_te64(&amp;dynp-&gt;d_val));
+if (t &amp;&amp; t &lt; file_size_u) {
+    return t + file_image;
+}
+</code></pre>
+<p>The check <code>t &lt; file_size_u</code> ensures the start of the returned pointer is within bounds, but does <strong>not</strong> ensure that the full <code>Elf64_Rela</code> structure (24 bytes: <code>r_offset</code> + <code>r_info</code> + <code>r_addend</code>) fits within the buffer. When <code>rp</code> points close to the end of <code>file_image</code>, the writes at lines 7664-7665 overflow:</p>
+<pre tabindex="0"><code class="language-cpp">rp-&gt;r_info = rp_unc-&gt;r_info;     // write at rp+8, can overflow
+rp-&gt;r_addend = rp_unc-&gt;r_addend; // write at rp+16, can overflow further
+</code></pre>
+<p>Additionally, <code>rp_unc</code> is cast from <code>&amp;dynsym[0]</code> without verifying that <code>dynsym</code> points to at least one full entry (24 bytes) within <code>file_image</code> before reading <code>r_info</code> and <code>r_addend</code>.</p>
+<p>The <code>file_image</code> buffer is allocated at line 1144 with size <code>file_size</code> (22668 bytes for this PoC). The ASAN report confirms the write occurs 3 bytes past the end of this buffer.</p>
+<h3>First Faulty Condition</h3>
+<p>Missing bounds check at <code>p_lx_elf.cpp:7661</code> — after obtaining <code>rp</code> from <code>elf_find_dynamic()</code> and confirming it is non-null, the code proceeds to write <code>sizeof(Elf64_Rela)</code> bytes through <code>rp</code> without verifying the full structure fits within <code>file_image</code>.</p>
+<h3>Trace Analysis</h3>
+<pre tabindex="0"><code>==7==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7df4f56f1a8f
+WRITE of size 8 at 0x7df4f56f1a8f thread T0
+    #0 PackLinuxElf64::un_DT_INIT(...)        p_lx_elf.cpp:7664  ← faulting write (rp-&gt;r_info)
+    #1 PackLinuxElf64::unpack(OutputFile*)     p_lx_elf.cpp:8063  ← calls un_DT_INIT
+    #2 Packer::doTest()                        packer.cpp:107     ← test operation
+    #3 do_one_file(...)                        work.cpp:340       ← file processing
+    #4 do_files(...)                           work.cpp:427       ← main loop
+    #5 upx_main(...)                           main.cpp:1323      ← entry point
+    #6 LLVMFuzzerTestOneInput                  test_packed_file_fuzzer.cpp:42
+
+0x7df4f56f1a8f is located 3 bytes after 22668-byte region [0x7df4f56ec200,0x7df4f56f1a8c)
+allocated by: MemBuffer::alloc() → PackLinuxElf64::PackLinuxElf64help1(InputFile*)
+</code></pre>
+<p>The crash address is 3 bytes past the 22668-byte <code>file_image</code> buffer. The <code>rp</code> pointer was computed to an offset near the end of the file, and the 8-byte write to <code>rp-&gt;r_info</code> (at offset 8 within the <code>Elf64_Rela</code> struct) extends past the allocation boundary.</p>
+<h3>Sibling Verification</h3>
+<table>
+<thead>
+<tr>
+<th>Sibling Entrypoint</th>
+<th>Unpatched Crash</th>
+<th>Same Root Cause?</th>
+<th>Patched Result</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>decompress_packed_file_fuzzer</td>
+<td><code>un_shlib_1</code> (p_lx_elf.cpp:7146)</td>
+<td><strong>No</strong></td>
+<td>Still crashes (parent patch only)</td>
+<td>Different bug: heap overflow in <code>readx</code> due to unchecked <code>len</code>. This is covered as <strong>Finding 1</strong> (with its own patch).</td>
+</tr>
+</tbody>
+</table>
+<h3>Proposed Fix</h3>
+<p>Add bounds checks before writing through <code>rp</code> and reading through <code>dynsym[0]</code> (see <code>patch.diff</code>):</p>
+<pre tabindex="0"><code class="language-cpp">if ((char *)rp + sizeof(Elf64_Rela) &gt; (char *)&amp;file_image[0] + file_size_u)
+    throwCantUnpack(&quot;bad DT_INIT_ARRAY relocation offset&quot;);
+if ((char *)&amp;dynsym[1] &gt; (char *)&amp;file_image[0] + file_size_u)
+    throwCantUnpack(&quot;bad dynsym for DT_INIT_ARRAY&quot;);
+</code></pre>
+<p>This ensures both the relocation entry and the source dynsym entry are fully within the allocated buffer before any writes occur. <strong>Validated</strong>: the PoC is rejected with <code>CantUnpackException</code> (no ASAN crash) after applying the patch.</p>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<p>This bug is triggered when UPX processes a crafted UPX-packed ELF64 binary via <code>upx -t &lt;file&gt;</code> (test) or <code>upx -d &lt;file&gt; -o &lt;out&gt;</code> (decompress). The oss-fuzz harness writes the input to a temporary file and invokes <code>upx_main</code> with <code>-t</code>, so fuzz-harness reachability matches real-world reachability for this issue.
+The attacker needs the victim to run UPX on the attacker-supplied packed binary (e.g., during manual analysis or automated processing).</p>
+<p><strong>Reachability verdict (fuzz harness): CONFIRMED</strong></p>
+<p><strong>Reachability verdict (real world): CONFIRMED</strong> — requires the user to run UPX on an attacker-supplied packed binary.</p>
+<p><strong>Prerequisite checks before the vulnerable code is reached:</strong>
+- File is accepted as an ELF64 input and routed to <code>PackLinuxElf64</code>.
+- <code>PT_DYNAMIC</code> must satisfy <code>p_offset + p_filesz &lt;= file_size</code> (or UPX rejects the file).
+- The dynamic table must take the "no DT_INIT; DT_INIT_ARRAY/DT_PREINIT_ARRAY" restoration path in <code>un_DT_INIT</code>.</p>
+<h3>The Attack Sequence</h3>
+<ol>
+<li>An attacker crafts a UPX-packed ELF64 binary with dynamic section values such that <code>elf_find_dynamic(dyn_null-&gt;d_val)</code> returns a relocation pointer near the end of <code>file_image</code>.</li>
+<li>A victim runs <code>upx -t</code> or <code>upx -d</code> on the file.</li>
+<li>UPX enters <code>PackLinuxElf64::un_DT_INIT</code>, obtains <code>rp</code> via <code>elf_find_dynamic()</code>, and attempts to restore <code>rp-&gt;r_info</code>/<code>rp-&gt;r_addend</code>, resulting in out-of-bounds heap writes.</li>
+<li>This leads to a crash; depending on heap layout and exploitation technique, it may be usable as a memory corruption primitive.</li>
+</ol>
+<h3>Technical Primitive</h3>
+<p>Grade 0.50 — WRITE crash with memory corruption. The attacker controls:
+- <strong>Write location</strong>: partially controlled via crafted ELF dynamic section values (the <code>dyn_null-&gt;d_val</code> field determines where <code>rp</code> points)
+- <strong>Write content</strong>: the written data comes from <code>dynsym[0]</code> which is also within the attacker-controlled file image
+- <strong>Write size</strong>: 8 bytes (fixed, from <code>r_info</code> field assignment)</p>
+<p>The 3-byte overflow past the heap buffer could corrupt heap metadata or adjacent allocations. While the overflow is small, writing 8 bytes of attacker-controlled data at a partially-controlled heap offset provides a potential primitive for heap exploitation.</p>
+<h3>Mitigation Analysis</h3>
+<ul>
+<li><strong>ASLR</strong>: Mitigates exploitation since heap layout is randomized, but the small overflow primarily affects adjacent heap chunks.</li>
+<li><strong>DEP/NX</strong>: Does not protect against heap metadata corruption.</li>
+<li><strong>Stack canaries</strong>: Not applicable (heap overflow).</li>
+<li><strong>Heap hardening</strong>: Modern heap allocators with guard pages or quarantine zones may detect or prevent exploitation of this small overflow.</li>
+</ul>
+<p>Given the small overflow (3 bytes), converting this to reliable code execution would be challenging but not impossible with heap grooming.</p>
+<h3>Reproduction Steps</h3>
+<p>```bash</p>
+<h1>Clone oss-fuzz and build UPX fuzzers with ASAN</h1>
+<p>cd /path/to/oss-fuzz
+python3 infra/helper.py build_fuzzers --sanitizer address upx</p>
+<h1>Run the primary PoC</h1>
+<p>build/out/upx/test_packed_file_fuzzer </p>
+<h1>Expected: ASAN reports heap-buffer-overflow WRITE in un_DT_INIT at p_lx_elf.cpp:7664</h1>
+<h2>Please tell us details about your environment.</h2>
+
+<ul>
+<li>UPX version used (<code>upx --version</code>): 5.1.1  commit 36babe770e83d2104f752c0c10d61eb945321f65</li>
+<li>Host Operating System and version: Linux 6.x</li>
+<li>Host CPU architecture: x86_64</li>
+<li>Target Operating System and version: same</li>
+<li>Target CPU architecture:</li>
+</ul>
+<p>[poc.bin.gz]((https://github.com/user-attachments/files/26144179/poc.bin.gz)</p></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">0734711e5afe8fa99b46eae24834a17a136a72dd2c6d5ca662c6872de6ae54b2a686471646eb4d5a746ecb184755a0bfca4172b1e9bd8af0551387a9fe9738e8</p>
+<p class="kicker">Committed 2026-05-07 07:01 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-5WVCAVEA-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-5WVCAVEA%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A28%2B00%3A00%22%2C%22description%22%3A%22An%20attacker-controlled%20offset%20near%20the%20end%20of%20a%20heap%20buffer%20leads%20to%20an%20out-of-bounds%20access%20during%20DT_INIT%20relocation%20restore.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22un_DT_INIT%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22UPX%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22heap-buffer-overflow%20...%20WRITE%20of%20size%208%20at%200x7df4f56f1a8f%20...%20located%203%20bytes%20after%2022668-byte%20region%5C%22.%20The%20root%20cause%20is%20a%20missing%20bounds%20check%20after%20elf_find_dynamic%28%29%3A%20the%20returned%20pointer%20is%20validated%20only%20as%20%60t%20%3C%20file_size_u%60%2C%20guaranteeing%20the%20start%20is%20in-bounds%20but%20not%20that%20%60rp%20%2B%20sizeof%28Elf64_Rela%29%60%20is.%20The%20assignments%20%60rp-%3Er_info%20%3D%20...%60%20%28offset%20%2B8%29%20and%20%60rp-%3Er_addend%20%3D%20...%60%20%28offset%20%2B16%29%20therefore%20write%20past%20the%20end%20of%20the%20file_image%20MemBuffer.%20A%20parallel%20missing%20check%20on%20dynsym%5B0%5D%20allows%20an%20out-of-bounds%20read%20of%20the%20source%20values.%22%2C%22title%22%3A%22Heap%20buffer%20overflow%20in%20un_DT_INIT%20relocation%20restore%20due%20to%20attacker-controlled%20offset%20near%20buffer%20end%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-5WVCAVEA&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:28+00:00&#34;,
+  &#34;description&#34;: &#34;An attacker-controlled offset near the end of a heap buffer leads to an out-of-bounds access during DT_INIT relocation restore.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;un_DT_INIT&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;UPX&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;heap-buffer-overflow ... WRITE of size 8 at 0x7df4f56f1a8f ... located 3 bytes after 22668-byte region\&#34;. The root cause is a missing bounds check after elf_find_dynamic(): the returned pointer is validated only as `t &lt; file_size_u`, guaranteeing the start is in-bounds but not that `rp + sizeof(Elf64_Rela)` is. The assignments `rp-&gt;r_info = ...` (offset +8) and `rp-&gt;r_addend = ...` (offset +16) therefore write past the end of the file_image MemBuffer. A parallel missing check on dynsym[0] allows an out-of-bounds read of the source values.&#34;,
+  &#34;title&#34;: &#34;Heap buffer overflow in un_DT_INIT relocation restore due to attacker-controlled offset near buffer end&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

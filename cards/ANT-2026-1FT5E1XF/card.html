@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-1FT5E1XF · mm2/little-cms</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-1FT5E1XF · mm2/little-cms</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-low">low</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-1FT5E1XF: Stack-buffer-overflow in cmslut.c:1373</h1>
+<p>When creating a color transform that takes the BlackPreservingKPlaneIntents path, BlackPreservingSampler in cmscnvrt.c allocates a fixed 16-byte (4-float) stack array 'Outf' and passes it to cmsPipelineEvalFloat/_LUTevalFloat. _LUTevalFloat at cmslut.c:1373 memcpy's output based on the pipeline's declared output-channel count, which is derived from the attacker-supplied ICC profile and can reach 15 channels (60 bytes). The resulting 60-byte write overruns 'Outf' and corrupts adjacent stack objects and redzones. An attacker who can supply an ICC profile processed with a black-preserving intent can overwrite stack memory, potentially leading to control-flow hijack.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> mm2/little-cms<br>
+<strong>Location:</strong> <code>cmslut.c:1373</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 60 at 0x73d5a3bda750 ... stack-buffer-overflow ... in _LUTevalFloat /src/lcms/src/cmslut.c:1373". The destination is the 16-byte 'Outf' array ([64,80) in the frame) in BlackPreservingSampler, but the memcpy length is computed from the LUT/pipeline output-channel count taken from the profile rather than the caller's buffer size, so a profile declaring many output channels overflows the fixed 4-float stack buffer.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 4161537645
+INFO: Loaded 1 modules   (8027 inline 8-bit counters): 8027 [0x5afb2e537230, 0x5afb2e53918b), 
+INFO: Loaded 1 PC tables (8027 PCs): 8027 [0x5afb2e539190,0x5afb2e558740), 
+/out/cms_transform_all_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x73d5a3bda750 at pc 0x5afb2e3ca54e bp 0x7ffef9234050 sp 0x7ffef9233810
+WRITE of size 60 at 0x73d5a3bda750 thread T0
+    #0 0x5afb2e3ca54d in __asan_memcpy /src/llvm-project/compiler-rt/lib/asan/asan_interceptors_memintrinsics.cpp:63:3
+    #1 0x5afb2e4a4b57 in _LUTevalFloat /src/lcms/src/cmslut.c:1373:5
+    #2 0x5afb2e47acb3 in BlackPreservingSampler /src/lcms/src/cmscnvrt.c:895:5
+    #3 0x5afb2e4a0f26 in cmsStageSampleCLut16bit /src/lcms/src/cmslut.c:796:14
+    #4 0x5afb2e47a485 in BlackPreservingKPlaneIntents /src/lcms/src/cmscnvrt.c:1069:5
+    #5 0x5afb2e43af73 in cmsCreateExtendedTransform /src/lcms/src/cmsxform.c:1195:11
+    #6 0x5afb2e43d9e0 in cmsCreateMultiprofileTransformTHR /src/lcms/src/cmsxform.c:1311:12
+    #7 0x5afb2e43d9e0 in cmsCreateTransformTHR /src/lcms/src/cmsxform.c:1352:12
+    [... 10 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an ICC profile whose pipeline advertises a large output-channel count (e.g., 15)</li>
+<li>Arrange for the profile/intent combination to select the BlackPreservingKPlaneIntents code path</li>
+<li>Deliver the profile to the target (embedded in an image or as a standalone .icc) so cmsCreateTransform is invoked</li>
+<li>During CLUT sampling, BlackPreservingSampler calls _LUTevalFloat which memcpy's 60 bytes into the 16-byte 'Outf' stack array, smashing adjacent stack memory</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-1FT5E1XF.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-1FT5E1XF<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/cmscnvrt.c b/src/cmscnvrt.c</span>
+<span class="diff-h">index ec1678ca..c172008f 100644</span>
+<span class="diff-h">--- a/src/cmscnvrt.c</span>
+<span class="diff-h">+++ b/src/cmscnvrt.c</span>
+<span class="diff-h">@@ -626,19 +626,22 @@ cmsPipeline* DefaultICCintents(cmsContext       ContextID,</span>
+<span class="diff-c">     // Check for non-negatives clip</span>
+<span class="diff-c">     if (dwFlags &amp; cmsFLAGS_NONEGATIVES) {</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-           if (ColorSpaceOut == cmsSigGrayData ||</span>
+<span class="diff-d">-                  ColorSpaceOut == cmsSigRgbData ||</span>
+<span class="diff-d">-                  ColorSpaceOut == cmsSigCmykData) {</span>
+<span class="diff-a">+        if (ColorSpaceOut == cmsSigGrayData ||</span>
+<span class="diff-a">+            ColorSpaceOut == cmsSigRgbData ||</span>
+<span class="diff-a">+            ColorSpaceOut == cmsSigCmykData) {</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-                  cmsStage* clip = _cmsStageClipNegatives(Result-&gt;ContextID, cmsChannelsOfColorSpace(ColorSpaceOut));</span>
+<span class="diff-d">-                  if (clip == NULL) goto Error;</span>
+<span class="diff-a">+            cmsStage* clip = _cmsStageClipNegatives(Result-&gt;ContextID, cmsChannelsOfColorSpace(ColorSpaceOut));</span>
+<span class="diff-a">+            if (clip == NULL) goto Error;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-                  if (!cmsPipelineInsertStage(Result, cmsAT_END, clip))</span>
+<span class="diff-d">-                         goto Error;</span>
+<span class="diff-d">-           }</span>
+<span class="diff-a">+            if (!cmsPipelineInsertStage(Result, cmsAT_END, clip))</span>
+<span class="diff-a">+                goto Error;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    if (cmsChannelsOfColorSpace(ColorSpaceOut) != cmsPipelineOutputChannels(Result))</span>
+<span class="diff-a">+        goto Error;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     return Result;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> Error:</span>
+<span class="diff-h">@@ -1001,10 +1004,6 @@ cmsPipeline* BlackPreservingKPlaneIntents(cmsContext     ContextID,</span>
+<span class="diff-c">         cmsGetDeviceClass(hLastProfile) == cmsSigOutputClass))</span>
+<span class="diff-c">            return  DefaultICCintents(ContextID, nProfiles, ICCIntents, hProfiles, BPC, AdaptationStates, dwFlags);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    // Allocate an empty LUT for holding the result</span>
+<span class="diff-d">-    Result = cmsPipelineAlloc(ContextID, 4, 4);</span>
+<span class="diff-d">-    if (Result == NULL) return NULL;</span>
+<span class="diff-d">-</span>
+<span class="diff-c">     memset(&amp;bp, 0, sizeof(bp));</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     // We need the input LUT of the last profile, assuming this one is responsible of</span>
+<span class="diff-h">@@ -1063,8 +1062,15 @@ cmsPipeline* BlackPreservingKPlaneIntents(cmsContext     ContextID,</span>
+<span class="diff-c">     CLUT = cmsStageAllocCLut16bit(ContextID, nGridPoints, 4, 4, NULL);</span>
+<span class="diff-c">     if (CLUT == NULL) goto Cleanup;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (!cmsPipelineInsertStage(Result, cmsAT_BEGIN, CLUT))</span>
+<span class="diff-a">+    // Allocate an empty LUT for holding the result</span>
+<span class="diff-a">+    Result = cmsPipelineAlloc(ContextID, 4, 4);</span>
+<span class="diff-a">+    if (Result == NULL) goto Cleanup;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    if (!cmsPipelineInsertStage(Result, cmsAT_BEGIN, CLUT)) {</span>
+<span class="diff-a">+        cmsPipelineFree(Result);</span>
+<span class="diff-a">+        Result = NULL;</span>
+<span class="diff-c">         goto Cleanup;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     cmsStageSampleCLut16bit(CLUT, BlackPreservingSampler, (void*) &amp;bp, 0);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -1072,11 +1078,16 @@ cmsPipeline* BlackPreservingKPlaneIntents(cmsContext     ContextID,</span>
+<span class="diff-c">     for (i = lastProfilePos + 1; i &lt; nProfiles; i++)</span>
+<span class="diff-c">     {        </span>
+<span class="diff-c">         cmsPipeline* devlink = _cmsReadDevicelinkLUT(hProfiles[i], ICCIntents[i]);</span>
+<span class="diff-d">-        if (devlink == NULL)</span>
+<span class="diff-a">+        if (devlink == NULL) {</span>
+<span class="diff-a">+            cmsPipelineFree(Result);</span>
+<span class="diff-a">+            Result = NULL;</span>
+<span class="diff-c">             goto Cleanup;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        if (!cmsPipelineCat(Result, devlink))</span>
+<span class="diff-d">-            goto Cleanup;</span>
+<span class="diff-a">+        if (!cmsPipelineCat(Result, devlink)) {</span>
+<span class="diff-a">+            cmsPipelineFree(Result);</span>
+<span class="diff-a">+            Result = NULL;            </span>
+<span class="diff-a">+        }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/mm2/Little-CMS/commit/ba0c2b4f92872b914d4e9036f123a50063f58c89" rel="noopener noreferrer">https://github.com/mm2/Little-CMS/commit/ba0c2b4f92872b914d4e9036f123a50063f58c89</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-02</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a</p>
+<p class="kicker">Committed 2026-06-06 07:20 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-1FT5E1XF-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-1FT5E1XF%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A46%3A43%2B00%3A00%22%2C%22description%22%3A%22When%20creating%20a%20color%20transform%20that%20takes%20the%20BlackPreservingKPlaneIntents%20path%2C%20BlackPreservingSampler%20in%20cmscnvrt.c%20allocates%20a%20fixed%2016-byte%20%284-float%29%20stack%20array%20%27Outf%27%20and%20passes%20it%20to%20cmsPipelineEvalFloat/_LUTevalFloat.%20_LUTevalFloat%20at%20cmslut.c%3A1373%20memcpy%27s%20output%20based%20on%20the%20pipeline%27s%20declared%20output-channel%20count%2C%20which%20is%20derived%20from%20the%20attacker-supplied%20ICC%20profile%20and%20can%20reach%2015%20channels%20%2860%20bytes%29.%20The%20resulting%2060-byte%20write%20overruns%20%27Outf%27%20and%20corrupts%20adjacent%20stack%20objects%20and%20redzones.%20An%20attacker%20who%20can%20supply%20an%20ICC%20profile%20processed%20with%20a%20black-preserving%20intent%20can%20overwrite%20stack%20memory%2C%20potentially%20leading%20to%20control-flow%20hijack.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22cmslut.c%3A1373%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22lcms%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20ICC%20profile%20whose%20pipeline%20advertises%20a%20large%20output-channel%20count%20%28e.g.%2C%2015%29%22%2C%222.%20Arrange%20for%20the%20profile/intent%20combination%20to%20select%20the%20BlackPreservingKPlaneIntents%20code%20path%22%2C%223.%20Deliver%20the%20profile%20to%20the%20target%20%28embedded%20in%20an%20image%20or%20as%20a%20standalone%20.icc%29%20so%20cmsCreateTransform%20is%20invoked%22%2C%224.%20During%20CLUT%20sampling%2C%20BlackPreservingSampler%20calls%20_LUTevalFloat%20which%20memcpy%27s%2060%20bytes%20into%20the%2016-byte%20%27Outf%27%20stack%20array%2C%20smashing%20adjacent%20stack%20memory%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%2060%20at%200x73d5a3bda750%20...%20stack-buffer-overflow%20...%20in%20_LUTevalFloat%20/src/lcms/src/cmslut.c%3A1373%5C%22.%20The%20destination%20is%20the%2016-byte%20%27Outf%27%20array%20%28%5B64%2C80%29%20in%20the%20frame%29%20in%20BlackPreservingSampler%2C%20but%20the%20memcpy%20length%20is%20computed%20from%20the%20LUT/pipeline%20output-channel%20count%20taken%20from%20the%20profile%20rather%20than%20the%20caller%27s%20buffer%20size%2C%20so%20a%20profile%20declaring%20many%20output%20channels%20overflows%20the%20fixed%204-float%20stack%20buffer.%22%2C%22title%22%3A%22Stack-buffer-overflow%20in%20cmslut.c%3A1373%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-1FT5E1XF&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:46:43+00:00&#34;,
+  &#34;description&#34;: &#34;When creating a color transform that takes the BlackPreservingKPlaneIntents path, BlackPreservingSampler in cmscnvrt.c allocates a fixed 16-byte (4-float) stack array &#39;Outf&#39; and passes it to cmsPipelineEvalFloat/_LUTevalFloat. _LUTevalFloat at cmslut.c:1373 memcpy&#39;s output based on the pipeline&#39;s declared output-channel count, which is derived from the attacker-supplied ICC profile and can reach 15 channels (60 bytes). The resulting 60-byte write overruns &#39;Outf&#39; and corrupts adjacent stack objects and redzones. An attacker who can supply an ICC profile processed with a black-preserving intent can overwrite stack memory, potentially leading to control-flow hijack.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;cmslut.c:1373&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;lcms&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an ICC profile whose pipeline advertises a large output-channel count (e.g., 15)&#34;,
+    &#34;2. Arrange for the profile/intent combination to select the BlackPreservingKPlaneIntents code path&#34;,
+    &#34;3. Deliver the profile to the target (embedded in an image or as a standalone .icc) so cmsCreateTransform is invoked&#34;,
+    &#34;4. During CLUT sampling, BlackPreservingSampler calls _LUTevalFloat which memcpy&#39;s 60 bytes into the 16-byte &#39;Outf&#39; stack array, smashing adjacent stack memory&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 60 at 0x73d5a3bda750 ... stack-buffer-overflow ... in _LUTevalFloat /src/lcms/src/cmslut.c:1373\&#34;. The destination is the 16-byte &#39;Outf&#39; array ([64,80) in the frame) in BlackPreservingSampler, but the memcpy length is computed from the LUT/pipeline output-channel count taken from the profile rather than the caller&#39;s buffer size, so a profile declaring many output channels overflows the fixed 4-float stack buffer.&#34;,
+  &#34;title&#34;: &#34;Stack-buffer-overflow in cmslut.c:1373&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

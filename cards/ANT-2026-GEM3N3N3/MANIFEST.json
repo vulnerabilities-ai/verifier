@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-GEM3N3N3",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-GEM3N3N3.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-GEM3N3N3",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:06:07Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 17122,
+      "sha256": "8a0dc6bc113c588ecef81e3ef1a1d40d8f42318a8c5d2ac0215aceaccc46ddcc",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:06:08 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=clZZ7Ld9xMsXKa2kWjW2NmUWQI%2FslcQkKBOpyGoVh7RApzNpQROTGEliQQUkINwfFq9nqeSQtwOFQrvPC5BcwR0v2pBOGE8gmy1IFHAXvkGCPMWWqCJyeoTGR0KmvsdOuBTVxQ%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58804efc805fbec-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-GEM3N3N3/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-GEM3N3N3/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:06:07Z",
+      "size_bytes": 3793,
+      "sha256": "b645832a00aec3fa6e7c82307270b0cd2dd030a1f0c2b9eb4a57308a6c9166cf",
+      "stored_at": "cards/ANT-2026-GEM3N3N3/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

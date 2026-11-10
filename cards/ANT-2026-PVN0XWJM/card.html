@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-PVN0XWJM · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-PVN0XWJM · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-PVN0XWJM: Heap-buffer-overflow in copy_block.h:51</h1>
+<p>FFmpeg's AGM (Amuse Graphics Movie) decoder performs an out-of-bounds heap read while decoding inter-frame data. Inside decode_inter_plane, a source pointer passed to copy_block8 lands 32 bytes before the start of an allocated frame buffer, resulting in an 8-byte read from heap redzone memory. An attacker supplying a crafted AGM video file can trigger this condition, potentially leaking adjacent heap contents or crashing the decoding process.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>copy_block.h:51</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 8 at 0x7a507cbe00f0 ... located 32 bytes before 128-byte region". The source pointer computed in decode_inter_plane (agm.c:453) for the block copy is not clamped to the bounds of the reference frame buffer allocated via ff_get_buffer, so attacker-controlled offsets in the bitstream can drive the read off the front of the allocation.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2820721567
+INFO: Loaded 1 modules   (67490 inline 8-bit counters): 67490 [0x64f633a3bef8, 0x64f633a4c69a), 
+INFO: Loaded 1 PC tables (67490 PCs): 67490 [0x64f633a4c6a0,0x64f633b540c0), 
+/out/ffmpeg_AV_CODEC_ID_AGM_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7a507cbe00f0 at pc 0x64f6332f42e4 bp 0x7ffda6775660 sp 0x7ffda6775658
+READ of size 8 at 0x7a507cbe00f0 thread T0
+    #0 0x64f6332f42e3 in copy_block8 /src/ffmpeg/libavcodec/copy_block.h:51:9
+    #1 0x64f6332f42e3 in decode_inter_plane /src/ffmpeg/libavcodec/agm.c:453:21
+    #2 0x64f6332ec6c5 in decode_inter /src/ffmpeg/libavcodec/agm.c:883:11
+    #3 0x64f6332e963f in decode_frame /src/ffmpeg/libavcodec/agm.c:1198:19
+    #4 0x64f63330313a in decode_simple_internal /src/ffmpeg/libavcodec/decode.c:444:16
+    #5 0x64f63330313a in decode_simple_receive_frame /src/ffmpeg/libavcodec/decode.c:604:15
+    #6 0x64f63330313a in ff_decode_receive_frame_internal /src/ffmpeg/libavcodec/decode.c:640:15
+    #7 0x64f633305180 in decode_receive_frame_internal /src/ffmpeg/libavcodec/decode.c:658:15
+    [... 27 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Construct an AGM bitstream whose inter-frame coding parameters produce a negative/out-of-range source offset in decode_inter_plane</li>
+<li>Deliver the file to the victim (upload, attachment, stream, thumbnailer, etc.)</li>
+<li>Decoder calls copy_block8 with a source pointer pointing before the reference frame buffer</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-PVN0XWJM.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-PVN0XWJM<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavcodec/agm.c b/libavcodec/agm.c</span>
+<span class="diff-h">index c13b4d963e68d..5d27d17274c09 100644</span>
+<span class="diff-h">--- a/libavcodec/agm.c</span>
+<span class="diff-h">+++ b/libavcodec/agm.c</span>
+<span class="diff-h">@@ -409,12 +409,14 @@ static int decode_inter_plane(AGMContext *s, GetBitContext *gb, int size,</span>
+<span class="diff-c">                 int map = s-&gt;map[x];</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                 if (orig_mv_x &gt;= -32) {</span>
+<span class="diff-d">-                    if (y * 8 + mv_y &lt; 0 || y * 8 + mv_y + 8 &gt; h ||</span>
+<span class="diff-d">-                        x * 8 + mv_x &lt; 0 || x * 8 + mv_x + 8 &gt; w)</span>
+<span class="diff-a">+                    int src_y = (s-&gt;blocks_h - 1 - y) * 8 - mv_y;</span>
+<span class="diff-a">+                    int src_x = x * 8 + mv_x;</span>
+<span class="diff-a">+                    if (src_y &lt; 0 || src_y + 8 &gt; h ||</span>
+<span class="diff-a">+                        src_x &lt; 0 || src_x + 8 &gt; w)</span>
+<span class="diff-c">                         return AVERROR_INVALIDDATA;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                     copy_block8(frame-&gt;data[plane] + (s-&gt;blocks_h - 1 - y) * 8 * frame-&gt;linesize[plane] + x * 8,</span>
+<span class="diff-d">-                                prev-&gt;data[plane] + ((s-&gt;blocks_h - 1 - y) * 8 - mv_y) * prev-&gt;linesize[plane] + (x * 8 + mv_x),</span>
+<span class="diff-a">+                                prev-&gt;data[plane] + src_y * prev-&gt;linesize[plane] + src_x,</span>
+<span class="diff-c">                                 frame-&gt;linesize[plane], prev-&gt;linesize[plane], 8);</span>
+<span class="diff-c">                     if (map) {</span>
+<span class="diff-c">                         s-&gt;idsp.idct(s-&gt;wblocks + x * 64);</span>
+<span class="diff-h">@@ -446,12 +448,14 @@ static int decode_inter_plane(AGMContext *s, GetBitContext *gb, int size,</span>
+<span class="diff-c">                     return ret;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                 if (orig_mv_x &gt;= -32) {</span>
+<span class="diff-d">-                    if (y * 8 + mv_y &lt; 0 || y * 8 + mv_y + 8 &gt; h ||</span>
+<span class="diff-d">-                        x * 8 + mv_x &lt; 0 || x * 8 + mv_x + 8 &gt; w)</span>
+<span class="diff-a">+                    int src_y = (s-&gt;blocks_h - 1 - y) * 8 - mv_y;</span>
+<span class="diff-a">+                    int src_x = x * 8 + mv_x;</span>
+<span class="diff-a">+                    if (src_y &lt; 0 || src_y + 8 &gt; h ||</span>
+<span class="diff-a">+                        src_x &lt; 0 || src_x + 8 &gt; w)</span>
+<span class="diff-c">                         return AVERROR_INVALIDDATA;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                     copy_block8(frame-&gt;data[plane] + (s-&gt;blocks_h - 1 - y) * 8 * frame-&gt;linesize[plane] + x * 8,</span>
+<span class="diff-d">-                                prev-&gt;data[plane] + ((s-&gt;blocks_h - 1 - y) * 8 - mv_y) * prev-&gt;linesize[plane] + (x * 8 + mv_x),</span>
+<span class="diff-a">+                                prev-&gt;data[plane] + src_y * prev-&gt;linesize[plane] + src_x,</span>
+<span class="diff-c">                                 frame-&gt;linesize[plane], prev-&gt;linesize[plane], 8);</span>
+<span class="diff-c">                     if (map) {</span>
+<span class="diff-c">                         s-&gt;idsp.idct(s-&gt;block);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/45278542816cab5e8dcb120f9bd62e43ab2857bd" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/45278542816cab5e8dcb120f9bd62e43ab2857bd</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3eec53da3e43eec5aff2839722a3f771bd90657c607d1e9d00fe7d83125512881e9024d6ae9d5d2f9f0252f02648977d5e79af4bd2254a1604bc999d39855d39</p>
+<p class="kicker">Committed 2026-05-28 14:58 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:28 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-PVN0XWJM-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-PVN0XWJM%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A32%3A18%2B00%3A00%22%2C%22description%22%3A%22FFmpeg%27s%20AGM%20%28Amuse%20Graphics%20Movie%29%20decoder%20performs%20an%20out-of-bounds%20heap%20read%20while%20decoding%20inter-frame%20data.%20Inside%20decode_inter_plane%2C%20a%20source%20pointer%20passed%20to%20copy_block8%20lands%2032%20bytes%20before%20the%20start%20of%20an%20allocated%20frame%20buffer%2C%20resulting%20in%20an%208-byte%20read%20from%20heap%20redzone%20memory.%20An%20attacker%20supplying%20a%20crafted%20AGM%20video%20file%20can%20trigger%20this%20condition%2C%20potentially%20leaking%20adjacent%20heap%20contents%20or%20crashing%20the%20decoding%20process.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22copy_block.h%3A51%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Construct%20an%20AGM%20bitstream%20whose%20inter-frame%20coding%20parameters%20produce%20a%20negative/out-of-range%20source%20offset%20in%20decode_inter_plane%22%2C%222.%20Deliver%20the%20file%20to%20the%20victim%20%28upload%2C%20attachment%2C%20stream%2C%20thumbnailer%2C%20etc.%29%22%2C%223.%20Decoder%20calls%20copy_block8%20with%20a%20source%20pointer%20pointing%20before%20the%20reference%20frame%20buffer%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%208%20at%200x7a507cbe00f0%20...%20located%2032%20bytes%20before%20128-byte%20region%5C%22.%20The%20source%20pointer%20computed%20in%20decode_inter_plane%20%28agm.c%3A453%29%20for%20the%20block%20copy%20is%20not%20clamped%20to%20the%20bounds%20of%20the%20reference%20frame%20buffer%20allocated%20via%20ff_get_buffer%2C%20so%20attacker-controlled%20offsets%20in%20the%20bitstream%20can%20drive%20the%20read%20off%20the%20front%20of%20the%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20copy_block.h%3A51%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-PVN0XWJM&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:32:18+00:00&#34;,
+  &#34;description&#34;: &#34;FFmpeg&#39;s AGM (Amuse Graphics Movie) decoder performs an out-of-bounds heap read while decoding inter-frame data. Inside decode_inter_plane, a source pointer passed to copy_block8 lands 32 bytes before the start of an allocated frame buffer, resulting in an 8-byte read from heap redzone memory. An attacker supplying a crafted AGM video file can trigger this condition, potentially leaking adjacent heap contents or crashing the decoding process.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;copy_block.h:51&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Construct an AGM bitstream whose inter-frame coding parameters produce a negative/out-of-range source offset in decode_inter_plane&#34;,
+    &#34;2. Deliver the file to the victim (upload, attachment, stream, thumbnailer, etc.)&#34;,
+    &#34;3. Decoder calls copy_block8 with a source pointer pointing before the reference frame buffer&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 8 at 0x7a507cbe00f0 ... located 32 bytes before 128-byte region\&#34;. The source pointer computed in decode_inter_plane (agm.c:453) for the block copy is not clamped to the bounds of the reference frame buffer allocated via ff_get_buffer, so attacker-controlled offsets in the bitstream can drive the read off the front of the allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in copy_block.h:51&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

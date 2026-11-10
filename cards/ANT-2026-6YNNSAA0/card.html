@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-6YNNSAA0 · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-6YNNSAA0 · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  ssrf
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-6YNNSAA0: Image-generation function fetches arbitrary caller URL with service-role in scope</h1>
+<p>The openai-image-generation example edge function reads <code>imageUrl</code> from the request body, fetches it with <code>fetch(imageUrl)</code>, and uploads the resulting blob to a Storage bucket using the service-role key. Nothing restricts the URL to OpenAI's CDN, so an authenticated caller can point it at cloud metadata endpoints, VPC-internal services reachable from the edge egress, or arbitrarily large files. The attacker can then read the exfiltrated response body from the Storage bucket, or abuse the fetch loop to inflate the deployer's storage costs. The only gate is <code>verify_jwt = true</code>, so any holder of a valid project JWT (anon sign-up or user account) can trigger it.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>examples/edge-functions/supabase/functions/openai-image-generation/index.ts:44</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is trusting a client-supplied URL as if it were the server-generated OpenAI result: the handler does <code>const img = await fetch(imageUrl); const blob = await img.blob();</code> on an unvalidated <code>imageUrl</code> taken directly from the JSON body, with no hostname allow-list, scheme check, or size cap, while running with service-role privileges.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Authenticate to the target Supabase project to obtain a valid JWT</li>
+<li>Invoke the openai-image-generation function with body {"imageUrl":"http://169.254.169.254/latest/meta-data/iam/security-credentials/"} (or another internal URL)</li>
+<li>Function fetches the URL server-side and uploads the response blob to the <code>images</code> Storage bucket under a predictable path</li>
+<li>Download the stored object from the bucket to read the internal response; optionally repeat with multi-GB URLs to inflate storage costs</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Call OpenAI server-side and consume the returned URL without ever accepting a URL from the client; alternatively, validate that <code>new URL(imageUrl).hostname</code> is in an allow-list of OpenAI CDN hosts and the scheme is <code>https</code> before fetching, and cap the downloaded size.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-6YNNSAA0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-6YNNSAA0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/examples/ai/aws_bedrock_image_gen/supabase/config.toml b/examples/ai/aws_bedrock_image_gen/supabase/config.toml</span>
+<span class="diff-h">index de3c5ea0f71a7..5d8dd5e76b507 100644</span>
+<span class="diff-h">--- a/examples/ai/aws_bedrock_image_gen/supabase/config.toml</span>
+<span class="diff-h">+++ b/examples/ai/aws_bedrock_image_gen/supabase/config.toml</span>
+<span class="diff-h">@@ -13,7 +13,7 @@ file_size_limit = &quot;50MiB&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> [functions.image_gen]</span>
+<span class="diff-c"> enabled = true</span>
+<span class="diff-d">-verify_jwt = true</span>
+<span class="diff-a">+verify_jwt = false</span>
+<span class="diff-c"> # import_map = &quot;./functions/image_gen/deno.json&quot;</span>
+<span class="diff-c"> # Uncomment to specify a custom file path to the entrypoint.</span>
+<span class="diff-c"> # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx</span>
+<span class="diff-h">diff --git a/examples/ai/aws_bedrock_image_gen/supabase/functions/image_gen/index.ts b/examples/ai/aws_bedrock_image_gen/supabase/functions/image_gen/index.ts</span>
+<span class="diff-h">index e20b971cfd5b3..b3b596daa1ed7 100644</span>
+<span class="diff-h">--- a/examples/ai/aws_bedrock_image_gen/supabase/functions/image_gen/index.ts</span>
+<span class="diff-h">+++ b/examples/ai/aws_bedrock_image_gen/supabase/functions/image_gen/index.ts</span>
+<span class="diff-h">@@ -1,82 +1,77 @@</span>
+<span class="diff-c"> // AWS SDK issue: https://github.com/aws/aws-sdk-js-v3/issues/6134</span>
+<span class="diff-c"> // We need to mock the file system for the AWS SDK to work.</span>
+<span class="diff-c"> import { prepareVirtualFile } from &#x27;https://deno.land/x/mock_file@v1.1.2/mod.ts&#x27;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-import { BedrockRuntimeClient, InvokeModelCommand } from &#x27;npm:@aws-sdk/client-bedrock-runtime&#x27;</span>
+<span class="diff-d">-import { createClient } from &#x27;npm:@supabase/supabase-js&#x27;</span>
+<span class="diff-d">-import { decode } from &#x27;npm:base64-arraybuffer&#x27;</span>
+<span class="diff-a">+import { BedrockRuntimeClient, InvokeModelCommand } from &#x27;npm:@aws-sdk/client-bedrock-runtime@^3&#x27;</span>
+<span class="diff-a">+import { withSupabase } from &#x27;npm:@supabase/server@^1&#x27;</span>
+<span class="diff-a">+import { decode } from &#x27;npm:base64-arraybuffer@^1&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> console.log(&#x27;Hello from Amazon Bedrock!&#x27;)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-Deno.serve(async (req) =&gt; {</span>
+<span class="diff-d">-  prepareVirtualFile(&#x27;./aws/config&#x27;)</span>
+<span class="diff-d">-  prepareVirtualFile(&#x27;./aws/credentials&#x27;)</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  const client = new BedrockRuntimeClient({</span>
+<span class="diff-d">-    region: &#x27;us-west-2&#x27;,</span>
+<span class="diff-d">-    credentials: {</span>
+<span class="diff-d">-      accessKeyId: Deno.env.get(&#x27;AWS_ACCESS_KEY_ID&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-d">-      secretAccessKey: Deno.env.get(&#x27;AWS_SECRET_ACCESS_KEY&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-d">-      sessionToken: Deno.env.get(&#x27;AWS_SESSION_TOKEN&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-d">-    },</span>
+<span class="diff-d">-  })</span>
+<span class="diff-a">+// Called with a publishable key on the `apikey` header. Deploy with verify_jwt = false.</span>
+<span class="diff-a">+export default {</span>
+<span class="diff-a">+  fetch: withSupabase({ auth: &#x27;publishable&#x27; }, async (req, ctx) =&gt; {</span>
+<span class="diff-a">+    prepareVirtualFile(&#x27;./aws/config&#x27;)</span>
+<span class="diff-a">+    prepareVirtualFile(&#x27;./aws/credentials&#x27;)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  const { prompt, seed } = await req.json()</span>
+<span class="diff-d">-  console.log(prompt)</span>
+<span class="diff-d">-  const input = {</span>
+<span class="diff-d">-    contentType: &#x27;application/json&#x27;,</span>
+<span class="diff-d">-    accept: &#x27;*/*&#x27;,</span>
+<span class="diff-d">-    modelId: &#x27;amazon.titan-image-generator-v1&#x27;,</span>
+<span class="diff-d">-    body: JSON.stringify({</span>
+<span class="diff-d">-      taskType: &#x27;TEXT_IMAGE&#x27;,</span>
+<span class="diff-d">-      textToImageParams: { text: prompt },</span>
+<span class="diff-d">-      imageGenerationConfig: {</span>
+<span class="diff-d">-        numberOfImages: 1,</span>
+<span class="diff-d">-        quality: &#x27;standard&#x27;,</span>
+<span class="diff-d">-        cfgScale: 8.0,</span>
+<span class="diff-d">-        height: 512,</span>
+<span class="diff-d">-        width: 512,</span>
+<span class="diff-d">-        seed: seed ?? 0,</span>
+<span class="diff-a">+    const client = new BedrockRuntimeClient({</span>
+<span class="diff-a">+      region: &#x27;us-west-2&#x27;,</span>
+<span class="diff-a">+      credentials: {</span>
+<span class="diff-a">+        accessKeyId: Deno.env.get(&#x27;AWS_ACCESS_KEY_ID&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-a">+        secretAccessKey: Deno.env.get(&#x27;AWS_SECRET_ACCESS_KEY&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-a">+        sessionToken: Deno.env.get(&#x27;AWS_SESSION_TOKEN&#x27;) ?? &#x27;&#x27;,</span>
+<span class="diff-c">       },</span>
+<span class="diff-d">-    }),</span>
+<span class="diff-d">-  }</span>
+<span class="diff-a">+    })</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    const { prompt, seed } = await req.json()</span>
+<span class="diff-a">+    console.log(prompt)</span>
+<span class="diff-a">+    const input = {</span>
+<span class="diff-a">+      contentType: &#x27;application/json&#x27;,</span>
+<span class="diff-a">+      accept: &#x27;*/*&#x27;,</span>
+<span class="diff-a">+      modelId: &#x27;amazon.titan-image-generator-v1&#x27;,</span>
+<span class="diff-a">+      body: JSON.stringify({</span>
+<span class="diff-a">+        taskType: &#x27;TEXT_IMAGE&#x27;,</span>
+<span class="diff-a">+        textToImageParams: { text: prompt },</span>
+<span class="diff-a">+        imageGenerationConfig: {</span>
+<span class="diff-a">+          numberOfImages: 1,</span>
+<span class="diff-a">+          quality: &#x27;standard&#x27;,</span>
+<span class="diff-a">+          cfgScale: 8.0,</span>
+<span class="diff-a">+          height: 512,</span>
+<span class="diff-a">+          width: 512,</span>
+<span class="diff-a">+          seed: seed ?? 0,</span>
+<span class="diff-a">+        },</span>
+<span class="diff-a">+      }),</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  const command = new InvokeModelCommand(input)</span>
+<span class="diff-d">-  const response = await client.send(command)</span>
+<span class="diff-d">-  console.log(response)</span>
+<span class="diff-a">+    const command = new InvokeModelCommand(input)</span>
+<span class="diff-a">+    const response = await client.send(command)</span>
+<span class="diff-a">+    console.log(response)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  if (response.$metadata.httpStatusCode === 200) {</span>
+<span class="diff-d">-    const { body, $metadata } = response</span>
+<span class="diff-a">+    if (response.$metadata.httpStatusCode === 200) {</span>
+<span class="diff-a">+      const { body, $metadata } = response</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    const textDecoder = new TextDecoder(&#x27;utf-8&#x27;)</span>
+<span class="diff-d">-    const jsonString = textDecoder.decode(body.buffer)</span>
+<span class="diff-d">-    const parsedData = JSON.parse(jsonString)</span>
+<span class="diff-d">-    console.log(parsedData)</span>
+<span class="diff-d">-    const image = parsedData.images[0]</span>
+<span class="diff-d">-    const SUPABASE_SECRET_KEYS = JSON.parse(Deno.env.get(&#x27;SUPABASE_SECRET_KEYS&#x27;)!)</span>
+<span class="diff-d">-    const supabaseClient = createClient(</span>
+<span class="diff-d">-      // Supabase API URL - env var exported by default.</span>
+<span class="diff-d">-      Deno.env.get(&#x27;SUPABASE_URL&#x27;)!,</span>
+<span class="diff-d">-      // Supabase API SECRET KEY - env var exported by default.</span>
+<span class="diff-d">-      SUPABASE_SECRET_KEYS[&#x27;default&#x27;]!</span>
+<span class="diff-d">-    )</span>
+<span class="diff-a">+      const textDecoder = new TextDecoder(&#x27;utf-8&#x27;)</span>
+<span class="diff-a">+      const jsonString = textDecoder.decode(body.buffer)</span>
+<span class="diff-a">+      const parsedData = JSON.parse(jsonString)</span>
+<span class="diff-a">+      console.log(parsedData)</span>
+<span class="diff-a">+      const image = parsedData.images[0]</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    const { data: upload, error: uploadError } = await supabaseClient.storage</span>
+<span class="diff-d">-      .from(&#x27;images&#x27;)</span>
+<span class="diff-d">-      .upload(`${$metadata.requestId ?? &#x27;&#x27;}.png`, decode(image), {</span>
+<span class="diff-d">-        contentType: &#x27;image/png&#x27;,</span>
+<span class="diff-d">-        cacheControl: &#x27;3600&#x27;,</span>
+<span class="diff-d">-        upsert: false,</span>
+<span class="diff-d">-      })</span>
+<span class="diff-d">-    if (!upload) {</span>
+<span class="diff-d">-      return Response.json(uploadError)</span>
+<span class="diff-a">+      const { data: upload, error: uploadError } = await ctx.supabaseAdmin.storage</span>
+<span class="diff-a">+        .from(&#x27;images&#x27;)</span>
+<span class="diff-a">+        .upload(`${$metadata.requestId ?? &#x27;&#x27;}.png`, decode(image), {</span>
+<span class="diff-a">+          contentType: &#x27;image/png&#x27;,</span>
+<span class="diff-a">+          cacheControl: &#x27;3600&#x27;,</span>
+<span class="diff-a">+          upsert: false,</span>
+<span class="diff-a">+        })</span>
+<span class="diff-a">+      if (!upload) {</span>
+<span class="diff-a">+        return Response.json(uploadError)</span>
+<span class="diff-a">+      }</span>
+<span class="diff-a">+      const { data } = ctx.supabaseAdmin.storage.from(&#x27;images&#x27;).getPublicUrl(upload.path!)</span>
+<span class="diff-a">+      return Response.json(data)</span>
+<span class="diff-c">     }</span>
+<span class="diff-d">-    const { data } = supabaseClient.storage.from(&#x27;images&#x27;).getPublicUrl(upload.path!)</span>
+<span class="diff-d">-    return Response.json(data)</span>
+<span class="diff-d">-  }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  return Response.json(response)</span>
+<span class="diff-d">-})</span>
+<span class="diff-a">+    return Response.json(response)</span>
+<span class="diff-a">+  }),</span>
+<span class="diff-a">+}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /* To invoke locally:</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -85,7 +80,7 @@ Deno.serve(async (req) =&gt; {</span>
+<span class="diff-c">   3. Make an HTTP request:</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   curl -i --location --request POST &#x27;http://127.0.0.1:54321/functions/v1/image_gen&#x27; \</span>
+<span class="diff-d">-    --header &#x27;Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0&#x27; \</span>
+<span class="diff-a">+    --header &#x27;apikey: &lt;SUPABASE_PUBLISHABLE_KEY&gt;&#x27; \</span>
+<span class="diff-c">     --header &#x27;Content-Type: application/json&#x27; \</span>
+<span class="diff-c">     --data &#x27;{&quot;prompt&quot;:&quot;A beautiful picture of a bird&quot;}&#x27;</span>
+<span class="diff-c"> */</span>
+<span class="diff-h">diff --git a/examples/ai/edge-functions/README.md b/examples/ai/edge-functions/README.md</span>
+<span class="diff-h">index 64800461b9b10..7d8665bd0e775 100644</span>
+<span class="diff-h">--- a/examples/ai/edge-functions/README.md</span>
+<span class="diff-h">+++ b/examples/ai/edge-functions/README.md</span>
+<span class="diff-h">@@ -7,7 +7,7 @@ Since Supabase Edge Runtime [v1.36.0](https://github.com/supabase/edge-runtime/r</span>
+<span class="diff-c"> This demo consists of three parts:</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 1. A [`generate-embedding`](./supabase/functions/generate-embedding/index.ts) database webhook edge function which generates embeddings when a content row is added (or updated) in the [`public.embeddings`](./supabase/migrations/20240408072601_embeddings.sql) table.</span>
+<span class="diff-d">-2. A [`query_embeddings` Postgres function](./supabase/migrations/20240410031515_vector-search.sql) which allows us to perform similarity search from an egde function via [Remote Procedure Call (RPC)](https://supabase.com/docs/guides/database/functions?language=js).</span>
+<span class="diff-a">+2. A [`query_embeddings` Postgres function](./supabase/migrations/20240410031515_vector-search.sql) which allows us to perform similarity search from an edge function via [Remote Procedure Call (RPC)](https://supabase.com/docs/guides/database/functions?language=js).</span>
+<span class="diff-c"> 3. A [`search` edge function](./supabase/functions/search/index.ts) which generates the embedding for the search term, performs the similarity search via RPC function call, and returns the result.</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> ## Deploy</span>
+<span class="diff-h">@@ -24,7 +24,7 @@ Run a search via curl POST request:</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> ```bash</span>
+<span class="diff-c"> curl -i --location --request POST &#x27;https://&lt;PROJECT-REF&gt;.supabase.co/functions/v1/search&#x27; \</span>
+<span class="diff-d">-    --header &#x27;apikey: &lt;SUPABASE_PUBLISHABLE_KEY&gt;&#x27; \</span>
+<span class="diff-a">+    --header &#x27;apikey: &lt;SUPABASE_SECRET_KEY&gt;&#x27; \</span>
+<span class="diff-c">     --header &#x27;Content-Type: application/json&#x27; \</span>
+<span class="diff-c">     --data &#x27;{&quot;search&quot;:&quot;vehicles&quot;}&#x27;</span>
+<span class="diff-c"> ```</span>
+<span class="diff-c">dif</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/d5fde192d573fe27a9e11122d5e7a2d0d0fd160a" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/d5fde192d573fe27a9e11122d5e7a2d0d0fd160a</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-26</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">8285a4575d867fe3826ec74bd88e9d7b46a4a14b310d96161de186d1c6ac4a12027375298a9ceaee8d188ebabefd7cf9411af0346e1c1e183fbe6886b5b65e8f</p>
+<p class="kicker">Committed 2026-05-18 00:54 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-6YNNSAA0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-6YNNSAA0%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A04%3A32%2B00%3A00%22%2C%22description%22%3A%22The%20openai-image-generation%20example%20edge%20function%20reads%20%60imageUrl%60%20from%20the%20request%20body%2C%20fetches%20it%20with%20%60fetch%28imageUrl%29%60%2C%20and%20uploads%20the%20resulting%20blob%20to%20a%20Storage%20bucket%20using%20the%20service-role%20key.%20Nothing%20restricts%20the%20URL%20to%20OpenAI%27s%20CDN%2C%20so%20an%20authenticated%20caller%20can%20point%20it%20at%20cloud%20metadata%20endpoints%2C%20VPC-internal%20services%20reachable%20from%20the%20edge%20egress%2C%20or%20arbitrarily%20large%20files.%20The%20attacker%20can%20then%20read%20the%20exfiltrated%20response%20body%20from%20the%20Storage%20bucket%2C%20or%20abuse%20the%20fetch%20loop%20to%20inflate%20the%20deployer%27s%20storage%20costs.%20The%20only%20gate%20is%20%60verify_jwt%20%3D%20true%60%2C%20so%20any%20holder%20of%20a%20valid%20project%20JWT%20%28anon%20sign-up%20or%20user%20account%29%20can%20trigger%20it.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22examples/edge-functions/supabase/functions/openai-image-generation/index.ts%3A44%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Authenticate%20to%20the%20target%20Supabase%20project%20to%20obtain%20a%20valid%20JWT%22%2C%222.%20Invoke%20the%20openai-image-generation%20function%20with%20body%20%7B%5C%22imageUrl%5C%22%3A%5C%22http%3A//169.254.169.254/latest/meta-data/iam/security-credentials/%5C%22%7D%20%28or%20another%20internal%20URL%29%22%2C%223.%20Function%20fetches%20the%20URL%20server-side%20and%20uploads%20the%20response%20blob%20to%20the%20%60images%60%20Storage%20bucket%20under%20a%20predictable%20path%22%2C%224.%20Download%20the%20stored%20object%20from%20the%20bucket%20to%20read%20the%20internal%20response%3B%20optionally%20repeat%20with%20multi-GB%20URLs%20to%20inflate%20storage%20costs%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20trusting%20a%20client-supplied%20URL%20as%20if%20it%20were%20the%20server-generated%20OpenAI%20result%3A%20the%20handler%20does%20%60const%20img%20%3D%20await%20fetch%28imageUrl%29%3B%20const%20blob%20%3D%20await%20img.blob%28%29%3B%60%20on%20an%20unvalidated%20%60imageUrl%60%20taken%20directly%20from%20the%20JSON%20body%2C%20with%20no%20hostname%20allow-list%2C%20scheme%20check%2C%20or%20size%20cap%2C%20while%20running%20with%20service-role%20privileges.%22%2C%22title%22%3A%22Image-generation%20function%20fetches%20arbitrary%20caller%20URL%20with%20service-role%20in%20scope%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-6YNNSAA0&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:04:32+00:00&#34;,
+  &#34;description&#34;: &#34;The openai-image-generation example edge function reads `imageUrl` from the request body, fetches it with `fetch(imageUrl)`, and uploads the resulting blob to a Storage bucket using the service-role key. Nothing restricts the URL to OpenAI&#39;s CDN, so an authenticated caller can point it at cloud metadata endpoints, VPC-internal services reachable from the edge egress, or arbitrarily large files. The attacker can then read the exfiltrated response body from the Storage bucket, or abuse the fetch loop to inflate the deployer&#39;s storage costs. The only gate is `verify_jwt = true`, so any holder of a valid project JWT (anon sign-up or user account) can trigger it.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;examples/edge-functions/supabase/functions/openai-image-generation/index.ts:44&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Authenticate to the target Supabase project to obtain a valid JWT&#34;,
+    &#34;2. Invoke the openai-image-generation function with body {\&#34;imageUrl\&#34;:\&#34;http://169.254.169.254/latest/meta-data/iam/security-credentials/\&#34;} (or another internal URL)&#34;,
+    &#34;3. Function fetches the URL server-side and uploads the response blob to the `images` Storage bucket under a predictable path&#34;,
+    &#34;4. Download the stored object from the bucket to read the internal response; optionally repeat with multi-GB URLs to inflate storage costs&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is trusting a client-supplied URL as if it were the server-generated OpenAI result: the handler does `const img = await fetch(imageUrl); const blob = await img.blob();` on an unvalidated `imageUrl` taken directly from the JSON body, with no hostname allow-list, scheme check, or size cap, while running with service-role privileges.&#34;,
+  &#34;title&#34;: &#34;Image-generation function fetches arbitrary caller URL with service-role in scope&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

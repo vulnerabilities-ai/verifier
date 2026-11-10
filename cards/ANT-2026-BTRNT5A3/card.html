@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-BTRNT5A3 · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-BTRNT5A3 · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-BTRNT5A3: Server action accepts client-controlled CRM backend targets</h1>
+<p><code>submitFormAction</code> is exported from a <code>'use server'</code> module and receives the entire <code>crm: GoFormCrmConfig</code> object as a positional argument from a client component, without server-side binding or validation. Because Next.js exposes every exported server action as a POST endpoint whose arguments are deserialised from the request body, an attacker can invoke the action directly with an arbitrary <code>crm</code> structure. <code>buildCrmConfig</code> then attaches the deployer's real <code>NOTION_FORMS_API_KEY</code>, Customer.io and HubSpot credentials to the attacker-chosen <code>database_id</code>, <code>formGuid</code>, <code>event</code>, <code>columnMap</code> and <code>staticProperties</code>, and fires authenticated writes. Raw provider error bodies are reflected back at lines 96/164, giving the attacker an enumeration oracle for which Notion databases and HubSpot forms the credentials can reach.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>packages/marketing/src/go/actions/submitForm.ts:62</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is treating a server-action positional argument as trusted configuration: the <code>crm</code> object is passed from a <code>'use client'</code> caller rather than being closed over with <code>.bind()</code> in a Server Component or resolved server-side, and it is not schema-validated on entry. Any client that can POST to the action endpoint therefore controls every field that selects the downstream CRM target, while the server unconditionally attaches its real provider secrets before dispatching the request.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Load the marketing site and extract the Next.js server-action identifier for <code>submitFormAction</code> from the client bundle (or capture a legitimate form submission).</li>
+<li>Craft a POST body where <code>crm.notion.database_id</code> points to a different Notion database shared with the same integration, and set <code>columnMap</code>/<code>staticProperties</code> to arbitrary column values.</li>
+<li>Submit the request; the server attaches <code>NOTION_FORMS_API_KEY</code> and creates the page in the attacker-chosen database.</li>
+<li>Iterate <code>database_id</code> (and HubSpot <code>formGuid</code> / Customer.io <code>event</code>) values and read the reflected provider error strings at lines 96/164 to enumerate which targets the credentials can reach.</li>
+<li>Repeat to fire arbitrary Customer.io track events or submit to arbitrary HubSpot forms under the site's credentials.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Bind or resolve the CRM configuration on the server (e.g. <code>submitFormAction.bind(null, pageCrmConfig)</code> in a Server Component, or look it up from a page identifier) so the client can only influence the <code>values</code> map; validate the resolved config against an allow-list of known <code>database_id</code>/<code>formGuid</code> values before issuing provider calls; and stop reflecting raw provider error bodies to the client.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-BTRNT5A3.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-BTRNT5A3<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/www/_go/lead-gen/example-lead-gen.tsx b/apps/www/_go/lead-gen/example-lead-gen.tsx</span>
+<span class="diff-h">index 81c1187744b1b..8c25c972e7fbf 100644</span>
+<span class="diff-h">--- a/apps/www/_go/lead-gen/example-lead-gen.tsx</span>
+<span class="diff-h">+++ b/apps/www/_go/lead-gen/example-lead-gen.tsx</span>
+<span class="diff-h">@@ -224,6 +224,7 @@ alter table posts enable row level security;`,</span>
+<span class="diff-c">     },</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">       type: &#x27;form&#x27;,</span>
+<span class="diff-a">+      id: &#x27;form&#x27;,</span>
+<span class="diff-c">       title: &#x27;Get in touch&#x27;,</span>
+<span class="diff-c">       description: &#x27;Fill out the form below and our team will get back to you shortly.&#x27;,</span>
+<span class="diff-c">       fields: [</span>
+<span class="diff-h">diff --git a/apps/www/instrumentation.ts b/apps/www/instrumentation.ts</span>
+<span class="diff-h">index 3063091e693ee..ce4795aa99850 100644</span>
+<span class="diff-h">--- a/apps/www/instrumentation.ts</span>
+<span class="diff-h">+++ b/apps/www/instrumentation.ts</span>
+<span class="diff-h">@@ -3,6 +3,8 @@ import * as Sentry from &#x27;@sentry/nextjs&#x27;</span>
+<span class="diff-c"> export async function register() {</span>
+<span class="diff-c">   if (process.env.NEXT_RUNTIME === &#x27;nodejs&#x27;) {</span>
+<span class="diff-c">     await import(&#x27;./sentry.server.config&#x27;)</span>
+<span class="diff-a">+    const { registerFormCrmResolver } = await import(&#x27;./lib/registerFormCrm&#x27;)</span>
+<span class="diff-a">+    registerFormCrmResolver()</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   if (process.env.NEXT_RUNTIME === &#x27;edge&#x27;) {</span>
+<span class="diff-h">diff --git a/apps/www/lib/go.ts b/apps/www/lib/go.ts</span>
+<span class="diff-h">index 3876928737c05..2e0ac425ce4ee 100644</span>
+<span class="diff-h">--- a/apps/www/lib/go.ts</span>
+<span class="diff-h">+++ b/apps/www/lib/go.ts</span>
+<span class="diff-h">@@ -1,3 +1,5 @@</span>
+<span class="diff-a">+import { validateGoPageInvariants } from &#x27;marketing&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> import rawPages from &#x27;@/_go&#x27;</span>
+<span class="diff-c"> import { goPageSchema, type GoPage } from &#x27;@/types/go&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -14,6 +16,13 @@ export function getAllGoPages(): GoPage[] {</span>
+<span class="diff-c">       )</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    const invariantErrors = validateGoPageInvariants(result.data)</span>
+<span class="diff-a">+    if (invariantErrors.length &gt; 0) {</span>
+<span class="diff-a">+      throw new Error(</span>
+<span class="diff-a">+        `Invalid go page definition (slug: &quot;${result.data.slug}&quot;):\n${invariantErrors.map((m) =&gt; `  - ${m}`).join(&#x27;\n&#x27;)}`</span>
+<span class="diff-a">+      )</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     if (seenSlugs.has(result.data.slug)) {</span>
+<span class="diff-c">       throw new Error(`Duplicate slug &quot;${result.data.slug}&quot; in _go registry`)</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">diff --git a/apps/www/lib/registerFormCrm.ts b/apps/www/lib/registerFormCrm.ts</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000000..d18d8a097b4d3</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/apps/www/lib/registerFormCrm.ts</span>
+<span class="diff-h">@@ -0,0 +1,23 @@</span>
+<span class="diff-a">+import &#x27;server-only&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import { setFormCrmResolver } from &#x27;marketing&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import { getGoPageBySlug } from &#x27;./go&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+/**</span>
+<span class="diff-a">+ * Wire the marketing form server action to look up the trusted CRM config for</span>
+<span class="diff-a">+ * a `{ slug, formId }` pair from the in-process page registry. Without this,</span>
+<span class="diff-a">+ * `submitFormAction` fails closed and rejects every submission. See</span>
+<span class="diff-a">+ * PRODSEC-120 for why the CRM config must never come from the client.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+export function registerFormCrmResolver() {</span>
+<span class="diff-a">+  setFormCrmResolver(({ slug, formId }) =&gt; {</span>
+<span class="diff-a">+    const page = getGoPageBySlug(slug)</span>
+<span class="diff-a">+    if (!page || !(&#x27;sections&#x27; in page) || !page.sections) return undefined</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    const section = page.sections.find((s) =&gt; s.type === &#x27;form&#x27; &amp;&amp; s.id === formId)</span>
+<span class="diff-a">+    if (!section || section.type !== &#x27;form&#x27;) return undefined</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    return section.crm</span>
+<span class="diff-a">+  })</span>
+<span class="diff-a">+}</span>
+<span class="diff-h">diff --git a/packages/marketing/src/forms/MarketingForm.tsx b/packages/marketing/src/forms/MarketingForm.tsx</span>
+<span class="diff-h">index 10022734a36e1..82e77495a5113 100644</span>
+<span class="diff-h">--- a/packages/marketing/src/forms/MarketingForm.tsx</span>
+<span class="diff-h">+++ b/packages/marketing/src/forms/MarketingForm.tsx</span>
+<span class="diff-h">@@ -16,11 +16,20 @@ import {</span>
+<span class="diff-c"> import type { z } from &#x27;zod&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> import { submitFormAction } from &#x27;../go/actions/submitForm&#x27;</span>
+<span class="diff-d">-import { formCrmConfigSchema, formFieldSchema, type GoFormFieldShowWhen } from &#x27;../go/schemas&#x27;</span>
+<span class="diff-a">+import { formFieldSchema, type GoFormFieldShowWhen } from &#x27;../go/schemas&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /** Input-shape field type — fields with Zod defaults (`half`, `required`) are optional here. */</span>
+<span class="diff-c"> export type MarketingFormField = z.input&lt;typeof formFieldSchema&gt;</span>
+<span class="diff-d">-export type MarketingFormCrmConfig = z.input&lt;typeof formCrmConfigSchema&gt;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+/**</span>
+<span class="diff-a">+ * Opaque reference the client posts back to the server action. The server</span>
+<span class="diff-a">+ * resolves this to the trusted CRM config from the page registry; the client</span>
+<span class="diff-a">+ * never sees or controls the actual CRM target (database id, form GUID, etc.).</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+export interface MarketingFormRef {</span>
+<span class="diff-a">+  slug: string</span>
+<span class="diff-a">+  formId: string</span>
+<span class="diff-a">+}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /**</span>
+<span class="diff-c">  * Evaluate a `showWhen` rule against the current form values. All supplied</span>
+<span class="diff-h">@@ -52,8 +61,13 @@ export interface MarketingFormProps {</span>
+<span class="diff-c">   successMessage?: string</span>
+<span class="diff-c">   /** URL to redirect the user to after a successful submission. Overrides `successMessage`. */</span>
+<span class="diff-c">   successRedirect?: string</span>
+<span class="diff-d">-  /** CRM fan-out config — submits to HubSpot, Customer.io, and/or Notion in parallel. */</span>
+<span class="diff-d">-  crm?: MarketingFormCrmConfig</span>
+<span class="diff-a">+  /**</span>
+<span class="diff-a">+   * Server-side form reference. When set, submissions are posted to</span>
+<span class="diff-a">+   * `submitFormAction` with this ref; the server looks up the trusted CRM</span>
+<span class="diff-a">+   * config from the page registry. When omitted, the form logs values in dev</span>
+<span class="diff-a">+   * and does nothing in production (useful for previews).</span>
+<span class="diff-a">+   */</span>
+<span class="diff-a">+  formRef?: MarketingFormRef</span>
+<span class="diff-c">   /** Wraps the form in a styled card (border + padding). Defaults to `true`. */</span>
+<span class="diff-c">   card?: boolean</span>
+<span class="diff-c">   /** Extra class names applied to the outer wrapper. */</span>
+<span class="diff-h">@@ -63,10 +77,9 @@ export interface MarketingFormProps {</span>
+<span class="diff-c"> type SubmitState = &#x27;idle&#x27; | &#x27;loading&#x27; | &#x27;success&#x27; | &#x27;error&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /** Build the sessionStorage key used to block double-submits of the same email to the same form. */</span>
+<span class="diff-d">-function dedupeKey(crm: MarketingFormCrmConfig | undefined, email: string): string | null {</span>
+<span class="diff-d">-  const formId = crm?.hubspot?.formGuid ?? crm?.notion?.database_id</span>
+<span class="diff-d">-  if (!formId || !email) return null</span>
+<span class="diff-d">-  return `marketing-form-submitted:${formId}:${email.trim().toLowerCase()}`</span>
+<span class="diff-a">+function dedupeKey(formRef: MarketingFormRef | undefined, email: string): string | null {</span>
+<span class="diff-a">+  if (!formRef || !email) return null</span>
+<span class="diff-a">+  return `marketing-form-submitted:${formRef.slug}:${formRef.formId}:${email.trim().toLowerCase()}`</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> function FieldInput({</span>
+<span class="diff-h">@@ -166,7 +179,7 @@ export default function MarketingForm({</span>
+<span class="diff-c">   disclaimer,</span>
+<span class="diff-c">   successMessage,</span>
+<span class="diff-c">   successRedirect,</span>
+<span class="diff-d">-  crm,</span>
+<span class="diff-a">+  formRef,</span>
+<span class="diff-c">   card = true,</span>
+<span class="diff-c">   className,</span>
+<span class="diff-c"> }: MarketingFormProps) {</span>
+<span class="diff-h">@@ -210,9 +223,9 @@ export default function MarketingForm({</span>
+<span class="diff-c">       Object.entries(values).filter(([name]) =&gt; visibleFieldNames.has(name))</span>
+<span class="diff-c">     )</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (!crm) {</span>
+<span class="diff-a">+    if (!formRef) {</span>
+<span class="diff-c">       if (process.env.NODE_ENV === &#x27;development&#x27;) {</span>
+<span class="diff-d">-        console.log(&#x27;[marketing/form] No CRM configured — form values:&#x27;, submittedValues)</span>
+<span class="diff-a">+        console.log(&#x27;[marketing/form] No formRef configured — form values:&#x27;, submittedValues)</span>
+<span class="diff-c">       }</span>
+<span class="diff-c">       return</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">@@ -226,7 +239,7 @@ export default function MarketingForm({</span>
+<span class="diff-c">       submittedValues[&#x27;emailAddress&#x27;] ??</span>
+<span class="diff-c">       submittedValues[&#x27;email_address&#x27;] ??</span>
+<span class="diff-c">       &#x27;&#x27;</span>
+<span class="diff-d">-    const sessionKey = dedupeKey(crm, emailValue)</span>
+<span class="diff-a">+    const sessionKey = dedupeKey(formRef, emailValue)</span>
+<span class="diff-c">     if (sessionKey &amp;&amp; typeof window !== &#x27;undefined&#x27;) {</span>
+<span class="diff-c">       try {</span>
+<span class="diff-c">         if (window.sessionStorage.getItem(sessionKey)) {</span>
+<span class="diff-h">@@ -250,7 +263,7 @@ export default function MarketingForm({</span>
+<span class="diff-c">     const honeypot = honeypotRef.current?.value ?? &#x27;&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     try {</span>
+<span class="diff-d">-      const result = await submitFormAction(crm, submittedValues, {</span>
+<span class="diff-a">+      const result = await submitFormAction(formRef, submittedValues, {</span>
+<span class="diff-c">         pageUri,</span>
+<span class="diff-c">         pageName,</span>
+<span class="diff-c">         honeypot,</span>
+<span class="diff-h">diff --git a/packages/marketing/src/forms/index.ts b/packages/marketing/src/forms/index.ts</span>
+<span class="diff-h">index 974e7091b4bae..a7de322a30840 100644</span>
+<span class="diff-h">--- a/packages/marketing/src/forms/index.ts</span>
+<span class="diff-h">+++ b/packages/marketing/src/forms/index.ts</span>
+<span class="diff-h">@@ -1,9 +1,5 @@</span>
+<span class="diff-c"> export { default as MarketingForm } from &#x27;./MarketingForm&#x27;</span>
+<span class="diff-d">-export type {</span>
+<span class="diff-d">-  MarketingFormCrmConfig,</span>
+<span class="diff-d">-  MarketingFormField,</span>
+<span class="diff-d">-  MarketingFormProps,</span>
+<span class="diff-d">-} from &#x27;./MarketingForm&#x27;</span>
+<span class="diff-a">+export type { MarketingFormField, MarketingFormProps, MarketingFormRef } from &#x27;./MarketingForm&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> export { default as HubSpotFormEmbed } from &#x27;./HubSpotFormEmbed&#x27;</span>
+<span class="diff-c"> export type { HubSpotFormEmbedProps } from &#x27;./HubSpotFormEmbed&#x27;</span>
+<span class="diff-h">diff --git a/packages/marketing/src/go/actions/formCrmResolver.ts b/packages/marketing/src/go/actions/formCrmResolver.ts</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000000..994040a2b469e</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/packages/marketing/src/go/actions/formCrmResolver.ts</span>
+<span class="diff-h">@@ -0,0 +1,32 @@</span>
+<span class="diff-a">+import &#x27;server-only&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import type { GoFormCrmConfig } from &#x27;../schemas&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+export interface FormRef {</span>
+<span class="diff-a">+  slug: string</span>
+<span class="diff-a">+  formId: string</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+export type FormCrmResolver = (</span>
+<span class="diff-a">+  ref: FormRef</span>
+<span class="diff-a">+) =&gt; GoFormCrmConfig | undefined | Promise&lt;GoFormCrmConfig | undefined&gt;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+let resolver: FormCrmResolver | null = null</span>
+<span class="diff-a">+</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/47d85e5235f4f547f9239ff8ea36acc7f389cf7d" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/47d85e5235f4f547f9239ff8ea36acc7f389cf7d</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-27</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7334a6ee4f96e9391bad4fd6fc61c9031fc10172a8e48a573dc1345665c0f9b67b2d490eac6bb956067bce68acab746f67bebae3a2c1e46c5df8a416795a35a5</p>
+<p class="kicker">Committed 2026-05-18 00:56 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-BTRNT5A3-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-BTRNT5A3%22%2C%22bug_class%22%3A%22broken-access-control%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A03%3A33%2B00%3A00%22%2C%22description%22%3A%22%60submitFormAction%60%20is%20exported%20from%20a%20%60%27use%20server%27%60%20module%20and%20receives%20the%20entire%20%60crm%3A%20GoFormCrmConfig%60%20object%20as%20a%20positional%20argument%20from%20a%20client%20component%2C%20without%20server-side%20binding%20or%20validation.%20Because%20Next.js%20exposes%20every%20exported%20server%20action%20as%20a%20POST%20endpoint%20whose%20arguments%20are%20deserialised%20from%20the%20request%20body%2C%20an%20attacker%20can%20invoke%20the%20action%20directly%20with%20an%20arbitrary%20%60crm%60%20structure.%20%60buildCrmConfig%60%20then%20attaches%20the%20deployer%27s%20real%20%60NOTION_FORMS_API_KEY%60%2C%20Customer.io%20and%20HubSpot%20credentials%20to%20the%20attacker-chosen%20%60database_id%60%2C%20%60formGuid%60%2C%20%60event%60%2C%20%60columnMap%60%20and%20%60staticProperties%60%2C%20and%20fires%20authenticated%20writes.%20Raw%20provider%20error%20bodies%20are%20reflected%20back%20at%20lines%2096/164%2C%20giving%20the%20attacker%20an%20enumeration%20oracle%20for%20which%20Notion%20databases%20and%20HubSpot%20forms%20the%20credentials%20can%20reach.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22packages/marketing/src/go/actions/submitForm.ts%3A62%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Load%20the%20marketing%20site%20and%20extract%20the%20Next.js%20server-action%20identifier%20for%20%60submitFormAction%60%20from%20the%20client%20bundle%20%28or%20capture%20a%20legitimate%20form%20submission%29.%22%2C%222.%20Craft%20a%20POST%20body%20where%20%60crm.notion.database_id%60%20points%20to%20a%20different%20Notion%20database%20shared%20with%20the%20same%20integration%2C%20and%20set%20%60columnMap%60/%60staticProperties%60%20to%20arbitrary%20column%20values.%22%2C%223.%20Submit%20the%20request%3B%20the%20server%20attaches%20%60NOTION_FORMS_API_KEY%60%20and%20creates%20the%20page%20in%20the%20attacker-chosen%20database.%22%2C%224.%20Iterate%20%60database_id%60%20%28and%20HubSpot%20%60formGuid%60%20/%20Customer.io%20%60event%60%29%20values%20and%20read%20the%20reflected%20provider%20error%20strings%20at%20lines%2096/164%20to%20enumerate%20which%20targets%20the%20credentials%20can%20reach.%22%2C%225.%20Repeat%20to%20fire%20arbitrary%20Customer.io%20track%20events%20or%20submit%20to%20arbitrary%20HubSpot%20forms%20under%20the%20site%27s%20credentials.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20treating%20a%20server-action%20positional%20argument%20as%20trusted%20configuration%3A%20the%20%60crm%60%20object%20is%20passed%20from%20a%20%60%27use%20client%27%60%20caller%20rather%20than%20being%20closed%20over%20with%20%60.bind%28%29%60%20in%20a%20Server%20Component%20or%20resolved%20server-side%2C%20and%20it%20is%20not%20schema-validated%20on%20entry.%20Any%20client%20that%20can%20POST%20to%20the%20action%20endpoint%20therefore%20controls%20every%20field%20that%20selects%20the%20downstream%20CRM%20target%2C%20while%20the%20server%20unconditionally%20attaches%20its%20real%20provider%20secrets%20before%20dispatching%20the%20request.%22%2C%22title%22%3A%22Server%20action%20accepts%20client-controlled%20CRM%20backend%20targets%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-BTRNT5A3&#34;,
+  &#34;bug_class&#34;: &#34;broken-access-control&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:03:33+00:00&#34;,
+  &#34;description&#34;: &#34;`submitFormAction` is exported from a `&#39;use server&#39;` module and receives the entire `crm: GoFormCrmConfig` object as a positional argument from a client component, without server-side binding or validation. Because Next.js exposes every exported server action as a POST endpoint whose arguments are deserialised from the request body, an attacker can invoke the action directly with an arbitrary `crm` structure. `buildCrmConfig` then attaches the deployer&#39;s real `NOTION_FORMS_API_KEY`, Customer.io and HubSpot credentials to the attacker-chosen `database_id`, `formGuid`, `event`, `columnMap` and `staticProperties`, and fires authenticated writes. Raw provider error bodies are reflected back at lines 96/164, giving the attacker an enumeration oracle for which Notion databases and HubSpot forms the credentials can reach.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;packages/marketing/src/go/actions/submitForm.ts:62&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Load the marketing site and extract the Next.js server-action identifier for `submitFormAction` from the client bundle (or capture a legitimate form submission).&#34;,
+    &#34;2. Craft a POST body where `crm.notion.database_id` points to a different Notion database shared with the same integration, and set `columnMap`/`staticProperties` to arbitrary column values.&#34;,
+    &#34;3. Submit the request; the server attaches `NOTION_FORMS_API_KEY` and creates the page in the attacker-chosen database.&#34;,
+    &#34;4. Iterate `database_id` (and HubSpot `formGuid` / Customer.io `event`) values and read the reflected provider error strings at lines 96/164 to enumerate which targets the credentials can reach.&#34;,
+    &#34;5. Repeat to fire arbitrary Customer.io track events or submit to arbitrary HubSpot forms under the site&#39;s credentials.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is treating a server-action positional argument as trusted configuration: the `crm` object is passed from a `&#39;use client&#39;` caller rather than being closed over with `.bind()` in a Server Component or resolved server-side, and it is not schema-validated on entry. Any client that can POST to the action endpoint therefore controls every field that selects the downstream CRM target, while the server unconditionally attaches its real provider secrets before dispatching the request.&#34;,
+  &#34;title&#34;: &#34;Server action accepts client-controlled CRM backend targets&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

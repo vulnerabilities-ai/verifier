@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-8DRZW7VM",
+  "hash": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-8DRZW7VM/card.html",
+    "sha256": "cda585a8fdb2d5a6c59ce0b006c224a88ebdfc458362a6ff01cd3a85f7896675",
+    "fetched_utc": "2026-11-10T21:05:14Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-8DRZW7VM",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+    "printed_hash": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+    "canonical_rebuild_sha3_512": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:05:14Z",
+  "card_facts": {
+    "printed_hash": "67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f",
+    "committed_printed": "2026-04-09 18:49 UTC",
+    "revealed_printed": "2026-07-21 05:20 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-29",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-09",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-07-21",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-29",
+      "report_date": "2026-04-09",
+      "acknowledged_date": "2026-05-07",
+      "patch_released_date": "2026-05-07",
+      "reveal_date": "2026-07-21"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "high"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/Cisco-Talos/clamav/commit/a0b1531c6368347a79c15fb69d508171c55cc8cf"
+      ],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-20215"
+      ],
+      "ghsa": [
+        "https://github.com/advisories/GHSA-6gff-7f37-2v35"
+      ]
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-8DRZW7VM · cisco-talos/clamav</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-8DRZW7VM · cisco-talos/clamav</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-20215">CVE-2026-20215</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-6gff-7f37-2v35">GHSA-6gff-7f37-2v35</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-8DRZW7VM: Integer overflow in 7z SubStreams count leading to heap buffer overflow</h1>
+<p>An integer overflow when computing the SubStreams count in the 7z archive parser results in an undersized allocation and subsequent heap buffer overflow.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> cisco-talos/clamav<br>
+<strong>Location:</strong> <code>libclamav/7z/7zIn.c:SzReadSubStreamsInfo (7zIn.c:771)</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. A trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-8DRZW7VM.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-8DRZW7VM<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/Cisco-Talos/clamav/commit/a0b1531c6368347a79c15fb69d508171c55cc8cf" rel="noopener noreferrer">https://github.com/Cisco-Talos/clamav/commit/a0b1531c6368347a79c15fb69d508171c55cc8cf</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">67ced60afd5a1e4a42149c7ab50f3c46bf4db111cb82f29c246c6a1e74f7644512439a18d8fa6b6a3bd1d3f13b5f4282d8195e21a3a4a5b4e57029947237f85f</p>
+<p class="kicker">Committed 2026-04-09 18:49 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:20 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-8DRZW7VM-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-8DRZW7VM%22%2C%22bug_class%22%3A%22Integer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A42%2B00%3A00%22%2C%22description%22%3A%22An%20integer%20overflow%20when%20computing%20the%20SubStreams%20count%20in%20the%207z%20archive%20parser%20results%20in%20an%20undersized%20allocation%20and%20subsequent%20heap%20buffer%20overflow.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ClamAV%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Integer%20overflow%20in%207z%20SubStreams%20count%20leading%20to%20heap%20buffer%20overflow%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-8DRZW7VM&#34;,
+  &#34;bug_class&#34;: &#34;Integer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:42+00:00&#34;,
+  &#34;description&#34;: &#34;An integer overflow when computing the SubStreams count in the 7z archive parser results in an undersized allocation and subsequent heap buffer overflow.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ClamAV&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Integer overflow in 7z SubStreams count leading to heap buffer overflow&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

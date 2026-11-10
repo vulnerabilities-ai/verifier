@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-N0ZPQQQ6 · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-N0ZPQQQ6 · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-N0ZPQQQ6: The ASAN report describes a real, plausible heap-buffer-overflow in ffmpeg's fastaudio decoder at line 171 of fastaudio.c.</h1>
+<p>A fuzzed input to FFmpeg's FastAudio codec (ffmpeg_AV_CODEC_ID_FASTAUDIO_fuzzer) triggers a heap-buffer-overflow on a WRITE operation at fastaudio.c:171. The decoder writes past the bounds of a heap allocation while processing attacker-controlled audio packet data. Because FFmpeg decoders operate on untrusted media input, an attacker who can supply a crafted FastAudio stream to any application linking libavcodec can reach this path. The out-of-bounds write corrupts heap memory and may be leveraged for further exploitation.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>fastaudio.c:171</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN reports a heap-buffer-overflow WRITE at fastaudio.c:171 in the FastAudio decoder. The decoder writes decoded samples beyond the end of a heap-allocated buffer, indicating a missing or incorrect bounds check on the output/index computation relative to the allocated size.</p>
+<p><strong>Crash signature:</strong> <code>ASAN heap-buffer-overflow WRITE at fastaudio.c:171 (AV_CODEC_ID_FASTAUDIO)</code></p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a malformed FastAudio bitstream that drives the decode loop past the output buffer bounds</li>
+<li>Wrap it in a container (or raw packet) that routes to AV_CODEC_ID_FASTAUDIO</li>
+<li>Deliver the file/stream to the target so libavcodec decodes it</li>
+<li>Out-of-bounds heap write occurs at fastaudio.c:171</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-N0ZPQQQ6.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-N0ZPQQQ6<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavcodec/fastaudio.c b/libavcodec/fastaudio.c</span>
+<span class="diff-h">index d361b410b9ecc..bab3cb738b921 100644</span>
+<span class="diff-h">--- a/libavcodec/fastaudio.c</span>
+<span class="diff-h">+++ b/libavcodec/fastaudio.c</span>
+<span class="diff-h">@@ -113,6 +113,8 @@ static int fastaudio_decode(AVCodecContext *avctx, AVFrame *frame,</span>
+<span class="diff-c">     int ret;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     subframes = pkt-&gt;size / (40 * avctx-&gt;ch_layout.nb_channels);</span>
+<span class="diff-a">+    if (subframes &lt;= 0 || subframes &gt; INT_MAX / 256)</span>
+<span class="diff-a">+        return AVERROR_INVALIDDATA;</span>
+<span class="diff-c">     frame-&gt;nb_samples = subframes * 256;</span>
+<span class="diff-c">     if ((ret = ff_get_buffer(avctx, frame, 0)) &lt; 0)</span>
+<span class="diff-c">         return ret;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/1e9984772b6ef878d3ae4a58e01d6a6d63a61bd7" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/1e9984772b6ef878d3ae4a58e01d6a6d63a61bd7</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-04</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">cb1bed514d82d5b20d7bee3807f6f890cd332e425a6e1e136b2f2dec0e50b908c22eb33d799560978daa374ec4a7b1f07c316cebcb7693a6006f0ee5a8a5bbb6</p>
+<p class="kicker">Committed 2026-05-28 15:01 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:06 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-N0ZPQQQ6-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-N0ZPQQQ6%22%2C%22bug_class%22%3A%22heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-27T01%3A45%3A40%2B00%3A00%22%2C%22description%22%3A%22A%20fuzzed%20input%20to%20FFmpeg%27s%20FastAudio%20codec%20%28ffmpeg_AV_CODEC_ID_FASTAUDIO_fuzzer%29%20triggers%20a%20heap-buffer-overflow%20on%20a%20WRITE%20operation%20at%20fastaudio.c%3A171.%20The%20decoder%20writes%20past%20the%20bounds%20of%20a%20heap%20allocation%20while%20processing%20attacker-controlled%20audio%20packet%20data.%20Because%20FFmpeg%20decoders%20operate%20on%20untrusted%20media%20input%2C%20an%20attacker%20who%20can%20supply%20a%20crafted%20FastAudio%20stream%20to%20any%20application%20linking%20libavcodec%20can%20reach%20this%20path.%20The%20out-of-bounds%20write%20corrupts%20heap%20memory%20and%20may%20be%20leveraged%20for%20further%20exploitation.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22fastaudio.c%3A171%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20malformed%20FastAudio%20bitstream%20that%20drives%20the%20decode%20loop%20past%20the%20output%20buffer%20bounds%22%2C%222.%20Wrap%20it%20in%20a%20container%20%28or%20raw%20packet%29%20that%20routes%20to%20AV_CODEC_ID_FASTAUDIO%22%2C%223.%20Deliver%20the%20file/stream%20to%20the%20target%20so%20libavcodec%20decodes%20it%22%2C%224.%20Out-of-bounds%20heap%20write%20occurs%20at%20fastaudio.c%3A171%22%5D%2C%22technical_details%22%3A%22ASAN%20reports%20a%20heap-buffer-overflow%20WRITE%20at%20fastaudio.c%3A171%20in%20the%20FastAudio%20decoder.%20The%20decoder%20writes%20decoded%20samples%20beyond%20the%20end%20of%20a%20heap-allocated%20buffer%2C%20indicating%20a%20missing%20or%20incorrect%20bounds%20check%20on%20the%20output/index%20computation%20relative%20to%20the%20allocated%20size.%22%2C%22title%22%3A%22The%20ASAN%20report%20describes%20a%20real%2C%20plausible%20heap-buffer-overflow%20in%20ffmpeg%27s%20fastaudio%20decoder%20at%20line%20171%20of%20fastaudio.c.%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-N0ZPQQQ6&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-27T01:45:40+00:00&#34;,
+  &#34;description&#34;: &#34;A fuzzed input to FFmpeg&#39;s FastAudio codec (ffmpeg_AV_CODEC_ID_FASTAUDIO_fuzzer) triggers a heap-buffer-overflow on a WRITE operation at fastaudio.c:171. The decoder writes past the bounds of a heap allocation while processing attacker-controlled audio packet data. Because FFmpeg decoders operate on untrusted media input, an attacker who can supply a crafted FastAudio stream to any application linking libavcodec can reach this path. The out-of-bounds write corrupts heap memory and may be leveraged for further exploitation.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;fastaudio.c:171&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a malformed FastAudio bitstream that drives the decode loop past the output buffer bounds&#34;,
+    &#34;2. Wrap it in a container (or raw packet) that routes to AV_CODEC_ID_FASTAUDIO&#34;,
+    &#34;3. Deliver the file/stream to the target so libavcodec decodes it&#34;,
+    &#34;4. Out-of-bounds heap write occurs at fastaudio.c:171&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN reports a heap-buffer-overflow WRITE at fastaudio.c:171 in the FastAudio decoder. The decoder writes decoded samples beyond the end of a heap-allocated buffer, indicating a missing or incorrect bounds check on the output/index computation relative to the allocated size.&#34;,
+  &#34;title&#34;: &#34;The ASAN report describes a real, plausible heap-buffer-overflow in ffmpeg&#39;s fastaudio decoder at line 171 of fastaudio.c.&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

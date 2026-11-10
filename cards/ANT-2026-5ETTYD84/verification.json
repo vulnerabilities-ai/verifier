@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-5ETTYD84",
+  "hash": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-5ETTYD84/card.html",
+    "sha256": "cd888ca95bc2c04479152eb1c856f7e38f928949f4a87371199e902b8096bd1e",
+    "fetched_utc": "2026-11-10T21:04:55Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-5ETTYD84",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+    "printed_hash": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+    "canonical_rebuild_sha3_512": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:55Z",
+  "card_facts": {
+    "printed_hash": "0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef",
+    "committed_printed": "2026-05-07 14:53 UTC",
+    "revealed_printed": "2026-07-08 22:53 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-29",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-09",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-06-30",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-07-08",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-29",
+      "report_date": "2026-04-09",
+      "acknowledged_date": "2026-05-07",
+      "patch_released_date": "2026-06-30",
+      "reveal_date": "2026-07-08"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "low (revised; sealed as high)",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/libjpeg-turbo/libjpeg-turbo/commit/0ff47f0b46924ea1aaf04092ba1d0c0f83f93b10"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

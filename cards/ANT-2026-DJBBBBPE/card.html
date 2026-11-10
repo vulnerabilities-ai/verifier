@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-DJBBBBPE · temporalio/temporal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-DJBBBBPE · temporalio/temporal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5199">CVE-2026-5199</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-low">low</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-DJBBBBPE: Cross-namespace manipulation (including deletion) of workflows on the same cluster</h1>
+<p>Workflows can be manipulated or deleted across namespace boundaries within the same cluster.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> temporalio/temporal<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>checkNamespaceID() at activities.go:283 only compares batchParams.NamespaceId to a.namespaceID; the redundant batchParams.Request.Namespace field is never checked and is then used verbatim in frontendClient.SignalWorkflowExecution / DeleteWorkflowExecution / etc. Because frontendClient dials internal-frontend, whose noopClaimMapper.GetClaims returns &amp;Claims{System: RoleAdmin} unconditionally, the server-side component acts as a confused deputy executing privileged operations against an attacker-chosen namespace.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-DJBBBBPE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-DJBBBBPE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-22</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-01</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6f20094036e4b8c066b9a2f033c4e59b99f883e623acbb0256d7ce0310528a13c03d24f7d1f5a1817de5b29e350a97a62ead6a93eb9a92e6881fb17052a7d2e4</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-DJBBBBPE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-DJBBBBPE%22%2C%22bug_class%22%3A%22Broken%20Access%20Control%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A54%2B00%3A00%22%2C%22description%22%3A%22Workflows%20can%20be%20manipulated%20or%20deleted%20across%20namespace%20boundaries%20within%20the%20same%20cluster.%22%2C%22discovered_at%22%3A%222026-03-22T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22temporalio/temporal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22checkNamespaceID%28%29%20at%20activities.go%3A283%20only%20compares%20batchParams.NamespaceId%20to%20a.namespaceID%3B%20the%20redundant%20batchParams.Request.Namespace%20field%20is%20never%20checked%20and%20is%20then%20used%20verbatim%20in%20frontendClient.SignalWorkflowExecution%20/%20DeleteWorkflowExecution%20/%20etc.%20Because%20frontendClient%20dials%20internal-frontend%2C%20whose%20noopClaimMapper.GetClaims%20returns%20%26Claims%7BSystem%3A%20RoleAdmin%7D%20unconditionally%2C%20the%20server-side%20component%20acts%20as%20a%20confused%20deputy%20executing%20privileged%20operations%20against%20an%20attacker-chosen%20namespace.%22%2C%22title%22%3A%22Cross-namespace%20manipulation%20%28including%20deletion%29%20of%20workflows%20on%20the%20same%20cluster%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-DJBBBBPE&#34;,
+  &#34;bug_class&#34;: &#34;Broken Access Control&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:54+00:00&#34;,
+  &#34;description&#34;: &#34;Workflows can be manipulated or deleted across namespace boundaries within the same cluster.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-22T00:00:00+00:00&#34;,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;temporalio/temporal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;checkNamespaceID() at activities.go:283 only compares batchParams.NamespaceId to a.namespaceID; the redundant batchParams.Request.Namespace field is never checked and is then used verbatim in frontendClient.SignalWorkflowExecution / DeleteWorkflowExecution / etc. Because frontendClient dials internal-frontend, whose noopClaimMapper.GetClaims returns &amp;Claims{System: RoleAdmin} unconditionally, the server-side component acts as a confused deputy executing privileged operations against an attacker-chosen namespace.&#34;,
+  &#34;title&#34;: &#34;Cross-namespace manipulation (including deletion) of workflows on the same cluster&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

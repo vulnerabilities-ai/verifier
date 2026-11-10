@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-Q5A1RHS0 · libssh2/libssh2</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-Q5A1RHS0 · libssh2/libssh2</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-66032">CVE-2026-66032</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-Q5A1RHS0: SFTP double-free via server-controlled FXP_STATUS packet length</h1>
+<p>The SFTP client's handler for SSH_FXP_STATUS messages allocates a buffer whose size is taken directly from a server-supplied packet length field. With a crafted response, this buffer ends up being released twice along the client code path. Because the server controls both the allocation size and the sequencing that leads to the two frees, a malicious or compromised SSH server can reliably induce a double-free in any connecting client. This corrupts heap allocator state and may be leveraged for remote code execution on the client.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libssh2/libssh2<br>
+<strong>Location:</strong> <code>SFTP packet handling (libssh2 client)</code>  </p>
+<h2>Technical Details</h2>
+<p>Malicious SSH server sends crafted SSH_FXP_STATUS where packet length controls allocation that is freed twice in SFTP client path. Allocation size and free sequencing server-controlled.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker operates or compromises an SSH server the victim will connect to</li>
+<li>Victim starts an SFTP session against that server</li>
+<li>Server responds with a crafted SSH_FXP_STATUS packet containing a chosen length field</li>
+<li>Client allocates a buffer of attacker-chosen size and subsequently frees it twice</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>NULL the pointer after first free; restructure SFTP error path to not re-enter cleanup.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-Q5A1RHS0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-Q5A1RHS0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/sftp.c b/src/sftp.c</span>
+<span class="diff-h">index ec3a8ae18a..842eb6ea51 100644</span>
+<span class="diff-h">--- a/src/sftp.c</span>
+<span class="diff-h">+++ b/src/sftp.c</span>
+<span class="diff-h">@@ -1259,6 +1259,7 @@ static LIBSSH2_SFTP_HANDLE *sftp_open(LIBSSH2_SFTP *sftp,</span>
+<span class="diff-c">                 ssh2_deb((session, LIBSSH2_TRACE_SFTP, &quot;got HANDLE FXOK&quot;));</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                 SSH2_FREE(session, data);</span>
+<span class="diff-a">+                data = NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                 /* silly situation, but check for a HANDLE */</span>
+<span class="diff-c">                 rc = sftp_packet_require(sftp, SSH_FXP_HANDLE,</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/libssh2/libssh2/commit/5e4776146552d898b9c0e1b313cd093fa8dc92d0" rel="noopener noreferrer">https://github.com/libssh2/libssh2/commit/5e4776146552d898b9c0e1b313cd093fa8dc92d0</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-11</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-02</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c95720be6ce18be43e5a114a6d86a7d4aefcf6c4c1fe181d1ce94f81ed83af02e425f520c6a995a091d6341a318d3af8813d5863c169cdcc22353bc11912122c</p>
+<p class="kicker">Committed 2026-05-08 07:10 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-Q5A1RHS0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-Q5A1RHS0%22%2C%22bug_class%22%3A%22double_free%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-11T01%3A14%3A19%2B00%3A00%22%2C%22description%22%3A%22The%20SFTP%20client%27s%20handler%20for%20SSH_FXP_STATUS%20messages%20allocates%20a%20buffer%20whose%20size%20is%20taken%20directly%20from%20a%20server-supplied%20packet%20length%20field.%20With%20a%20crafted%20response%2C%20this%20buffer%20ends%20up%20being%20released%20twice%20along%20the%20client%20code%20path.%20Because%20the%20server%20controls%20both%20the%20allocation%20size%20and%20the%20sequencing%20that%20leads%20to%20the%20two%20frees%2C%20a%20malicious%20or%20compromised%20SSH%20server%20can%20reliably%20induce%20a%20double-free%20in%20any%20connecting%20client.%20This%20corrupts%20heap%20allocator%20state%20and%20may%20be%20leveraged%20for%20remote%20code%20execution%20on%20the%20client.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22SFTP%20packet%20handling%20%28libssh2%20client%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libssh2/libssh2%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20operates%20or%20compromises%20an%20SSH%20server%20the%20victim%20will%20connect%20to%22%2C%222.%20Victim%20starts%20an%20SFTP%20session%20against%20that%20server%22%2C%223.%20Server%20responds%20with%20a%20crafted%20SSH_FXP_STATUS%20packet%20containing%20a%20chosen%20length%20field%22%2C%224.%20Client%20allocates%20a%20buffer%20of%20attacker-chosen%20size%20and%20subsequently%20frees%20it%20twice%22%5D%2C%22technical_details%22%3A%22Malicious%20SSH%20server%20sends%20crafted%20SSH_FXP_STATUS%20where%20packet%20length%20controls%20allocation%20that%20is%20freed%20twice%20in%20SFTP%20client%20path.%20Allocation%20size%20and%20free%20sequencing%20server-controlled.%22%2C%22title%22%3A%22SFTP%20double-free%20via%20server-controlled%20FXP_STATUS%20packet%20length%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-Q5A1RHS0&#34;,
+  &#34;bug_class&#34;: &#34;double_free&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-11T01:14:19+00:00&#34;,
+  &#34;description&#34;: &#34;The SFTP client&#39;s handler for SSH_FXP_STATUS messages allocates a buffer whose size is taken directly from a server-supplied packet length field. With a crafted response, this buffer ends up being released twice along the client code path. Because the server controls both the allocation size and the sequencing that leads to the two frees, a malicious or compromised SSH server can reliably induce a double-free in any connecting client. This corrupts heap allocator state and may be leveraged for remote code execution on the client.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;SFTP packet handling (libssh2 client)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libssh2/libssh2&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker operates or compromises an SSH server the victim will connect to&#34;,
+    &#34;2. Victim starts an SFTP session against that server&#34;,
+    &#34;3. Server responds with a crafted SSH_FXP_STATUS packet containing a chosen length field&#34;,
+    &#34;4. Client allocates a buffer of attacker-chosen size and subsequently frees it twice&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Malicious SSH server sends crafted SSH_FXP_STATUS where packet length controls allocation that is freed twice in SFTP client path. Allocation size and free sequencing server-controlled.&#34;,
+  &#34;title&#34;: &#34;SFTP double-free via server-controlled FXP_STATUS packet length&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

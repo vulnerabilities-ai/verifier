@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-45SRWS4Q · bearssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-45SRWS4Q · bearssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-45SRWS4Q: BearSSL Missing Block-Alignment Check in <code>cbc_check_length()</code> → Unbounded Heap/Stack Write via 3DES-CBC</h1>
+<p>BearSSL's cbc_check_length() (ssl_rec_cbc.c:49-74) validates min/max bounds on incoming TLS record lengths but omits the block-alignment check its own comment documents. An attacker-controlled 2-byte wire length (e.g., 33 for 3DES) passes the check and is forwarded via cbc_decrypt() (line 124) to the block cipher's run() function, whose contract requires block-aligned input. In the des_ct backend — the only 3DES implementation, enabled in all <em><em>full</em></em> init profiles — and in aes_big/aes_small, the decrypt loop subtracts blocksize from a size_t until it wraps to ~2^64, producing an unbounded linear write past ibuf. A malicious client can force 3DES negotiation by offering only those suites, complete an unauthenticated handshake, and send one malformed record to crash the server, with plausible RCE when iobuf is stack-allocated as in BearSSL's own samples.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> bearssl<br>
+<strong>Location:</strong> <code>cbc_check_length() at src/ssl/ssl_rec_cbc.c:73</code>  </p>
+<h2>Technical Details</h2>
+<p>The return expression <code>min_len &lt;= rlen &amp;&amp; rlen &lt;= max_len</code> accepts every integer in the range even though only block-aligned values are valid; the unaligned rlen then violates the documented precondition of bc.vtable-&gt;run() (bearssl_block.h:108 warns it 'may loop forever or overflow a buffer'). ASAN: "heap-buffer-overflow ... WRITE of size 1" in br_enc32be (inner.h:567) via br_aes_big_cbcdec_run — the size_t loop counter underflows past zero and the decrypt loop keeps writing blocks linearly past the allocation; the 3DES path through br_des_ct_cbcdec_run behaves identically and is the default-profile exploit path.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>==...==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x...
+WRITE of size 1 at 0x... thread T0
+    #0 ... in br_enc32be inner.h:567:9
+    #1 ... in br_aes_big_decrypt .../aes_big_dec.c:250:2
+    #2 ... in br_aes_big_cbcdec_run .../aes_big_cbcdec.c:50:3
+    #3 ... in cbc_decrypt ssl_rec_cbc.c:124:2
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect to the BearSSL TLS server.</li>
+<li>Send ClientHello offering only 3DES-CBC cipher suites; server (full profile) accepts.</li>
+<li>Complete the TLS handshake normally.</li>
+<li>Send raw record header 17 03 03 00 21 followed by 33 arbitrary bytes.</li>
+<li>cbc_check_length(33) returns 1; cbc_decrypt forwards len=33 to br_des_ct_cbcdec_run.</li>
+<li>Loop underflows size_t and writes linearly past ibuf until SEGV (or over return address for stack iobuf).</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Append <code>&amp;&amp; (rlen &amp; (blen - 1)) == 0</code> to the return expression at src/ssl/ssl_rec_cbc.c:73 to enforce the block-alignment requirement already documented in the function comment and RFC 5246 §6.2.3.2.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-45SRWS4Q.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-45SRWS4Q<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-28</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-06</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">34b666b1d995734b7cf604b442cd2a7974c02be34b0a27c810ffe0f5bd207428cbcc5934182c421cbab739f1ba49e0273945ef732f6c66eded011618348871ee</p>
+<p class="kicker">Committed 2026-05-28 15:09 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-45SRWS4Q-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-45SRWS4Q%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-20T01%3A48%3A28%2B00%3A00%22%2C%22description%22%3A%22BearSSL%27s%20cbc_check_length%28%29%20%28ssl_rec_cbc.c%3A49-74%29%20validates%20min/max%20bounds%20on%20incoming%20TLS%20record%20lengths%20but%20omits%20the%20block-alignment%20check%20its%20own%20comment%20documents.%20An%20attacker-controlled%202-byte%20wire%20length%20%28e.g.%2C%2033%20for%203DES%29%20passes%20the%20check%20and%20is%20forwarded%20via%20cbc_decrypt%28%29%20%28line%20124%29%20to%20the%20block%20cipher%27s%20run%28%29%20function%2C%20whose%20contract%20requires%20block-aligned%20input.%20In%20the%20des_ct%20backend%20%E2%80%94%20the%20only%203DES%20implementation%2C%20enabled%20in%20all%20%2A_full_%2A%20init%20profiles%20%E2%80%94%20and%20in%20aes_big/aes_small%2C%20the%20decrypt%20loop%20subtracts%20blocksize%20from%20a%20size_t%20until%20it%20wraps%20to%20~2%5E64%2C%20producing%20an%20unbounded%20linear%20write%20past%20ibuf.%20A%20malicious%20client%20can%20force%203DES%20negotiation%20by%20offering%20only%20those%20suites%2C%20complete%20an%20unauthenticated%20handshake%2C%20and%20send%20one%20malformed%20record%20to%20crash%20the%20server%2C%20with%20plausible%20RCE%20when%20iobuf%20is%20stack-allocated%20as%20in%20BearSSL%27s%20own%20samples.%22%2C%22discovered_at%22%3A%222026-03-28T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22cbc_check_length%28%29%20at%20src/ssl/ssl_rec_cbc.c%3A73%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22bearssl%22%2C%22reproduction%22%3A%5B%221.%20Connect%20to%20the%20BearSSL%20TLS%20server.%22%2C%222.%20Send%20ClientHello%20offering%20only%203DES-CBC%20cipher%20suites%3B%20server%20%28full%20profile%29%20accepts.%22%2C%223.%20Complete%20the%20TLS%20handshake%20normally.%22%2C%224.%20Send%20raw%20record%20header%2017%2003%2003%2000%2021%20followed%20by%2033%20arbitrary%20bytes.%22%2C%225.%20cbc_check_length%2833%29%20returns%201%3B%20cbc_decrypt%20forwards%20len%3D33%20to%20br_des_ct_cbcdec_run.%22%2C%226.%20Loop%20underflows%20size_t%20and%20writes%20linearly%20past%20ibuf%20until%20SEGV%20%28or%20over%20return%20address%20for%20stack%20iobuf%29.%22%5D%2C%22technical_details%22%3A%22The%20return%20expression%20%60min_len%20%3C%3D%20rlen%20%26%26%20rlen%20%3C%3D%20max_len%60%20accepts%20every%20integer%20in%20the%20range%20even%20though%20only%20block-aligned%20values%20are%20valid%3B%20the%20unaligned%20rlen%20then%20violates%20the%20documented%20precondition%20of%20bc.vtable-%3Erun%28%29%20%28bearssl_block.h%3A108%20warns%20it%20%27may%20loop%20forever%20or%20overflow%20a%20buffer%27%29.%20ASAN%3A%20%5C%22heap-buffer-overflow%20...%20WRITE%20of%20size%201%5C%22%20in%20br_enc32be%20%28inner.h%3A567%29%20via%20br_aes_big_cbcdec_run%20%E2%80%94%20the%20size_t%20loop%20counter%20underflows%20past%20zero%20and%20the%20decrypt%20loop%20keeps%20writing%20blocks%20linearly%20past%20the%20allocation%3B%20the%203DES%20path%20through%20br_des_ct_cbcdec_run%20behaves%20identically%20and%20is%20the%20default-profile%20exploit%20path.%22%2C%22title%22%3A%22BearSSL%20Missing%20Block-Alignment%20Check%20in%20%60cbc_check_length%28%29%60%20%E2%86%92%20Unbounded%20Heap/Stack%20Write%20via%203DES-CBC%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-45SRWS4Q&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-20T01:48:28+00:00&#34;,
+  &#34;description&#34;: &#34;BearSSL&#39;s cbc_check_length() (ssl_rec_cbc.c:49-74) validates min/max bounds on incoming TLS record lengths but omits the block-alignment check its own comment documents. An attacker-controlled 2-byte wire length (e.g., 33 for 3DES) passes the check and is forwarded via cbc_decrypt() (line 124) to the block cipher&#39;s run() function, whose contract requires block-aligned input. In the des_ct backend — the only 3DES implementation, enabled in all *_full_* init profiles — and in aes_big/aes_small, the decrypt loop subtracts blocksize from a size_t until it wraps to ~2^64, producing an unbounded linear write past ibuf. A malicious client can force 3DES negotiation by offering only those suites, complete an unauthenticated handshake, and send one malformed record to crash the server, with plausible RCE when iobuf is stack-allocated as in BearSSL&#39;s own samples.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-28T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;cbc_check_length() at src/ssl/ssl_rec_cbc.c:73&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;bearssl&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect to the BearSSL TLS server.&#34;,
+    &#34;2. Send ClientHello offering only 3DES-CBC cipher suites; server (full profile) accepts.&#34;,
+    &#34;3. Complete the TLS handshake normally.&#34;,
+    &#34;4. Send raw record header 17 03 03 00 21 followed by 33 arbitrary bytes.&#34;,
+    &#34;5. cbc_check_length(33) returns 1; cbc_decrypt forwards len=33 to br_des_ct_cbcdec_run.&#34;,
+    &#34;6. Loop underflows size_t and writes linearly past ibuf until SEGV (or over return address for stack iobuf).&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The return expression `min_len &lt;= rlen &amp;&amp; rlen &lt;= max_len` accepts every integer in the range even though only block-aligned values are valid; the unaligned rlen then violates the documented precondition of bc.vtable-&gt;run() (bearssl_block.h:108 warns it &#39;may loop forever or overflow a buffer&#39;). ASAN: \&#34;heap-buffer-overflow ... WRITE of size 1\&#34; in br_enc32be (inner.h:567) via br_aes_big_cbcdec_run — the size_t loop counter underflows past zero and the decrypt loop keeps writing blocks linearly past the allocation; the 3DES path through br_des_ct_cbcdec_run behaves identically and is the default-profile exploit path.&#34;,
+  &#34;title&#34;: &#34;BearSSL Missing Block-Alignment Check in `cbc_check_length()` → Unbounded Heap/Stack Write via 3DES-CBC&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

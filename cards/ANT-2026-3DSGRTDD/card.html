@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-3DSGRTDD · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-3DSGRTDD · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-3DSGRTDD: Heap-buffer-overflow in gbits.c:62</h1>
+<p>GDAL's GRIB2 driver calls gdal_comunpack (comunpack.c:150) to decode complex-packed data from Section 7, which in turn invokes gdal_gbits to extract bitfields from a packed byte buffer. That buffer is a 228-byte heap region allocated by ReadGrib2Record (degrib2.cpp:1008). With a crafted GRIB2 file, the bit offset/width parameters passed down from g2_unpack7 cause gdal_gbits to index one byte past the end of the allocation. An attacker who can supply a GRIB2 file to any GDAL-based application gets a 1-byte out-of-bounds heap read — primarily a denial-of-service, with marginal information-disclosure potential.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal<br>
+<strong>Location:</strong> <code>gbits.c:62</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 1 at 0x740e9e602fe4 ... 0 bytes after 228-byte region". gdal_gbits performs bit-level extraction from a packed byte array but does not validate that the computed byte offset stays within the bounds of the buffer supplied by gdal_comunpack. The offset and bit-width are derived from fields inside the GRIB2 message (Section 5/7 metadata), so a malformed file can push the read past the end of the realloc'd c_ipack buffer.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3933186869
+INFO: Loaded 1 modules   (1158073 inline 8-bit counters): 1158073 [0x5949ea59ba60, 0x5949ea6b6619), 
+INFO: Loaded 1 PC tables (1158073 PCs): 1158073 [0x5949ea6b6620,0x5949eb8621b0), 
+/out/gdal_filesystem_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x740e9e602fe4 at pc 0x5949e6203e4d bp 0x7ffc95821c60 sp 0x7ffc95821c58
+READ of size 1 at 0x740e9e602fe4 thread T0
+    #0 0x5949e6203e4c in gdal_gbits /src/gdal/frmts/grib/degrib/g2clib/gbits.c:62:54
+    #1 0x5949e6203e4c in gdal_gbit /src/gdal/frmts/grib/degrib/g2clib/gbits.c:6:14
+    #2 0x5949e62093d2 in gdal_comunpack /src/gdal/frmts/grib/degrib/g2clib/comunpack.c:150:15
+    #3 0x5949e6207d6a in gdal_g2_unpack7 /src/gdal/frmts/grib/degrib/g2clib/g2_unpack7.c:122:13
+    #4 0x5949e4ba41b7 in gdal_g2_getfld /src/gdal/frmts/grib/degrib/g2clib/g2_getfld.c:527:16
+    #5 0x5949e4b951f3 in unpk_g2ncep /src/gdal/frmts/grib/degrib/degrib/grib2api.c:878:11
+    #6 0x5949e4b64ed3 in ReadGrib2Record /src/gdal/frmts/grib/degrib/degrib/degrib2.cpp:1187:7
+    #7 0x5949e4b20ec4 in GRIBRasterBand::ReadGribData(VSIVirtualHandle*, unsigned long long, int, double**, grib_MetaData**) /src/gdal/frmts/grib/gribdataset.cpp:1160:5
+    [... 35 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Construct a GRIB2 message where Section 5 declares complex packing and Section 7 metadata (group widths/references/bit counts) implies more packed bits than the actual Section 7 payload contains</li>
+<li>Deliver the file to a target that reads raster data from it (e.g., gdalinfo -checksum, tile server, format conversion pipeline)</li>
+<li>GRIBRasterBand::IReadBlock triggers LoadData → ReadGrib2Record → g2_unpack7 → comunpack → gbits, which reads past the end of the c_ipack heap buffer</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-3DSGRTDD.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-3DSGRTDD<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/autotest/gdrivers/grib.py b/autotest/gdrivers/grib.py</span>
+<span class="diff-h">index a9269453afae..72d8cfe1ddc0 100755</span>
+<span class="diff-h">--- a/autotest/gdrivers/grib.py</span>
+<span class="diff-h">+++ b/autotest/gdrivers/grib.py</span>
+<span class="diff-h">@@ -13,6 +13,7 @@</span>
+<span class="diff-c"> # SPDX-License-Identifier: MIT</span>
+<span class="diff-c"> ###############################################################################</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+import base64</span>
+<span class="diff-c"> import os</span>
+<span class="diff-c"> import shutil</span>
+<span class="diff-c"> import struct</span>
+<span class="diff-h">@@ -2438,3 +2439,17 @@ def test_grib_grib2_tmerc_negative_false_easting_false_northing(tmp_vsimem):</span>
+<span class="diff-c">             &quot;+proj=tmerc +lat_0=-1 +lon_0=-2 +k=1 +x_0=-300000 +y_0=-400000&quot;</span>
+<span class="diff-c">             in ds.GetSpatialRef().ExportToProj4()</span>
+<span class="diff-c">         )</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+@gdaltest.enable_exceptions()</span>
+<span class="diff-a">+def test_grib_complex_unpacking_invalid_bits_per_packed_value(tmp_vsimem):</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    with gdal.VSIFile(tmp_vsimem / &quot;src.grib2&quot;, &quot;wb&quot;) as infile:</span>
+<span class="diff-a">+        infile.write(</span>
+<span class="diff-a">+            base64.b64decode(</span>
+<span class="diff-a">+                &quot;R1JJQgAAAAIAAAAAAAAA4gAAABUBAAcAAAIBAQfoAQEAAAAAAQAAAEgDAAAAABAAAAAABgAAAAAAAAAAAAAAAAAAAAAAAAQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACIEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxBQAAABAAAwAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAQjyAAAAAAEAAAAQAAJbAAAABgb/AAAAGAcBookAAVwDBAUlBwgJCgUMDQ4PNzc3Nw==&quot;</span>
+<span class="diff-a">+            )</span>
+<span class="diff-a">+        )</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    with pytest.raises(Exception, match=&quot;Error reading GRIB data&quot;):</span>
+<span class="diff-a">+        gdal.Translate(&quot;&quot;, tmp_vsimem / &quot;src.grib2&quot;, format=&quot;MEM&quot;)</span>
+<span class="diff-h">diff --git a/frmts/grib/degrib/g2clib/comunpack.c b/frmts/grib/degrib/g2clib/comunpack.c</span>
+<span class="diff-h">index 5ec35ee48f6e..0638a0d70072 100644</span>
+<span class="diff-h">--- a/frmts/grib/degrib/g2clib/comunpack.c</span>
+<span class="diff-h">+++ b/frmts/grib/degrib/g2clib/comunpack.c</span>
+<span class="diff-h">@@ -147,7 +147,7 @@ int comunpack(unsigned char *cpack,g2int cpack_length,g2int lensec,g2int idrsnum</span>
+<span class="diff-c">       if (idrsnum == 3) {</span>
+<span class="diff-c">          if (nbitsd != 0) {</span>
+<span class="diff-c"> // one mistake here should be unsigned int</span>
+<span class="diff-d">-              gbit(cpack,&amp;ival1,iofst,nbitsd);</span>
+<span class="diff-a">+              int ok = gbit2(cpack, cpack_length, &amp;ival1, iofst,nbitsd) != -1;</span>
+<span class="diff-c">               iofst=iofst+nbitsd;</span>
+<span class="diff-c"> //              gbit(cpack,&amp;isign,iofst,1);</span>
+<span class="diff-c"> //              iofst=iofst+1</span>
+<span class="diff-h">@@ -156,7 +156,7 @@ int comunpack(unsigned char *cpack,g2int cpack_length,g2int lensec,g2int idrsnum</span>
+<span class="diff-c"> //              if (isign == 1) ival1=-ival1;</span>
+<span class="diff-c">               if (idrstmpl[16] == 2) {</span>
+<span class="diff-c"> // one mistake here should be unsigned int</span>
+<span class="diff-d">-                 gbit(cpack,&amp;ival2,iofst,nbitsd);</span>
+<span class="diff-a">+                 ok = ok &amp;&amp; gbit2(cpack, cpack_length, &amp;ival2,iofst,nbitsd) != -1;</span>
+<span class="diff-c">                  iofst=iofst+nbitsd;</span>
+<span class="diff-c"> //                 gbit(cpack,&amp;isign,iofst,1);</span>
+<span class="diff-c"> //                 iofst=iofst+1;</span>
+<span class="diff-h">@@ -164,10 +164,19 @@ int comunpack(unsigned char *cpack,g2int cpack_length,g2int lensec,g2int idrsnum</span>
+<span class="diff-c"> //                 iofst=iofst+nbitsd-1;</span>
+<span class="diff-c"> //                 if (isign == 1) ival2=-ival2;</span>
+<span class="diff-c">               }</span>
+<span class="diff-d">-              gbit(cpack,&amp;isign,iofst,1);</span>
+<span class="diff-a">+              ok = ok &amp;&amp; gbit2(cpack, cpack_length, &amp;isign,iofst,1) != -1;</span>
+<span class="diff-c">               iofst=iofst+1;</span>
+<span class="diff-d">-              gbit(cpack,&amp;minsd,iofst,nbitsd-1);</span>
+<span class="diff-a">+              ok = ok &amp;&amp; gbit2(cpack, cpack_length, &amp;minsd,iofst,nbitsd-1) != - 1;</span>
+<span class="diff-c">               iofst=iofst+nbitsd-1;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+              if (!ok)</span>
+<span class="diff-a">+              {</span>
+<span class="diff-a">+                  free(ifld);</span>
+<span class="diff-a">+                  free(gref);</span>
+<span class="diff-a">+                  free(gwidth);</span>
+<span class="diff-a">+                  return -1;</span>
+<span class="diff-a">+              }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">               if (isign == 1 &amp;&amp; minsd != INT_MIN) minsd=-minsd;</span>
+<span class="diff-c">          }</span>
+<span class="diff-c">          else {</span>
+<span class="diff-h">diff --git a/frmts/grib/gribdataset.cpp b/frmts/grib/gribdataset.cpp</span>
+<span class="diff-h">index b0be93a0f5c2..7e778af38ebc 100644</span>
+<span class="diff-h">--- a/frmts/grib/gribdataset.cpp</span>
+<span class="diff-h">+++ b/frmts/grib/gribdataset.cpp</span>
+<span class="diff-h">@@ -847,7 +847,7 @@ CPLErr GRIBRasterBand::LoadData()</span>
+<span class="diff-c">         ReadGribData(poGDS-&gt;fp, start, subgNum, &amp;m_Grib_Data, &amp;m_Grib_MetaData);</span>
+<span class="diff-c">         if (!m_Grib_Data)</span>
+<span class="diff-c">         {</span>
+<span class="diff-d">-            CPLError(CE_Failure, CPLE_AppDefined, &quot;Out of memory.&quot;);</span>
+<span class="diff-a">+            CPLError(CE_Failure, CPLE_AppDefined, &quot;Error reading GRIB data.&quot;);</span>
+<span class="diff-c">             if (m_Grib_MetaData != nullptr)</span>
+<span class="diff-c">             {</span>
+<span class="diff-c">                 MetaFree(m_Grib_MetaData);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/60d61b5181a6288ebc29624fbac29c81f92c9e7c" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/60d61b5181a6288ebc29624fbac29c81f92c9e7c</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-11</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b6a6a1804140a36fe0508887afae650be2caf1685e7440aaf27e56df624712155cfeecb3f3c13f3d060ecbe2605e547688529b05c3913d3d252f89615f639f50</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-3DSGRTDD-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-3DSGRTDD%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A29%3A30%2B00%3A00%22%2C%22description%22%3A%22GDAL%27s%20GRIB2%20driver%20calls%20gdal_comunpack%20%28comunpack.c%3A150%29%20to%20decode%20complex-packed%20data%20from%20Section%207%2C%20which%20in%20turn%20invokes%20gdal_gbits%20to%20extract%20bitfields%20from%20a%20packed%20byte%20buffer.%20That%20buffer%20is%20a%20228-byte%20heap%20region%20allocated%20by%20ReadGrib2Record%20%28degrib2.cpp%3A1008%29.%20With%20a%20crafted%20GRIB2%20file%2C%20the%20bit%20offset/width%20parameters%20passed%20down%20from%20g2_unpack7%20cause%20gdal_gbits%20to%20index%20one%20byte%20past%20the%20end%20of%20the%20allocation.%20An%20attacker%20who%20can%20supply%20a%20GRIB2%20file%20to%20any%20GDAL-based%20application%20gets%20a%201-byte%20out-of-bounds%20heap%20read%20%E2%80%94%20primarily%20a%20denial-of-service%2C%20with%20marginal%20information-disclosure%20potential.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22gbits.c%3A62%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3A%5B%22Construct%20a%20GRIB2%20message%20where%20Section%205%20declares%20complex%20packing%20and%20Section%207%20metadata%20%28group%20widths/references/bit%20counts%29%20implies%20more%20packed%20bits%20than%20the%20actual%20Section%207%20payload%20contains%22%2C%22Deliver%20the%20file%20to%20a%20target%20that%20reads%20raster%20data%20from%20it%20%28e.g.%2C%20gdalinfo%20-checksum%2C%20tile%20server%2C%20format%20conversion%20pipeline%29%22%2C%22GRIBRasterBand%3A%3AIReadBlock%20triggers%20LoadData%20%E2%86%92%20ReadGrib2Record%20%E2%86%92%20g2_unpack7%20%E2%86%92%20comunpack%20%E2%86%92%20gbits%2C%20which%20reads%20past%20the%20end%20of%20the%20c_ipack%20heap%20buffer%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%201%20at%200x740e9e602fe4%20...%200%20bytes%20after%20228-byte%20region%5C%22.%20gdal_gbits%20performs%20bit-level%20extraction%20from%20a%20packed%20byte%20array%20but%20does%20not%20validate%20that%20the%20computed%20byte%20offset%20stays%20within%20the%20bounds%20of%20the%20buffer%20supplied%20by%20gdal_comunpack.%20The%20offset%20and%20bit-width%20are%20derived%20from%20fields%20inside%20the%20GRIB2%20message%20%28Section%205/7%20metadata%29%2C%20so%20a%20malformed%20file%20can%20push%20the%20read%20past%20the%20end%20of%20the%20realloc%27d%20c_ipack%20buffer.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20gbits.c%3A62%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-3DSGRTDD&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:29:30+00:00&#34;,
+  &#34;description&#34;: &#34;GDAL&#39;s GRIB2 driver calls gdal_comunpack (comunpack.c:150) to decode complex-packed data from Section 7, which in turn invokes gdal_gbits to extract bitfields from a packed byte buffer. That buffer is a 228-byte heap region allocated by ReadGrib2Record (degrib2.cpp:1008). With a crafted GRIB2 file, the bit offset/width parameters passed down from g2_unpack7 cause gdal_gbits to index one byte past the end of the allocation. An attacker who can supply a GRIB2 file to any GDAL-based application gets a 1-byte out-of-bounds heap read — primarily a denial-of-service, with marginal information-disclosure potential.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;gbits.c:62&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Construct a GRIB2 message where Section 5 declares complex packing and Section 7 metadata (group widths/references/bit counts) implies more packed bits than the actual Section 7 payload contains&#34;,
+    &#34;Deliver the file to a target that reads raster data from it (e.g., gdalinfo -checksum, tile server, format conversion pipeline)&#34;,
+    &#34;GRIBRasterBand::IReadBlock triggers LoadData → ReadGrib2Record → g2_unpack7 → comunpack → gbits, which reads past the end of the c_ipack heap buffer&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 1 at 0x740e9e602fe4 ... 0 bytes after 228-byte region\&#34;. gdal_gbits performs bit-level extraction from a packed byte array but does not validate that the computed byte offset stays within the bounds of the buffer supplied by gdal_comunpack. The offset and bit-width are derived from fields inside the GRIB2 message (Section 5/7 metadata), so a malformed file can push the read past the end of the realloc&#39;d c_ipack buffer.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in gbits.c:62&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

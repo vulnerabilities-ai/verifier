@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-YA6ADR86 · libreoffice/core</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-YA6ADR86 · libreoffice/core</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63276">CVE-2026-63276</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-YA6ADR86: CFF charstring to Type1 conversion stack buffer overflow</h1>
+<p>convert2Type1Ops() in vcl/source/fontsubset/cff.cxx writes converted Type1 charstring bytes through mpWritePtr into a fixed 81920-byte on-stack buffer (aCharString / aOps[MAX_T1OPS_SIZE]) with no end-pointer or bounds check in writeType1Val/writeTypeOp/writeCurveTo. Because mnHintSize accumulates and each HSTEM/VSTEM/HINTMASK re-emits the full hint list, and because subroutine recursion is unlimited, a single attacker-crafted glyph can inflate output well past 80KB (~1000:1 amplification). The converter is reached from document-embedded CFF/OTF fonts on File → Export As PDF, and the HarfBuzz subset pass preserves the attacker's charstrings. The result is an attacker-controlled unbounded stack write in the soffice process, yielding at minimum DoS/abort and potentially RCE.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libreoffice/core<br>
+<strong>Location:</strong> <code>vcl/source/fontsubset/cff.cxx:2295</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>writeType1Val/writeTypeOp/writeTypeEsc (cff.cxx:1041-1105) perform raw *(mpWritePtr++) writes into the 81920-byte stack array declared at cff.cxx:714/2295, and there is no mpWriteEnd or length check anywhere in the write path. The HSTEM re-emit-all-hints loop (cff.cxx:1170-1174) combined with unlimited callType2Subr recursion (cff.cxx:1600-1624) lets a crafted Type2 charstring produce output far exceeding the buffer, overwriting adjacent stack frame data.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an OTF with a CFF glyph whose Type2 charstring packs repeated hstem/vstem/hintmask groups and long rrcurveto/rlineto runs (and/or nested subroutine calls) to achieve &gt;80KB converted output</li>
+<li>Set the font's fsType flag so the embedded-font restriction gate (embeddedfontsmanager.cxx:393) passes and the font auto-activates</li>
+<li>Embed the font in an ODT/ODP/DOCX and deliver it to the victim</li>
+<li>Victim opens the document and selects File → Export As PDF</li>
+<li>pdfwriter_impl.cxx:2096 → PhysicalFontFace::CreateFontSubset → ConvertCFFfontToType1 invokes convert2Type1Ops(), which writes past the 80KB stack buffer</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Bound every write through mpWritePtr against the allocated output buffer size (track an end pointer) and abort the conversion with an error if the charstring output would exceed it.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-YA6ADR86.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-YA6ADR86<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/vcl/source/fontsubset/cff.cxx b/vcl/source/fontsubset/cff.cxx</span>
+<span class="diff-h">index bbcb5176dbf8d..d1c332634b5fd 100644</span>
+<span class="diff-h">--- a/vcl/source/fontsubset/cff.cxx</span>
+<span class="diff-h">+++ b/vcl/source/fontsubset/cff.cxx</span>
+<span class="diff-h">@@ -1337,7 +1337,8 @@ class CffContext : private CffGlobal</span>
+<span class="diff-c"> private:</span>
+<span class="diff-c">     bool convertCharStrings(std::vector&lt;CharString&gt;&amp; rCharStrings, int nGlyphCount,</span>
+<span class="diff-c">                             const sal_GlyphId* pGlyphIds = nullptr);</span>
+<span class="diff-d">-    int convert2Type1Ops(CffLocal*, const U8* pType2Ops, int nType2Len, U8* pType1Ops);</span>
+<span class="diff-a">+    int convert2Type1Ops(CffLocal*, const U8* pType2Ops, int nType2Len, U8* pType1Ops,</span>
+<span class="diff-a">+                         size_t nType1Cap);</span>
+<span class="diff-c">     bool convertOneTypeOp();</span>
+<span class="diff-c">     bool convertOneTypeEsc();</span>
+<span class="diff-c">     bool callType2Subr(bool bGlobal, int nSubrNumber);</span>
+<span class="diff-h">@@ -1348,6 +1349,11 @@ class CffContext : private CffGlobal</span>
+<span class="diff-c">     // != mpReadEnd post-check so flags as a parse failure.</span>
+<span class="diff-c">     void abandonDictParse() { mpReadPtr = mpReadEnd + 1; }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    // Abandon the charstring conversion when the output buffer is full.</span>
+<span class="diff-a">+    // callType2Subr does not restore mpWritePtr, so this stays in effect when</span>
+<span class="diff-a">+    // the buffer fills inside a subroutine.</span>
+<span class="diff-a">+    void abandonConversion() { mpWritePtr = mpWriteEnd + 1; }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     const U8* mpBasePtr;</span>
+<span class="diff-c">     const U8* mpBaseEnd;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -1355,6 +1361,8 @@ class CffContext : private CffGlobal</span>
+<span class="diff-c">     const U8* mpReadEnd;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     U8* mpWritePtr;</span>
+<span class="diff-a">+    U8* mpWriteEnd;</span>
+<span class="diff-a">+    int mnSubrDepth;</span>
+<span class="diff-c">     bool mbNeedClose;</span>
+<span class="diff-c">     bool mbIgnoreHints;</span>
+<span class="diff-c">     sal_Int32 mnCntrMask;</span>
+<span class="diff-h">@@ -1374,6 +1382,9 @@ class CffContext : private CffGlobal</span>
+<span class="diff-c">     bool getBaseAccent(ValType aBase, ValType aAccent, int* nBase, int* nAccent);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     void read2push();</span>
+<span class="diff-a">+    // True if nBytes more fit in the output buffer; otherwise abandon the</span>
+<span class="diff-a">+    // conversion and return false so the caller skips the write.</span>
+<span class="diff-a">+    bool hasWriteRoom(int nBytes);</span>
+<span class="diff-c">     void writeType1Val(ValType);</span>
+<span class="diff-c">     void writeTypeOp(int nTypeOp);</span>
+<span class="diff-c">     void writeTypeEsc(int nTypeOp);</span>
+<span class="diff-h">@@ -1420,6 +1431,8 @@ CffContext::CffContext(const U8* pBasePtr, int nBaseLen)</span>
+<span class="diff-c">     , mpReadPtr(nullptr)</span>
+<span class="diff-c">     , mpReadEnd(nullptr)</span>
+<span class="diff-c">     , mpWritePtr(nullptr)</span>
+<span class="diff-a">+    , mpWriteEnd(nullptr)</span>
+<span class="diff-a">+    , mnSubrDepth(0)</span>
+<span class="diff-c">     , mbNeedClose(false)</span>
+<span class="diff-c">     , mbIgnoreHints(false)</span>
+<span class="diff-c">     , mnCntrMask(0)</span>
+<span class="diff-h">@@ -1755,8 +1768,21 @@ void CffContext::read2push()</span>
+<span class="diff-c">     push(aVal);</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+bool CffContext::hasWriteRoom(int nBytes)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    if (mpWritePtr + nBytes &lt;= mpWriteEnd)</span>
+<span class="diff-a">+        return true;</span>
+<span class="diff-a">+    abandonConversion();</span>
+<span class="diff-a">+    return false;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> void CffContext::writeType1Val(ValType aVal)</span>
+<span class="diff-c"> {</span>
+<span class="diff-a">+    // Five bytes for the number, plus five more and a two byte &quot;div&quot; escape</span>
+<span class="diff-a">+    // when a fractional value is split.</span>
+<span class="diff-a">+    if (!hasWriteRoom(12))</span>
+<span class="diff-a">+        return;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     U8* pOut = mpWritePtr;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     // tdf#126242</span>
+<span class="diff-h">@@ -1815,10 +1841,17 @@ void CffContext::writeType1Val(ValType aVal)</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-inline void CffContext::writeTypeOp(int nTypeOp) { *(mpWritePtr++) = static_cast&lt;U8&gt;(nTypeOp); }</span>
+<span class="diff-a">+inline void CffContext::writeTypeOp(int nTypeOp)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    if (!hasWriteRoom(1))</span>
+<span class="diff-a">+        return;</span>
+<span class="diff-a">+    *(mpWritePtr++) = static_cast&lt;U8&gt;(nTypeOp);</span>
+<span class="diff-a">+}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> inline void CffContext::writeTypeEsc(int nTypeEsc)</span>
+<span class="diff-c"> {</span>
+<span class="diff-a">+    if (!hasWriteRoom(2))</span>
+<span class="diff-a">+        return;</span>
+<span class="diff-c">     *(mpWritePtr++) = TYPE1OP::T1ESC;</span>
+<span class="diff-c">     *(mpWritePtr++) = static_cast&lt;U8&gt;(nTypeEsc);</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">@@ -2370,28 +2403,40 @@ bool CffContext::callType2Subr(bool bGlobal, int nSubrNumber)</span>
+<span class="diff-c">             return false;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    while (mpReadPtr &lt; mpReadEnd)</span>
+<span class="diff-a">+    // The CFF specification limits subroutine call nesting to 10 levels;</span>
+<span class="diff-a">+    // deeper nesting would let cyclic subroutines recurse without bound.</span>
+<span class="diff-a">+    if (mnSubrDepth &gt;= 10)</span>
+<span class="diff-a">+        return false;</span>
+<span class="diff-a">+    ++mnSubrDepth;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    bool bRet = true;</span>
+<span class="diff-a">+    while (mpReadPtr &lt; mpReadEnd &amp;&amp; mpWritePtr &lt;= mpWriteEnd)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         if (!convertOneTypeOp())</span>
+<span class="diff-d">-            return false;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            bRet = false;</span>
+<span class="diff-a">+            break;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+    --mnSubrDepth;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     mpReadPtr = pOldReadPtr;</span>
+<span class="diff-c">     mpReadEnd = pOldReadEnd;</span>
+<span class="diff-d">-    return true;</span>
+<span class="diff-a">+    return bRet;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> int CffContext::convert2Type1Ops(CffLocal* pCffLocal, const U8* const pT2Ops, int nT2Len,</span>
+<span class="diff-d">-                                 U8* const pT1Ops)</span>
+<span class="diff-a">+                                 U8* const pT1Ops, size_t nT1Cap)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c">     mpCffLocal = pCffLocal;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     // prepare the charstring conversion</span>
+<span class="diff-c">     mpWritePtr = pT1Ops;</span>
+<span class="diff-d">-    U8 aType1Ops[MAX_T1OPS_SIZE];</span>
+<span class="diff-d">-    if (!pT1Ops)</span>
+<span class="diff-d">-        mpWritePtr = aType1Ops;</span>
+<span class="diff-d">-    *const_cast&lt;U8**&gt;(&amp;pT1Ops) = mpWritePtr;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    // Remember where the output buffer ends so the write primitives can tell</span>
+<span class="diff-a">+    // how much space is left. Start with no subroutine nesting.</span>
+<span class="diff-a">+    mpWriteEnd = mpWritePtr + nT1Cap;</span>
+<span class="diff-a">+    mnSubrDepth = 0;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     // prepend random seed for T1crypt</span>
+<span class="diff-c">     *(mpWritePtr++) = 0x48;</span>
+<span class="diff-h">@@ -2419,11 +2464,13 @@ int CffContext::convert2Type1Ops(CffLocal* pCffLocal, const U8* const pT2Ops, in</span>
+<span class="diff-c">     mnHintSize = mnHorzHintSize = mnStackIdx = 0;</span>
+<span class="diff-c">     maCharWidth = -1; //#######</span>
+<span class="diff-c">     mnCntrMask = 0;</span>
+<span class="diff-d">-    while (mpReadPtr &lt; mpReadEnd)</span>
+<span class="diff-a">+    while (mpReadPtr &lt; mpReadEnd &amp;&amp; mpWritePtr &lt;= mpWriteEnd)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         if (!convertOneTypeOp())</span>
+<span class="diff-c">             return -1;</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+    if (mpWritePtr &gt; mpWriteEnd)</span>
+<span class="diff-a">+        return -1;</span>
+<span class="diff-c">     if (maCharWidth != -1)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         // overwrite earlier charWidth value, which we only now have</span>
+<span class="diff-h">@@ -3168,7 +3215,8 @@ bool CffContext::convertCharStrings(std::vector&lt;CharString&gt;&amp; rCharStrings, int n</span>
+<span class="diff-c">             return false;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         CharString aCharString;</span>
+<span class="diff-d">-        const int nT1Len = convert2Type1Ops(mpCffLocal, mpReadPtr, nT2Len, aCharString.aOps);</span>
+<span class="diff-a">+        const int nT1Len = convert2Type1Ops(mpCffLocal, mpReadPtr, nT2Len, aCharString.aOps,</span>
+<span class="diff-a">+                                            std::size(aCharString.aOps));</span>
+<span class="diff-c">         if (nT1Len &lt; 0)</span>
+<span class="diff-c">             return false;</span>
+<span class="diff-c">         aCharString.nLen = nT1Len;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/LibreOffice/core/commit/49360f34f5caff4eee29489e339def8cf13053cc" rel="noopener noreferrer">https://github.com/LibreOffice/core/commit/49360f34f5caff4eee29489e339def8cf13053cc</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-04</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-24</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">494557fa46d72a221c333ba25008c45576babe947f8e78b9bd4f593dea3fbeebc3c5c47719a2187f04b6674a97532dc748674543329568dd6af93b2827800c8e</p>
+<p class="kicker">Committed 2026-07-22 07:32 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-YA6ADR86-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-YA6ADR86%22%2C%22bug_class%22%3A%22Memory%20Safety%20/%20Stack%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A54%3A46%2B00%3A00%22%2C%22description%22%3A%22convert2Type1Ops%28%29%20in%20vcl/source/fontsubset/cff.cxx%20writes%20converted%20Type1%20charstring%20bytes%20through%20mpWritePtr%20into%20a%20fixed%2081920-byte%20on-stack%20buffer%20%28aCharString%20/%20aOps%5BMAX_T1OPS_SIZE%5D%29%20with%20no%20end-pointer%20or%20bounds%20check%20in%20writeType1Val/writeTypeOp/writeCurveTo.%20Because%20mnHintSize%20accumulates%20and%20each%20HSTEM/VSTEM/HINTMASK%20re-emits%20the%20full%20hint%20list%2C%20and%20because%20subroutine%20recursion%20is%20unlimited%2C%20a%20single%20attacker-crafted%20glyph%20can%20inflate%20output%20well%20past%2080KB%20%28~1000%3A1%20amplification%29.%20The%20converter%20is%20reached%20from%20document-embedded%20CFF/OTF%20fonts%20on%20File%20%E2%86%92%20Export%20As%20PDF%2C%20and%20the%20HarfBuzz%20subset%20pass%20preserves%20the%20attacker%27s%20charstrings.%20The%20result%20is%20an%20attacker-controlled%20unbounded%20stack%20write%20in%20the%20soffice%20process%2C%20yielding%20at%20minimum%20DoS/abort%20and%20potentially%20RCE.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22vcl/source/fontsubset/cff.cxx%3A2295%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22LibreOffice/core%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20OTF%20with%20a%20CFF%20glyph%20whose%20Type2%20charstring%20packs%20repeated%20hstem/vstem/hintmask%20groups%20and%20long%20rrcurveto/rlineto%20runs%20%28and/or%20nested%20subroutine%20calls%29%20to%20achieve%20%3E80KB%20converted%20output%22%2C%222.%20Set%20the%20font%27s%20fsType%20flag%20so%20the%20embedded-font%20restriction%20gate%20%28embeddedfontsmanager.cxx%3A393%29%20passes%20and%20the%20font%20auto-activates%22%2C%223.%20Embed%20the%20font%20in%20an%20ODT/ODP/DOCX%20and%20deliver%20it%20to%20the%20victim%22%2C%224.%20Victim%20opens%20the%20document%20and%20selects%20File%20%E2%86%92%20Export%20As%20PDF%22%2C%225.%20pdfwriter_impl.cxx%3A2096%20%E2%86%92%20PhysicalFontFace%3A%3ACreateFontSubset%20%E2%86%92%20ConvertCFFfontToType1%20invokes%20convert2Type1Ops%28%29%2C%20which%20writes%20past%20the%2080KB%20stack%20buffer%22%5D%2C%22technical_details%22%3A%22writeType1Val/writeTypeOp/writeTypeEsc%20%28cff.cxx%3A1041-1105%29%20perform%20raw%20%2A%28mpWritePtr%2B%2B%29%20writes%20into%20the%2081920-byte%20stack%20array%20declared%20at%20cff.cxx%3A714/2295%2C%20and%20there%20is%20no%20mpWriteEnd%20or%20length%20check%20anywhere%20in%20the%20write%20path.%20The%20HSTEM%20re-emit-all-hints%20loop%20%28cff.cxx%3A1170-1174%29%20combined%20with%20unlimited%20callType2Subr%20recursion%20%28cff.cxx%3A1600-1624%29%20lets%20a%20crafted%20Type2%20charstring%20produce%20output%20far%20exceeding%20the%20buffer%2C%20overwriting%20adjacent%20stack%20frame%20data.%22%2C%22title%22%3A%22CFF%20charstring%20to%20Type1%20conversion%20stack%20buffer%20overflow%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-YA6ADR86&#34;,
+  &#34;bug_class&#34;: &#34;Memory Safety / Stack Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:54:46+00:00&#34;,
+  &#34;description&#34;: &#34;convert2Type1Ops() in vcl/source/fontsubset/cff.cxx writes converted Type1 charstring bytes through mpWritePtr into a fixed 81920-byte on-stack buffer (aCharString / aOps[MAX_T1OPS_SIZE]) with no end-pointer or bounds check in writeType1Val/writeTypeOp/writeCurveTo. Because mnHintSize accumulates and each HSTEM/VSTEM/HINTMASK re-emits the full hint list, and because subroutine recursion is unlimited, a single attacker-crafted glyph can inflate output well past 80KB (~1000:1 amplification). The converter is reached from document-embedded CFF/OTF fonts on File → Export As PDF, and the HarfBuzz subset pass preserves the attacker&#39;s charstrings. The result is an attacker-controlled unbounded stack write in the soffice process, yielding at minimum DoS/abort and potentially RCE.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;vcl/source/fontsubset/cff.cxx:2295&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;LibreOffice/core&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an OTF with a CFF glyph whose Type2 charstring packs repeated hstem/vstem/hintmask groups and long rrcurveto/rlineto runs (and/or nested subroutine calls) to achieve &gt;80KB converted output&#34;,
+    &#34;2. Set the font&#39;s fsType flag so the embedded-font restriction gate (embeddedfontsmanager.cxx:393) passes and the font auto-activates&#34;,
+    &#34;3. Embed the font in an ODT/ODP/DOCX and deliver it to the victim&#34;,
+    &#34;4. Victim opens the document and selects File → Export As PDF&#34;,
+    &#34;5. pdfwriter_impl.cxx:2096 → PhysicalFontFace::CreateFontSubset → ConvertCFFfontToType1 invokes convert2Type1Ops(), which writes past the 80KB stack buffer&#34;
+  ],
+  &#34;technical_details&#34;: &#34;writeType1Val/writeTypeOp/writeTypeEsc (cff.cxx:1041-1105) perform raw *(mpWritePtr++) writes into the 81920-byte stack array declared at cff.cxx:714/2295, and there is no mpWriteEnd or length check anywhere in the write path. The HSTEM re-emit-all-hints loop (cff.cxx:1170-1174) combined with unlimited callType2Subr recursion (cff.cxx:1600-1624) lets a crafted Type2 charstring produce output far exceeding the buffer, overwriting adjacent stack frame data.&#34;,
+  &#34;title&#34;: &#34;CFF charstring to Type1 conversion stack buffer overflow&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

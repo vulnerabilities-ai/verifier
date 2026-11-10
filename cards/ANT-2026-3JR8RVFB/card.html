@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-3JR8RVFB · danbloomberg/leptonica</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-3JR8RVFB · danbloomberg/leptonica</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-3JR8RVFB: Heap buffer underwrite via negative size field in sarrayReadStream causing null byte underwrite</h1>
+<p>sarrayReadStream reads a size field from its input stream without rejecting negative values. The negative size is then used as an offset into a heap-allocated buffer, and a null terminator byte is written at that offset, landing before the start of the allocation. An attacker supplying the serialized sarray data controls the size field and thus the underwrite.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> danbloomberg/leptonica<br>
+<strong>Location:</strong> <code>sarrayReadStream()</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The size value read from the stream is not validated to be non-negative before being used to place a terminating null byte, so a negative size yields a write below the buffer's base address (heap buffer underflow).</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-3JR8RVFB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-3JR8RVFB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/pix2.c b/src/pix2.c</span>
+<span class="diff-h">index ee03443ff..3bbe34b01 100644</span>
+<span class="diff-h">--- a/src/pix2.c</span>
+<span class="diff-h">+++ b/src/pix2.c</span>
+<span class="diff-h">@@ -1547,6 +1547,14 @@ l_uint32  *datas, *lines;</span>
+<span class="diff-c">     if (d != 8 &amp;&amp; d != 16 &amp;&amp; d != 32)</span>
+<span class="diff-c">         return ERROR_INT(&quot;depth must be 8, 16 or 32 bpp&quot;, __func__, 1);</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+        /* Clamp border values to image dimensions to prevent</span>
+<span class="diff-a">+         * negative index calculations (heap buffer underflow).</span>
+<span class="diff-a">+         * When bot &gt; h or right &gt; w, bstart/rstart would go negative. */</span>
+<span class="diff-a">+    if (top &gt; h) top = h;</span>
+<span class="diff-a">+    if (bot &gt; h) bot = h;</span>
+<span class="diff-a">+    if (left &gt; w) left = w;</span>
+<span class="diff-a">+    if (right &gt; w) right = w;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     datas = pixGetData(pixs);</span>
+<span class="diff-c">     wpls = pixGetWpl(pixs);</span>
+<span class="diff-c">     if (d == 8) {</span>
+<span class="diff-h">diff --git a/src/sarray1.c b/src/sarray1.c</span>
+<span class="diff-h">index a2c2d64fb..980e3981d 100644</span>
+<span class="diff-h">--- a/src/sarray1.c</span>
+<span class="diff-h">+++ b/src/sarray1.c</span>
+<span class="diff-h">@@ -1414,7 +1414,8 @@ SARRAY  *sa;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     for (i = 0; i &lt; n; i++) {</span>
+<span class="diff-c">             /* Get the size of the stored string */</span>
+<span class="diff-d">-        if ((fscanf(fp, &quot;%d[%d]:&quot;, &amp;index, &amp;size) != 2) || (size &gt; (1 &lt;&lt; 30))) {</span>
+<span class="diff-a">+        if ((fscanf(fp, &quot;%d[%d]:&quot;, &amp;index, &amp;size) != 2) ||</span>
+<span class="diff-a">+            (size &lt; 0) || (size &gt; (1 &lt;&lt; 30))) {</span>
+<span class="diff-c">             success = FALSE;</span>
+<span class="diff-c">             L_ERROR(&quot;error on string size\n&quot;, __func__);</span>
+<span class="diff-c">             goto cleanup;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/DanBloomberg/leptonica/commit/a0ca522b7d48f471c6225b4a4dc0c63463f10843" rel="noopener noreferrer">https://github.com/DanBloomberg/leptonica/commit/a0ca522b7d48f471c6225b4a4dc0c63463f10843</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484</p>
+<p class="kicker">Committed 2026-04-09 18:49 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-3JR8RVFB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-3JR8RVFB%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Underflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A04%2B00%3A00%22%2C%22description%22%3A%22sarrayReadStream%20reads%20a%20size%20field%20from%20its%20input%20stream%20without%20rejecting%20negative%20values.%20The%20negative%20size%20is%20then%20used%20as%20an%20offset%20into%20a%20heap-allocated%20buffer%2C%20and%20a%20null%20terminator%20byte%20is%20written%20at%20that%20offset%2C%20landing%20before%20the%20start%20of%20the%20allocation.%20An%20attacker%20supplying%20the%20serialized%20sarray%20data%20controls%20the%20size%20field%20and%20thus%20the%20underwrite.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22sarrayReadStream%28%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22Leptonica%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20size%20value%20read%20from%20the%20stream%20is%20not%20validated%20to%20be%20non-negative%20before%20being%20used%20to%20place%20a%20terminating%20null%20byte%2C%20so%20a%20negative%20size%20yields%20a%20write%20below%20the%20buffer%27s%20base%20address%20%28heap%20buffer%20underflow%29.%22%2C%22title%22%3A%22Heap%20buffer%20underwrite%20via%20negative%20size%20field%20in%20sarrayReadStream%20causing%20null%20byte%20underwrite%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-3JR8RVFB&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Underflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:04+00:00&#34;,
+  &#34;description&#34;: &#34;sarrayReadStream reads a size field from its input stream without rejecting negative values. The negative size is then used as an offset into a heap-allocated buffer, and a null terminator byte is written at that offset, landing before the start of the allocation. An attacker supplying the serialized sarray data controls the size field and thus the underwrite.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;sarrayReadStream()&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;Leptonica&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The size value read from the stream is not validated to be non-negative before being used to place a terminating null byte, so a negative size yields a write below the buffer&#39;s base address (heap buffer underflow).&#34;,
+  &#34;title&#34;: &#34;Heap buffer underwrite via negative size field in sarrayReadStream causing null byte underwrite&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

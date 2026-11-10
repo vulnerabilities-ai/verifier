@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-61Y3NTY3",
+  "hash": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-61Y3NTY3/card.html",
+    "sha256": "da5351dc44832c486050d552bb2e356b375db5df77364f1063aaf7aa0793658c",
+    "fetched_utc": "2026-11-10T21:04:57Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-61Y3NTY3",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+    "printed_hash": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+    "canonical_rebuild_sha3_512": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:57Z",
+  "card_facts": {
+    "printed_hash": "8cce47a2adebd5006d22356386d064c55cf3edb7c252b5356e40193df6336e47e160560b2597f239706d901ab28486a56a3ad0b905fb45297118f87dcdbb9633",
+    "committed_printed": "2026-04-29 07:04 UTC",
+    "revealed_printed": "2026-08-17 21:12 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-24",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-29",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-09",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-18",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-24",
+      "report_date": "2026-04-29",
+      "acknowledged_date": "2026-05-09",
+      "patch_released_date": "2026-05-18",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "critical",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/OISF/suricata/commit/2b20a436e7249e7eb688f0c9caf26ad9179fc680"
+      ],
+      "advisory": [],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-45752"
+      ],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

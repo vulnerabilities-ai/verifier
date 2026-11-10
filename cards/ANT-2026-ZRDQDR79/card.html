@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-ZRDQDR79 · util-linux/util-linux</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-ZRDQDR79 · util-linux/util-linux</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-13595">CVE-2026-13595</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-qpmf-9p9c-455w">GHSA-qpmf-9p9c-455w</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-ZRDQDR79: Heap-use-after-free in blkid_partition_get_start at partitions.c:1447 via nested BSD disklabel in DOS partition table</h1>
+<p>A heap-use-after-free (READ) was detected in util-linux's libblkid library through the OSS-Fuzz test-blkid-fuzz harness. libblkid handles probing of block device content types (filesystem superblocks, partition tables) and is invoked by blkid, udev, and automount infrastructure. An attacker who can present a crafted block device image to the system — via USB insertion, virtual disk attachment, or placing a disk image where automounting will scan it — can trigger the read of freed memory during probing. The READ-type UAF most likely yields information disclosure or denial of service, with code execution possible but harder given heap layout dependencies.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> util-linux/util-linux<br>
+<strong>Location:</strong> <code>blkid_partition_get_start() at libblkid/src/partitions/partitions.c:1447</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN reports a READ-type heap-use-after-free during libblkid's probing of a crafted input, indicating internal probing data structures are freed and then accessed again. No specific ASAN size/address line or stack frames were provided in the report; the root-cause function and exact freed object are not identified. ASAN READ heap-UAF detections are highly reliable with near-zero false-positive rates due to precise allocator instrumentation.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2157158283
+INFO: Loaded 1 modules   (9192 inline 8-bit counters): 9192 [0x568d75257fc8, 0x568d7525a3b0), 
+INFO: Loaded 1 PC tables (9192 PCs): 9192 [0x568d7525a3b0,0x568d7527e230), 
+/out/test_blkid_fuzz: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-use-after-free on address 0x75a1663e0200 at pc 0x568d75141f54 bp 0x7fff11ca9940 sp 0x7fff11ca9938
+READ of size 8 at 0x75a1663e0200 thread T0
+    #0 0x568d75141f53 in blkid_partition_get_start /src/util-linux/libblkid/src/partitions/partitions.c:1447:28
+    #1 0x568d7517ea47 in probe_bsd_pt /src/util-linux/libblkid/src/partitions/bsd.c:132:17
+    #2 0x568d751428a7 in idinfo_probe /src/util-linux/libblkid/src/partitions/partitions.c:560:8
+    #3 0x568d751422f8 in blkid_partitions_do_subprobe /src/util-linux/libblkid/src/partitions/partitions.c:719:7
+    #4 0x568d75180320 in probe_dos_pt /src/util-linux/libblkid/src/partitions/dos.c:342:10
+    #5 0x568d751428a7 in idinfo_probe /src/util-linux/libblkid/src/partitions/partitions.c:560:8
+    #6 0x568d751403a6 in partitions_probe /src/util-linux/libblkid/src/partitions/partitions.c:620:8
+    #7 0x568d7512ff22 in blkid_probe_get_binary_data /src/util-linux/libblkid/src/probe.c:391:7
+    [... 60 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a malicious filesystem/partition image that triggers the UAF code path in libblkid probing</li>
+<li>Present the image to the target: insert USB storage, attach a virtual disk, or place the image where automount infrastructure scans it</li>
+<li>libblkid (invoked by blkid/udev/udisks, typically as root) probes the device and reads freed heap memory</li>
+<li>Result: crash (DoS), potential information disclosure, or — with favorable heap layout and chaining — possible escalation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-ZRDQDR79.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-ZRDQDR79<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libblkid/src/partitions/partitions.c b/libblkid/src/partitions/partitions.c</span>
+<span class="diff-h">index f95fe898f33..a428c6d6c16 100644</span>
+<span class="diff-h">--- a/libblkid/src/partitions/partitions.c</span>
+<span class="diff-h">+++ b/libblkid/src/partitions/partitions.c</span>
+<span class="diff-h">@@ -199,7 +199,7 @@ struct blkid_struct_partlist {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	int		nparts;		/* number of partitions */</span>
+<span class="diff-c"> 	int		nparts_max;	/* max.number of partitions */</span>
+<span class="diff-d">-	blkid_partition	parts;		/* array of partitions */</span>
+<span class="diff-a">+	blkid_partition	*parts;		/* array of pointers to partitions */</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	struct list_head l_tabs;	/* list of partition tables */</span>
+<span class="diff-c"> };</span>
+<span class="diff-h">@@ -358,13 +358,16 @@ static void reset_partlist(blkid_partlist ls)</span>
+<span class="diff-c"> 	free_parttables(ls);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (ls-&gt;next_partno) {</span>
+<span class="diff-d">-		/* already initialized - reset */</span>
+<span class="diff-d">-		int tmp_nparts = ls-&gt;nparts_max;</span>
+<span class="diff-d">-		blkid_partition tmp_parts = ls-&gt;parts;</span>
+<span class="diff-a">+		/* already initialized - free individually allocated partitions */</span>
+<span class="diff-a">+		int i, tmp_nparts_max = ls-&gt;nparts_max;</span>
+<span class="diff-a">+		blkid_partition *tmp_parts = ls-&gt;parts;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		for (i = 0; i &lt; ls-&gt;nparts; i++)</span>
+<span class="diff-a">+			free(ls-&gt;parts[i]);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		memset(ls, 0, sizeof(struct blkid_struct_partlist));</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		ls-&gt;nparts_max = tmp_nparts;</span>
+<span class="diff-a">+		ls-&gt;nparts_max = tmp_nparts_max;</span>
+<span class="diff-c"> 		ls-&gt;parts = tmp_parts;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -399,6 +402,7 @@ static void partitions_free_data(blkid_probe pr __attribute__((__unused__)),</span>
+<span class="diff-c"> 				 void *data)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	blkid_partlist ls = (blkid_partlist) data;</span>
+<span class="diff-a">+	int i;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (!ls)</span>
+<span class="diff-c"> 		return;</span>
+<span class="diff-h">@@ -406,6 +410,8 @@ static void partitions_free_data(blkid_probe pr __attribute__((__unused__)),</span>
+<span class="diff-c"> 	free_parttables(ls);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/* deallocate partitions and partlist */</span>
+<span class="diff-a">+	for (i = 0; i &lt; ls-&gt;nparts; i++)</span>
+<span class="diff-a">+		free(ls-&gt;parts[i]);</span>
+<span class="diff-c"> 	free(ls-&gt;parts);</span>
+<span class="diff-c"> 	free(ls);</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">@@ -439,15 +445,17 @@ static blkid_partition new_partition(blkid_partlist ls, blkid_parttable tab)</span>
+<span class="diff-c"> 		 * generic Linux machine -- let&#x27;s start with 32 partitions.</span>
+<span class="diff-c"> 		 */</span>
+<span class="diff-c"> 		void *tmp = reallocarray(ls-&gt;parts, ls-&gt;nparts_max + 32,</span>
+<span class="diff-d">-					 sizeof(struct blkid_struct_partition));</span>
+<span class="diff-a">+					 sizeof(blkid_partition));</span>
+<span class="diff-c"> 		if (!tmp)</span>
+<span class="diff-c"> 			return NULL;</span>
+<span class="diff-c"> 		ls-&gt;parts = tmp;</span>
+<span class="diff-c"> 		ls-&gt;nparts_max += 32;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	par = &amp;ls-&gt;parts[ls-&gt;nparts++];</span>
+<span class="diff-d">-	memset(par, 0, sizeof(struct blkid_struct_partition));</span>
+<span class="diff-a">+	par = calloc(1, sizeof(struct blkid_struct_partition));</span>
+<span class="diff-a">+	if (!par)</span>
+<span class="diff-a">+		return NULL;</span>
+<span class="diff-a">+	ls-&gt;parts[ls-&gt;nparts++] = par;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	ref_parttable(tab);</span>
+<span class="diff-c"> 	par-&gt;tab = tab;</span>
+<span class="diff-h">@@ -852,7 +860,7 @@ int blkid_probe_is_covered_by_pt(blkid_probe pr,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/* check if the partition table fits into the device */</span>
+<span class="diff-c"> 	for (i = 0; i &lt; nparts; i++) {</span>
+<span class="diff-d">-		blkid_partition par = &amp;ls-&gt;parts[i];</span>
+<span class="diff-a">+		blkid_partition par = ls-&gt;parts[i];</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		if (par-&gt;start + par-&gt;size &gt; (pr-&gt;size &gt;&gt; 9)) {</span>
+<span class="diff-c"> 			DBG(LOWPROBE, ul_debug(&quot;partition #%d overflows &quot;</span>
+<span class="diff-h">@@ -864,7 +872,7 @@ int blkid_probe_is_covered_by_pt(blkid_probe pr,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/* check if the requested area is covered by PT */</span>
+<span class="diff-c"> 	for (i = 0; i &lt; nparts; i++) {</span>
+<span class="diff-d">-		blkid_partition par = &amp;ls-&gt;parts[i];</span>
+<span class="diff-a">+		blkid_partition par = ls-&gt;parts[i];</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		if (start &gt;= par-&gt;start &amp;&amp; end &lt;= par-&gt;start + par-&gt;size) {</span>
+<span class="diff-c"> 			rc = 1;</span>
+<span class="diff-h">@@ -963,7 +971,7 @@ blkid_partition blkid_partlist_get_partition(blkid_partlist ls, int n)</span>
+<span class="diff-c"> 	if (n &lt; 0 || n &gt;= ls-&gt;nparts)</span>
+<span class="diff-c"> 		return NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	return &amp;ls-&gt;parts[n];</span>
+<span class="diff-a">+	return ls-&gt;parts[n];</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> blkid_partition blkid_partlist_get_partition_by_start(blkid_partlist ls, uint64_t start)</span>
+<span class="diff-h">@@ -1075,7 +1083,7 @@ blkid_partition blkid_partlist_devno_to_partition(blkid_partlist ls, dev_t devno</span>
+<span class="diff-c"> 		 * and an entry in partition table.</span>
+<span class="diff-c"> 		 */</span>
+<span class="diff-c"> 		 for (i = 0; i &lt; ls-&gt;nparts; i++) {</span>
+<span class="diff-d">-			 blkid_partition par = &amp;ls-&gt;parts[i];</span>
+<span class="diff-a">+			 blkid_partition par = ls-&gt;parts[i];</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 			 if (partno != blkid_partition_get_partno(par))</span>
+<span class="diff-c"> 				 continue;</span>
+<span class="diff-h">@@ -1091,7 +1099,7 @@ blkid_partition blkid_partlist_devno_to_partition(blkid_partlist ls, dev_t devno</span>
+<span class="diff-c"> 	DBG(LOWPROBE, ul_debug(&quot;searching by offset/size&quot;));</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	for (i = 0; i &lt; ls-&gt;nparts; i++) {</span>
+<span class="diff-d">-		blkid_partition par = &amp;ls-&gt;parts[i];</span>
+<span class="diff-a">+		blkid_partition par = ls-&gt;parts[i];</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		if ((uint64_t)blkid_partition_get_start(par) == start &amp;&amp;</span>
+<span class="diff-c"> 		    (uint64_t)blkid_partition_get_size(par) == size)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/util-linux/util-linux/commit/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c" rel="noopener noreferrer">https://github.com/util-linux/util-linux/commit/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/util-linux/util-linux/commit/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c" rel="noopener noreferrer">https://github.com/util-linux/util-linux/commit/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b322f519496ca8294ecf2a7fb53c3196ba0c9377d8c9ea3292509a123e5a32feecfbb9abdf3d4a533628cf09218b84e43bf768ae3dd331c5fbcb96e4aecf000b</p>
+<p class="kicker">Committed 2026-05-08 07:11 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-ZRDQDR79-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-ZRDQDR79%22%2C%22bug_class%22%3A%22heap-use-after-free%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-20T19%3A13%3A36%2B00%3A00%22%2C%22description%22%3A%22A%20heap-use-after-free%20%28READ%29%20was%20detected%20in%20util-linux%27s%20libblkid%20library%20through%20the%20OSS-Fuzz%20test-blkid-fuzz%20harness.%20libblkid%20handles%20probing%20of%20block%20device%20content%20types%20%28filesystem%20superblocks%2C%20partition%20tables%29%20and%20is%20invoked%20by%20blkid%2C%20udev%2C%20and%20automount%20infrastructure.%20An%20attacker%20who%20can%20present%20a%20crafted%20block%20device%20image%20to%20the%20system%20%E2%80%94%20via%20USB%20insertion%2C%20virtual%20disk%20attachment%2C%20or%20placing%20a%20disk%20image%20where%20automounting%20will%20scan%20it%20%E2%80%94%20can%20trigger%20the%20read%20of%20freed%20memory%20during%20probing.%20The%20READ-type%20UAF%20most%20likely%20yields%20information%20disclosure%20or%20denial%20of%20service%2C%20with%20code%20execution%20possible%20but%20harder%20given%20heap%20layout%20dependencies.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22blkid_partition_get_start%28%29%20at%20libblkid/src/partitions/partitions.c%3A1447%22%2C%22poc_sha256%22%3A%22f013a9bb91af93bb8e505dad1e48b271ddade3e924c1192cc8c6cb49dc7d93d9%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22util-linux%22%2C%22reproduction%22%3A%5B%22Craft%20a%20malicious%20filesystem/partition%20image%20that%20triggers%20the%20UAF%20code%20path%20in%20libblkid%20probing%22%2C%22Present%20the%20image%20to%20the%20target%3A%20insert%20USB%20storage%2C%20attach%20a%20virtual%20disk%2C%20or%20place%20the%20image%20where%20automount%20infrastructure%20scans%20it%22%2C%22libblkid%20%28invoked%20by%20blkid/udev/udisks%2C%20typically%20as%20root%29%20probes%20the%20device%20and%20reads%20freed%20heap%20memory%22%2C%22Result%3A%20crash%20%28DoS%29%2C%20potential%20information%20disclosure%2C%20or%20%E2%80%94%20with%20favorable%20heap%20layout%20and%20chaining%20%E2%80%94%20possible%20escalation%22%5D%2C%22technical_details%22%3A%22ASAN%20reports%20a%20READ-type%20heap-use-after-free%20during%20libblkid%27s%20probing%20of%20a%20crafted%20input%2C%20indicating%20internal%20probing%20data%20structures%20are%20freed%20and%20then%20accessed%20again.%20No%20specific%20ASAN%20size/address%20line%20or%20stack%20frames%20were%20provided%20in%20the%20report%3B%20the%20root-cause%20function%20and%20exact%20freed%20object%20are%20not%20identified.%20ASAN%20READ%20heap-UAF%20detections%20are%20highly%20reliable%20with%20near-zero%20false-positive%20rates%20due%20to%20precise%20allocator%20instrumentation.%22%2C%22title%22%3A%22Heap-use-after-free%20in%20blkid_partition_get_start%20at%20partitions.c%3A1447%20via%20nested%20BSD%20disklabel%20in%20DOS%20partition%20table%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-ZRDQDR79&#34;,
+  &#34;bug_class&#34;: &#34;heap-use-after-free&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-20T19:13:36+00:00&#34;,
+  &#34;description&#34;: &#34;A heap-use-after-free (READ) was detected in util-linux&#39;s libblkid library through the OSS-Fuzz test-blkid-fuzz harness. libblkid handles probing of block device content types (filesystem superblocks, partition tables) and is invoked by blkid, udev, and automount infrastructure. An attacker who can present a crafted block device image to the system — via USB insertion, virtual disk attachment, or placing a disk image where automounting will scan it — can trigger the read of freed memory during probing. The READ-type UAF most likely yields information disclosure or denial of service, with code execution possible but harder given heap layout dependencies.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;blkid_partition_get_start() at libblkid/src/partitions/partitions.c:1447&#34;,
+  &#34;poc_sha256&#34;: &#34;f013a9bb91af93bb8e505dad1e48b271ddade3e924c1192cc8c6cb49dc7d93d9&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;util-linux&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Craft a malicious filesystem/partition image that triggers the UAF code path in libblkid probing&#34;,
+    &#34;Present the image to the target: insert USB storage, attach a virtual disk, or place the image where automount infrastructure scans it&#34;,
+    &#34;libblkid (invoked by blkid/udev/udisks, typically as root) probes the device and reads freed heap memory&#34;,
+    &#34;Result: crash (DoS), potential information disclosure, or — with favorable heap layout and chaining — possible escalation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN reports a READ-type heap-use-after-free during libblkid&#39;s probing of a crafted input, indicating internal probing data structures are freed and then accessed again. No specific ASAN size/address line or stack frames were provided in the report; the root-cause function and exact freed object are not identified. ASAN READ heap-UAF detections are highly reliable with near-zero false-positive rates due to precise allocator instrumentation.&#34;,
+  &#34;title&#34;: &#34;Heap-use-after-free in blkid_partition_get_start at partitions.c:1447 via nested BSD disklabel in DOS partition table&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

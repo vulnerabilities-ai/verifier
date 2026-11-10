@@ -1,0 +1,1 @@
+{"ant_id":"ANT-2026-VV0PRKKV","bug_class":"heap-buffer-overflow","claude_severity":"high","commit_sha":null,"created_at":"2026-03-27T02:08:32+00:00","description":null,"discovered_at":null,"location":null,"poc_sha256":null,"preimage_version":1,"project":"wolfSSL","reproduction":null,"technical_details":null,"title":null,"vendor_severity":"medium"}

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-SC8JK49A · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-SC8JK49A · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-SC8JK49A: Heap-buffer-overflow in ffmpeg</h1>
+<p>FFmpeg's Dirac decoder allocates s-&gt;mctmp at diracdec.c:344 with size (stride+MAX_BLOCKSIZE)<em>(h+MAX_BLOCKSIZE)</em>sizeof(<em>s-&gt;mctmp) (53760 bytes for this input). During interpolation, line 1950 executes memset(mctmp + 2</em>p-&gt;yoffset<em>p-&gt;stride, 0, 2</em>rowheight) where rowheight is derived from parsed bitstream parameters. An 83-byte crafted Dirac bitstream sets parameters such that 2*rowheight = 18432 and the target offset lands at the very end of the allocation, producing an 18432-byte out-of-bounds zero-write immediately past the buffer. An attacker who can deliver a Dirac file to any FFmpeg-based consumer gets heap corruption and at minimum a crash.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 18432 at 0x52f00000d600 (0 bytes past a 53760-byte region allocated at diracdec.c:344). The root cause is that the size passed to memset (2<em>rowheight) and the offset (mctmp + y</em>rowheight + 2<em>p-&gt;yoffset</em>p-&gt;stride) are computed from bitstream-controlled plane/stride parameters without validating that they stay within the bounds of the s-&gt;mctmp allocation.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2160859169
+INFO: Loaded 1 modules   (69047 inline 8-bit counters): 69047 [0x644b634f1c78, 0x644b63502a2f), 
+INFO: Loaded 1 PC tables (69047 PCs): 69047 [0x644b63502a30,0x644b636105a0), 
+/out/ffmpeg_AV_CODEC_ID_DIRAC_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-SC8JK49A.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-SC8JK49A<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavcodec/diracdec.c b/libavcodec/diracdec.c</span>
+<span class="diff-h">index 2eabf74274253..2a047c0bb9cda 100644</span>
+<span class="diff-h">--- a/libavcodec/diracdec.c</span>
+<span class="diff-h">+++ b/libavcodec/diracdec.c</span>
+<span class="diff-h">@@ -341,7 +341,7 @@ static int alloc_buffers(DiracContext *s, int stride)</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     s-&gt;edge_emu_buffer_base = av_malloc_array(stride, MAX_BLOCKSIZE);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    s-&gt;mctmp     = av_malloc_array((stride+MAX_BLOCKSIZE), (h+MAX_BLOCKSIZE) * sizeof(*s-&gt;mctmp));</span>
+<span class="diff-a">+    s-&gt;mctmp     = av_malloc_array((stride+MAX_BLOCKSIZE), (h + 5*MAX_BLOCKSIZE) * sizeof(*s-&gt;mctmp));</span>
+<span class="diff-c">     s-&gt;mcscratch = av_malloc_array(stride, MAX_BLOCKSIZE);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (!s-&gt;edge_emu_buffer_base || !s-&gt;mctmp || !s-&gt;mcscratch)</span>
+<span class="diff-h">@@ -1944,7 +1944,7 @@ static int dirac_decode_frame_internal(DiracContext *s)</span>
+<span class="diff-c">                     h = p-&gt;height - start;</span>
+<span class="diff-c">                 else</span>
+<span class="diff-c">                     h = p-&gt;ybsep - (start - dsty);</span>
+<span class="diff-d">-                if (h &lt; 0)</span>
+<span class="diff-a">+                if (h &lt;= 0)</span>
+<span class="diff-c">                     break;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">                 memset(mctmp+2*p-&gt;yoffset*p-&gt;stride, 0, 2*rowheight);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/bbdce45fda1ef92f0a8f5a8a995dde3a79fa7acc" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/bbdce45fda1ef92f0a8f5a8a995dde3a79fa7acc</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-16</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">d99ab4d3415875490a97d39d7c2c4105fe96b8f152b981b5b595d7bdc6ab5793fe97f65243f1b5b2a4e31fda340355395aa264892a638df4d99d8d29008e574d</p>
+<p class="kicker">Committed 2026-05-08 07:11 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-SC8JK49A-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-SC8JK49A%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A44%3A27%2B00%3A00%22%2C%22description%22%3A%22FFmpeg%27s%20Dirac%20decoder%20allocates%20s-%3Emctmp%20at%20diracdec.c%3A344%20with%20size%20%28stride%2BMAX_BLOCKSIZE%29%2A%28h%2BMAX_BLOCKSIZE%29%2Asizeof%28%2As-%3Emctmp%29%20%2853760%20bytes%20for%20this%20input%29.%20During%20interpolation%2C%20line%201950%20executes%20memset%28mctmp%20%2B%202%2Ap-%3Eyoffset%2Ap-%3Estride%2C%200%2C%202%2Arowheight%29%20where%20rowheight%20is%20derived%20from%20parsed%20bitstream%20parameters.%20An%2083-byte%20crafted%20Dirac%20bitstream%20sets%20parameters%20such%20that%202%2Arowheight%20%3D%2018432%20and%20the%20target%20offset%20lands%20at%20the%20very%20end%20of%20the%20allocation%2C%20producing%20an%2018432-byte%20out-of-bounds%20zero-write%20immediately%20past%20the%20buffer.%20An%20attacker%20who%20can%20deliver%20a%20Dirac%20file%20to%20any%20FFmpeg-based%20consumer%20gets%20heap%20corruption%20and%20at%20minimum%20a%20crash.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%20WRITE%20of%20size%2018432%20at%200x52f00000d600%20%280%20bytes%20past%20a%2053760-byte%20region%20allocated%20at%20diracdec.c%3A344%29.%20The%20root%20cause%20is%20that%20the%20size%20passed%20to%20memset%20%282%2Arowheight%29%20and%20the%20offset%20%28mctmp%20%2B%20y%2Arowheight%20%2B%202%2Ap-%3Eyoffset%2Ap-%3Estride%29%20are%20computed%20from%20bitstream-controlled%20plane/stride%20parameters%20without%20validating%20that%20they%20stay%20within%20the%20bounds%20of%20the%20s-%3Emctmp%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20ffmpeg%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-SC8JK49A&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:44:27+00:00&#34;,
+  &#34;description&#34;: &#34;FFmpeg&#39;s Dirac decoder allocates s-&gt;mctmp at diracdec.c:344 with size (stride+MAX_BLOCKSIZE)*(h+MAX_BLOCKSIZE)*sizeof(*s-&gt;mctmp) (53760 bytes for this input). During interpolation, line 1950 executes memset(mctmp + 2*p-&gt;yoffset*p-&gt;stride, 0, 2*rowheight) where rowheight is derived from parsed bitstream parameters. An 83-byte crafted Dirac bitstream sets parameters such that 2*rowheight = 18432 and the target offset lands at the very end of the allocation, producing an 18432-byte out-of-bounds zero-write immediately past the buffer. An attacker who can deliver a Dirac file to any FFmpeg-based consumer gets heap corruption and at minimum a crash.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow WRITE of size 18432 at 0x52f00000d600 (0 bytes past a 53760-byte region allocated at diracdec.c:344). The root cause is that the size passed to memset (2*rowheight) and the offset (mctmp + y*rowheight + 2*p-&gt;yoffset*p-&gt;stride) are computed from bitstream-controlled plane/stride parameters without validating that they stay within the bounds of the s-&gt;mctmp allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in ffmpeg&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

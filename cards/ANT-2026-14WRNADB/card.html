@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-14WRNADB · torvalds/linux</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-14WRNADB · torvalds/linux</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-14WRNADB: ksmbd: use-after-free of share_conf via multichannel LOGOFF race</h1>
+<p>SMB3 multichannel: SESSION_LOGOFF on connection A calls ksmbd_conn_wait_idle(conn), draining only A's request counter. In-flight requests on bound connection B still hold tree_conn references via work-&gt;tcon while __ksmbd_tree_conn_disconnect() drops the share_conf reference before checking tree_conn-&gt;refcount, freeing share_conf under them. Fix combines the share_conf put with the tree_conn free (last-reference only). Reported by Anthropic to security@kernel.org on 2026-03-05; fixed upstream 2026-03-18 by commit 5258572aa5fd, authored by the Anthropic reporter.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> torvalds/linux<br>
+<strong>Location:</strong> <code>fs/smb/server/mgmt/tree_connect.c:__ksmbd_tree_conn_disconnect</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. A trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-14WRNADB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-14WRNADB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/fs/smb/server/mgmt/tree_connect.c b/fs/smb/server/mgmt/tree_connect.c</span>
+<span class="diff-h">index a72d7e42a6c278..58e5b8592da46f 100644</span>
+<span class="diff-h">--- a/fs/smb/server/mgmt/tree_connect.c</span>
+<span class="diff-h">+++ b/fs/smb/server/mgmt/tree_connect.c</span>
+<span class="diff-h">@@ -102,8 +102,10 @@ ksmbd_tree_conn_connect(struct ksmbd_work *work, const char *share_name)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> void ksmbd_tree_connect_put(struct ksmbd_tree_connect *tcon)</span>
+<span class="diff-c"> {</span>
+<span class="diff-d">-	if (atomic_dec_and_test(&amp;tcon-&gt;refcount))</span>
+<span class="diff-a">+	if (atomic_dec_and_test(&amp;tcon-&gt;refcount)) {</span>
+<span class="diff-a">+		ksmbd_share_config_put(tcon-&gt;share_conf);</span>
+<span class="diff-c"> 		kfree(tcon);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> static int __ksmbd_tree_conn_disconnect(struct ksmbd_session *sess,</span>
+<span class="diff-h">@@ -113,10 +115,11 @@ static int __ksmbd_tree_conn_disconnect(struct ksmbd_session *sess,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	ret = ksmbd_ipc_tree_disconnect_request(sess-&gt;id, tree_conn-&gt;id);</span>
+<span class="diff-c"> 	ksmbd_release_tree_conn_id(sess, tree_conn-&gt;id);</span>
+<span class="diff-d">-	ksmbd_share_config_put(tree_conn-&gt;share_conf);</span>
+<span class="diff-c"> 	ksmbd_counter_dec(KSMBD_COUNTER_TREE_CONNS);</span>
+<span class="diff-d">-	if (atomic_dec_and_test(&amp;tree_conn-&gt;refcount))</span>
+<span class="diff-a">+	if (atomic_dec_and_test(&amp;tree_conn-&gt;refcount)) {</span>
+<span class="diff-a">+		ksmbd_share_config_put(tree_conn-&gt;share_conf);</span>
+<span class="diff-c"> 		kfree(tree_conn);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> 	return ret;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/torvalds/linux/commit/5258572aa5fd5a7ed01b123b28241e0281b6fb9b" rel="noopener noreferrer">https://github.com/torvalds/linux/commit/5258572aa5fd5a7ed01b123b28241e0281b6fb9b</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/torvalds/linux/commit/5258572aa5fd (mainline 2026-03-18, Signed-off-by Nicholas Carlini, Acked-by Namjae Jeon)" rel="noopener noreferrer">https://github.com/torvalds/linux/commit/5258572aa5fd (mainline 2026-03-18, Signed-off-by Nicholas Carlini, Acked-by Namjae Jeon)</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-22</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">48e7eaaca18de45088a6e035e6a8abe203337609a056099f54a6d03f8d6934d666009e98e6b7468098f4f5bfd2c7c236bb4ae3847be8faefea282ffbae0919f7</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:17 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-14WRNADB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-14WRNADB%22%2C%22bug_class%22%3Anull%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A45%3A53%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22linux%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22ksbmd%20one%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-14WRNADB&#34;,
+  &#34;bug_class&#34;: null,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:45:53+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;linux&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;ksbmd one&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

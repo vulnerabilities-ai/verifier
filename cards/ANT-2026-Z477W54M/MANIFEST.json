@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-Z477W54M",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-Z477W54M.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-Z477W54M",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:08:06Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 7885,
+      "sha256": "2e5bfa006e7ff4d17e0b8a76ab002d6cb0167594edd7cb7e312f0abfb1cb1b12",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:08:07 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=%2FN2z5WEEgrlffDmf26FCZe0LCamPsbFc07gR0XxQ9wlN1OHh6RPmRX2kRkAD0zuAKBR6uZQzzA8FbISa438EW32CNAV7JexgQUYVLTu9A%2BUYnqJ7ikbEWZtOrQK4VpOl5JsLdA%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58807d75bf91749-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-Z477W54M/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-Z477W54M/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:08:06Z",
+      "size_bytes": 482,
+      "sha256": "7984baa130390dd626294a1b498cdd3f4f39acc7da04dd49c77c00776551992c",
+      "stored_at": "cards/ANT-2026-Z477W54M/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

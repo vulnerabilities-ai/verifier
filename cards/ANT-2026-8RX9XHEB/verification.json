@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-8RX9XHEB",
+  "hash": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-8RX9XHEB/card.html",
+    "sha256": "8d3764a61d67948a705eb7f16311bfb7f64f3c00a16ddbcad659e2a7e97457fe",
+    "fetched_utc": "2026-11-10T21:05:19Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-8RX9XHEB",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+    "printed_hash": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+    "canonical_rebuild_sha3_512": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:05:19Z",
+  "card_facts": {
+    "printed_hash": "cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5",
+    "committed_printed": "2026-05-08 16:19 UTC",
+    "revealed_printed": "2026-08-17 17:47 UTC",
+    "timeline": [
+      {
+        "date": "2026-04-22",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-08",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-06-06",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-07-30",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-04-22",
+      "report_date": "2026-05-08",
+      "acknowledged_date": "2026-06-06",
+      "patch_released_date": "2026-07-30",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/php/php-src/commit/df1250dc64f53db849503618d2f911645cd43e3a"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

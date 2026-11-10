@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-66X46XSC · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-66X46XSC · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  insecure-config
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-66X46XSC: X-Content-Type-Options header set to invalid value</h1>
+<p>The Next.js headers configuration for the Supabase Studio dashboard sets X-Content-Type-Options to 'no-sniff'. Per the Fetch Standard the only valid value is 'nosniff' (no hyphen), so browsers ignore the header entirely and the intended MIME-sniffing protection is never applied. In self-hosted mode the CSP is minimal (only frame-ancestors), so this removes one of the few content-type confusion defenses. This is a defense-in-depth gap rather than a directly exploitable flaw, but it would allow MIME-sniffing-based XSS if a separate content-reflection vector were found.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>apps/studio/next.config.ts:520</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The header value contains a typo: 'no-sniff' instead of 'nosniff'. Because the Fetch Standard recognizes only the exact token 'nosniff', any other value is ignored and the browser falls back to default MIME-sniffing behavior, defeating the developer's clear intent.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Identify an endpoint on the Studio origin that reflects or serves attacker-controlled bytes with a weak/missing Content-Type (e.g., proxied download or uploaded attachment).</li>
+<li>Deliver content containing embedded script via that endpoint.</li>
+<li>Victim's browser, lacking a valid nosniff directive, MIME-sniffs the response as text/html and executes the script in the Studio origin.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Change the X-Content-Type-Options header value from 'no-sniff' to the spec-defined 'nosniff' so browsers enforce declared content types.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-66X46XSC.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-66X46XSC<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/studio/TANSTACK_MIGRATION.md b/apps/studio/TANSTACK_MIGRATION.md</span>
+<span class="diff-h">index 955909985900e..728290838b28c 100644</span>
+<span class="diff-h">--- a/apps/studio/TANSTACK_MIGRATION.md</span>
+<span class="diff-h">+++ b/apps/studio/TANSTACK_MIGRATION.md</span>
+<span class="diff-h">@@ -494,6 +494,80 @@ Keep this plugin even after migration — it&#x27;s not a Next-related shim,</span>
+<span class="diff-c"> it&#x27;s general protection against this entire class of bug. Just clear</span>
+<span class="diff-c"> the allowlist when the underlying cycle is gone.</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+### `@sentry/nextjs` → `@sentry/react` alias</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+`resolve.alias` in `vite.config.ts` rewrites the bare `@sentry/nextjs`</span>
+<span class="diff-a">+import to `compat/sentry-nextjs.ts`, which re-exports `@sentry/react`</span>
+<span class="diff-a">+(the same-version package `@sentry/nextjs` wraps on the client) plus</span>
+<span class="diff-a">+explicit stand-ins for the Next-only APIs (`captureRouterTransitionStart`,</span>
+<span class="diff-a">+`captureRequestError`, `withSentryConfig`).</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+Why: `@sentry/nextjs`&#x27;s client entry imports</span>
+<span class="diff-a">+`next/dist/shared/lib/constants`, whose module scope evaluates</span>
+<span class="diff-a">+`...(process?.features?.typescript ? [&#x27;next.config.mts&#x27;] : [])`.</span>
+<span class="diff-a">+Optional chaining does **not** guard an undeclared `process` identifier,</span>
+<span class="diff-a">+so every built client chunk containing it (table editor was the canary)</span>
+<span class="diff-a">+threw `ReferenceError: process is not defined` at module load. Dev was</span>
+<span class="diff-a">+unaffected (dev pipeline shims `process`), so it only surfaced in the</span>
+<span class="diff-a">+production/test build.</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+The alias also made the previous `@sentry/nextjs` SSR workarounds</span>
+<span class="diff-a">+(`ssr.noExternal` entry + `ssr.optimizeDeps.include`) obsolete — the id</span>
+<span class="diff-a">+is rewritten before SSR resolution, and `@sentry/react` ships real ESM.</span>
+<span class="diff-a">+App source keeps importing `@sentry/nextjs` so the Next build</span>
+<span class="diff-a">+(`build:next`) is untouched; drop the alias + shim together with the</span>
+<span class="diff-a">+Next build when the migration is done (switch imports to</span>
+<span class="diff-a">+`@sentry/react` directly).</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+### GraphiQL Monaco workers: `setup-workers/webpack` → `setup-workers/vite`</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+App source (`GraphiQLTab.tsx`) imports `graphiql/setup-workers/webpack`,</span>
+<span class="diff-a">+which registers `MonacoEnvironment.getWorker` using</span>
+<span class="diff-a">+`new Worker(new URL(&#x27;monaco-editor/...&#x27;, import.meta.url))` — the URL form</span>
+<span class="diff-a">+webpack/turbopack rewrites at build time. Vite doesn&#x27;t rewrite bare module</span>
+<span class="diff-a">+specifiers inside `new URL(..., import.meta.url)`, so under the TanStack</span>
+<span class="diff-a">+build the worker URLs 404&#x27;d and Monaco fell back to running the `json`,</span>
+<span class="diff-a">+`editorWorkerService` and `graphql` workers on the main thread (&quot;Could not</span>
+<span class="diff-a">+create web worker(s). Falling back to loading web worker code in main</span>
+<span class="diff-a">+thread&quot; in the console).</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+The `graphiqlViteWorkers` plugin in `vite.config.ts` resolves that import</span>
+<span class="diff-a">+to graphiql&#x27;s own `setup-workers/vite` variant (same three workers via</span>
+<span class="diff-a">+Vite `?worker` imports) in client builds; SSR resolution is untouched. The</span>
+<span class="diff-a">+import specifier stays `.../webpack` in app source so the Next build keeps</span>
+<span class="diff-a">+working. The whole setup-workers chain is also in `optimizeDeps.exclude` —</span>
+<span class="diff-a">+the Rolldown dep optimizer can&#x27;t load `?worker` ids</span>
+<span class="diff-a">+(`UNLOADABLE_DEPENDENCY`), so the modules go through the normal transform</span>
+<span class="diff-a">+pipeline where Vite&#x27;s built-in worker plugin handles them. Drop the plugin</span>
+<span class="diff-a">+and the exclude, and switch the import to `graphiql/setup-workers/vite`,</span>
+<span class="diff-a">+when the Next build goes away.</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+### Raw-text imports: `*.md` + `public/deno/*.d.ts` (`rawTextLoader`)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+Next&#x27;s raw-loader rules (next.config.ts `turbopack.rules`) serve `*.md`</span>
+<span class="diff-a">+files and the Deno typings `public/deno/edge-runtime.d.ts` /</span>
+<span class="diff-a">+`public/deno/lib.deno.d.ts` as JS modules whose default export is the</span>
+<span class="diff-a">+file&#x27;s text. The `rawTextLoader` plugin in `vite.config.ts` mirrors that</span>
+<span class="diff-a">+for the Vite pipeline:</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+- `*.md` — plain `transform` (used by</span>
+<span class="diff-a">+  `static-data/integrations/*/overview.md` via the literal-import registry</span>
+<span class="diff-a">+  in `static-data/integrations/overviews.ts`).</span>
+<span class="diff-a">+- The two Deno `.d.ts` files (used by `components/ui/AIEditor` as Monaco</span>
+<span class="diff-a">+  extra libs for edge-function editors) — an exact-specifier allowlist</span>
+<span class="diff-a">+  resolved to `\0`-virtual ids and served from a `load` hook. They can&#x27;t go</span>
+<span class="diff-a">+  through `transform`: Rolldown&#x27;s native dep scanner skips JS plugin hooks</span>
+<span class="diff-a">+  and hard-fails parsing TS _declaration_ syntax (`get stdin(): ...;`) as</span>
+<span class="diff-a">+  runtime TS, which killed dependency pre-bundling wholesale. The previous</span>
+<span class="diff-a">+  `/* @vite-ignore */` hack kept the scanner away but also meant the</span>
+<span class="diff-a">+  imports failed at runtime, silently dropping Deno type hints in the</span>
+<span class="diff-a">+  TanStack build. Do NOT widen the allowlist to `*.d.ts` — hijacking</span>
+<span class="diff-a">+  declaration-file resolution globally would corrupt packages that ship</span>
+<span class="diff-a">+  `.d.ts` next to their JS. The `as string` casts on the import specifiers</span>
+<span class="diff-a">+  in `AIEditor/index.tsx` keep tsc from resolving the `.d.ts` files as</span>
+<span class="diff-a">+  declaration files (TS2846) while erasing to plain literals both bundlers</span>
+<span class="diff-a">+  statically analyze.</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> ### Other build-side migration changes</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> - `pnpm-workspace.yaml` catalog now includes `@tanstack/react-router`,</span>
+<span class="diff-h">diff --git a/apps/studio/compat/next/link.tsx b/apps/studio/compat/next/link.tsx</span>
+<span class="diff-h">index c662e623466af..cbb68e892ce87 100644</span>
+<span class="diff-h">--- a/apps/studio/compat/next/link.tsx</span>
+<span class="diff-h">+++ b/apps/studio/compat/next/link.tsx</span>
+<span class="diff-h">@@ -11,6 +11,8 @@ import {</span>
+<span class="diff-c">   type Ref,</span>
+<span class="diff-c"> } from &#x27;react&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+import { splitInternalUrl } from &#x27;@/lib/internal-url&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> // Next&#x27;s Link accepts either a string `href` or a `UrlObject`</span>
+<span class="diff-c"> // ({pathname, query, hash}). Workspace source does both — flatten</span>
+<span class="diff-c"> // `UrlObject` into `pathname?search#hash` first so the TanStack `to`</span>
+<span class="diff-h">@@ -62,92 +64,14 @@ function resolveHref(href: string | UrlObject): string {</span>
+<span class="diff-c">   return `${pathname}${search}${hash}`</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-// Inlined at build time via Vite&#x27;s `define`. Must agree with Vite `base`</span>
+<span class="diff-d">-// and `tanstackStart({ router: { basepath } })`. Empty string when no</span>
+<span class="diff-d">-// basePath is configured. Used to strip a duplicate prefix in</span>
+<span class="diff-d">-// `splitInternalUrl` below — see the comment there.</span>
+<span class="diff-d">-const NEXT_PUBLIC_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? &#x27;&#x27;</span>
+<span class="diff-d">-</span>
+<span class="diff-c"> // TanStack Link&#x27;s `to` prop is a route-pattern path; query params and hash</span>
+<span class="diff-d">-// must be passed separately via `search` / `hash`. Studio code (and Next&#x27;s</span>
+<span class="diff-d">-// own contract) routinely passes one of three href shapes:</span>
+<span class="diff-d">-//   1. a relative path like `/project/abc/editor/123?schema=public`</span>
+<span class="diff-d">-//   2. a same-origin absolute URL produced by `new URL(...).toString()`,</span>
+<span class="diff-d">-//      e.g. `http://localhost:8082/project/abc/editor/123?schema=public`</span>
+<span class="diff-d">-//      (this is what `buildTableEditorUrl` does)</span>
+<span class="diff-d">-//   3. a genuinely external URL like `https://supabase.com/docs`.</span>
+<span class="diff-d">-//</span>
+<span class="diff-d">-// If we forward any of these straight through to TanStack as `to`, TanStack</span>
+<span class="diff-d">-// either fails to match a known route pattern (#1 with query) or treats</span>
+<span class="diff-d">-// the whole thing as external (#2) and falls back to native browser</span>
+<span class="diff-d">-// navigation — which the user sees as a full page reload.</span>
+<span class="diff-d">-//</span>
+<span class="diff-d">-// Split into three parts: pathname, search, hash. Same-origin absolute</span>
+<span class="diff-d">-// URLs are normalised to a relative path. Cross-origin URLs are left</span>
+<span class="diff-d">-// alone so TanStack&#x27;s external-link path handles them.</span>
+<span class="diff-d">-//</span>
+<span class="diff-d">-// basePath quirk: TanStack&#x27;s `to` is **basepath-relative** — given</span>
+<span class="diff-d">-// `basepath: &#x27;/dashboard&#x27;` and `to: &#x27;/foo&#x27;`, TanStack builds the href</span>
+<span class="diff-d">-// `/dashboard/foo`. Next&#x27;s contract treats `href` as the **full path</span>
+<span class="diff-d">-// from app root including basePath**, and studio code routinely</span>
+<span class="diff-d">-// pre-prefixes BASE_PATH (e.g. `buildTableEditorUrl` calls</span>
+<span class="diff-d">-// `new URL(`${BASE_PATH}/project/.../editor/...`, location.origin)`).</span>
+<span class="diff-d">-// Forwarding the BASE_PATH-prefixed pathname as `to` makes TanStack</span>
+<span class="diff-d">-// double-prefix it (`/dashboard/dashboard/project/...`). Strip the</span>
+<span class="diff-d">-// basePath when we see it, so what we hand TanStack is always</span>
+<span class="diff-d">-// basepath-relative.</span>
+<span class="diff-d">-function splitInternalUrl(url: string): {</span>
+<span class="diff-d">-  to: string</span>
+<span class="diff-d">-  search?: Record&lt;string, string&gt;</span>
+<span class="diff-d">-  hash?: string</span>
+<span class="diff-d">-} {</span>
+<span class="diff-d">-  // Try to detect cross-origin absolute URLs cheaply before paying for a</span>
+<span class="diff-d">-  // full parse. Protocol-relative URLs (`//host/...`) are always external.</span>
+<span class="diff-d">-  if (url.startsWith(&#x27;//&#x27;)) {</span>
+<span class="diff-d">-    return { to: url }</span>
+<span class="diff-d">-  }</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  // Use the document origin as the parse base so relative inputs resolve.</span>
+<span class="diff-d">-  // SSR has no `location`; fall back to a placeholder host that won&#x27;t ever</span>
+<span class="diff-d">-  // collide with a real one.</span>
+<span class="diff-d">-  const base =</span>
+<span class="diff-d">-    typeof window !== &#x27;undefined&#x27; &amp;&amp; window.location ? window.location.origin : &#x27;http://_/&#x27;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  let parsed: URL</span>
+<span class="diff-d">-  try {</span>
+<span class="diff-d">-    parsed = new URL(url, base)</span>
+<span class="diff-d">-  } catch {</span>
+<span class="diff-d">-    return { to: url }</span>
+<span class="diff-d">-  }</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  // Cross-origin → leave for TanStack to handle as external.</span>
+<span class="diff-d">- </span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/18431efb258b0a8be98dfa7abdab4abb3e0899fd" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/18431efb258b0a8be98dfa7abdab4abb3e0899fd</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">9524cd58959ec400250eeb15be404cabba6063cc1dc1c61120e7c78dab88321169f2ae5568e13a5728c3ca4a5e4eb07ca77467c1a2ffcef82ed5abec4f18e32c</p>
+<p class="kicker">Committed 2026-05-18 00:54 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-66X46XSC-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-66X46XSC%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A04%3A19%2B00%3A00%22%2C%22description%22%3A%22The%20Next.js%20headers%20configuration%20for%20the%20Supabase%20Studio%20dashboard%20sets%20X-Content-Type-Options%20to%20%27no-sniff%27.%20Per%20the%20Fetch%20Standard%20the%20only%20valid%20value%20is%20%27nosniff%27%20%28no%20hyphen%29%2C%20so%20browsers%20ignore%20the%20header%20entirely%20and%20the%20intended%20MIME-sniffing%20protection%20is%20never%20applied.%20In%20self-hosted%20mode%20the%20CSP%20is%20minimal%20%28only%20frame-ancestors%29%2C%20so%20this%20removes%20one%20of%20the%20few%20content-type%20confusion%20defenses.%20This%20is%20a%20defense-in-depth%20gap%20rather%20than%20a%20directly%20exploitable%20flaw%2C%20but%20it%20would%20allow%20MIME-sniffing-based%20XSS%20if%20a%20separate%20content-reflection%20vector%20were%20found.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22apps/studio/next.config.ts%3A520%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Identify%20an%20endpoint%20on%20the%20Studio%20origin%20that%20reflects%20or%20serves%20attacker-controlled%20bytes%20with%20a%20weak/missing%20Content-Type%20%28e.g.%2C%20proxied%20download%20or%20uploaded%20attachment%29.%22%2C%222.%20Deliver%20content%20containing%20embedded%20script%20via%20that%20endpoint.%22%2C%223.%20Victim%27s%20browser%2C%20lacking%20a%20valid%20nosniff%20directive%2C%20MIME-sniffs%20the%20response%20as%20text/html%20and%20executes%20the%20script%20in%20the%20Studio%20origin.%22%5D%2C%22technical_details%22%3A%22The%20header%20value%20contains%20a%20typo%3A%20%27no-sniff%27%20instead%20of%20%27nosniff%27.%20Because%20the%20Fetch%20Standard%20recognizes%20only%20the%20exact%20token%20%27nosniff%27%2C%20any%20other%20value%20is%20ignored%20and%20the%20browser%20falls%20back%20to%20default%20MIME-sniffing%20behavior%2C%20defeating%20the%20developer%27s%20clear%20intent.%22%2C%22title%22%3A%22X-Content-Type-Options%20header%20set%20to%20invalid%20value%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-66X46XSC&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:04:19+00:00&#34;,
+  &#34;description&#34;: &#34;The Next.js headers configuration for the Supabase Studio dashboard sets X-Content-Type-Options to &#39;no-sniff&#39;. Per the Fetch Standard the only valid value is &#39;nosniff&#39; (no hyphen), so browsers ignore the header entirely and the intended MIME-sniffing protection is never applied. In self-hosted mode the CSP is minimal (only frame-ancestors), so this removes one of the few content-type confusion defenses. This is a defense-in-depth gap rather than a directly exploitable flaw, but it would allow MIME-sniffing-based XSS if a separate content-reflection vector were found.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;apps/studio/next.config.ts:520&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Identify an endpoint on the Studio origin that reflects or serves attacker-controlled bytes with a weak/missing Content-Type (e.g., proxied download or uploaded attachment).&#34;,
+    &#34;2. Deliver content containing embedded script via that endpoint.&#34;,
+    &#34;3. Victim&#39;s browser, lacking a valid nosniff directive, MIME-sniffs the response as text/html and executes the script in the Studio origin.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The header value contains a typo: &#39;no-sniff&#39; instead of &#39;nosniff&#39;. Because the Fetch Standard recognizes only the exact token &#39;nosniff&#39;, any other value is ignored and the browser falls back to default MIME-sniffing behavior, defeating the developer&#39;s clear intent.&#34;,
+  &#34;title&#34;: &#34;X-Content-Type-Options header set to invalid value&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

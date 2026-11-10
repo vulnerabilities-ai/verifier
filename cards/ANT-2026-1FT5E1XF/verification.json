@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-1FT5E1XF",
+  "hash": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-1FT5E1XF/card.html",
+    "sha256": "3529e9b73af8422634f563aa822c5756d41e0a4bcd8ed0ceaf1f41edf20bcfe4",
+    "fetched_utc": "2026-11-10T21:04:31Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-1FT5E1XF",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+    "printed_hash": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+    "canonical_rebuild_sha3_512": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:31Z",
+  "card_facts": {
+    "printed_hash": "8ace4605e88b369ec66d1d30d9ac433a227e6acf378abd00225300e6f5ffe6b9486a31a63fec380f49e2fc8ac237db5cebccbb400ae67622dcc27e33f4575d7a",
+    "committed_printed": "2026-06-06 07:20 UTC",
+    "revealed_printed": "2026-08-17 17:47 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-24",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-31",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-06-02",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-06-06",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-24",
+      "acknowledged_date": "2026-05-31",
+      "patch_released_date": "2026-06-02",
+      "report_date": "2026-06-06",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "low"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/mm2/Little-CMS/commit/ba0c2b4f92872b914d4e9036f123a50063f58c89"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

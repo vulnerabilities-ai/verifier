@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-G7GNYY68",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-G7GNYY68.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-G7GNYY68",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:06:04Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 19706,
+      "sha256": "d15912ce063a3cad74b23622444fbc35d12b7b2d783ef62cc0d9b4961228bbc2",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:06:05 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=Wk%2FaibkvlpomnhwR8ZlMS2Ll1R%2F%2FN1LUCB6KB8z%2Ble2CHbAWYnTRvzPaW3JnOYeHRgm0pi5ymljBucc6WQ3IRB5KUNbPESzs%2BNp4rfldEiUmETrwvwmeNvRQhMVINjw1wsjT3g%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58804dcd81531f4-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-G7GNYY68/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-G7GNYY68/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:06:04Z",
+      "size_bytes": 516,
+      "sha256": "cab0183ac76ab67d2ac9f2c57220063052c0b1b91eada8571ebfce89c6a41002",
+      "stored_at": "cards/ANT-2026-G7GNYY68/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

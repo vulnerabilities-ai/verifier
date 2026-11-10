@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-RXSADDFE · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-RXSADDFE · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-RXSADDFE: Heap-buffer-overflow in g2meet.c:486</h1>
+<p>While decoding a crafted G2M (GoToMeeting) frame, epic_decode_tile() invokes epic_decode_run_length(), which calls is_pixel_on_stack() at g2meet.c:486. That function performs a 4-byte read immediately past the end of a 10912-byte heap buffer that was allocated as the codec's private context via avcodec_alloc_context3(). An attacker who can deliver a G2M-encoded video to any FFmpeg-based consumer controls the tile data that drives this path. The result is an out-of-bounds heap read that can crash the decoder and may disclose adjacent heap contents.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>g2meet.c:486</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 4 at 0x78b6b98e2ba0 ... 0 bytes after 10912-byte region". The ePIC run-length path indexes the decoder's pixel stack without ensuring the index stays within the private-data allocation, so is_pixel_on_stack() dereferences one 32-bit element past the end of the buffer. The missing bound check on the stack position in epic_decode_run_length() is the root cause.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 4275065820
+INFO: Loaded 1 modules   (68486 inline 8-bit counters): 68486 [0x62b3829e7080, 0x62b3829f7c06), 
+INFO: Loaded 1 PC tables (68486 PCs): 68486 [0x62b3829f7c08,0x62b382b03468), 
+/out/ffmpeg_AV_CODEC_ID_G2M_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x78b6b98e2ba0 at pc 0x62b3822b4b1c bp 0x7fff9cf4c630 sp 0x7fff9cf4c628
+READ of size 4 at 0x78b6b98e2ba0 thread T0
+    #0 0x62b3822b4b1b in is_pixel_on_stack /src/ffmpeg/libavcodec/g2meet.c:486:13
+    #1 0x62b3822b4b1b in epic_decode_run_length /src/ffmpeg/libavcodec/g2meet.c:647:22
+    #2 0x62b3822b4b1b in epic_decode_tile /src/ffmpeg/libavcodec/g2meet.c:830:33
+    #3 0x62b3822af9a2 in epic_jb_decode_tile /src/ffmpeg/libavcodec/g2meet.c:928:15
+    #4 0x62b3822ad571 in g2m_decode_frame /src/ffmpeg/libavcodec/g2meet.c:1511:23
+    #5 0x62b38228964a in decode_simple_internal /src/ffmpeg/libavcodec/decode.c:444:16
+    #6 0x62b38228964a in decode_simple_receive_frame /src/ffmpeg/libavcodec/decode.c:604:15
+    #7 0x62b38228964a in ff_decode_receive_frame_internal /src/ffmpeg/libavcodec/decode.c:640:15
+    [... 20 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a G2M bitstream containing an ePIC/JB tile whose run-length data drives the pixel-stack index out of range</li>
+<li>Deliver the file/stream to the victim (e.g., upload, media message, transcoding pipeline)</li>
+<li>Victim calls avcodec_send_packet(); g2m_decode_frame → epic_decode_tile → epic_decode_run_length → is_pixel_on_stack reads past the heap buffer</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-RXSADDFE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-RXSADDFE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">a56ab0d1ce61e11f2549a86f99f831a877d2f40b16e04ddca6c2ffc3c01e10c8e88b97985e4f79df488cde2daf884efbc40dddd8feeda1e21e96f9e569bb30f6</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-07-21 04:57 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-RXSADDFE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-RXSADDFE%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A33%3A36%2B00%3A00%22%2C%22description%22%3A%22While%20decoding%20a%20crafted%20G2M%20%28GoToMeeting%29%20frame%2C%20epic_decode_tile%28%29%20invokes%20epic_decode_run_length%28%29%2C%20which%20calls%20is_pixel_on_stack%28%29%20at%20g2meet.c%3A486.%20That%20function%20performs%20a%204-byte%20read%20immediately%20past%20the%20end%20of%20a%2010912-byte%20heap%20buffer%20that%20was%20allocated%20as%20the%20codec%27s%20private%20context%20via%20avcodec_alloc_context3%28%29.%20An%20attacker%20who%20can%20deliver%20a%20G2M-encoded%20video%20to%20any%20FFmpeg-based%20consumer%20controls%20the%20tile%20data%20that%20drives%20this%20path.%20The%20result%20is%20an%20out-of-bounds%20heap%20read%20that%20can%20crash%20the%20decoder%20and%20may%20disclose%20adjacent%20heap%20contents.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22g2meet.c%3A486%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20G2M%20bitstream%20containing%20an%20ePIC/JB%20tile%20whose%20run-length%20data%20drives%20the%20pixel-stack%20index%20out%20of%20range%22%2C%222.%20Deliver%20the%20file/stream%20to%20the%20victim%20%28e.g.%2C%20upload%2C%20media%20message%2C%20transcoding%20pipeline%29%22%2C%223.%20Victim%20calls%20avcodec_send_packet%28%29%3B%20g2m_decode_frame%20%E2%86%92%20epic_decode_tile%20%E2%86%92%20epic_decode_run_length%20%E2%86%92%20is_pixel_on_stack%20reads%20past%20the%20heap%20buffer%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%204%20at%200x78b6b98e2ba0%20...%200%20bytes%20after%2010912-byte%20region%5C%22.%20The%20ePIC%20run-length%20path%20indexes%20the%20decoder%27s%20pixel%20stack%20without%20ensuring%20the%20index%20stays%20within%20the%20private-data%20allocation%2C%20so%20is_pixel_on_stack%28%29%20dereferences%20one%2032-bit%20element%20past%20the%20end%20of%20the%20buffer.%20The%20missing%20bound%20check%20on%20the%20stack%20position%20in%20epic_decode_run_length%28%29%20is%20the%20root%20cause.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20g2meet.c%3A486%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-RXSADDFE&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:33:36+00:00&#34;,
+  &#34;description&#34;: &#34;While decoding a crafted G2M (GoToMeeting) frame, epic_decode_tile() invokes epic_decode_run_length(), which calls is_pixel_on_stack() at g2meet.c:486. That function performs a 4-byte read immediately past the end of a 10912-byte heap buffer that was allocated as the codec&#39;s private context via avcodec_alloc_context3(). An attacker who can deliver a G2M-encoded video to any FFmpeg-based consumer controls the tile data that drives this path. The result is an out-of-bounds heap read that can crash the decoder and may disclose adjacent heap contents.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;g2meet.c:486&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a G2M bitstream containing an ePIC/JB tile whose run-length data drives the pixel-stack index out of range&#34;,
+    &#34;2. Deliver the file/stream to the victim (e.g., upload, media message, transcoding pipeline)&#34;,
+    &#34;3. Victim calls avcodec_send_packet(); g2m_decode_frame → epic_decode_tile → epic_decode_run_length → is_pixel_on_stack reads past the heap buffer&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 4 at 0x78b6b98e2ba0 ... 0 bytes after 10912-byte region\&#34;. The ePIC run-length path indexes the decoder&#39;s pixel stack without ensuring the index stays within the private-data allocation, so is_pixel_on_stack() dereferences one 32-bit element past the end of the buffer. The missing bound check on the stack position in epic_decode_run_length() is the root cause.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in g2meet.c:486&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

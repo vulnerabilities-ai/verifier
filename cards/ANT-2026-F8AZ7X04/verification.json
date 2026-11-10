@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-F8AZ7X04",
+  "hash": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-F8AZ7X04/card.html",
+    "sha256": "8900b9f69bad7743afd60e20add1bc343072c6cd7a054d98edddf45f6a1a534d",
+    "fetched_utc": "2026-11-10T21:06:01Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-F8AZ7X04",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+    "printed_hash": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+    "canonical_rebuild_sha3_512": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:01Z",
+  "card_facts": {
+    "printed_hash": "687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655",
+    "committed_printed": "2026-05-01 07:02 UTC",
+    "revealed_printed": "2026-08-17 20:04 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-27",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-01",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-01",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-01",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-27",
+      "report_date": "2026-05-01",
+      "acknowledged_date": "2026-05-01",
+      "patch_released_date": "2026-05-01",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "critical",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/wireshark/wireshark/commit/4a597d797cef5b1e256056f6e0feb15fcf3a56e0"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-NDBADAT0 · sentinelone/purple-mcp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-NDBADAT0 · sentinelone/purple-mcp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  cpu-exhaustion
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-NDBADAT0: Algorithmic Complexity DoS</h1>
+<p>The MCP tools for alerts, misconfigurations, and vulnerabilities accept a JSON <code>fields</code> parameter that is passed into the GraphQL fragment builder in graphql_utils.py. Prior to this fix there were no limits on the raw JSON payload size, the number of fields, individual field length, or brace-nesting depth of custom fragments. Additionally, <code>_ensure_id_in_fragment</code> failed to clear <code>current_token</code> when breaking on the root closing brace, so fragments with adjacent closing braces (e.g. <code>asset{a{a{...x}}}}</code>) had their inner token appended twice at each recursion level, yielding roughly 2^depth output growth from a tiny input. A caller able to invoke any of these MCP tools could submit a short, deeply nested fragment or an oversized fields array to exhaust server memory/CPU and deny service.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> sentinelone/purple-mcp<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>In <code>_ensure_id_in_fragment</code>, when the parser encountered <code>}</code> at brace_depth 0 it appended <code>current_token</code> and broke out of the loop without resetting <code>current_token</code>, so the post-loop <code>if current_token and brace_depth == 0</code> check appended the same nested sub-fragment a second time; recursive processing of that duplicated sub-fragment produced exponential expansion for inputs of the form <code>root{a{a{...}}}</code>. Compounding this, <code>_validate_field_name</code> imposed no nesting-depth cap and <code>_parse_fields</code> in each tool imposed no length/count caps on the incoming JSON array.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-NDBADAT0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-NDBADAT0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/Sentinel-One/purple-mcp/releases/tag/v0.7.0" rel="noopener noreferrer">https://github.com/Sentinel-One/purple-mcp/releases/tag/v0.7.0</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-26</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-26</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-26</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec</p>
+<p class="kicker">Committed 2026-02-26</p>
+<p class="kicker">Revealed 2026-05-28 09:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-NDBADAT0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-NDBADAT0%22%2C%22bug_class%22%3A%22Algorithmic%20Complexity%20Denial%20of%20Service%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A42%2B00%3A00%22%2C%22description%22%3A%22The%20MCP%20tools%20for%20alerts%2C%20misconfigurations%2C%20and%20vulnerabilities%20accept%20a%20JSON%20%60fields%60%20parameter%20that%20is%20passed%20into%20the%20GraphQL%20fragment%20builder%20in%20graphql_utils.py.%20Prior%20to%20this%20fix%20there%20were%20no%20limits%20on%20the%20raw%20JSON%20payload%20size%2C%20the%20number%20of%20fields%2C%20individual%20field%20length%2C%20or%20brace-nesting%20depth%20of%20custom%20fragments.%20Additionally%2C%20%60_ensure_id_in_fragment%60%20failed%20to%20clear%20%60current_token%60%20when%20breaking%20on%20the%20root%20closing%20brace%2C%20so%20fragments%20with%20adjacent%20closing%20braces%20%28e.g.%20%60asset%7Ba%7Ba%7B...x%7D%7D%7D%7D%60%29%20had%20their%20inner%20token%20appended%20twice%20at%20each%20recursion%20level%2C%20yielding%20roughly%202%5Edepth%20output%20growth%20from%20a%20tiny%20input.%20A%20caller%20able%20to%20invoke%20any%20of%20these%20MCP%20tools%20could%20submit%20a%20short%2C%20deeply%20nested%20fragment%20or%20an%20oversized%20fields%20array%20to%20exhaust%20server%20memory/CPU%20and%20deny%20service.%22%2C%22discovered_at%22%3A%222026-02-26T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22sentinelone/purple-mcp%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22In%20%60_ensure_id_in_fragment%60%2C%20when%20the%20parser%20encountered%20%60%7D%60%20at%20brace_depth%200%20it%20appended%20%60current_token%60%20and%20broke%20out%20of%20the%20loop%20without%20resetting%20%60current_token%60%2C%20so%20the%20post-loop%20%60if%20current_token%20and%20brace_depth%20%3D%3D%200%60%20check%20appended%20the%20same%20nested%20sub-fragment%20a%20second%20time%3B%20recursive%20processing%20of%20that%20duplicated%20sub-fragment%20produced%20exponential%20expansion%20for%20inputs%20of%20the%20form%20%60root%7Ba%7Ba%7B...%7D%7D%7D%60.%20Compounding%20this%2C%20%60_validate_field_name%60%20imposed%20no%20nesting-depth%20cap%20and%20%60_parse_fields%60%20in%20each%20tool%20imposed%20no%20length/count%20caps%20on%20the%20incoming%20JSON%20array.%22%2C%22title%22%3A%22Algorithmic%20Complexity%20DoS%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-NDBADAT0&#34;,
+  &#34;bug_class&#34;: &#34;Algorithmic Complexity Denial of Service&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:42+00:00&#34;,
+  &#34;description&#34;: &#34;The MCP tools for alerts, misconfigurations, and vulnerabilities accept a JSON `fields` parameter that is passed into the GraphQL fragment builder in graphql_utils.py. Prior to this fix there were no limits on the raw JSON payload size, the number of fields, individual field length, or brace-nesting depth of custom fragments. Additionally, `_ensure_id_in_fragment` failed to clear `current_token` when breaking on the root closing brace, so fragments with adjacent closing braces (e.g. `asset{a{a{...x}}}}`) had their inner token appended twice at each recursion level, yielding roughly 2^depth output growth from a tiny input. A caller able to invoke any of these MCP tools could submit a short, deeply nested fragment or an oversized fields array to exhaust server memory/CPU and deny service.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-02-26T00:00:00+00:00&#34;,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;sentinelone/purple-mcp&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;In `_ensure_id_in_fragment`, when the parser encountered `}` at brace_depth 0 it appended `current_token` and broke out of the loop without resetting `current_token`, so the post-loop `if current_token and brace_depth == 0` check appended the same nested sub-fragment a second time; recursive processing of that duplicated sub-fragment produced exponential expansion for inputs of the form `root{a{a{...}}}`. Compounding this, `_validate_field_name` imposed no nesting-depth cap and `_parse_fields` in each tool imposed no length/count caps on the incoming JSON array.&#34;,
+  &#34;title&#34;: &#34;Algorithmic Complexity DoS&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

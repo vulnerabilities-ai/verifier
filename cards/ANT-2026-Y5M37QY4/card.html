@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-Y5M37QY4 · wireshark/wireshark</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-Y5M37QY4 · wireshark/wireshark</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-15165">CVE-2026-15165</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-3q2h-7599-7r76">GHSA-3q2h-7599-7r76</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-Y5M37QY4: TLS ECH transcript reconstruction heap overflow</h1>
+<p>In Wireshark's TLS dissector, <code>ssl-&gt;ech_transcript.data</code> is allocated at packet-tls-utils.c:10066 with size <code>hello_length + 4</code> (the outer ClientHello size). The extension-copy loop at :10087-10114 then processes the decrypted inner ClientHello and, for every 0xfd00 (ech_outer_extensions) entry, resets <code>outer_offset</code> and <code>tvb_memcpy</code>s the referenced outer extension into the transcript with no destination bound and no single-use enforcement. An attacker ships a pcapng whose DSB embeds <code>ECH_SECRET</code>/<code>ECH_CONFIG</code> (auto-loaded via packet-tls.c:4720/5187), so the inner CH decrypts with zero user configuration; an inner CH with many tiny 0xfd00 entries each referencing the same large outer extension writes ~N*K attacker-controlled bytes into a ~K-sized heap buffer. A secondary infinite loop occurs when a 0xfd00 extension has length 0 and <code>ech_offset</code> never advances.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wireshark/wireshark<br>
+<strong>Location:</strong> <code>epan/dissectors/packet-tls-utils.c:10087</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The transcript buffer is sized once to the outer ClientHello length, but the copy loop neither bounds-checks the destination nor enforces RFC's at-most-one <code>ech_outer_extensions</code> rule, and it re-initializes <code>outer_offset</code> per 0xfd00 entry so the same large outer extension can be memcpy'd repeatedly. <code>tvb_memcpy</code> only validates the source tvb, not the destination, so repeated copies overrun the wmem_file_scope heap allocation with attacker-controlled TLS extension bytes.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a pcapng with a Decryption Secrets Block containing ECH_SECRET and ECH_CONFIG lines (auto-loaded by tls_secrets_block_callback).</li>
+<li>Include a TLS ClientHello with an ECH payload that decrypts under the embedded secret (attacker controls HPKE key/ciphertext so auth tag validates).</li>
+<li>In the decrypted inner ClientHello, place many small 0xfd00 ech_outer_extensions entries each referencing the same ~60 KB outer extension.</li>
+<li>Victim opens the file; the ECH reconstruction loop repeatedly memcpy's the large outer extension into the outer-CH-sized ech_transcript buffer.</li>
+<li>Heap is overflowed by hundreds of kilobytes of attacker-controlled bytes.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Bound total bytes written into <code>ech_transcript.data</code> to the allocated size, process <code>ech_outer_extensions</code> at most once, and ensure every loop iteration strictly advances the inner-extension cursor.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-Y5M37QY4.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-Y5M37QY4<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/epan/dissectors/packet-tls-utils.c b/epan/dissectors/packet-tls-utils.c</span>
+<span class="diff-h">index ac725a4cbb1..8eb743b7929 100644</span>
+<span class="diff-h">--- a/epan/dissectors/packet-tls-utils.c</span>
+<span class="diff-h">+++ b/epan/dissectors/packet-tls-utils.c</span>
+<span class="diff-h">@@ -10283,6 +10283,7 @@ ssl_dissect_hnd_hello_ext_ech(ssl_common_dissect_t *hf, tvbuff_t *tvb, packet_in</span>
+<span class="diff-c">                     ssl-&gt;ech_transcript.data_len += 2;</span>
+<span class="diff-c">                     uint32_t extensions_end = ech_offset + tvb_get_ntohs(ech_tvb, ech_offset) + 2;</span>
+<span class="diff-c">                     ech_offset += 2;</span>
+<span class="diff-a">+                    bool ech_outer_extensions_found = false;</span>
+<span class="diff-c">                     while (extensions_end - ech_offset &gt;= 4) {</span>
+<span class="diff-c">                         uint16_t ext_type = tvb_get_ntohs(ech_tvb, ech_offset);</span>
+<span class="diff-c">                         ech_offset += 2;</span>
+<span class="diff-h">@@ -10295,6 +10296,16 @@ ssl_dissect_hnd_hello_ext_ech(ssl_common_dissect_t *hf, tvbuff_t *tvb, packet_in</span>
+<span class="diff-c">                             ssl-&gt;ech_transcript.data_len += 4 + ext_len;</span>
+<span class="diff-c">                             ech_offset += ext_len;</span>
+<span class="diff-c">                         } else if (ext_len &gt; 0) {</span>
+<span class="diff-a">+                            if (ech_outer_extensions_found) {</span>
+<span class="diff-a">+                                ssl_debug_printf(&quot;Illegal parameter; only a single \&quot;ech_outer_extensions\&quot; extension is allowed\n&quot;);</span>
+<span class="diff-a">+                                /* This could lead to a buffer overflow by</span>
+<span class="diff-a">+                                 * making the post-copying ClientHelloInner</span>
+<span class="diff-a">+                                 * longer than ClientHelloOuter and is</span>
+<span class="diff-a">+                                 * illegal, so skip this and don&#x27;t copy. */</span>
+<span class="diff-a">+                                ech_offset += ext_len;</span>
+<span class="diff-a">+                                continue;</span>
+<span class="diff-a">+                            }</span>
+<span class="diff-a">+                            ech_outer_extensions_found = true;</span>
+<span class="diff-c">                             unsigned num_ech_outer_extensions = tvb_get_uint8(ech_tvb, ech_offset);</span>
+<span class="diff-c">                             ech_offset += 1;</span>
+<span class="diff-c">                             uint32_t ech_outer_extensions_end = ech_offset + num_ech_outer_extensions;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wireshark/wireshark/commit/39a3c437378890840e201d773ba52b2cdb762bc9" rel="noopener noreferrer">https://github.com/wireshark/wireshark/commit/39a3c437378890840e201d773ba52b2cdb762bc9</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-04</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">ea3625713c4457cf94a19766c6904d638aff57a96dbaad5756946453a48334f437e06603c95fb73fe513646b06ee7a82a17187f74dc84bff22ac74c72a24bd23</p>
+<p class="kicker">Committed 2026-07-22 07:34 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:35 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-Y5M37QY4-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-Y5M37QY4%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T14%3A11%3A13%2B00%3A00%22%2C%22description%22%3A%22In%20Wireshark%27s%20TLS%20dissector%2C%20%60ssl-%3Eech_transcript.data%60%20is%20allocated%20at%20packet-tls-utils.c%3A10066%20with%20size%20%60hello_length%20%2B%204%60%20%28the%20outer%20ClientHello%20size%29.%20The%20extension-copy%20loop%20at%20%3A10087-10114%20then%20processes%20the%20decrypted%20inner%20ClientHello%20and%2C%20for%20every%200xfd00%20%28ech_outer_extensions%29%20entry%2C%20resets%20%60outer_offset%60%20and%20%60tvb_memcpy%60s%20the%20referenced%20outer%20extension%20into%20the%20transcript%20with%20no%20destination%20bound%20and%20no%20single-use%20enforcement.%20An%20attacker%20ships%20a%20pcapng%20whose%20DSB%20embeds%20%60ECH_SECRET%60/%60ECH_CONFIG%60%20%28auto-loaded%20via%20packet-tls.c%3A4720/5187%29%2C%20so%20the%20inner%20CH%20decrypts%20with%20zero%20user%20configuration%3B%20an%20inner%20CH%20with%20many%20tiny%200xfd00%20entries%20each%20referencing%20the%20same%20large%20outer%20extension%20writes%20~N%2AK%20attacker-controlled%20bytes%20into%20a%20~K-sized%20heap%20buffer.%20A%20secondary%20infinite%20loop%20occurs%20when%20a%200xfd00%20extension%20has%20length%200%20and%20%60ech_offset%60%20never%20advances.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22epan/dissectors/packet-tls-utils.c%3A10087%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wireshark/wireshark%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20pcapng%20with%20a%20Decryption%20Secrets%20Block%20containing%20ECH_SECRET%20and%20ECH_CONFIG%20lines%20%28auto-loaded%20by%20tls_secrets_block_callback%29.%22%2C%222.%20Include%20a%20TLS%20ClientHello%20with%20an%20ECH%20payload%20that%20decrypts%20under%20the%20embedded%20secret%20%28attacker%20controls%20HPKE%20key/ciphertext%20so%20auth%20tag%20validates%29.%22%2C%223.%20In%20the%20decrypted%20inner%20ClientHello%2C%20place%20many%20small%200xfd00%20ech_outer_extensions%20entries%20each%20referencing%20the%20same%20~60%20KB%20outer%20extension.%22%2C%224.%20Victim%20opens%20the%20file%3B%20the%20ECH%20reconstruction%20loop%20repeatedly%20memcpy%27s%20the%20large%20outer%20extension%20into%20the%20outer-CH-sized%20ech_transcript%20buffer.%22%2C%225.%20Heap%20is%20overflowed%20by%20hundreds%20of%20kilobytes%20of%20attacker-controlled%20bytes.%22%5D%2C%22technical_details%22%3A%22The%20transcript%20buffer%20is%20sized%20once%20to%20the%20outer%20ClientHello%20length%2C%20but%20the%20copy%20loop%20neither%20bounds-checks%20the%20destination%20nor%20enforces%20RFC%27s%20at-most-one%20%60ech_outer_extensions%60%20rule%2C%20and%20it%20re-initializes%20%60outer_offset%60%20per%200xfd00%20entry%20so%20the%20same%20large%20outer%20extension%20can%20be%20memcpy%27d%20repeatedly.%20%60tvb_memcpy%60%20only%20validates%20the%20source%20tvb%2C%20not%20the%20destination%2C%20so%20repeated%20copies%20overrun%20the%20wmem_file_scope%20heap%20allocation%20with%20attacker-controlled%20TLS%20extension%20bytes.%22%2C%22title%22%3A%22TLS%20ECH%20transcript%20reconstruction%20heap%20overflow%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-Y5M37QY4&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T14:11:13+00:00&#34;,
+  &#34;description&#34;: &#34;In Wireshark&#39;s TLS dissector, `ssl-&gt;ech_transcript.data` is allocated at packet-tls-utils.c:10066 with size `hello_length + 4` (the outer ClientHello size). The extension-copy loop at :10087-10114 then processes the decrypted inner ClientHello and, for every 0xfd00 (ech_outer_extensions) entry, resets `outer_offset` and `tvb_memcpy`s the referenced outer extension into the transcript with no destination bound and no single-use enforcement. An attacker ships a pcapng whose DSB embeds `ECH_SECRET`/`ECH_CONFIG` (auto-loaded via packet-tls.c:4720/5187), so the inner CH decrypts with zero user configuration; an inner CH with many tiny 0xfd00 entries each referencing the same large outer extension writes ~N*K attacker-controlled bytes into a ~K-sized heap buffer. A secondary infinite loop occurs when a 0xfd00 extension has length 0 and `ech_offset` never advances.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;epan/dissectors/packet-tls-utils.c:10087&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wireshark/wireshark&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a pcapng with a Decryption Secrets Block containing ECH_SECRET and ECH_CONFIG lines (auto-loaded by tls_secrets_block_callback).&#34;,
+    &#34;2. Include a TLS ClientHello with an ECH payload that decrypts under the embedded secret (attacker controls HPKE key/ciphertext so auth tag validates).&#34;,
+    &#34;3. In the decrypted inner ClientHello, place many small 0xfd00 ech_outer_extensions entries each referencing the same ~60 KB outer extension.&#34;,
+    &#34;4. Victim opens the file; the ECH reconstruction loop repeatedly memcpy&#39;s the large outer extension into the outer-CH-sized ech_transcript buffer.&#34;,
+    &#34;5. Heap is overflowed by hundreds of kilobytes of attacker-controlled bytes.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The transcript buffer is sized once to the outer ClientHello length, but the copy loop neither bounds-checks the destination nor enforces RFC&#39;s at-most-one `ech_outer_extensions` rule, and it re-initializes `outer_offset` per 0xfd00 entry so the same large outer extension can be memcpy&#39;d repeatedly. `tvb_memcpy` only validates the source tvb, not the destination, so repeated copies overrun the wmem_file_scope heap allocation with attacker-controlled TLS extension bytes.&#34;,
+  &#34;title&#34;: &#34;TLS ECH transcript reconstruction heap overflow&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

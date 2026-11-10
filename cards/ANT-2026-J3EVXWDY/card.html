@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-J3EVXWDY · twigphp/twig</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-J3EVXWDY · twigphp/twig</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  code-injection
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46633">CVE-2026-46633</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-7p85-w9px-jpjp">GHSA-7p85-w9px-jpjp</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-critical">critical</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Anvil Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-J3EVXWDY: PHP code injection via single quote in {% use %} template name</h1>
+<p>In ModuleNode::compileConstructor() (lines 251-255), the error message for an undefined trait block is built by writing a single-quoted PHP string and interpolating the trait template name via subcompile(). Compiler::string() escapes double quotes and backslashes but not single quotes, and UseTokenParser accepts arbitrary template-name strings. A single quote in the {% use %} template name therefore closes the surrounding PHP string literal and drops the attacker into PHP expression context inside the generated __construct(). Because this code runs before the sandbox security check (and 'use' is always permitted anyway), an attacker who can author templates and control template names achieves arbitrary PHP execution and sandbox escape.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> twigphp/twig<br>
+<strong>Location:</strong> <code>src/Node/ModuleNode.php:254</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The compiler opens a single-quoted PHP literal with -&gt;write("throw new RuntimeError('Block ") and does not close it before subcompiling the trait template-name node; Compiler::string() uses addcslashes on \0\t\"\$\ only, so single quotes pass through unescaped. A template name containing ' terminates the outer string and the remainder is parsed as live PHP expression code. Lines 235-237 in the same function handle a similar case correctly by closing and reopening the quoted literal around the subcompile.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a template in the loader named '.system('id').' containing {% block x %}{% endblock %}</li>
+<li>Create a second template containing: {% use "'.system('id').'" with foo as bar %}</li>
+<li>Compilation emits: throw new RuntimeError('Block "foo" is not defined in trait "'.system('id').'".', 1, $this-&gt;source);</li>
+<li>Render the second template; instantiating the compiled class runs __construct() and executes the injected system() call before any sandbox check</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Ensure values emitted via Compiler::string()/repr() are only placed where a standalone double-quoted PHP literal is valid; in compileConstructor(), close the surrounding single-quoted literal before subcompiling the ConstantExpression and reopen it afterward, mirroring the correct pattern at lines 235-237.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-J3EVXWDY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-J3EVXWDY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Anvil Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/Node/ModuleNode.php b/src/Node/ModuleNode.php</span>
+<span class="diff-h">index 71c57201982..a3f66827ff6 100644</span>
+<span class="diff-h">--- a/src/Node/ModuleNode.php</span>
+<span class="diff-h">+++ b/src/Node/ModuleNode.php</span>
+<span class="diff-h">@@ -248,11 +248,11 @@ protected function compileConstructor(Compiler $compiler)</span>
+<span class="diff-c">                         -&gt;string($key)</span>
+<span class="diff-c">                         -&gt;raw(&quot;])) {\n&quot;)</span>
+<span class="diff-c">                         -&gt;indent()</span>
+<span class="diff-d">-                        -&gt;write(&quot;throw new RuntimeError(&#x27;Block &quot;)</span>
+<span class="diff-a">+                        -&gt;write(&quot;throw new RuntimeError(sprintf(&#x27;Block \&quot;%s\&quot; is not defined in trait \&quot;%s\&quot;.&#x27;, &quot;)</span>
+<span class="diff-c">                         -&gt;string($key)</span>
+<span class="diff-d">-                        -&gt;raw(&#x27; is not defined in trait &#x27;)</span>
+<span class="diff-a">+                        -&gt;raw(&#x27;, &#x27;)</span>
+<span class="diff-c">                         -&gt;subcompile($trait-&gt;getNode(&#x27;template&#x27;))</span>
+<span class="diff-d">-                        -&gt;raw(&quot;.&#x27;, &quot;)</span>
+<span class="diff-a">+                        -&gt;raw(&#x27;), &#x27;)</span>
+<span class="diff-c">                         -&gt;repr($node-&gt;getTemplateLine())</span>
+<span class="diff-c">                         -&gt;raw(&quot;, \$this-&gt;source);\n&quot;)</span>
+<span class="diff-c">                         -&gt;outdent()</span>
+<span class="diff-h">diff --git a/tests/Node/ModuleTest.php b/tests/Node/ModuleTest.php</span>
+<span class="diff-h">index df28815c569..b8df54f77e7 100644</span>
+<span class="diff-h">--- a/tests/Node/ModuleTest.php</span>
+<span class="diff-h">+++ b/tests/Node/ModuleTest.php</span>
+<span class="diff-h">@@ -21,6 +21,7 @@</span>
+<span class="diff-c">  */</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> use Twig\Environment;</span>
+<span class="diff-a">+use Twig\Error\RuntimeError;</span>
+<span class="diff-c"> use Twig\Loader\ArrayLoader;</span>
+<span class="diff-c"> use Twig\Node\BodyNode;</span>
+<span class="diff-c"> use Twig\Node\EmptyNode;</span>
+<span class="diff-h">@@ -56,6 +57,29 @@ public function testConstructor()</span>
+<span class="diff-c">         $this-&gt;assertEquals($source-&gt;getName(), $node-&gt;getTemplateName());</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    public function testUseTagTemplateNameDoesNotInjectPhpInCompiledOutput()</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $evilName = &quot;evil&#x27; . print(&#x27;BAD-EOL&#x27;) . &#x27;.twig&quot;;</span>
+<span class="diff-a">+        $loader = new ArrayLoader([</span>
+<span class="diff-a">+            $evilName =&gt; &#x27;{% block existing %}ok{% endblock %}&#x27;,</span>
+<span class="diff-a">+            &#x27;main.twig&#x27; =&gt; &quot;{% use \&quot;$evilName\&quot; with absent_block as alias %}&quot;,</span>
+<span class="diff-a">+        ]);</span>
+<span class="diff-a">+        $twig = new Environment($loader);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        ob_start();</span>
+<span class="diff-a">+        $message = null;</span>
+<span class="diff-a">+        try {</span>
+<span class="diff-a">+            $twig-&gt;load(&#x27;main.twig&#x27;);</span>
+<span class="diff-a">+        } catch (RuntimeError $e) {</span>
+<span class="diff-a">+            $message = $e-&gt;getMessage();</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        $stdout = ob_get_clean();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        $this-&gt;assertSame(&#x27;&#x27;, $stdout, &#x27;No code from the template name must execute when the trait is loaded.&#x27;);</span>
+<span class="diff-a">+        $this-&gt;assertNotNull($message, &#x27;A RuntimeError must be raised for the missing block.&#x27;);</span>
+<span class="diff-a">+        $this-&gt;assertStringContainsString($evilName, $message, &#x27;The error message must contain the literal template name.&#x27;);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     public static function provideTests(): iterable</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         $twig = new Environment(new ArrayLoader([&#x27;foo.twig&#x27; =&gt; &#x27;{{ foo }}&#x27;]));</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/twigphp/Twig/commit/e9ff55f6910832428e48a35b2e0748189ad49ae3" rel="noopener noreferrer">https://github.com/twigphp/Twig/commit/e9ff55f6910832428e48a35b2e0748189ad49ae3</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-19</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">93b28dc10565abff791346a81f85dd6ab280b8d67795c451349092fc8cacd8d74fa1efe5ea8621424843330fcf14161d7bd1d3108e0fd946afbe9cba8e5d9d2f</p>
+<p class="kicker">Committed 2026-05-19 21:41 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-J3EVXWDY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-J3EVXWDY%22%2C%22bug_class%22%3A%22code_injection%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-21T16%3A56%3A59%2B00%3A00%22%2C%22description%22%3A%22In%20ModuleNode%3A%3AcompileConstructor%28%29%20%28lines%20251-255%29%2C%20the%20error%20message%20for%20an%20undefined%20trait%20block%20is%20built%20by%20writing%20a%20single-quoted%20PHP%20string%20and%20interpolating%20the%20trait%20template%20name%20via%20subcompile%28%29.%20Compiler%3A%3Astring%28%29%20escapes%20double%20quotes%20and%20backslashes%20but%20not%20single%20quotes%2C%20and%20UseTokenParser%20accepts%20arbitrary%20template-name%20strings.%20A%20single%20quote%20in%20the%20%7B%25%20use%20%25%7D%20template%20name%20therefore%20closes%20the%20surrounding%20PHP%20string%20literal%20and%20drops%20the%20attacker%20into%20PHP%20expression%20context%20inside%20the%20generated%20__construct%28%29.%20Because%20this%20code%20runs%20before%20the%20sandbox%20security%20check%20%28and%20%27use%27%20is%20always%20permitted%20anyway%29%2C%20an%20attacker%20who%20can%20author%20templates%20and%20control%20template%20names%20achieves%20arbitrary%20PHP%20execution%20and%20sandbox%20escape.%22%2C%22discovered_at%22%3A%222026-04-19T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22src/Node/ModuleNode.php%3A254%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22twigphp/Twig%22%2C%22reproduction%22%3A%5B%22Create%20a%20template%20in%20the%20loader%20named%20%27.system%28%27id%27%29.%27%20containing%20%7B%25%20block%20x%20%25%7D%7B%25%20endblock%20%25%7D%22%2C%22Create%20a%20second%20template%20containing%3A%20%7B%25%20use%20%5C%22%27.system%28%27id%27%29.%27%5C%22%20with%20foo%20as%20bar%20%25%7D%22%2C%22Compilation%20emits%3A%20throw%20new%20RuntimeError%28%27Block%20%5C%22foo%5C%22%20is%20not%20defined%20in%20trait%20%5C%22%27.system%28%27id%27%29.%27%5C%22.%27%2C%201%2C%20%24this-%3Esource%29%3B%22%2C%22Render%20the%20second%20template%3B%20instantiating%20the%20compiled%20class%20runs%20__construct%28%29%20and%20executes%20the%20injected%20system%28%29%20call%20before%20any%20sandbox%20check%22%5D%2C%22technical_details%22%3A%22The%20compiler%20opens%20a%20single-quoted%20PHP%20literal%20with%20-%3Ewrite%28%5C%22throw%20new%20RuntimeError%28%27Block%20%5C%22%29%20and%20does%20not%20close%20it%20before%20subcompiling%20the%20trait%20template-name%20node%3B%20Compiler%3A%3Astring%28%29%20uses%20addcslashes%20on%20%5C%5C0%5C%5Ct%5C%5C%5C%22%5C%5C%24%5C%5C%5C%5C%20only%2C%20so%20single%20quotes%20pass%20through%20unescaped.%20A%20template%20name%20containing%20%27%20terminates%20the%20outer%20string%20and%20the%20remainder%20is%20parsed%20as%20live%20PHP%20expression%20code.%20Lines%20235-237%20in%20the%20same%20function%20handle%20a%20similar%20case%20correctly%20by%20closing%20and%20reopening%20the%20quoted%20literal%20around%20the%20subcompile.%22%2C%22title%22%3A%22PHP%20code%20injection%20via%20single%20quote%20in%20%7B%25%20use%20%25%7D%20template%20name%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-J3EVXWDY&#34;,
+  &#34;bug_class&#34;: &#34;code_injection&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-21T16:56:59+00:00&#34;,
+  &#34;description&#34;: &#34;In ModuleNode::compileConstructor() (lines 251-255), the error message for an undefined trait block is built by writing a single-quoted PHP string and interpolating the trait template name via subcompile(). Compiler::string() escapes double quotes and backslashes but not single quotes, and UseTokenParser accepts arbitrary template-name strings. A single quote in the {% use %} template name therefore closes the surrounding PHP string literal and drops the attacker into PHP expression context inside the generated __construct(). Because this code runs before the sandbox security check (and &#39;use&#39; is always permitted anyway), an attacker who can author templates and control template names achieves arbitrary PHP execution and sandbox escape.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-19T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;src/Node/ModuleNode.php:254&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;twigphp/Twig&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Create a template in the loader named &#39;.system(&#39;id&#39;).&#39; containing {% block x %}{% endblock %}&#34;,
+    &#34;Create a second template containing: {% use \&#34;&#39;.system(&#39;id&#39;).&#39;\&#34; with foo as bar %}&#34;,
+    &#34;Compilation emits: throw new RuntimeError(&#39;Block \&#34;foo\&#34; is not defined in trait \&#34;&#39;.system(&#39;id&#39;).&#39;\&#34;.&#39;, 1, $this-&gt;source);&#34;,
+    &#34;Render the second template; instantiating the compiled class runs __construct() and executes the injected system() call before any sandbox check&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The compiler opens a single-quoted PHP literal with -&gt;write(\&#34;throw new RuntimeError(&#39;Block \&#34;) and does not close it before subcompiling the trait template-name node; Compiler::string() uses addcslashes on \\0\\t\\\&#34;\\$\\\\ only, so single quotes pass through unescaped. A template name containing &#39; terminates the outer string and the remainder is parsed as live PHP expression code. Lines 235-237 in the same function handle a similar case correctly by closing and reopening the quoted literal around the subcompile.&#34;,
+  &#34;title&#34;: &#34;PHP code injection via single quote in {% use %} template name&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

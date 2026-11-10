@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-0BETG8WD · poppler</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-0BETG8WD · poppler</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-0BETG8WD: Heap-buffer-overflow in SplashOutputDev::unsetSoftMaskFromImageMask at SplashOutputDev.cc:2688 via crafted PDF tiling pattern with image mask</h1>
+<p>In poppler's Splash rendering pipeline, SplashOutputDev::tilingPatternFill() allocates a bitmap sized to the pattern tile (line 4361), but setSoftMaskFromImageMask() sizes its softmask to the main page-level bitmap (line 2662). During teardown, unsetSoftMaskFromImageMask() copies the softmask into the tile bitmap's alpha channel using the softmask's larger dimensions as loop bounds (line 2688: dest[c] = src[c]), writing past the end of the heap-allocated tile alpha buffer. An attacker who controls the ratio of page dimensions to tile dimensions in a crafted PDF controls the overflow length. The result is a reliable crash and potential heap-metadata/adjacent-object corruption in any poppler-based viewer or server-side pipeline using the Splash backend.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> poppler<br>
+<strong>Location:</strong> <code>SplashOutputDev.cc:2688, unsetSoftMaskFromImageMask()</code>  </p>
+<h2>Technical Details</h2>
+<p>The tile bitmap's alpha buffer is sized to tile dimensions while the copy loop in unsetSoftMaskFromImageMask() iterates over the (larger) softmask dimensions derived from the main rendering surface — a classic size-source mismatch. ASAN reports a WRITE "0 bytes after 1-byte region", confirming that even a 1-byte tile allocation is overflowed by the page-sized copy loop; the entire fault stack is internal to poppler (SplashOutputDev.cc → Gfx.cc → Page.cc → PDFDoc.cc).</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3169505516
+INFO: Loaded 1 modules   (215908 inline 8-bit counters): 215908 [0x6209f9524340, 0x6209f9558ea4), 
+INFO: Loaded 1 PC tables (215908 PCs): 215908 [0x6209f9558ea8,0x6209f98a44e8), 
+/out/page_label_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x770e152e30d1 at pc 0x6209f842429f bp 0x7ffdaa704770 sp 0x7ffdaa704768
+WRITE of size 1 at 0x770e152e30d1 thread T0
+    #0 0x6209f842429e in SplashOutputDev::unsetSoftMaskFromImageMask(GfxState*, std::__1::array&lt;double, 6ul&gt;&amp;) /src/poppler/poppler/SplashOutputDev.cc:2688:21
+    #1 0x6209f81a92a2 in Gfx::doPatternImageMask(Object*, Stream*, int, int, bool, bool) /src/poppler/poppler/Gfx.cc:2016:10
+    #2 0x6209f81bb6f5 in Gfx::doImage(Object*, Stream*, bool) /src/poppler/poppler/Gfx.cc:4347:17
+    #3 0x6209f817877d in Gfx::opXObject(Object*, int) /src/poppler/poppler/Gfx.cc:4157:13
+    #4 0x6209f819f270 in Gfx::go(Gfx::DisplayType) /src/poppler/poppler/Gfx.cc:649:13
+    #5 0x6209f819e680 in Gfx::display(Object*, Gfx::DisplayType) /src/poppler/poppler/Gfx.cc:606:5
+    #6 0x6209f8435c82 in SplashOutputDev::tilingPatternFill(GfxState*, Gfx*, Catalog*, GfxTilingPattern*, std::__1::array&lt;double, 6ul&gt; const&amp;, int, int, int, int, double, double) /src/poppler/poppler/SplashOutputDev.cc:4387:10
+    #7 0x6209f81a6419 in Gfx::doTilingPatternFill(GfxTilingPattern*, bool, bool, bool) /src/poppler/poppler/Gfx.cc:2217:53
+    [... 36 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a PDF containing a tiling pattern with an embedded image mask, choosing page dimensions larger than tile dimensions to control overflow length</li>
+<li>Deliver the PDF to the victim via email, download, upload-for-processing, etc.</li>
+<li>Victim opens or processes the PDF in a poppler-based application using the Splash backend</li>
+<li>tilingPatternFill() allocates a small tile-sized bitmap; setSoftMaskFromImageMask() then creates a softmask sized to the main page bitmap</li>
+<li>unsetSoftMaskFromImageMask() copies the oversized softmask into the undersized tile alpha buffer, writing past the heap allocation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-0BETG8WD.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-0BETG8WD<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">396d3abb80ceb62364bcf81905d621fb58a2551cd2741cf303804ff0eb2abce5be0f94658266721a4be6b2de84a8652566ef6fc1cc2902c607532e7d94e76e54</p>
+<p class="kicker">Committed 2026-03-24 04:57 UTC</p>
+<p class="kicker">Revealed 2026-08-17 21:15 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-0BETG8WD-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-0BETG8WD%22%2C%22bug_class%22%3A%22heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-20T19%3A13%3A13%2B00%3A00%22%2C%22description%22%3A%22In%20poppler%27s%20Splash%20rendering%20pipeline%2C%20SplashOutputDev%3A%3AtilingPatternFill%28%29%20allocates%20a%20bitmap%20sized%20to%20the%20pattern%20tile%20%28line%204361%29%2C%20but%20setSoftMaskFromImageMask%28%29%20sizes%20its%20softmask%20to%20the%20main%20page-level%20bitmap%20%28line%202662%29.%20During%20teardown%2C%20unsetSoftMaskFromImageMask%28%29%20copies%20the%20softmask%20into%20the%20tile%20bitmap%27s%20alpha%20channel%20using%20the%20softmask%27s%20larger%20dimensions%20as%20loop%20bounds%20%28line%202688%3A%20dest%5Bc%5D%20%3D%20src%5Bc%5D%29%2C%20writing%20past%20the%20end%20of%20the%20heap-allocated%20tile%20alpha%20buffer.%20An%20attacker%20who%20controls%20the%20ratio%20of%20page%20dimensions%20to%20tile%20dimensions%20in%20a%20crafted%20PDF%20controls%20the%20overflow%20length.%20The%20result%20is%20a%20reliable%20crash%20and%20potential%20heap-metadata/adjacent-object%20corruption%20in%20any%20poppler-based%20viewer%20or%20server-side%20pipeline%20using%20the%20Splash%20backend.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22SplashOutputDev.cc%3A2688%2C%20unsetSoftMaskFromImageMask%28%29%22%2C%22poc_sha256%22%3A%225df82ac99d754ff1f89333c9f0a34d2f4316fc59ffb89fad5d34a346528728f0%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22poppler%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20PDF%20containing%20a%20tiling%20pattern%20with%20an%20embedded%20image%20mask%2C%20choosing%20page%20dimensions%20larger%20than%20tile%20dimensions%20to%20control%20overflow%20length%22%2C%222.%20Deliver%20the%20PDF%20to%20the%20victim%20via%20email%2C%20download%2C%20upload-for-processing%2C%20etc.%22%2C%223.%20Victim%20opens%20or%20processes%20the%20PDF%20in%20a%20poppler-based%20application%20using%20the%20Splash%20backend%22%2C%224.%20tilingPatternFill%28%29%20allocates%20a%20small%20tile-sized%20bitmap%3B%20setSoftMaskFromImageMask%28%29%20then%20creates%20a%20softmask%20sized%20to%20the%20main%20page%20bitmap%22%2C%225.%20unsetSoftMaskFromImageMask%28%29%20copies%20the%20oversized%20softmask%20into%20the%20undersized%20tile%20alpha%20buffer%2C%20writing%20past%20the%20heap%20allocation%22%5D%2C%22technical_details%22%3A%22The%20tile%20bitmap%27s%20alpha%20buffer%20is%20sized%20to%20tile%20dimensions%20while%20the%20copy%20loop%20in%20unsetSoftMaskFromImageMask%28%29%20iterates%20over%20the%20%28larger%29%20softmask%20dimensions%20derived%20from%20the%20main%20rendering%20surface%20%E2%80%94%20a%20classic%20size-source%20mismatch.%20ASAN%20reports%20a%20WRITE%20%5C%220%20bytes%20after%201-byte%20region%5C%22%2C%20confirming%20that%20even%20a%201-byte%20tile%20allocation%20is%20overflowed%20by%20the%20page-sized%20copy%20loop%3B%20the%20entire%20fault%20stack%20is%20internal%20to%20poppler%20%28SplashOutputDev.cc%20%E2%86%92%20Gfx.cc%20%E2%86%92%20Page.cc%20%E2%86%92%20PDFDoc.cc%29.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20SplashOutputDev%3A%3AunsetSoftMaskFromImageMask%20at%20SplashOutputDev.cc%3A2688%20via%20crafted%20PDF%20tiling%20pattern%20with%20image%20mask%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-0BETG8WD&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-20T19:13:13+00:00&#34;,
+  &#34;description&#34;: &#34;In poppler&#39;s Splash rendering pipeline, SplashOutputDev::tilingPatternFill() allocates a bitmap sized to the pattern tile (line 4361), but setSoftMaskFromImageMask() sizes its softmask to the main page-level bitmap (line 2662). During teardown, unsetSoftMaskFromImageMask() copies the softmask into the tile bitmap&#39;s alpha channel using the softmask&#39;s larger dimensions as loop bounds (line 2688: dest[c] = src[c]), writing past the end of the heap-allocated tile alpha buffer. An attacker who controls the ratio of page dimensions to tile dimensions in a crafted PDF controls the overflow length. The result is a reliable crash and potential heap-metadata/adjacent-object corruption in any poppler-based viewer or server-side pipeline using the Splash backend.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;SplashOutputDev.cc:2688, unsetSoftMaskFromImageMask()&#34;,
+  &#34;poc_sha256&#34;: &#34;5df82ac99d754ff1f89333c9f0a34d2f4316fc59ffb89fad5d34a346528728f0&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;poppler&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a PDF containing a tiling pattern with an embedded image mask, choosing page dimensions larger than tile dimensions to control overflow length&#34;,
+    &#34;2. Deliver the PDF to the victim via email, download, upload-for-processing, etc.&#34;,
+    &#34;3. Victim opens or processes the PDF in a poppler-based application using the Splash backend&#34;,
+    &#34;4. tilingPatternFill() allocates a small tile-sized bitmap; setSoftMaskFromImageMask() then creates a softmask sized to the main page bitmap&#34;,
+    &#34;5. unsetSoftMaskFromImageMask() copies the oversized softmask into the undersized tile alpha buffer, writing past the heap allocation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The tile bitmap&#39;s alpha buffer is sized to tile dimensions while the copy loop in unsetSoftMaskFromImageMask() iterates over the (larger) softmask dimensions derived from the main rendering surface — a classic size-source mismatch. ASAN reports a WRITE \&#34;0 bytes after 1-byte region\&#34;, confirming that even a 1-byte tile allocation is overflowed by the page-sized copy loop; the entire fault stack is internal to poppler (SplashOutputDev.cc → Gfx.cc → Page.cc → PDFDoc.cc).&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in SplashOutputDev::unsetSoftMaskFromImageMask at SplashOutputDev.cc:2688 via crafted PDF tiling pattern with image mask&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

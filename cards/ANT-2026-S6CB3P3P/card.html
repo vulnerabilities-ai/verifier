@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-S6CB3P3P · isc-projects/bind9</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-S6CB3P3P · isc-projects/bind9</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-S6CB3P3P: 03-bind9-matchnsec3-stack-bof</h1>
+<p>In BIND's DNSSEC zone-verification path, match_nsec3() declares a stack buffer cbm[8244] and passes it to dns_nsec_compressbitmap() without a size argument. The compressor iterates up to 256 bitmap windows emitting up to 34 bytes each (2 header + 32 data), for a worst case of 8704 bytes — a 460-byte shortfall. An attacker supplying a DNSSEC-signed zone file for verification controls which RR types appear at the zone apex and thus which bitmap bytes are written; by placing one TYPE record per window at byte index 31, the attacker forces a 444-byte overflow with ~94% attacker-chosen content. The overflow overwrites the stack canary, six saved callee-save registers, the return address, and 368 bytes of the caller's frame. With the default -fstack-protector-strong build the canary check aborts the process (guaranteed DoS); without stack protector it is a control-flow-hijack write primitive.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> isc-projects/bind9<br>
+<strong>Version:</strong> 9.21.21-dev (main branch, March 2026); any commit with cbm[8244] at zoneverify.c:~450<br>
+<strong>Location:</strong> <code>lib/dns/zoneverify.c:468, match_nsec3()</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "stack-buffer-overflow ... WRITE of size 32 at 0x... in __interceptor_memmove ... [5472, 13716) 'cbm' (line 450) &lt;== Memory access at offset 13716 overflows this variable" (13716 − 5472 = 8244, confirming the buffer size). The root cause is a sizing miscalculation: the author apparently knew the "compressed" NSEC3 wire format could exceed the 8192-byte raw bitmap (hence 8244 &gt; 8192) but underestimated the growth — the per-window 2-byte framing header means dense bitmaps grow rather than shrink, and the true maximum is 256 × 34 = 8704 bytes. dns_nsec_compressbitmap() takes no output-buffer size and writes unconditionally; the bug is the caller's undersized buffer, not the writer.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>==320560==ERROR: AddressSanitizer: stack-buffer-overflow on address 0x7fffb2503cb4 at pc 0x7f86d3e16c21 bp 0x7fffb2500670 sp 0x7fffb24ffe20
+WRITE of size 32 at 0x7fffb2503cb4 thread T0
+    #0 0x7f86d3e16c20 in __interceptor_memmove ../../../../src/libsanitizer/sanitizer_common/sanitizer_common_interceptors.inc:810
+    #1 0x7f86d3922c15 in memmove /usr/include/x86_64-linux-gnu/bits/string_fortified.h:36
+    #2 0x7f86d3922c15 in dns_nsec_compressbitmap ../lib/dns/nsec.c:87
+    #3 0x7f86d3be6ed3 in match_nsec3 ../lib/dns/zoneverify.c:468
+    #4 0x7f86d3be6ed3 in verifynsec3 ../lib/dns/zoneverify.c:736
+    #5 0x7f86d3be77e6 in verifynsec3s ../lib/dns/zoneverify.c:765
+    #6 0x7f86d3be99fb in verifynode ../lib/dns/zoneverify.c:957
+    #7 0x7f86d3bee323 in verify_nodes ../lib/dns/zoneverify.c:1761
+    [... 6 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Construct an unsigned zone containing one TYPE RR per NSEC3 bitmap window (256 records), each chosen so the type's bit lands in byte index 31 of its window (e.g., TYPE(W*256+248) for window W)</li>
+<li>Sign the zone with NSEC3: dnssec-signzone -3 - -A -o example.com db.example.com</li>
+<li>Deliver the resulting db.example.com.signed to the target and cause dnssec-verify to process it</li>
+<li>verify_nodes → verifynode → verifynsec3s → verifynsec3 → match_nsec3 populates types[8192] with all 256 windows non-empty at octet 31</li>
+<li>match_nsec3 calls dns_nsec_compressbitmap(cbm, types, maxtype); the compressor emits 255×34 + 1×18 = 8688 bytes into the 8244-byte cbm[] stack buffer</li>
+<li>The 444-byte overflow overwrites the stack canary (rsp+0x2b48), six saved registers (rbx, rbp, r12–r15 at rsp+0x2b58), the return address (rsp+0x2b88), and 368 bytes of the caller's frame</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-S6CB3P3P.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-S6CB3P3P<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/lib/dns/include/dns/nsec.h b/lib/dns/include/dns/nsec.h</span>
+<span class="diff-h">index eda6214bb16..ebb1c65a438 100644</span>
+<span class="diff-h">--- a/lib/dns/include/dns/nsec.h</span>
+<span class="diff-h">+++ b/lib/dns/include/dns/nsec.h</span>
+<span class="diff-h">@@ -21,7 +21,12 @@</span>
+<span class="diff-c"> #include &lt;dns/name.h&gt;</span>
+<span class="diff-c"> #include &lt;dns/types.h&gt;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-#define DNS_NSEC_BUFFERSIZE (DNS_NAME_MAXWIRE + 8192 + 512)</span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+ * max compressed bitmap size:</span>
+<span class="diff-a">+ * 256 windows * (window number + window length + bitmap (max 256 bits))</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+#define DNS_NSEC_MAXCBMSIZE (256 * ((256 / 8) + 2))</span>
+<span class="diff-a">+#define DNS_NSEC_BUFFERSIZE (DNS_NAME_MAXWIRE + DNS_NSEC_MAXCBMSIZE)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> isc_result_t</span>
+<span class="diff-c"> dns_nsec_buildrdata(dns_db_t *db, dns_dbversion_t *version, dns_dbnode_t *node,</span>
+<span class="diff-h">diff --git a/lib/dns/zoneverify.c b/lib/dns/zoneverify.c</span>
+<span class="diff-h">index 70209432a2c..70e21b4270d 100644</span>
+<span class="diff-h">--- a/lib/dns/zoneverify.c</span>
+<span class="diff-h">+++ b/lib/dns/zoneverify.c</span>
+<span class="diff-h">@@ -447,7 +447,7 @@ match_nsec3(const vctx_t *vctx, const dns_name_t *name,</span>
+<span class="diff-c"> 	    const unsigned char types[8192], unsigned int maxtype,</span>
+<span class="diff-c"> 	    const unsigned char *rawhash, size_t rhsize,</span>
+<span class="diff-c"> 	    isc_result_t *vresult) {</span>
+<span class="diff-d">-	unsigned char cbm[8244];</span>
+<span class="diff-a">+	unsigned char cbm[DNS_NSEC_MAXCBMSIZE];</span>
+<span class="diff-c"> 	char namebuf[DNS_NAME_FORMATSIZE];</span>
+<span class="diff-c"> 	dns_rdata_nsec3_t nsec3;</span>
+<span class="diff-c"> 	isc_result_t result;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/isc-projects/bind9/commit/e43e4bd20a99860e79294afbcc9b75f01ff28c26" rel="noopener noreferrer">https://github.com/isc-projects/bind9/commit/e43e4bd20a99860e79294afbcc9b75f01ff28c26</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-26</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-01</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee</p>
+<p class="kicker">Committed 2026-05-07 14:53 UTC</p>
+<p class="kicker">Revealed 2026-07-08 22:58 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-S6CB3P3P-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-S6CB3P3P%22%2C%22bug_class%22%3A%22Stack%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-01T02%3A25%3A22%2B00%3A00%22%2C%22description%22%3A%22In%20BIND%27s%20DNSSEC%20zone-verification%20path%2C%20match_nsec3%28%29%20declares%20a%20stack%20buffer%20cbm%5B8244%5D%20and%20passes%20it%20to%20dns_nsec_compressbitmap%28%29%20without%20a%20size%20argument.%20The%20compressor%20iterates%20up%20to%20256%20bitmap%20windows%20emitting%20up%20to%2034%20bytes%20each%20%282%20header%20%2B%2032%20data%29%2C%20for%20a%20worst%20case%20of%208704%20bytes%20%E2%80%94%20a%20460-byte%20shortfall.%20An%20attacker%20supplying%20a%20DNSSEC-signed%20zone%20file%20for%20verification%20controls%20which%20RR%20types%20appear%20at%20the%20zone%20apex%20and%20thus%20which%20bitmap%20bytes%20are%20written%3B%20by%20placing%20one%20TYPE%3Cn%3E%20record%20per%20window%20at%20byte%20index%2031%2C%20the%20attacker%20forces%20a%20444-byte%20overflow%20with%20~94%25%20attacker-chosen%20content.%20The%20overflow%20overwrites%20the%20stack%20canary%2C%20six%20saved%20callee-save%20registers%2C%20the%20return%20address%2C%20and%20368%20bytes%20of%20the%20caller%27s%20frame.%20With%20the%20default%20-fstack-protector-strong%20build%20the%20canary%20check%20aborts%20the%20process%20%28guaranteed%20DoS%29%3B%20without%20stack%20protector%20it%20is%20a%20control-flow-hijack%20write%20primitive.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22lib/dns/zoneverify.c%3A468%2C%20match_nsec3%28%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22bind9%22%2C%22reproduction%22%3A%5B%221.%20Construct%20an%20unsigned%20zone%20containing%20one%20TYPE%3Cn%3E%20RR%20per%20NSEC3%20bitmap%20window%20%28256%20records%29%2C%20each%20chosen%20so%20the%20type%27s%20bit%20lands%20in%20byte%20index%2031%20of%20its%20window%20%28e.g.%2C%20TYPE%28W%2A256%2B248%29%20for%20window%20W%29%22%2C%222.%20Sign%20the%20zone%20with%20NSEC3%3A%20dnssec-signzone%20-3%20-%20-A%20-o%20example.com%20db.example.com%22%2C%223.%20Deliver%20the%20resulting%20db.example.com.signed%20to%20the%20target%20and%20cause%20dnssec-verify%20to%20process%20it%22%2C%224.%20verify_nodes%20%E2%86%92%20verifynode%20%E2%86%92%20verifynsec3s%20%E2%86%92%20verifynsec3%20%E2%86%92%20match_nsec3%20populates%20types%5B8192%5D%20with%20all%20256%20windows%20non-empty%20at%20octet%2031%22%2C%225.%20match_nsec3%20calls%20dns_nsec_compressbitmap%28cbm%2C%20types%2C%20maxtype%29%3B%20the%20compressor%20emits%20255%C3%9734%20%2B%201%C3%9718%20%3D%208688%20bytes%20into%20the%208244-byte%20cbm%5B%5D%20stack%20buffer%22%2C%226.%20The%20444-byte%20overflow%20overwrites%20the%20stack%20canary%20%28rsp%2B0x2b48%29%2C%20six%20saved%20registers%20%28rbx%2C%20rbp%2C%20r12%E2%80%93r15%20at%20rsp%2B0x2b58%29%2C%20the%20return%20address%20%28rsp%2B0x2b88%29%2C%20and%20368%20bytes%20of%20the%20caller%27s%20frame%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22stack-buffer-overflow%20...%20WRITE%20of%20size%2032%20at%200x...%20in%20__interceptor_memmove%20...%20%5B5472%2C%2013716%29%20%27cbm%27%20%28line%20450%29%20%3C%3D%3D%20Memory%20access%20at%20offset%2013716%20overflows%20this%20variable%5C%22%20%2813716%20%E2%88%92%205472%20%3D%208244%2C%20confirming%20the%20buffer%20size%29.%20The%20root%20cause%20is%20a%20sizing%20miscalculation%3A%20the%20author%20apparently%20knew%20the%20%5C%22compressed%5C%22%20NSEC3%20wire%20format%20could%20exceed%20the%208192-byte%20raw%20bitmap%20%28hence%208244%20%3E%208192%29%20but%20underestimated%20the%20growth%20%E2%80%94%20the%20per-window%202-byte%20framing%20header%20means%20dense%20bitmaps%20grow%20rather%20than%20shrink%2C%20and%20the%20true%20maximum%20is%20256%20%C3%97%2034%20%3D%208704%20bytes.%20dns_nsec_compressbitmap%28%29%20takes%20no%20output-buffer%20size%20and%20writes%20unconditionally%3B%20the%20bug%20is%20the%20caller%27s%20undersized%20buffer%2C%20not%20the%20writer.%22%2C%22title%22%3A%2203-bind9-matchnsec3-stack-bof%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-S6CB3P3P&#34;,
+  &#34;bug_class&#34;: &#34;Stack Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-01T02:25:22+00:00&#34;,
+  &#34;description&#34;: &#34;In BIND&#39;s DNSSEC zone-verification path, match_nsec3() declares a stack buffer cbm[8244] and passes it to dns_nsec_compressbitmap() without a size argument. The compressor iterates up to 256 bitmap windows emitting up to 34 bytes each (2 header + 32 data), for a worst case of 8704 bytes — a 460-byte shortfall. An attacker supplying a DNSSEC-signed zone file for verification controls which RR types appear at the zone apex and thus which bitmap bytes are written; by placing one TYPE&lt;n&gt; record per window at byte index 31, the attacker forces a 444-byte overflow with ~94% attacker-chosen content. The overflow overwrites the stack canary, six saved callee-save registers, the return address, and 368 bytes of the caller&#39;s frame. With the default -fstack-protector-strong build the canary check aborts the process (guaranteed DoS); without stack protector it is a control-flow-hijack write primitive.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;lib/dns/zoneverify.c:468, match_nsec3()&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;bind9&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Construct an unsigned zone containing one TYPE&lt;n&gt; RR per NSEC3 bitmap window (256 records), each chosen so the type&#39;s bit lands in byte index 31 of its window (e.g., TYPE(W*256+248) for window W)&#34;,
+    &#34;2. Sign the zone with NSEC3: dnssec-signzone -3 - -A -o example.com db.example.com&#34;,
+    &#34;3. Deliver the resulting db.example.com.signed to the target and cause dnssec-verify to process it&#34;,
+    &#34;4. verify_nodes → verifynode → verifynsec3s → verifynsec3 → match_nsec3 populates types[8192] with all 256 windows non-empty at octet 31&#34;,
+    &#34;5. match_nsec3 calls dns_nsec_compressbitmap(cbm, types, maxtype); the compressor emits 255×34 + 1×18 = 8688 bytes into the 8244-byte cbm[] stack buffer&#34;,
+    &#34;6. The 444-byte overflow overwrites the stack canary (rsp+0x2b48), six saved registers (rbx, rbp, r12–r15 at rsp+0x2b58), the return address (rsp+0x2b88), and 368 bytes of the caller&#39;s frame&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;stack-buffer-overflow ... WRITE of size 32 at 0x... in __interceptor_memmove ... [5472, 13716) &#39;cbm&#39; (line 450) &lt;== Memory access at offset 13716 overflows this variable\&#34; (13716 − 5472 = 8244, confirming the buffer size). The root cause is a sizing miscalculation: the author apparently knew the \&#34;compressed\&#34; NSEC3 wire format could exceed the 8192-byte raw bitmap (hence 8244 &gt; 8192) but underestimated the growth — the per-window 2-byte framing header means dense bitmaps grow rather than shrink, and the true maximum is 256 × 34 = 8704 bytes. dns_nsec_compressbitmap() takes no output-buffer size and writes unconditionally; the bug is the caller&#39;s undersized buffer, not the writer.&#34;,
+  &#34;title&#34;: &#34;03-bind9-matchnsec3-stack-bof&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-Z3GGGKM5 · ava-labs/libevm</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-Z3GGGKM5 · ava-labs/libevm</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  null-deref
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Anvil Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-Z3GGGKM5: Reentrancy guard dereferences nil StateDB under static call</h1>
+<p>In libevm's reentrancy package, Guard() fetches env.StateDB() and immediately calls sdb.GetTransientState() with no nil check. The PrecompileEnvironment contract and implementation explicitly return a nil StateDB interface when the interpreter is read-only, which is the case for any stateful precompile reached via STATICCALL or from within an existing static frame. An attacker who can submit a transaction deploys a contract that STATICCALLs a guarded precompile; the nil-interface method call panics, and because there is no recover() on the block-import path, every validating node processing the canonical block crashes in lockstep. The result is a deterministic, chain-wide halt requiring a patched binary to resume.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ava-labs/libevm<br>
+<strong>Location:</strong> <code>libevm/reentrancy/guard.go:45</code>  </p>
+<h2>Technical Details</h2>
+<p>Guard() assumes env.StateDB() is always non-nil, but core/vm/environment.libevm.go:83-88 returns nil in read-only mode by design. Invoking GetTransientState() on a nil interface value panics, and the block-processing path (core/state_processor.go, core/blockchain.go) has no recover(), so the panic propagates to process termination. reentrancy.Guard is the library's officially recommended wrapper for stateful precompiles that use env.Call(), and its tests cover only the non-static CALL path.</p>
+<p><strong>Crash signature:</strong> <code>Go runtime panic: nil pointer / nil interface method call in reentrancy.Guard → StateDB().GetTransientState()</code></p>
+<h2>Reproduction</h2>
+<ol>
+<li>Deploy a trivial contract containing staticcall(gas(), P, 0, 0, 0, 0) where P is the guarded precompile address</li>
+<li>Submit a single transaction invoking that contract</li>
+<li>During block processing, env.StateDB() returns nil under the static frame and GetTransientState() panics</li>
+<li>Panic propagates past block import (no recover()), terminating the node process on every validator</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Make the guard safe in read-only context: check env.ReadOnly() and return a revert error before touching StateDB(), or read transient state via an accessor guaranteed non-nil under static calls.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-Z3GGGKM5.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-Z3GGGKM5<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Anvil Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libevm/reentrancy/guard.go b/libevm/reentrancy/guard.go</span>
+<span class="diff-h">index 8a782bcf95f6..ac5206359fcc 100644</span>
+<span class="diff-h">--- a/libevm/reentrancy/guard.go</span>
+<span class="diff-h">+++ b/libevm/reentrancy/guard.go</span>
+<span class="diff-h">@@ -33,11 +33,16 @@ var slotPreimagePrefix = []byte(&quot;libevm-reentrancy-guard-&quot;)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> // Guard returns [vm.ErrExecutionReverted] i.f.f. it has already been called</span>
+<span class="diff-c"> // with the same `key`, by the same contract, in the same transaction. It</span>
+<span class="diff-d">-// otherwise returns nil. The `key` MAY be nil.</span>
+<span class="diff-a">+// otherwise returns nil unless in a read-only context, in which case it always</span>
+<span class="diff-a">+// returns [vm.ErrWriteProtection]. The `key` MAY be nil.</span>
+<span class="diff-c"> //</span>
+<span class="diff-c"> // Contract equality is defined as the [libevm.AddressContext] &quot;self&quot; address</span>
+<span class="diff-c"> // being the same under EVM semantics.</span>
+<span class="diff-c"> func Guard(env vm.PrecompileEnvironment, key []byte) error {</span>
+<span class="diff-a">+	if env.ReadOnly() {</span>
+<span class="diff-a">+		return vm.ErrWriteProtection</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	self := env.Addresses().EVMSemantic.Self</span>
+<span class="diff-c"> 	slot := crypto.Keccak256Hash(slotPreimagePrefix, key)</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/libevm/reentrancy/guard_test.go b/libevm/reentrancy/guard_test.go</span>
+<span class="diff-h">index 83e0de4a44bf..ac8ec8cd8225 100644</span>
+<span class="diff-h">--- a/libevm/reentrancy/guard_test.go</span>
+<span class="diff-h">+++ b/libevm/reentrancy/guard_test.go</span>
+<span class="diff-h">@@ -76,6 +76,11 @@ func TestGuardIntegration(t *testing.T) {</span>
+<span class="diff-c"> 	// This MUST NOT be [assert.ErrorIs] as such errors are never wrapped in geth.</span>
+<span class="diff-c"> 	assert.Equal(t, err, vm.ErrExecutionReverted, &quot;Precompile reverted&quot;)</span>
+<span class="diff-c"> 	assert.Equal(t, returnIfGuarded, got, &quot;Precompile reverted with expected data&quot;)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	t.Run(&quot;static_call&quot;, func(t *testing.T) {</span>
+<span class="diff-a">+		_, _, err := evm.StaticCall(vm.AccountRef{}, sut, []byte{}, 1e6)</span>
+<span class="diff-a">+		require.Equal(t, vm.ErrWriteProtection, err, &quot;StaticCall()&quot;)</span>
+<span class="diff-a">+	})</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> type envStub struct {</span>
+<span class="diff-h">@@ -92,6 +97,10 @@ func (s *envStub) Addresses() *libevm.AddressContext {</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+func (*envStub) ReadOnly() bool {</span>
+<span class="diff-a">+	return false</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func (s *envStub) StateDB() vm.StateDB {</span>
+<span class="diff-c"> 	return s.db</span>
+<span class="diff-c"> }</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/ava-labs/libevm/commit/63a0b4c93a12787bfaa60da768b176d3a8a6cd79" rel="noopener noreferrer">https://github.com/ava-labs/libevm/commit/63a0b4c93a12787bfaa60da768b176d3a8a6cd79</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-19</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">25cafbdb7f56b02677dd08c704a1e05a3d7d3a69fbfab1130950e27249e4a437e1d5762056c9597a6c59a7b25385f70b25aa2a26c24e9a4843eb383b6d4afaff</p>
+<p class="kicker">Committed 2026-04-21 22:42 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-Z3GGGKM5-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-Z3GGGKM5%22%2C%22bug_class%22%3A%22Denial%20of%20Service%20/%20Nil%20Pointer%20Dereference%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-21T16%3A54%3A30%2B00%3A00%22%2C%22description%22%3A%22In%20libevm%27s%20reentrancy%20package%2C%20Guard%28%29%20fetches%20env.StateDB%28%29%20and%20immediately%20calls%20sdb.GetTransientState%28%29%20with%20no%20nil%20check.%20The%20PrecompileEnvironment%20contract%20and%20implementation%20explicitly%20return%20a%20nil%20StateDB%20interface%20when%20the%20interpreter%20is%20read-only%2C%20which%20is%20the%20case%20for%20any%20stateful%20precompile%20reached%20via%20STATICCALL%20or%20from%20within%20an%20existing%20static%20frame.%20An%20attacker%20who%20can%20submit%20a%20transaction%20deploys%20a%20contract%20that%20STATICCALLs%20a%20guarded%20precompile%3B%20the%20nil-interface%20method%20call%20panics%2C%20and%20because%20there%20is%20no%20recover%28%29%20on%20the%20block-import%20path%2C%20every%20validating%20node%20processing%20the%20canonical%20block%20crashes%20in%20lockstep.%20The%20result%20is%20a%20deterministic%2C%20chain-wide%20halt%20requiring%20a%20patched%20binary%20to%20resume.%22%2C%22discovered_at%22%3A%222026-04-19T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22libevm/reentrancy/guard.go%3A45%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ava-labs/libevm%22%2C%22reproduction%22%3A%5B%221.%20Deploy%20a%20trivial%20contract%20containing%20staticcall%28gas%28%29%2C%20P%2C%200%2C%200%2C%200%2C%200%29%20where%20P%20is%20the%20guarded%20precompile%20address%22%2C%222.%20Submit%20a%20single%20transaction%20invoking%20that%20contract%22%2C%223.%20During%20block%20processing%2C%20env.StateDB%28%29%20returns%20nil%20under%20the%20static%20frame%20and%20GetTransientState%28%29%20panics%22%2C%224.%20Panic%20propagates%20past%20block%20import%20%28no%20recover%28%29%29%2C%20terminating%20the%20node%20process%20on%20every%20validator%22%5D%2C%22technical_details%22%3A%22Guard%28%29%20assumes%20env.StateDB%28%29%20is%20always%20non-nil%2C%20but%20core/vm/environment.libevm.go%3A83-88%20returns%20nil%20in%20read-only%20mode%20by%20design.%20Invoking%20GetTransientState%28%29%20on%20a%20nil%20interface%20value%20panics%2C%20and%20the%20block-processing%20path%20%28core/state_processor.go%2C%20core/blockchain.go%29%20has%20no%20recover%28%29%2C%20so%20the%20panic%20propagates%20to%20process%20termination.%20reentrancy.Guard%20is%20the%20library%27s%20officially%20recommended%20wrapper%20for%20stateful%20precompiles%20that%20use%20env.Call%28%29%2C%20and%20its%20tests%20cover%20only%20the%20non-static%20CALL%20path.%22%2C%22title%22%3A%22Reentrancy%20guard%20dereferences%20nil%20StateDB%20under%20static%20call%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-Z3GGGKM5&#34;,
+  &#34;bug_class&#34;: &#34;Denial of Service / Nil Pointer Dereference&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-21T16:54:30+00:00&#34;,
+  &#34;description&#34;: &#34;In libevm&#39;s reentrancy package, Guard() fetches env.StateDB() and immediately calls sdb.GetTransientState() with no nil check. The PrecompileEnvironment contract and implementation explicitly return a nil StateDB interface when the interpreter is read-only, which is the case for any stateful precompile reached via STATICCALL or from within an existing static frame. An attacker who can submit a transaction deploys a contract that STATICCALLs a guarded precompile; the nil-interface method call panics, and because there is no recover() on the block-import path, every validating node processing the canonical block crashes in lockstep. The result is a deterministic, chain-wide halt requiring a patched binary to resume.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-19T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;libevm/reentrancy/guard.go:45&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ava-labs/libevm&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Deploy a trivial contract containing staticcall(gas(), P, 0, 0, 0, 0) where P is the guarded precompile address&#34;,
+    &#34;2. Submit a single transaction invoking that contract&#34;,
+    &#34;3. During block processing, env.StateDB() returns nil under the static frame and GetTransientState() panics&#34;,
+    &#34;4. Panic propagates past block import (no recover()), terminating the node process on every validator&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Guard() assumes env.StateDB() is always non-nil, but core/vm/environment.libevm.go:83-88 returns nil in read-only mode by design. Invoking GetTransientState() on a nil interface value panics, and the block-processing path (core/state_processor.go, core/blockchain.go) has no recover(), so the panic propagates to process termination. reentrancy.Guard is the library&#39;s officially recommended wrapper for stateful precompiles that use env.Call(), and its tests cover only the non-static CALL path.&#34;,
+  &#34;title&#34;: &#34;Reentrancy guard dereferences nil StateDB under static call&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

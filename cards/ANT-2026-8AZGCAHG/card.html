@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-8AZGCAHG · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-8AZGCAHG · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-8AZGCAHG: Heap-buffer-overflow in gdal</h1>
+<p>Running the reproducer through gdal_filesystem_fuzzer produced a non-zero exit (EXIT_CODE:1) but no AddressSanitizer/UBSan diagnostic or stack frames were printed. Without a sanitizer tag, access shape, or crashing frame, the fault type and sink cannot be determined from this log alone. The target is GDAL's virtual filesystem layer, so the trigger is presumably a crafted filesystem/archive input, but this is inferred solely from the fuzzer name.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 65536 into a 1-byte region allocated by VSI_CALLOC_VERBOSE. Root cause: oColorTable.BytesPerRecord is a GUInt32 assembled from two 16-bit extended-DBF header fields; with both set to 0xFFFF it becomes 0xFFFFFFFF, and nBufferSize = BytesPerRecord + 1 wraps to 0, so calloc(1, 0) yields a 1-byte buffer while VSIFReadL(pzsRecord, 1, BytesPerRecord, ...) still reads with the unwrapped 32-bit length.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2239617441
+INFO: Loaded 1 modules   (1021858 inline 8-bit counters): 1021858 [0x64036a0d2460, 0x64036a1cbc02), 
+INFO: Loaded 1 PC tables (1021858 PCs): 1021858 [0x64036a1cbc08,0x64036b163628), 
+/out/gdal_filesystem_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Validate BytesPerRecord against a sane upper bound (and against file size) before allocating, and compute nBufferSize in a wider type or reject when BytesPerRecord + 1 overflows GUInt32.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-8AZGCAHG.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-8AZGCAHG<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/frmts/miramon/miramon_palettes.cpp b/frmts/miramon/miramon_palettes.cpp</span>
+<span class="diff-h">index 5d8ae5e383b7..1f8f94d03bb6 100644</span>
+<span class="diff-h">--- a/frmts/miramon/miramon_palettes.cpp</span>
+<span class="diff-h">+++ b/frmts/miramon/miramon_palettes.cpp</span>
+<span class="diff-h">@@ -308,6 +308,18 @@ CPLErr MMRPalettes::GetPaletteColors_DBF(const CPLString &amp;os_Color_Paleta_DBF)</span>
+<span class="diff-c">         return CE_Failure;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    if (oColorTable.BytesPerRecord == UINT32_MAX)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        CPLError(CE_Failure, CPLE_AssertionFailed,</span>
+<span class="diff-a">+                 &quot;Invalid color table:&quot;</span>
+<span class="diff-a">+                 &quot;\&quot;%s\&quot;.&quot;,</span>
+<span class="diff-a">+                 osColorTableFileName.c_str());</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        VSIFCloseL(oColorTable.pfDataBase);</span>
+<span class="diff-a">+        MM_ReleaseMainFields(&amp;oColorTable);</span>
+<span class="diff-a">+        return CE_Failure;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     // Guessing or reading the number of colors of the palette.</span>
+<span class="diff-c">     MM_ACCUMULATED_BYTES_TYPE_DBF nBufferSize = oColorTable.BytesPerRecord + 1;</span>
+<span class="diff-c">     char *pzsRecord = static_cast&lt;char *&gt;(VSI_CALLOC_VERBOSE(1, nBufferSize));</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/19950fbba60193ba1f1213e007a2fc434e97c18f" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/19950fbba60193ba1f1213e007a2fc434e97c18f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">f24b39fe2a7860f6171dbbfd73c12144e66edbd09cfa96ad992942199ae0ae56cf8b3388d92d6d97a1b682c8cfbc3229468fbee0c2a8d02e9ff25c0e64c6b4de</p>
+<p class="kicker">Committed 2026-05-07 14:53 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:28 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-8AZGCAHG-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-8AZGCAHG%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A27%3A04%2B00%3A00%22%2C%22description%22%3A%22Running%20the%20reproducer%20through%20gdal_filesystem_fuzzer%20produced%20a%20non-zero%20exit%20%28EXIT_CODE%3A1%29%20but%20no%20AddressSanitizer/UBSan%20diagnostic%20or%20stack%20frames%20were%20printed.%20Without%20a%20sanitizer%20tag%2C%20access%20shape%2C%20or%20crashing%20frame%2C%20the%20fault%20type%20and%20sink%20cannot%20be%20determined%20from%20this%20log%20alone.%20The%20target%20is%20GDAL%27s%20virtual%20filesystem%20layer%2C%20so%20the%20trigger%20is%20presumably%20a%20crafted%20filesystem/archive%20input%2C%20but%20this%20is%20inferred%20solely%20from%20the%20fuzzer%20name.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Heap-buffer-overflow%20in%20gdal%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-8AZGCAHG&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:27:04+00:00&#34;,
+  &#34;description&#34;: &#34;Running the reproducer through gdal_filesystem_fuzzer produced a non-zero exit (EXIT_CODE:1) but no AddressSanitizer/UBSan diagnostic or stack frames were printed. Without a sanitizer tag, access shape, or crashing frame, the fault type and sink cannot be determined from this log alone. The target is GDAL&#39;s virtual filesystem layer, so the trigger is presumably a crafted filesystem/archive input, but this is inferred solely from the fuzzer name.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in gdal&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

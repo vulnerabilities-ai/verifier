@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-HFGGE6HR · asterisk/asterisk</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-HFGGE6HR · asterisk/asterisk</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-57191">CVE-2026-57191</a>
+  <a class="id-badge" href="https://github.com/asterisk/asterisk/security/advisories/GHSA-589g-qgf8-m6mx">GHSA-589g-qgf8-m6mx</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical (revised; sealed as high)</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-HFGGE6HR: Stack buffer overflow in parse_simple_message_summary via unbounded sscanf %s (SIP MWI NOTIFY)</h1>
+<p>In res_pjsip_pubsub.c at line 3889, parse_simple_message_summary() uses sscanf with an unbounded %s conversion to read a field from the body of an incoming SIP NOTIFY (Event: message-summary) into a fixed-size stack buffer. The parser is reached from the network via pubsub_on_rx_notify_request → pubsub_on_rx_mwi_notify_request → parse_simple_message_summary. An attacker who can deliver a single UDP NOTIFY with an oversized body field writes fully attacker-controlled bytes past the end of the stack local (a 901-byte out-of-bounds WRITE was observed). This yields stack memory corruption and potential control-flow hijack.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> asterisk/asterisk<br>
+<strong>Location:</strong> <code>res/res_pjsip_pubsub.c:3889</code>  </p>
+<h2>Technical Details</h2>
+<p>res_pjsip_pubsub.c:3889 parse_simple_message_summary() calls sscanf with an unbounded %s into a fixed stack buffer while parsing the body of an incoming SIP NOTIFY (Event: message-summary). A single UDP NOTIFY whose body field exceeds the buffer length writes attacker-controlled bytes (observed 901-byte WRITE) past the stack local. Reached via pubsub_on_rx_notify_request → pubsub_on_rx_mwi_notify_request → parse_simple_message_summary.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a SIP NOTIFY request with Event: message-summary and a body field longer than the fixed stack buffer.</li>
+<li>Send the NOTIFY over UDP to the target's SIP endpoint.</li>
+<li>pubsub_on_rx_notify_request dispatches to pubsub_on_rx_mwi_notify_request, which calls parse_simple_message_summary().</li>
+<li>sscanf with unbounded %s copies the oversized field into the stack buffer, writing attacker-controlled bytes past its end.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Replace the unbounded %s in sscanf at res_pjsip_pubsub.c:3889 with a width-limited specifier (e.g., %255s) sized to the destination buffer, or rewrite using ast_strsep/ast_copy_string.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-HFGGE6HR.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-HFGGE6HR<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The severity shown is the firm's current assessment; the report was sealed with the firm's earlier assessment of high.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical (revised; sealed as high)</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/res/res_pjsip_pubsub.c b/res/res_pjsip_pubsub.c</span>
+<span class="diff-h">index 644b54238fd..1545acc4756 100644</span>
+<span class="diff-h">--- a/res/res_pjsip_pubsub.c</span>
+<span class="diff-h">+++ b/res/res_pjsip_pubsub.c</span>
+<span class="diff-h">@@ -3886,7 +3886,7 @@ static int parse_simple_message_summary(char *body,</span>
+<span class="diff-c"> 			&amp;summary-&gt;voice_messages_urgent_new, &amp;summary-&gt;voice_messages_urgent_old)) {</span>
+<span class="diff-c"> 			found_counts = 1;</span>
+<span class="diff-c"> 		} else {</span>
+<span class="diff-d">-			sscanf(line, &quot;message-account: %s&quot;, summary-&gt;message_account);</span>
+<span class="diff-a">+			sscanf(line, &quot;message-account: %511s&quot;, summary-&gt;message_account);</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/asterisk/asterisk/commit/7a1ffcdf38cc76d1c4eae51651667f3fd4548ab0" rel="noopener noreferrer">https://github.com/asterisk/asterisk/commit/7a1ffcdf38cc76d1c4eae51651667f3fd4548ab0</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/asterisk/asterisk/commit/7a1ffcdf38cc76d1c4eae51651667f3fd4548ab0" rel="noopener noreferrer">https://github.com/asterisk/asterisk/commit/7a1ffcdf38cc76d1c4eae51651667f3fd4548ab0</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-29</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">4af0e700ec9c669355834e3145eef3b8a700d116006ebbf92fbb1219711ed32b6b53e7c3625b7c28fe84fb31aa2e9c5adcfae86b6091f267dcff34fe0dee0386</p>
+<p class="kicker">Committed 2026-05-07 07:03 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:23 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-HFGGE6HR-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-HFGGE6HR%22%2C%22bug_class%22%3A%22stack_buffer_overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-10T23%3A56%3A30%2B00%3A00%22%2C%22description%22%3A%22In%20res_pjsip_pubsub.c%20at%20line%203889%2C%20parse_simple_message_summary%28%29%20uses%20sscanf%20with%20an%20unbounded%20%25s%20conversion%20to%20read%20a%20field%20from%20the%20body%20of%20an%20incoming%20SIP%20NOTIFY%20%28Event%3A%20message-summary%29%20into%20a%20fixed-size%20stack%20buffer.%20The%20parser%20is%20reached%20from%20the%20network%20via%20pubsub_on_rx_notify_request%20%E2%86%92%20pubsub_on_rx_mwi_notify_request%20%E2%86%92%20parse_simple_message_summary.%20An%20attacker%20who%20can%20deliver%20a%20single%20UDP%20NOTIFY%20with%20an%20oversized%20body%20field%20writes%20fully%20attacker-controlled%20bytes%20past%20the%20end%20of%20the%20stack%20local%20%28a%20901-byte%20out-of-bounds%20WRITE%20was%20observed%29.%20This%20yields%20stack%20memory%20corruption%20and%20potential%20control-flow%20hijack.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22res/res_pjsip_pubsub.c%3A3889%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22asterisk/asterisk%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20SIP%20NOTIFY%20request%20with%20Event%3A%20message-summary%20and%20a%20body%20field%20longer%20than%20the%20fixed%20stack%20buffer.%22%2C%222.%20Send%20the%20NOTIFY%20over%20UDP%20to%20the%20target%27s%20SIP%20endpoint.%22%2C%223.%20pubsub_on_rx_notify_request%20dispatches%20to%20pubsub_on_rx_mwi_notify_request%2C%20which%20calls%20parse_simple_message_summary%28%29.%22%2C%224.%20sscanf%20with%20unbounded%20%25s%20copies%20the%20oversized%20field%20into%20the%20stack%20buffer%2C%20writing%20attacker-controlled%20bytes%20past%20its%20end.%22%5D%2C%22technical_details%22%3A%22res_pjsip_pubsub.c%3A3889%20parse_simple_message_summary%28%29%20calls%20sscanf%20with%20an%20unbounded%20%25s%20into%20a%20fixed%20stack%20buffer%20while%20parsing%20the%20body%20of%20an%20incoming%20SIP%20NOTIFY%20%28Event%3A%20message-summary%29.%20A%20single%20UDP%20NOTIFY%20whose%20body%20field%20exceeds%20the%20buffer%20length%20writes%20attacker-controlled%20bytes%20%28observed%20901-byte%20WRITE%29%20past%20the%20stack%20local.%20Reached%20via%20pubsub_on_rx_notify_request%20%E2%86%92%20pubsub_on_rx_mwi_notify_request%20%E2%86%92%20parse_simple_message_summary.%22%2C%22title%22%3A%22Stack%20buffer%20overflow%20in%20parse_simple_message_summary%20via%20unbounded%20sscanf%20%25s%20%28SIP%20MWI%20NOTIFY%29%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-HFGGE6HR&#34;,
+  &#34;bug_class&#34;: &#34;stack_buffer_overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-10T23:56:30+00:00&#34;,
+  &#34;description&#34;: &#34;In res_pjsip_pubsub.c at line 3889, parse_simple_message_summary() uses sscanf with an unbounded %s conversion to read a field from the body of an incoming SIP NOTIFY (Event: message-summary) into a fixed-size stack buffer. The parser is reached from the network via pubsub_on_rx_notify_request → pubsub_on_rx_mwi_notify_request → parse_simple_message_summary. An attacker who can deliver a single UDP NOTIFY with an oversized body field writes fully attacker-controlled bytes past the end of the stack local (a 901-byte out-of-bounds WRITE was observed). This yields stack memory corruption and potential control-flow hijack.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;res/res_pjsip_pubsub.c:3889&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;asterisk/asterisk&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a SIP NOTIFY request with Event: message-summary and a body field longer than the fixed stack buffer.&#34;,
+    &#34;2. Send the NOTIFY over UDP to the target&#39;s SIP endpoint.&#34;,
+    &#34;3. pubsub_on_rx_notify_request dispatches to pubsub_on_rx_mwi_notify_request, which calls parse_simple_message_summary().&#34;,
+    &#34;4. sscanf with unbounded %s copies the oversized field into the stack buffer, writing attacker-controlled bytes past its end.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;res_pjsip_pubsub.c:3889 parse_simple_message_summary() calls sscanf with an unbounded %s into a fixed stack buffer while parsing the body of an incoming SIP NOTIFY (Event: message-summary). A single UDP NOTIFY whose body field exceeds the buffer length writes attacker-controlled bytes (observed 901-byte WRITE) past the stack local. Reached via pubsub_on_rx_notify_request → pubsub_on_rx_mwi_notify_request → parse_simple_message_summary.&#34;,
+  &#34;title&#34;: &#34;Stack buffer overflow in parse_simple_message_summary via unbounded sscanf %s (SIP MWI NOTIFY)&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

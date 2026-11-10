@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-7ZJGE8XJ · upx</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-7ZJGE8XJ · upx</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-7ZJGE8XJ: Heap buffer overflow in un_shlib_1 readx due to attacker-controlled offsets exceeding ibuf size</h1>
+<p>Attacker-controlled offset values are not validated against the size of ibuf before use in readx, allowing out-of-bounds heap access.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> upx<br>
+<strong>Location:</strong> <code>un_shlib_1 / readx</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a missing bounds check: offsets derived from attacker-supplied input are used to index into ibuf without verifying they fall within the allocated buffer size, resulting in a heap buffer overflow.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-7ZJGE8XJ.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-7ZJGE8XJ<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><p>This issue tracker is <strong>ONLY</strong> used for reporting bugs.
+Please use <a href="https://stackoverflow.com">stackoverflow</a> for supporting issues.</p>
+
+<p>From Anthropic "Trail of Bits" report:</p>
+<h2>Vulnerability Header</h2>
+<ul>
+<li><strong>Vulnerability Title &amp; ID:</strong> Heap Buffer Overflow in <code>un_shlib_1</code> readx — UPX (Bug 083 Sibling)</li>
+<li><strong>Security-Relevant:</strong> Yes</li>
+<li><strong>Severity Rating:</strong> High</li>
+<li><strong>Bug Category:</strong> Heap Buffer Overflow (Out-of-Bounds Write)</li>
+<li><strong>Source Commit:</strong> https://github.com/upx/upx @ 36babe770e83d2104f752c0c10d61eb945321f65 (oss-fuzz builder image, 2026-03-05)</li>
+<li><strong>Status:</strong> Confirmed (not fixed upstream as of Source Commit)</li>
+</ul>
+<h2>Executive Summary</h2>
+<p>A heap buffer overflow exists in UPX's <code>PackLinuxElf64::un_shlib_1</code> function when testing or decompressing a crafted UPX-packed ELF shared library. The <code>len</code> variable, computed from attacker-controlled values <code>yct_off</code>/<code>xct_off</code> and <code>sz_elf_hdrs</code>, can exceed the allocated <code>ibuf</code> buffer size, causing <code>fi-&gt;readx()</code> to write past the end of the heap buffer.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>In <code>p_lx_elf.cpp:7143</code>, the variable <code>len</code> is computed as:</p>
+<pre tabindex="0"><code class="language-cpp">unsigned const len = (yct_off ? yct_off : xct_off) - sz_elf_hdrs;
+</code></pre>
+<p>Both <code>yct_off</code> and <code>xct_off</code> are derived from attacker-controlled fields in the compressed ELF file. The <code>ibuf</code> buffer was allocated earlier at line 7795 with size <code>blocksize + OVERHEAD</code>. There is no validation that <code>sz_elf_hdrs + len &lt;= ibuf.getSize()</code> before the read at line 7146:</p>
+<pre tabindex="0"><code class="language-cpp">fi-&gt;readx(&amp;ibuf[sz_elf_hdrs], len);
+</code></pre>
+<p>When a crafted ELF file provides values where <code>(yct_off or xct_off) - sz_elf_hdrs</code> exceeds the remaining space in <code>ibuf</code>, the <code>readx</code> call writes 2680 bytes past the end of a 2508-byte heap allocation.</p>
+<h3>First Faulty Condition</h3>
+<p>Missing bounds check on <code>len</code> at <code>p_lx_elf.cpp:7143-7146</code>. The code should verify that <code>sz_elf_hdrs + len &lt;= ibuf.getSize()</code> before reading into the buffer.</p>
+<h3>Proposed Fix</h3>
+<p>Add a bounds check before the <code>readx</code> call (see <code>patch.diff</code>):</p>
+<pre tabindex="0"><code class="language-cpp">if ((upx_uint64_t)sz_elf_hdrs + len &gt; ibuf.getSize())
+    throwCantUnpack(&quot;bad xct_off or yct_off&quot;);
+</code></pre>
+<p><strong>Validated</strong>: the PoC is rejected with <code>CantUnpackException</code> (no ASAN crash) after applying the patch.</p>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<p>This bug is triggered when UPX processes a crafted UPX-packed ELF shared library via <code>upx -t &lt;file&gt;</code> (test) or <code>upx -d &lt;file&gt; -o &lt;out&gt;</code> (decompress). The oss-fuzz harness invokes the real <code>upx_main</code> code path with these flags, so fuzz-harness reachability matches real-world reachability for this issue.</p>
+<p><strong>Reachability verdict (fuzz harness): CONFIRMED</strong></p>
+<p><strong>Reachability verdict (real world): CONFIRMED</strong> — requires the user to run UPX on an attacker-supplied packed binary.</p>
+<p><strong>Prerequisite checks before the vulnerable code is reached:</strong>
+- File is accepted as an ELF64 input and routed to <code>PackLinuxElf64</code>.
+- The <code>un_shlib_1</code> unpacking path is selected (packed shared-library handling).
+- The code takes the "new style" path (<code>sz_block1 == sz_elf_hdrs</code>) before computing <code>len</code> and calling <code>readx</code>.</p>
+<h3>The Attack Sequence</h3>
+<ol>
+<li>An attacker crafts a UPX-packed ELF shared library with header/offset values that make <code>len = (yct_off ? yct_off : xct_off) - sz_elf_hdrs</code> exceed the remaining space in <code>ibuf</code>.</li>
+<li>A victim runs <code>upx -t</code> or <code>upx -d</code> on the file.</li>
+<li>UPX enters <code>PackLinuxElf64::un_shlib_1</code> and calls <code>fi-&gt;readx(&amp;ibuf[sz_elf_hdrs], len)</code> without validating that <code>sz_elf_hdrs + len</code> fits in <code>ibuf</code>.</li>
+<li>This results in an out-of-bounds heap write of attacker-controlled bytes.</li>
+</ol>
+<h3>Technical Primitive</h3>
+<p>The attacker gets a heap buffer overflow WRITE of ~2680 bytes. The write size is partially controlled (via <code>xct_off</code>/<code>yct_off</code> values), and the written data comes from <code>fi-&gt;readx()</code> which reads from the attacker-controlled input file. This gives a write primitive with attacker-controlled content and partially controlled size.</p>
+<h3>Mitigation Analysis</h3>
+<ul>
+<li><strong>ASLR</strong>: Partially mitigates — heap spray would be needed to place useful targets adjacent to the overflowed buffer.</li>
+<li><strong>DEP/NX</strong>: Does not directly apply to heap corruption.</li>
+<li><strong>Stack canaries</strong>: Not applicable (heap overflow).</li>
+<li><strong>Heap hardening</strong>: Modern allocators (e.g., glibc tcmalloc, jemalloc) provide some hardening but large overflows can still corrupt adjacent heap metadata or objects.</li>
+</ul>
+<h3>Reproduction Steps</h3>
+<pre tabindex="0"><code class="language-bash"># Build UPX fuzzers with ASAN
+cd /path/to/oss-fuzz
+python3 infra/helper.py build_fuzzers --sanitizer address upx
+
+# Run the PoC (either entrypoint reproduces the same bug)
+build/out/upx/decompress_packed_file_fuzzer &lt;path-to-poc.bin&gt;
+build/out/upx/test_packed_file_fuzzer &lt;path-to-poc.bin&gt;
+</code></pre>
+<h2>Relationship to Parent Bug</h2>
+<p>This is an <strong>independent vulnerability</strong> from the parent Bug 083. The parent bug is a heap-buffer-overflow in <code>PackLinuxElf64::un_DT_INIT</code> at line 7664, caused by missing bounds checking on a relocation pointer. This sibling crashes in a completely different function (<code>PackLinuxElf64::un_shlib_1</code> at line 7146) with a different root cause (unchecked <code>readx</code> length). The parent patch does not fix this bug, and this bug requires its own separate patch.</p>
+<h2>Please tell us details about your environment.</h2>
+
+<ul>
+<li>UPX version used (<code>upx --version</code>): 5.1.1 commit 36babe770e83d2104f752c0c10d61eb945321f65</li>
+<li>Host Operating System and version: Linux 6.x</li>
+<li>Host CPU architecture: x86_64</li>
+<li>Target Operating System and version: same</li>
+<li>Target CPU architecture:</li>
+</ul>
+<p><a href="https://github.com/user-attachments/files/26144279/poc.bin.gz">poc.bin.gz</a></p></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b7ab0621ca0f2e9f852dbfe0c12f5084584ce339b9e7407cd6c274db98dcfddae815f3f084c802aa925d46ef55a4b68b2263f3325e28bf73b421d181bb5e2b03</p>
+<p class="kicker">Committed 2026-05-07 07:01 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-7ZJGE8XJ-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-7ZJGE8XJ%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A29%2B00%3A00%22%2C%22description%22%3A%22Attacker-controlled%20offset%20values%20are%20not%20validated%20against%20the%20size%20of%20ibuf%20before%20use%20in%20readx%2C%20allowing%20out-of-bounds%20heap%20access.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22un_shlib_1%20/%20readx%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22UPX%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20missing%20bounds%20check%3A%20offsets%20derived%20from%20attacker-supplied%20input%20are%20used%20to%20index%20into%20ibuf%20without%20verifying%20they%20fall%20within%20the%20allocated%20buffer%20size%2C%20resulting%20in%20a%20heap%20buffer%20overflow.%22%2C%22title%22%3A%22Heap%20buffer%20overflow%20in%20un_shlib_1%20readx%20due%20to%20attacker-controlled%20offsets%20exceeding%20ibuf%20size%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-7ZJGE8XJ&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:29+00:00&#34;,
+  &#34;description&#34;: &#34;Attacker-controlled offset values are not validated against the size of ibuf before use in readx, allowing out-of-bounds heap access.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;un_shlib_1 / readx&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;UPX&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The root cause is a missing bounds check: offsets derived from attacker-supplied input are used to index into ibuf without verifying they fall within the allocated buffer size, resulting in a heap buffer overflow.&#34;,
+  &#34;title&#34;: &#34;Heap buffer overflow in un_shlib_1 readx due to attacker-controlled offsets exceeding ibuf size&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

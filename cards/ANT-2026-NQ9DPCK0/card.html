@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-NQ9DPCK0 · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-NQ9DPCK0 · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-NQ9DPCK0: Heap-buffer-overflow in hfaopen.cpp:3533</h1>
+<p>When GDAL opens an HFA/ERDAS Imagine raster file, HFADataset::Open invokes HFAReadCameraModel, which calls HFAEntry::BuildEntryFromMIFObject. This function performs a 4-byte read at an offset that lands 8 bytes before the start of a 10-byte heap buffer previously allocated by HFAEntry::LoadData. An attacker who can supply a crafted .img file to any GDAL-based application triggers the out-of-bounds read on file open, with no authentication or interaction beyond file parsing.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal<br>
+<strong>Location:</strong> <code>hfaopen.cpp:3533</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: READ of size 4 at 0x7bacb43e3e88, located 8 bytes before a 10-byte heap region. BuildEntryFromMIFObject computes a pointer into the entry data buffer (allocated at hfaentry.cpp:424) that underflows the allocation — the 10-byte buffer is too small for the offset arithmetic performed at line 205, and the code lacks a bounds check before the 4-byte dereference.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1626728843
+INFO: Loaded 1 modules   (1158086 inline 8-bit counters): 1158086 [0x5b73a153fa60, 0x5b73a165a626), 
+INFO: Loaded 1 PC tables (1158086 PCs): 1158086 [0x5b73a165a628,0x5b73a2806288), 
+/out/hfa_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7bacb43e3e88 at pc 0x5b739a0c7903 bp 0x7ffe3d3e4410 sp 0x7ffe3d3e4408
+READ of size 4 at 0x7bacb43e3e88 thread T0
+    #0 0x5b739a0c7902 in HFAEntry::BuildEntryFromMIFObject(HFAEntry*, char const*) /src/gdal/frmts/hfa/hfaentry.cpp:205:5
+    #1 0x5b739a0df7c2 in HFAReadCameraModel /src/gdal/frmts/hfa/hfaopen.cpp:3533:9
+    #2 0x5b739a0bcb49 in HFADataset::Open(GDALOpenInfo*) /src/gdal/frmts/hfa/hfadataset.cpp:4656:22
+    #3 0x5b739a107884 in GDALDriver::Open(GDALOpenInfo*, bool) /src/gdal/gcore/gdaldriver.cpp:105:16
+    #4 0x5b739a1469ed in GDALDataset::Open(GDALOpenInfo*, char const* const*, char const* const*) /src/gdal/gcore/gdaldataset.cpp:4365:39
+    #5 0x5b739a145145 in GDALOpenEx /src/gdal/gcore/gdaldataset.cpp:4106:12
+    #6 0x5b7399ddbbab in LLVMFuzzerTestOneInput /src/gdal/./fuzzers/gdal_fuzzer.cpp:222:24
+    #7 0x5b7399c77d6d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    [... 25 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an HFA file with a camera model entry whose MIF object data buffer is undersized (~10 bytes) relative to the offsets BuildEntryFromMIFObject expects</li>
+<li>Deliver the file to the target (upload, email, GIS data exchange, web map tile source, etc.)</li>
+<li>Target calls GDALOpenEx on the file; HFAReadCameraModel -&gt; BuildEntryFromMIFObject dereferences 4 bytes at buffer-8</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-NQ9DPCK0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-NQ9DPCK0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/autotest/gdrivers/data/hfa/poc_14547.img b/autotest/gdrivers/data/hfa/poc_14547.img</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000000..c11d9339d05e</span>
+<span class="diff-c">Binary files /dev/null and b/autotest/gdrivers/data/hfa/poc_14547.img differ</span>
+<span class="diff-h">diff --git a/autotest/gdrivers/hfa.py b/autotest/gdrivers/hfa.py</span>
+<span class="diff-h">index 26af09c1d640..7e9a2cf934c2 100755</span>
+<span class="diff-h">--- a/autotest/gdrivers/hfa.py</span>
+<span class="diff-h">+++ b/autotest/gdrivers/hfa.py</span>
+<span class="diff-h">@@ -1375,3 +1375,8 @@ def test_hfa_rat_new_types(tmp_vsimem):</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         rat.SetValueAsWKBGeometry(0, 2, wkb)</span>
+<span class="diff-c">         assert rat.GetValueAsWKBGeometry(0, 2) == wkb</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+def test_hfa_read_poc_14547():</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    gdal.Open(&quot;data/hfa/poc_14547.img&quot;)</span>
+<span class="diff-h">diff --git a/frmts/hfa/hfaentry.cpp b/frmts/hfa/hfaentry.cpp</span>
+<span class="diff-h">index 990fa71ce0b3..521a2fe80da2 100644</span>
+<span class="diff-h">--- a/frmts/hfa/hfaentry.cpp</span>
+<span class="diff-h">+++ b/frmts/hfa/hfaentry.cpp</span>
+<span class="diff-h">@@ -201,7 +201,15 @@ HFAEntry *HFAEntry::BuildEntryFromMIFObject(HFAEntry *poContainer,</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     GInt32 nMIFObjectSize = 0;</span>
+<span class="diff-d">-    // We rudely look before the field data to get at the pointer/size info.</span>
+<span class="diff-a">+    // We look before the field data to get at the pointer/size info.</span>
+<span class="diff-a">+    const GByte *pabyEntryData = poContainer-&gt;GetData();</span>
+<span class="diff-a">+    CPLAssert(reinterpret_cast&lt;const GByte *&gt;(pszField) - pabyEntryData &gt;= 0);</span>
+<span class="diff-a">+    if (reinterpret_cast&lt;const GByte *&gt;(pszField) - pabyEntryData &lt; 8)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        CPLError(CE_Failure, CPLE_AppDefined, &quot;Invalid %s entry&quot;,</span>
+<span class="diff-a">+                 osFieldName.c_str());</span>
+<span class="diff-a">+        return nullptr;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c">     memcpy(&amp;nMIFObjectSize, pszField - 8, 4);</span>
+<span class="diff-c">     HFAStandard(4, &amp;nMIFObjectSize);</span>
+<span class="diff-c">     if (nMIFObjectSize &lt;= 0)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/03ee967da1b22ec61cc7a6b8abb5de3307f213c7" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/03ee967da1b22ec61cc7a6b8abb5de3307f213c7</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-11</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">f57f3a9f0d76212352423279892545fb34dc45d1cecf6cff9244e0f706b157a60b4ad8e55ee07c5ffc4ff7c7670d053b842d9258561dbb9b9a1c9897a1c34405</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-07-21 05:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-NQ9DPCK0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-NQ9DPCK0%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A28%3A22%2B00%3A00%22%2C%22description%22%3A%22When%20GDAL%20opens%20an%20HFA/ERDAS%20Imagine%20raster%20file%2C%20HFADataset%3A%3AOpen%20invokes%20HFAReadCameraModel%2C%20which%20calls%20HFAEntry%3A%3ABuildEntryFromMIFObject.%20This%20function%20performs%20a%204-byte%20read%20at%20an%20offset%20that%20lands%208%20bytes%20before%20the%20start%20of%20a%2010-byte%20heap%20buffer%20previously%20allocated%20by%20HFAEntry%3A%3ALoadData.%20An%20attacker%20who%20can%20supply%20a%20crafted%20.img%20file%20to%20any%20GDAL-based%20application%20triggers%20the%20out-of-bounds%20read%20on%20file%20open%2C%20with%20no%20authentication%20or%20interaction%20beyond%20file%20parsing.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22hfaopen.cpp%3A3533%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20HFA%20file%20with%20a%20camera%20model%20entry%20whose%20MIF%20object%20data%20buffer%20is%20undersized%20%28~10%20bytes%29%20relative%20to%20the%20offsets%20BuildEntryFromMIFObject%20expects%22%2C%222.%20Deliver%20the%20file%20to%20the%20target%20%28upload%2C%20email%2C%20GIS%20data%20exchange%2C%20web%20map%20tile%20source%2C%20etc.%29%22%2C%223.%20Target%20calls%20GDALOpenEx%20on%20the%20file%3B%20HFAReadCameraModel%20-%3E%20BuildEntryFromMIFObject%20dereferences%204%20bytes%20at%20buffer-8%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20READ%20of%20size%204%20at%200x7bacb43e3e88%2C%20located%208%20bytes%20before%20a%2010-byte%20heap%20region.%20BuildEntryFromMIFObject%20computes%20a%20pointer%20into%20the%20entry%20data%20buffer%20%28allocated%20at%20hfaentry.cpp%3A424%29%20that%20underflows%20the%20allocation%20%E2%80%94%20the%2010-byte%20buffer%20is%20too%20small%20for%20the%20offset%20arithmetic%20performed%20at%20line%20205%2C%20and%20the%20code%20lacks%20a%20bounds%20check%20before%20the%204-byte%20dereference.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20hfaopen.cpp%3A3533%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-NQ9DPCK0&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:28:22+00:00&#34;,
+  &#34;description&#34;: &#34;When GDAL opens an HFA/ERDAS Imagine raster file, HFADataset::Open invokes HFAReadCameraModel, which calls HFAEntry::BuildEntryFromMIFObject. This function performs a 4-byte read at an offset that lands 8 bytes before the start of a 10-byte heap buffer previously allocated by HFAEntry::LoadData. An attacker who can supply a crafted .img file to any GDAL-based application triggers the out-of-bounds read on file open, with no authentication or interaction beyond file parsing.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;hfaopen.cpp:3533&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an HFA file with a camera model entry whose MIF object data buffer is undersized (~10 bytes) relative to the offsets BuildEntryFromMIFObject expects&#34;,
+    &#34;2. Deliver the file to the target (upload, email, GIS data exchange, web map tile source, etc.)&#34;,
+    &#34;3. Target calls GDALOpenEx on the file; HFAReadCameraModel -&gt; BuildEntryFromMIFObject dereferences 4 bytes at buffer-8&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: READ of size 4 at 0x7bacb43e3e88, located 8 bytes before a 10-byte heap region. BuildEntryFromMIFObject computes a pointer into the entry data buffer (allocated at hfaentry.cpp:424) that underflows the allocation — the 10-byte buffer is too small for the offset arithmetic performed at line 205, and the code lacks a bounds check before the 4-byte dereference.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in hfaopen.cpp:3533&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

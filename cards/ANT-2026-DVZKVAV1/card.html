@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-DVZKVAV1 · oisf/suricata</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-DVZKVAV1 · oisf/suricata</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-DVZKVAV1: Heap use-after-free write in YAML configuration include processing due to stale pointer to freed node after redef</h1>
+<p>A stale pointer to a freed YAML node is written through during configuration include processing after the node is redefined.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> oisf/suricata  </p>
+<h2>Technical Details</h2>
+<p>During YAML configuration include processing, a redefinition frees a node while a stale pointer to that node is retained and later written through, resulting in a heap use-after-free write.</p>
+<p><strong>Crash signature:</strong> <code>Heap use-after-free WRITE in YAML include processing</code></p>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-DVZKVAV1.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-DVZKVAV1<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+<div class="report-body" tabindex="0"><h1>config: use after free when include sequence redefines parent of dotted key</h1>
+<p>For example, a @suricata.yaml@ that loos like:</p>
+<pre tabindex="0">%YAML 1.1
+---
+outputs.x: val
+include:
+  - ./include.yaml
+</pre>
+<p>and @include.yaml@:</p>
+<pre tabindex="0">%YAML 1.1
+---
+outputs: []
+</pre>
+
+<p>The override cleaned up after itself, but the node is still marked a sequence.</p>
+<p>Reported by: Trail of Bits, in collaboration with Anthropic</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/conf-yaml-loader.c b/src/conf-yaml-loader.c</span>
+<span class="diff-h">index b66715f40d05..0c5e7a563353 100644</span>
+<span class="diff-h">--- a/src/conf-yaml-loader.c</span>
+<span class="diff-h">+++ b/src/conf-yaml-loader.c</span>
+<span class="diff-h">@@ -387,7 +387,8 @@ static int ConfYamlParse(</span>
+<span class="diff-c">             if (ConfYamlParse(parser, state == CONF_INCLUDE ? parent : node, 1, rlevel,</span>
+<span class="diff-c">                         state == CONF_INCLUDE ? CONF_INCLUDE : 0) != 0)</span>
+<span class="diff-c">                 goto fail;</span>
+<span class="diff-d">-            node-&gt;is_seq = 1;</span>
+<span class="diff-a">+            if (state != CONF_INCLUDE)</span>
+<span class="diff-a">+                node-&gt;is_seq = 1;</span>
+<span class="diff-c">             state = CONF_KEY;</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">         else if (event.type == YAML_SEQUENCE_END_EVENT) {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OISF/suricata/commit/73bee2f4fd375b973717f6b45365ed29c058f8a0" rel="noopener noreferrer">https://github.com/OISF/suricata/commit/73bee2f4fd375b973717f6b45365ed29c058f8a0</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-13</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">f654fc23ea7b285a9a9a861a1d25c0653c0dc7b8961efc23dd5817ba47a1aa73e6a26b1518cb1903eb30eadeb92286c6e27d40f82422a88a9cde29e9acd9e268</p>
+<p class="kicker">Committed 2026-04-09 18:50 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-DVZKVAV1-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-DVZKVAV1%22%2C%22bug_class%22%3A%22Use-After-Free%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A27%2B00%3A00%22%2C%22description%22%3A%22A%20stale%20pointer%20to%20a%20freed%20YAML%20node%20is%20written%20through%20during%20configuration%20include%20processing%20after%20the%20node%20is%20redefined.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22Suricata%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22During%20YAML%20configuration%20include%20processing%2C%20a%20redefinition%20frees%20a%20node%20while%20a%20stale%20pointer%20to%20that%20node%20is%20retained%20and%20later%20written%20through%2C%20resulting%20in%20a%20heap%20use-after-free%20write.%22%2C%22title%22%3A%22Heap%20use-after-free%20write%20in%20YAML%20configuration%20include%20processing%20due%20to%20stale%20pointer%20to%20freed%20node%20after%20redef%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-DVZKVAV1&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Free&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:27+00:00&#34;,
+  &#34;description&#34;: &#34;A stale pointer to a freed YAML node is written through during configuration include processing after the node is redefined.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;Suricata&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;During YAML configuration include processing, a redefinition frees a node while a stale pointer to that node is retained and later written through, resulting in a heap use-after-free write.&#34;,
+  &#34;title&#34;: &#34;Heap use-after-free write in YAML configuration include processing due to stale pointer to freed node after redef&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

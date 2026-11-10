@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-VV0PRKKV · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-VV0PRKKV · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5447">CVE-2026-5447</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-mx4j-fjqx-f8qj">GHSA-mx4j-fjqx-f8qj</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-VV0PRKKV: wolfSSL: heap buffer overflow in CertFromX509() from AuthorityKeyIdentifier size mismatch</h1>
+<p>In wolfSSL's OpenSSL-compatibility layer, CertFromX509() in src/x509.c converts a parsed certificate back into a Cert structure for re-encoding. When WOLFSSL_AKID_NAME is enabled, it bounds-checked only the AuthorityKeyIdentifier keyIdentifier length (authKeyIdSz) against the fixed-size cert-&gt;akid buffer but then copied the entire raw extension (authKeyIdSrcSz bytes, including authorityCertIssuer and authorityCertSerialNumber), whose length comes from the certificate without an upper bound. A crafted certificate with a short keyIdentifier and a multi-kilobyte authorityCertIssuer therefore passes the check and overflows the heap-allocated Cert when an application parses it and then re-encodes or re-signs it (for example via wolfSSL_i2d_X509_bio() or wolfSSL_X509_sign()). The issue is CVE-2026-5447 / GHSA-mx4j-fjqx-f8qj and was fixed upstream in wolfSSL PR #10112 (merge commit d278da09), which validates the length that is actually copied.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>src/x509.c:CertFromX509()</code>  </p>
+<h2>Technical Details</h2>
+<p><strong>Root cause.</strong> <code>CertFromX509()</code> (<code>src/x509.c</code>) copies the AuthorityKeyIdentifier (AKID) from a <code>WOLFSSL_X509</code> into the fixed-size <code>akid[]</code> array of a <code>Cert</code> structure that is heap-allocated during DER generation. Before the fix, the guard and the copy used different lengths:</p>
+<pre tabindex="0"><code class="language-c">if (x509-&gt;authKeyIdSz &lt; sizeof(cert-&gt;akid)) {
+#ifdef WOLFSSL_AKID_NAME
+    cert-&gt;rawAkid = 0;
+    if (x509-&gt;authKeyIdSrc) {
+        XMEMCPY(cert-&gt;akid, x509-&gt;authKeyIdSrc, x509-&gt;authKeyIdSrcSz);
+        cert-&gt;akidSz = (int)x509-&gt;authKeyIdSrcSz;
+        cert-&gt;rawAkid = 1;
+    }
+    else
+#endif
+    ...
+</code></pre>
+<p><code>authKeyIdSz</code> is the length of the <code>[0] keyIdentifier</code> sub-field only, whereas <code>authKeyIdSrcSz</code> is the length of the complete raw extension value (<code>keyIdentifier</code> + <code>[1] authorityCertIssuer</code> + <code>[2] authorityCertSerialNumber</code>) as encoded in the certificate, and is propagated from the DER parser with no upper bound. A certificate whose AKID carries a small keyIdentifier (e.g. 20 bytes) and a large authorityCertIssuer GeneralName (e.g. a ~4 KB URI) satisfies the check and then writes several kilobytes past the end of <code>cert-&gt;akid</code>, whose size (<code>CTC_MAX_AKID_SIZE + sizeof(CertName) + CTC_SERIAL_SIZE</code> under <code>WOLFSSL_AKID_NAME</code>) is on the order of 1-1.6 KB depending on build options; the upstream regression test notes that re-encoding such a certificate "would write ~4000 bytes past the end of cert-&gt;akid[]".</p>
+<p><strong>Reachability and preconditions.</strong> The vulnerable branch is compiled when <code>WOLFSSL_CERT_GEN</code>, <code>WOLFSSL_CERT_EXT</code> and <code>WOLFSSL_AKID_NAME</code> are defined together with <code>OPENSSL_EXTRA</code>/<code>OPENSSL_ALL</code>. It is reached when an application parses an untrusted certificate (e.g. <code>wolfSSL_X509_d2i()</code>) and then re-encodes or re-signs the resulting object through the compatibility API, such as <code>wolfSSL_i2d_X509_bio()</code>/<code>i2d_X509</code> or <code>wolfSSL_X509_sign()</code> -- the pattern used by TLS interception proxies and certificate-rewriting tools. This conversion is not part of the default TLS client/server handshake path, so ordinary peer-certificate verification does not reach it.</p>
+<p><strong>Impact.</strong> The attacker controls both the length and the content of the out-of-bounds heap write, corrupting adjacent <code>Cert</code> fields and heap metadata in the process performing the conversion; consequences range from a crash to potentially exploitable memory corruption. The GitHub Advisory Database entry classifies the issue as CWE-122 (heap-based buffer overflow) with overall severity Medium, listing a CVSS 4.0 base score of 6.3 and a CVSS 3.1 vector of <code>AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N</code> (7.5).</p>
+<p><strong>Fix.</strong> wolfSSL PR #10112 ("Fix CertFromX509 copy length check"), merged 2026-04-03 as commit <code>d278da09dfa60237f246236f2c8acc5d11c5915a</code>, checks each copy against <code>sizeof(cert-&gt;akid)</code> using the length that is actually copied (<code>authKeyIdSrcSz</code> for the raw-AKID branch, <code>authKeyIdSz</code> otherwise), records <code>BUFFER_E</code> and returns <code>WOLFSSL_FAILURE</code> when the value does not fit, and adds the regression test <code>test_x509_CertFromX509_akid_overflow</code>. The advisory (GHSA-mx4j-fjqx-f8qj / CVE-2026-5447, published 2026-04-09) does not enumerate an affected version range; builds that predate this commit and enable the options above should be treated as affected.</p>
+<p><strong>Crash signature:</strong> <code>heap-buffer-overflow (READ)</code></p>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-VV0PRKKV.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-VV0PRKKV<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/x509.c b/src/x509.c</span>
+<span class="diff-h">index 3593cd82f47..f4006ffe3ac 100644</span>
+<span class="diff-h">--- a/src/x509.c</span>
+<span class="diff-h">+++ b/src/x509.c</span>
+<span class="diff-h">@@ -11870,25 +11870,28 @@ static int CertFromX509(Cert* cert, WOLFSSL_X509* x509)</span>
+<span class="diff-c">         return WOLFSSL_FAILURE;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (x509-&gt;authKeyIdSz &lt; sizeof(cert-&gt;akid)) {</span>
+<span class="diff-c">     #ifdef WOLFSSL_AKID_NAME</span>
+<span class="diff-d">-        cert-&gt;rawAkid = 0;</span>
+<span class="diff-d">-        if (x509-&gt;authKeyIdSrc) {</span>
+<span class="diff-d">-            XMEMCPY(cert-&gt;akid, x509-&gt;authKeyIdSrc, x509-&gt;authKeyIdSrcSz);</span>
+<span class="diff-d">-            cert-&gt;akidSz = (int)x509-&gt;authKeyIdSrcSz;</span>
+<span class="diff-d">-            cert-&gt;rawAkid = 1;</span>
+<span class="diff-a">+    cert-&gt;rawAkid = 0;</span>
+<span class="diff-a">+    if (x509-&gt;authKeyIdSrc) {</span>
+<span class="diff-a">+        if (x509-&gt;authKeyIdSrcSz &gt; sizeof(cert-&gt;akid)) {</span>
+<span class="diff-a">+            WOLFSSL_MSG(&quot;Auth Key ID too large&quot;);</span>
+<span class="diff-a">+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);</span>
+<span class="diff-a">+            return WOLFSSL_FAILURE;</span>
+<span class="diff-c">         }</span>
+<span class="diff-d">-        else</span>
+<span class="diff-a">+        XMEMCPY(cert-&gt;akid, x509-&gt;authKeyIdSrc, x509-&gt;authKeyIdSrcSz);</span>
+<span class="diff-a">+        cert-&gt;akidSz = (int)x509-&gt;authKeyIdSrcSz;</span>
+<span class="diff-a">+        cert-&gt;rawAkid = 1;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    else</span>
+<span class="diff-c">     #endif</span>
+<span class="diff-d">-        if (x509-&gt;authKeyId) {</span>
+<span class="diff-d">-            XMEMCPY(cert-&gt;akid, x509-&gt;authKeyId, x509-&gt;authKeyIdSz);</span>
+<span class="diff-d">-            cert-&gt;akidSz = (int)x509-&gt;authKeyIdSz;</span>
+<span class="diff-a">+    if (x509-&gt;authKeyId) {</span>
+<span class="diff-a">+        if (x509-&gt;authKeyIdSz &gt; sizeof(cert-&gt;akid)) {</span>
+<span class="diff-a">+            WOLFSSL_MSG(&quot;Auth Key ID too large&quot;);</span>
+<span class="diff-a">+            WOLFSSL_ERROR_VERBOSE(BUFFER_E);</span>
+<span class="diff-a">+            return WOLFSSL_FAILURE;</span>
+<span class="diff-c">         }</span>
+<span class="diff-d">-    }</span>
+<span class="diff-d">-    else {</span>
+<span class="diff-d">-        WOLFSSL_MSG(&quot;Auth Key ID too large&quot;);</span>
+<span class="diff-d">-        WOLFSSL_ERROR_VERBOSE(BUFFER_E);</span>
+<span class="diff-d">-        return WOLFSSL_FAILURE;</span>
+<span class="diff-a">+        XMEMCPY(cert-&gt;akid, x509-&gt;authKeyId, x509-&gt;authKeyIdSz);</span>
+<span class="diff-a">+        cert-&gt;akidSz = (int)x509-&gt;authKeyIdSz;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     for (i = 0; i &lt; x509-&gt;certPoliciesNb; i++) {</span>
+<span class="diff-h">diff --git a/tests/api/test_x509.c b/tests/api/test_x509.c</span>
+<span class="diff-h">index cd0a06241de..47780e6dc4e 100644</span>
+<span class="diff-h">--- a/tests/api/test_x509.c</span>
+<span class="diff-h">+++ b/tests/api/test_x509.c</span>
+<span class="diff-h">@@ -38,6 +38,7 @@</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #include &lt;wolfssl/internal.h&gt;</span>
+<span class="diff-c"> #include &lt;wolfssl/wolfcrypt/asn.h&gt;</span>
+<span class="diff-a">+#include &lt;wolfssl/wolfcrypt/asn_public.h&gt;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #if defined(OPENSSL_ALL) &amp;&amp; \</span>
+<span class="diff-c">     defined(HAVE_MANUAL_MEMIO_TESTS_DEPENDENCIES)</span>
+<span class="diff-h">@@ -632,3 +633,245 @@ int test_x509_time_field_overread_via_tls(void)</span>
+<span class="diff-c"> #endif /* compile guards */</span>
+<span class="diff-c">     return EXPECT_RESULT();</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+/* Test that CertFromX509 rejects an oversized raw AuthorityKeyIdentifier</span>
+<span class="diff-a">+ * extension. Before the fix, the guard checked authKeyIdSz (the [0]</span>
+<span class="diff-a">+ * keyIdentifier sub-field) but the WOLFSSL_AKID_NAME branch copied</span>
+<span class="diff-a">+ * authKeyIdSrcSz (the full extension) bytes, causing a heap overflow. */</span>
+<span class="diff-a">+int test_x509_CertFromX509_akid_overflow(void)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    EXPECT_DECLS;</span>
+<span class="diff-a">+#if defined(WOLFSSL_AKID_NAME) &amp;&amp; defined(WOLFSSL_CERT_GEN) &amp;&amp; \</span>
+<span class="diff-a">+    defined(WOLFSSL_CERT_EXT) &amp;&amp; !defined(NO_BIO) &amp;&amp; \</span>
+<span class="diff-a">+    (defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL))</span>
+<span class="diff-a">+    /* DER builder helpers -- write into a flat buffer */</span>
+<span class="diff-a">+#ifdef WOLFSSL_SMALL_STACK</span>
+<span class="diff-a">+    unsigned char* buf = NULL;</span>
+<span class="diff-a">+#else</span>
+<span class="diff-a">+    unsigned char buf[16384];</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-a">+    size_t pos = 0;</span>
+<span class="diff-a">+    size_t akid_val_len;</span>
+<span class="diff-a">+    unsigned char* akid_val = NULL;</span>
+<span class="diff-a">+    WOLFSSL_X509* x = NULL;</span>
+<span class="diff-a">+    WOLFSSL_BIO* bio = NULL;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+#ifdef WOLFSSL_SMALL_STACK</span>
+<span class="diff-a">+    buf = (unsigned char*)XMALLOC(16384, NULL, DYNAMIC_TYPE_TMP_BUFFER);</span>
+<span class="diff-a">+    ExpectNotNull(buf);</span>
+<span class="diff-a">+    if (buf == NULL)</span>
+<span class="diff-a">+        return EXPECT_RESULT();</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    #define PUT1(b) do { buf[pos++] = (b); } while(0)</span>
+<span class="diff-a">+    #define PUTN(p, n) do { XMEMCPY(buf + pos, (p), (n)); pos += (n); } while(0)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    /* Emit tag + definite-length header, return header size */</span>
+<span class="diff-a">+    #define TLV_HDR(tag, n, out, hlen) do {                          \</span>
+<span class="diff-a">+        size_t _i = 0;                                               \</span>
+<span class="diff-a">+        (out)[_i++] = (tag);                                         \</span>
+<span class="diff-a">+        if ((n) &lt; 0x80u)       { (out)[_i++] = (unsigned char)(n); } \</span>
+<span class="diff-a">+        else if ((n) &lt; 0x100u) { (out)[_i++] = 0x81;                \</span>
+<span class="diff-a">+            (out)[_i++] = (unsigned char)(n); }                      \</span>
+<span class="diff-a">+        else if ((n) &lt; 0x10000u) { (out)[_i++] = 0x82;              \</span>
+<span class="diff-a">+            (out)[_i++] = (unsigned char)((n)&gt;&gt;8);                   \</span>
+<span class="diff-a">+            (out)[_i++] = (unsigned char)(n); }                      \</span>
+<span class="diff-a">+        (hlen) = _i;                                                 \</span>
+<span class="diff-a">+    } while(0)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    /* Wrap [start, pos) in-place with a TLV header */</span>
+<span class="diff-a">+    #define WRAP(start, tag) do {                                    \</span>
+<span class="diff-a">+        size_t _len = pos - (start);                                 \</span>
+<span class="diff-a">+        unsigned char _hdr[6]; size_t _hlen;                         \</span>
+<span class="diff-a">+        TLV_HDR((tag), _len, _hdr, _hlen);                          \</span>
+<span class="diff-a">+        XMEMMOVE(buf + (start) + _hlen, buf + (start), _len);       \</span>
+<span class="diff-a">+        XMEMCPY(buf + (start), _hdr, _hlen);                        \</span>
+<span class="diff-a">+        pos += _hlen;                                                \</span>
+<span class="diff-a">+    } while(0)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    /* ---- Build AKID extension value ---- */</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        size_t akid_start = pos;</span>
+<span class="diff-a">+        size_t s;</span>
+<span class="diff-a">+        int i;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* [0] keyIdentifier: 20 bytes (small, passes old check) */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        for (i = 0; i &lt; 20; i++) PUT1(0x41);</span>
+<span class="diff-a">+        WRAP(s, 0x80);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* [1] authorityCertIssuer: one URI of ~4000 bytes</span>
+<span class="diff-a">+         * This makes authKeyIdSrcSz &gt;&gt; sizeof(cert-&gt;akid) (~1628) */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            const char* pfx = &quot;http://e/&quot;;</span>
+<span class="diff-a">+            PUTN(pfx, (size_t)XSTRLEN(pfx));</span>
+<span class="diff-a">+            for (i = 0; i &lt; 4000; i++) PUT1(&#x27;Z&#x27;);</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        WRAP(s, 0x86); /* GeneralName [6] URI */</span>
+<span class="diff-a">+        WRAP(s, 0xA1); /* [1] IMPLICIT */</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* [2] authorityCertSerialNumber */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        PUT1(0x01);</span>
+<span class="diff-a">+        WRAP(s, 0x82);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        WRAP(akid_start, 0x30); /* SEQUENCE */</span>
+<span class="diff-a">+        akid_val_len = pos - akid_start;</span>
+<span class="diff-a">+        akid_val = (unsigned char*)XMALLOC(akid_val_len, NULL,</span>
+<span class="diff-a">+                                           DYNAMIC_TYPE_TMP_BUFFER);</span>
+<span class="diff-a">+        ExpectNotNull(akid_val);</span>
+<span class="diff-a">+        if (akid_val != NULL)</span>
+<span class="diff-a">+            XMEMCPY(akid_val, buf + akid_start, akid_val_len);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    /* ---- Build minimal self-signed v3 certificate ---- */</span>
+<span class="diff-a">+    pos = 0;</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        size_t tbs_start = pos;</span>
+<span class="diff-a">+        size_t s;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* version [0] EXPLICIT INTEGER 2 (v3) */</span>
+<span class="diff-a">+        PUT1(0xA0); PUT1(0x03); PUT1(0x02); PUT1(0x01); PUT1(0x02);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* serialNumber INTEGER 1 */</span>
+<span class="diff-a">+        PUT1(0x02); PUT1(0x01); PUT1(0x01);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* signature: ecdsa-with-SHA256 */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            unsigned char oid[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,</span>
+<span class="diff-a">+                                   0x3D,0x04,0x03,0x02};</span>
+<span class="diff-a">+            PUTN(oid, sizeof(oid));</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        WRAP(s, 0x30);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* issuer: CN=A */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            size_t rdn = pos, atv = pos;</span>
+<span class="diff-a">+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};</span>
+<span class="diff-a">+            PUTN(cn, sizeof(cn));</span>
+<span class="diff-a">+            PUT1(0x0C); PUT1(0x01); PUT1(&#x27;A&#x27;);</span>
+<span class="diff-a">+            WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* validity */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            unsigned char t1[] = {0x17,0x0D,&#x27;2&#x27;,&#x27;5&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,</span>
+<span class="diff-a">+                                  &#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;Z&#x27;};</span>
+<span class="diff-a">+            unsigned char t2[] = {0x17,0x0D,&#x27;3&#x27;,&#x27;5&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,&#x27;0&#x27;,&#x27;1&#x27;,</span>
+<span class="diff-a">+                                  &#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;0&#x27;,&#x27;Z&#x27;};</span>
+<span class="diff-a">+            PUTN(t1, sizeof(t1)); PUTN(t2, sizeof(t2));</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        WRAP(s, 0x30);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* subject: CN=A */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            size_t rdn = pos, atv = pos;</span>
+<span class="diff-a">+            unsigned char cn[] = {0x06,0x03,0x55,0x04,0x03};</span>
+<span class="diff-a">+            PUTN(cn, sizeof(cn));</span>
+<span class="diff-a">+            PUT1(0x0C); PUT1(0x01); PUT1(&#x27;A&#x27;);</span>
+<span class="diff-a">+            WRAP(atv, 0x30); WRAP(rdn, 0x31); WRAP(s, 0x30);</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        /* subjectPublicKeyInfo: EC P-256 with dummy point */</span>
+<span class="diff-a">+        s = pos;</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            size_t alg = pos, bs;</span>
+<span class="diff-a">+            unsigned char ecpk[] = {0x06,0x07,0x2A,0x86,0x48,0xCE,</span>
+<span class="diff-a">+                                    0x3D,0x02,0x01};</span>
+<span class="diff-a">+            unsigned char p256[] = {0x06,0x08,0x2A,0x86,0x48,0xCE,</span>
+<span class="diff-a">+                                    0x3D,0x03,0x01,0x07};</span>
+<span class="diff-a">+            PUTN(ecpk, sizeof(ecpk));</span>
+<span class="diff-a">+            PUTN(p256, sizeof(p256));</span>
+<span class="diff-a">+            WRAP(alg, 0x30);</span>
+<span class="diff-a">+            bs = pos;</span>
+<span class="diff-a">+            PUT1(0x00); PUT1(0x04);</span>
+<span class="diff-a">+            /* Use P-256 generator point (valid on-curve point) so th</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/d278da09dfa60237f246236f2c8acc5d11c5915a" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/d278da09dfa60237f246236f2c8acc5d11c5915a</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d</p>
+<p class="kicker">Committed 2026-03-27</p>
+<p class="kicker">Revealed 2026-05-21 23:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-VV0PRKKV-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-VV0PRKKV%22%2C%22bug_class%22%3A%22heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-27T02%3A08%3A32%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3Anull%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-VV0PRKKV&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-27T02:08:32+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: null,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

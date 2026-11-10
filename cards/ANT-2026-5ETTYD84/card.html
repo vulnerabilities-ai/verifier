@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-5ETTYD84 · libjpeg-turbo/libjpeg-turbo</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-5ETTYD84 · libjpeg-turbo/libjpeg-turbo</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low (revised; sealed as high)</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-5ETTYD84: use-after-free at ../jdsample.c:494:35</h1>
+<p>When a jpeg_decompress_struct is reused across two sessions, the first session allocates cinfo-&gt;upsample in JPOOL_IMAGE and jpeg_abort_decompress() frees that pool while leaving the pointer dangling. A second session started with raw_data_out=TRUE and buffered_image=TRUE skips upsampler reinitialization in master_selection (gated on !raw_data_out). Calling jpeg_crop_scanline() in DSTATE_BUFIMAGE then enters the reinit_upsampler path and jinit_upsampler() writes function pointers and integers through the stale cinfo-&gt;upsample into freed heap memory. Any subsampled JPEG suffices as input; the trigger is the API call sequence rather than crafted image data.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libjpeg-turbo/libjpeg-turbo<br>
+<strong>Commit:</strong> <code>9135da1d</code><br>
+<strong>Location:</strong> <code>jdsample.c:494</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "heap-use-after-free ... WRITE of size 4 at 0x6290000021f8 ... in jinit_upsampler jdsample.c:494:35". The root cause is that jpeg_abort()/free_pool releases the JPOOL_IMAGE allocation backing cinfo-&gt;upsample without nulling the pointer, and the raw_data_out codepath in master selection never reallocates it, so jpeg_crop_scanline()'s no_alloc call into _jinit_upsampler writes to freed memory.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>==2084==ERROR: AddressSanitizer: heap-use-after-free on address 0x6290000021f8 at pc 0x55eaee710c98 bp 0x7fff7e386870 sp 0x7fff7e386868
+WRITE of size 4 at 0x6290000021f8 thread T0
+    #0 0x55eaee710c97 in jinit_upsampler /workspace/repo/src/wrapper/../jdsample.c:494:35
+    #1 0x55eaee61a430 in jpeg_crop_scanline /workspace/repo/src/wrapper/../jdapistd.c:300:5
+    #2 0x55eaee60bb91 in main /tmp/uaf_crop.c:115:3
+
+freed by thread T0 here:
+    #0 0x55eaee5cff02 in free
+    #1 0x55eaee73ebb3 in jpeg_free_small /workspace/repo/src/jmemnobs.c:40:3
+    #2 0x55eaee73ad1a in free_pool /workspace/repo/src/jmemmgr.c:1156:5
+    #3 0x55eaee7a3218 in jpeg_abort /workspace/repo/src/jcomapi.c:48:5
+    #4 0x55eaee60d730 in jpeg_abort_decompress /workspace/repo/src/jdapimin.c:128:3
+
+previously allocated by thread T0 here:
+    #0 0x55eaee5d01ae in __interceptor_malloc
+    #1 0x55eaee73eb83 in jpeg_get_small /workspace/repo/src/jmemnobs.c:34:18
+    #2 0x55eaee72f5df in alloc_small /workspace/repo/src/jmemmgr.c:318:33
+    #3 0x55eaee65ab01 in get_sof /workspace/repo/src/jdmarker.c:283:47
+
+SUMMARY: AddressSanitizer: heap-use-after-free /workspace/repo/src/wrapper/../jdsample.c:494:35 in jinit_upsampler
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the commit listed above as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-5ETTYD84.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-5ETTYD84<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The severity shown is the firm's current assessment; the report was sealed with the firm's earlier assessment of high.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-low">low (revised; sealed as high)</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ChangeLog.md b/ChangeLog.md</span>
+<span class="diff-h">index d78803272..0b3614509 100644</span>
+<span class="diff-h">--- a/ChangeLog.md</span>
+<span class="diff-h">+++ b/ChangeLog.md</span>
+<span class="diff-h">@@ -15,6 +15,19 @@ security risk, since `tj3SaveImage*()` is not exposed to arbitrary external</span>
+<span class="diff-c"> input data and since a caller that abused the API in the aforementioned manner</span>
+<span class="diff-c"> could never work properly.</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+3. Hardened the libjpeg API against hypothetical applications that may</span>
+<span class="diff-a">+erroneously call `jpeg_crop_scanline()` with buffered-image mode and raw data</span>
+<span class="diff-a">+output enabled.  `jpeg_crop_scanline()` does not work with raw data output, but</span>
+<span class="diff-a">+due to an oversight, it did not throw an error if both buffered-image mode and</span>
+<span class="diff-a">+raw data output were enabled.  If a hypothetical application aborted a normal</span>
+<span class="diff-a">+decompression operation without reading any scanlines, started a new</span>
+<span class="diff-a">+decompression operation using the same libjpeg instance with buffered-image</span>
+<span class="diff-a">+mode and raw data output enabled, then called `jpeg_crop_scanline()` with</span>
+<span class="diff-a">+arguments that would have caused any of the component planes to be cropped to a</span>
+<span class="diff-a">+width of 1 sample, `jpeg_crop_scanline()` would have used freed memory.</span>
+<span class="diff-a">+However, this did not likely pose a security risk, since an application that</span>
+<span class="diff-a">+abused the API in the aforementioned manner could never work properly.</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 3.1.90 (3.2 beta1)</span>
+<span class="diff-c"> ==================</span>
+<span class="diff-h">diff --git a/doc/libjpeg.txt b/doc/libjpeg.txt</span>
+<span class="diff-h">index c32efee66..1cfbd579f 100644</span>
+<span class="diff-h">--- a/doc/libjpeg.txt</span>
+<span class="diff-h">+++ b/doc/libjpeg.txt</span>
+<span class="diff-h">@@ -867,7 +867,7 @@ to jpeg*_read_scanlines() (since it will actually call jpeg*_read_scanlines().)</span>
+<span class="diff-c"> This function provides application programmers with the ability to decompress</span>
+<span class="diff-c"> only a portion of each row in the JPEG image.  It must be called after</span>
+<span class="diff-c"> jpeg_start_decompress() and before any calls to jpeg*_read_scanlines() or</span>
+<span class="diff-d">-jpeg*_skip_scanlines().</span>
+<span class="diff-a">+jpeg*_skip_scanlines().  (It cannot be used with raw data output.)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> If xoffset and width do not form a valid subset of the image row, then this</span>
+<span class="diff-c"> function will generate an error.  Note that if the output image is scaled, then</span>
+<span class="diff-h">diff --git a/src/jdapistd.c b/src/jdapistd.c</span>
+<span class="diff-h">index 78ef7ac07..8f5f85a8d 100644</span>
+<span class="diff-h">--- a/src/jdapistd.c</span>
+<span class="diff-h">+++ b/src/jdapistd.c</span>
+<span class="diff-h">@@ -200,7 +200,7 @@ _jpeg_crop_scanline(j_decompress_ptr cinfo, JDIMENSION *xoffset,</span>
+<span class="diff-c">   if (cinfo-&gt;data_precision != BITS_IN_JSAMPLE)</span>
+<span class="diff-c">     ERREXIT1(cinfo, JERR_BAD_PRECISION, cinfo-&gt;data_precision);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  if (cinfo-&gt;master-&gt;lossless)</span>
+<span class="diff-a">+  if (cinfo-&gt;master-&gt;lossless || cinfo-&gt;raw_data_out)</span>
+<span class="diff-c">     ERREXIT(cinfo, JERR_NOTIMPL);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   if ((cinfo-&gt;global_state != DSTATE_SCANNING &amp;&amp;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/libjpeg-turbo/libjpeg-turbo/commit/0ff47f0b46924ea1aaf04092ba1d0c0f83f93b10" rel="noopener noreferrer">https://github.com/libjpeg-turbo/libjpeg-turbo/commit/0ff47f0b46924ea1aaf04092ba1d0c0f83f93b10</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">0cc596b99dfbdc95c30143e64f6157d6dac36adb067b98c778ed3575b081d40dcb23856f9e9f1e8fe495e08c14835ef69fcc8f6bbf34c6625dc80c2204eb09ef</p>
+<p class="kicker">Committed 2026-05-07 14:53 UTC</p>
+<p class="kicker">Revealed 2026-07-08 22:53 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-5ETTYD84-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-5ETTYD84%22%2C%22bug_class%22%3A%22use-after-free%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%229135da1d%22%2C%22created_at%22%3A%222026-03-29T19%3A26%3A26%2B00%3A00%22%2C%22description%22%3A%22When%20a%20jpeg_decompress_struct%20is%20reused%20across%20two%20sessions%2C%20the%20first%20session%20allocates%20cinfo-%3Eupsample%20in%20JPOOL_IMAGE%20and%20jpeg_abort_decompress%28%29%20frees%20that%20pool%20while%20leaving%20the%20pointer%20dangling.%20A%20second%20session%20started%20with%20raw_data_out%3DTRUE%20and%20buffered_image%3DTRUE%20skips%20upsampler%20reinitialization%20in%20master_selection%20%28gated%20on%20%21raw_data_out%29.%20Calling%20jpeg_crop_scanline%28%29%20in%20DSTATE_BUFIMAGE%20then%20enters%20the%20reinit_upsampler%20path%20and%20jinit_upsampler%28%29%20writes%20function%20pointers%20and%20integers%20through%20the%20stale%20cinfo-%3Eupsample%20into%20freed%20heap%20memory.%20Any%20subsampled%20JPEG%20suffices%20as%20input%3B%20the%20trigger%20is%20the%20API%20call%20sequence%20rather%20than%20crafted%20image%20data.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22jdsample.c%3A494%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libjpeg-turbo%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22heap-use-after-free%20...%20WRITE%20of%20size%204%20at%200x6290000021f8%20...%20in%20jinit_upsampler%20jdsample.c%3A494%3A35%5C%22.%20The%20root%20cause%20is%20that%20jpeg_abort%28%29/free_pool%20releases%20the%20JPOOL_IMAGE%20allocation%20backing%20cinfo-%3Eupsample%20without%20nulling%20the%20pointer%2C%20and%20the%20raw_data_out%20codepath%20in%20master%20selection%20never%20reallocates%20it%2C%20so%20jpeg_crop_scanline%28%29%27s%20no_alloc%20call%20into%20_jinit_upsampler%20writes%20to%20freed%20memory.%22%2C%22title%22%3A%22use-after-free%20at%20../jdsample.c%3A494%3A35%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-5ETTYD84&#34;,
+  &#34;bug_class&#34;: &#34;use-after-free&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;9135da1d&#34;,
+  &#34;created_at&#34;: &#34;2026-03-29T19:26:26+00:00&#34;,
+  &#34;description&#34;: &#34;When a jpeg_decompress_struct is reused across two sessions, the first session allocates cinfo-&gt;upsample in JPOOL_IMAGE and jpeg_abort_decompress() frees that pool while leaving the pointer dangling. A second session started with raw_data_out=TRUE and buffered_image=TRUE skips upsampler reinitialization in master_selection (gated on !raw_data_out). Calling jpeg_crop_scanline() in DSTATE_BUFIMAGE then enters the reinit_upsampler path and jinit_upsampler() writes function pointers and integers through the stale cinfo-&gt;upsample into freed heap memory. Any subsampled JPEG suffices as input; the trigger is the API call sequence rather than crafted image data.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;jdsample.c:494&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libjpeg-turbo&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;heap-use-after-free ... WRITE of size 4 at 0x6290000021f8 ... in jinit_upsampler jdsample.c:494:35\&#34;. The root cause is that jpeg_abort()/free_pool releases the JPOOL_IMAGE allocation backing cinfo-&gt;upsample without nulling the pointer, and the raw_data_out codepath in master selection never reallocates it, so jpeg_crop_scanline()&#39;s no_alloc call into _jinit_upsampler writes to freed memory.&#34;,
+  &#34;title&#34;: &#34;use-after-free at ../jdsample.c:494:35&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

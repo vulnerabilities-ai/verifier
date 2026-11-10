@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-AYWQW7P2 · openssl/openssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-AYWQW7P2 · openssl/openssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-45447">CVE-2026-45447</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-f684-cpcq-j565">GHSA-f684-cpcq-j565</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-critical">critical</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-AYWQW7P2: PKCS7_verify frees caller-owned <code>indata</code> BIO when <code>digestAlgorithms</code> SET is empty</h1>
+<p>In PKCS7_dataInit(), when the attacker-supplied SignedData has an empty md_algs SET (DER <code>31 00</code>), no BIO_f_md filter chain is built and the caller's indata BIO pointer is returned verbatim instead of a library-owned chain. PKCS7_verify()'s unconditional cleanup then calls BIO_free_all() on that pointer, freeing caller-owned memory. Any consumer following the documented SMIME_read_PKCS7 → PKCS7_verify → BIO_free(indata) pattern (including apps/smime.c) then performs a second BIO_free on the freed 128-byte struct bio_st. The second free writes to offset +88 (refcount decrement) and, if the chunk has been reclaimed with suitable contents, dereferences a vtable pointer at offset +8 for an attacker-influenced indirect call. The trigger is valid DER and reachable via an ordinary S/MIME email with a CA-issued certificate.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> openssl/openssl<br>
+<strong>Location:</strong> <code>crypto/pkcs7/pk7_smime.c:349-356 (sink); crypto/pkcs7/pk7_doit.c:304-306,403-406 (root cause)</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-use-after-free, WRITE of size 4 at freed heap address in CRYPTO_DOWN_REF. The empty-SET case leaves <code>out == NULL</code> in PKCS7_dataInit so it returns <code>out = bio</code> (the caller's pointer) directly; PKCS7_verify's cleanup assumes p7bio has a library-owned head and calls BIO_free_all(p7bio), freeing the caller's BIO. The caller's subsequent BIO_free(indata) then atomically decrements <code>a-&gt;references</code> at +88 in freed memory and, if ret hits 0, calls <code>a-&gt;method-&gt;destroy(a)</code> through a function pointer read from offset +8 of the reclaimed chunk.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>==NNN==ERROR: AddressSanitizer: heap-use-after-free on address 0x... at pc ...
+WRITE of size 4 at 0x... thread T0
+    #0 ... in CRYPTO_DOWN_REF include/internal/refcount.h:64
+    #1 ... in BIO_free crypto/bio/bio_lib.c:126
+    #2 ... in smime_main apps/smime.c:732
+freed by thread T0 here:
+    #3 ... in PKCS7_verify crypto/pkcs7/pk7_smime.c:356
+previously allocated by thread T0 here:
+    #4 ... in multi_split crypto/asn1/asn_mime.c:678
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a multipart/signed S/MIME message whose PKCS7 SignedData has md_algs = empty SET (DER 31 00), with a valid signer cert and SignerInfo.</li>
+<li>Deliver the message to the victim (email, gateway, or file fed to <code>openssl smime -verify</code>).</li>
+<li>Victim calls PKCS7_verify; PKCS7_dataInit returns the caller's indata; cleanup BIO_free_all frees it (first free).</li>
+<li>Victim's own BIO_free(indata) runs: CRYPTO_DOWN_REF writes 4 bytes at +88 of the freed/reclaimed chunk.</li>
+<li>If the slot was reclaimed with ref==1 and a fake BIO_METHOD* at +8, execution falls through to a-&gt;method-&gt;destroy(a) — attacker-controlled indirect call.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Either (1) in PKCS7_verify cleanup, add <code>if (p7bio == indata) p7bio = NULL;</code> before BIO_free_all(p7bio); or (2) in PKCS7_dataInit, when no digest filters were pushed and a caller bio was supplied, reject the input or push a BIO_f_null() so the returned chain always has a library-owned head.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-AYWQW7P2.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-AYWQW7P2<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/crypto/pkcs7/pk7_smime.c b/crypto/pkcs7/pk7_smime.c</span>
+<span class="diff-h">index 4bf26331c1a05..49129690deb96 100644</span>
+<span class="diff-h">--- a/crypto/pkcs7/pk7_smime.c</span>
+<span class="diff-h">+++ b/crypto/pkcs7/pk7_smime.c</span>
+<span class="diff-h">@@ -221,6 +221,7 @@ int PKCS7_verify(PKCS7 *p7, const STACK_OF(X509) *certs, X509_STORE *store,</span>
+<span class="diff-c">     int i, j = 0, k, ret = 0;</span>
+<span class="diff-c">     BIO *p7bio = NULL;</span>
+<span class="diff-c">     BIO *tmpout = NULL;</span>
+<span class="diff-a">+    BIO *next = NULL;</span>
+<span class="diff-c">     const PKCS7_CTX *p7_ctx;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (p7 == NULL) {</span>
+<span class="diff-h">@@ -351,9 +352,11 @@ int PKCS7_verify(PKCS7 *p7, const STACK_OF(X509) *certs, X509_STORE *store,</span>
+<span class="diff-c">         BIO_free(tmpout);</span>
+<span class="diff-c">     X509_STORE_CTX_free(cert_ctx);</span>
+<span class="diff-c">     OPENSSL_free(buf);</span>
+<span class="diff-d">-    if (indata != NULL)</span>
+<span class="diff-d">-        BIO_pop(p7bio);</span>
+<span class="diff-d">-    BIO_free_all(p7bio);</span>
+<span class="diff-a">+    while (p7bio != NULL &amp;&amp; p7bio != indata) {</span>
+<span class="diff-a">+        next = BIO_pop(p7bio);</span>
+<span class="diff-a">+        BIO_free(p7bio);</span>
+<span class="diff-a">+        p7bio = next;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c">     sk_X509_free(signers);</span>
+<span class="diff-c">     sk_X509_free(untrusted);</span>
+<span class="diff-c">     return ret;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/openssl/openssl/commit/f4129fbe3cde786d363510069fe297234f99be8f" rel="noopener noreferrer">https://github.com/openssl/openssl/commit/f4129fbe3cde786d363510069fe297234f99be8f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-28</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-09</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c437365f3af15fb6db66d201e976b79c3cd9f89a37e15f897449b63d820ae951ecb1b647c56e7bc44774c928fbadf2437715bff69c2a687000563ff2260c9acc</p>
+<p class="kicker">Committed 2026-05-28 15:09 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-AYWQW7P2-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-AYWQW7P2%22%2C%22bug_class%22%3A%22Use-After-Free%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-20T01%3A49%3A21%2B00%3A00%22%2C%22description%22%3A%22In%20PKCS7_dataInit%28%29%2C%20when%20the%20attacker-supplied%20SignedData%20has%20an%20empty%20md_algs%20SET%20%28DER%20%6031%2000%60%29%2C%20no%20BIO_f_md%20filter%20chain%20is%20built%20and%20the%20caller%27s%20indata%20BIO%20pointer%20is%20returned%20verbatim%20instead%20of%20a%20library-owned%20chain.%20PKCS7_verify%28%29%27s%20unconditional%20cleanup%20then%20calls%20BIO_free_all%28%29%20on%20that%20pointer%2C%20freeing%20caller-owned%20memory.%20Any%20consumer%20following%20the%20documented%20SMIME_read_PKCS7%20%E2%86%92%20PKCS7_verify%20%E2%86%92%20BIO_free%28indata%29%20pattern%20%28including%20apps/smime.c%29%20then%20performs%20a%20second%20BIO_free%20on%20the%20freed%20128-byte%20struct%20bio_st.%20The%20second%20free%20writes%20to%20offset%20%2B88%20%28refcount%20decrement%29%20and%2C%20if%20the%20chunk%20has%20been%20reclaimed%20with%20suitable%20contents%2C%20dereferences%20a%20vtable%20pointer%20at%20offset%20%2B8%20for%20an%20attacker-influenced%20indirect%20call.%20The%20trigger%20is%20valid%20DER%20and%20reachable%20via%20an%20ordinary%20S/MIME%20email%20with%20a%20CA-issued%20certificate.%22%2C%22discovered_at%22%3A%222026-03-28T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22crypto/pkcs7/pk7_smime.c%3A349-356%20%28sink%29%3B%20crypto/pkcs7/pk7_doit.c%3A304-306%2C403-406%20%28root%20cause%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22openssl%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20multipart/signed%20S/MIME%20message%20whose%20PKCS7%20SignedData%20has%20md_algs%20%3D%20empty%20SET%20%28DER%2031%2000%29%2C%20with%20a%20valid%20signer%20cert%20and%20SignerInfo.%22%2C%222.%20Deliver%20the%20message%20to%20the%20victim%20%28email%2C%20gateway%2C%20or%20file%20fed%20to%20%60openssl%20smime%20-verify%60%29.%22%2C%223.%20Victim%20calls%20PKCS7_verify%3B%20PKCS7_dataInit%20returns%20the%20caller%27s%20indata%3B%20cleanup%20BIO_free_all%20frees%20it%20%28first%20free%29.%22%2C%224.%20Victim%27s%20own%20BIO_free%28indata%29%20runs%3A%20CRYPTO_DOWN_REF%20writes%204%20bytes%20at%20%2B88%20of%20the%20freed/reclaimed%20chunk.%22%2C%225.%20If%20the%20slot%20was%20reclaimed%20with%20ref%3D%3D1%20and%20a%20fake%20BIO_METHOD%2A%20at%20%2B8%2C%20execution%20falls%20through%20to%20a-%3Emethod-%3Edestroy%28a%29%20%E2%80%94%20attacker-controlled%20indirect%20call.%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-use-after-free%2C%20WRITE%20of%20size%204%20at%20freed%20heap%20address%20in%20CRYPTO_DOWN_REF.%20The%20empty-SET%20case%20leaves%20%60out%20%3D%3D%20NULL%60%20in%20PKCS7_dataInit%20so%20it%20returns%20%60out%20%3D%20bio%60%20%28the%20caller%27s%20pointer%29%20directly%3B%20PKCS7_verify%27s%20cleanup%20assumes%20p7bio%20has%20a%20library-owned%20head%20and%20calls%20BIO_free_all%28p7bio%29%2C%20freeing%20the%20caller%27s%20BIO.%20The%20caller%27s%20subsequent%20BIO_free%28indata%29%20then%20atomically%20decrements%20%60a-%3Ereferences%60%20at%20%2B88%20in%20freed%20memory%20and%2C%20if%20ret%20hits%200%2C%20calls%20%60a-%3Emethod-%3Edestroy%28a%29%60%20through%20a%20function%20pointer%20read%20from%20offset%20%2B8%20of%20the%20reclaimed%20chunk.%22%2C%22title%22%3A%22PKCS7_verify%20frees%20caller-owned%20%60indata%60%20BIO%20when%20%60digestAlgorithms%60%20SET%20is%20empty%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-AYWQW7P2&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Free&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-20T01:49:21+00:00&#34;,
+  &#34;description&#34;: &#34;In PKCS7_dataInit(), when the attacker-supplied SignedData has an empty md_algs SET (DER `31 00`), no BIO_f_md filter chain is built and the caller&#39;s indata BIO pointer is returned verbatim instead of a library-owned chain. PKCS7_verify()&#39;s unconditional cleanup then calls BIO_free_all() on that pointer, freeing caller-owned memory. Any consumer following the documented SMIME_read_PKCS7 → PKCS7_verify → BIO_free(indata) pattern (including apps/smime.c) then performs a second BIO_free on the freed 128-byte struct bio_st. The second free writes to offset +88 (refcount decrement) and, if the chunk has been reclaimed with suitable contents, dereferences a vtable pointer at offset +8 for an attacker-influenced indirect call. The trigger is valid DER and reachable via an ordinary S/MIME email with a CA-issued certificate.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-28T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;crypto/pkcs7/pk7_smime.c:349-356 (sink); crypto/pkcs7/pk7_doit.c:304-306,403-406 (root cause)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;openssl&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a multipart/signed S/MIME message whose PKCS7 SignedData has md_algs = empty SET (DER 31 00), with a valid signer cert and SignerInfo.&#34;,
+    &#34;2. Deliver the message to the victim (email, gateway, or file fed to `openssl smime -verify`).&#34;,
+    &#34;3. Victim calls PKCS7_verify; PKCS7_dataInit returns the caller&#39;s indata; cleanup BIO_free_all frees it (first free).&#34;,
+    &#34;4. Victim&#39;s own BIO_free(indata) runs: CRYPTO_DOWN_REF writes 4 bytes at +88 of the freed/reclaimed chunk.&#34;,
+    &#34;5. If the slot was reclaimed with ref==1 and a fake BIO_METHOD* at +8, execution falls through to a-&gt;method-&gt;destroy(a) — attacker-controlled indirect call.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-use-after-free, WRITE of size 4 at freed heap address in CRYPTO_DOWN_REF. The empty-SET case leaves `out == NULL` in PKCS7_dataInit so it returns `out = bio` (the caller&#39;s pointer) directly; PKCS7_verify&#39;s cleanup assumes p7bio has a library-owned head and calls BIO_free_all(p7bio), freeing the caller&#39;s BIO. The caller&#39;s subsequent BIO_free(indata) then atomically decrements `a-&gt;references` at +88 in freed memory and, if ret hits 0, calls `a-&gt;method-&gt;destroy(a)` through a function pointer read from offset +8 of the reclaimed chunk.&#34;,
+  &#34;title&#34;: &#34;PKCS7_verify frees caller-owned `indata` BIO when `digestAlgorithms` SET is empty&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

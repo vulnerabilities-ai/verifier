@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-K6DHGAYS · webkit/webkit</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-K6DHGAYS · webkit/webkit</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-K6DHGAYS: Heap-buffer-overflow in FTLOperations.cpp:95</h1>
+<p>In JavaScriptCore's FTL tier, array allocation sinking (PhantomNewArrayWithButterfly) defers materialization until OSR exit. If Object.defineProperty installs an indexed accessor on Object.prototype and triggers haveABadTime() between operationMaterializeObjectInOSR and operationPopulateObjectInOSR, the Butterfly is created with a contiguous indexing shape but then populated via the ArrayStorage path. The mismatch lets putDirectIndex → setIndexQuicklyForArrayStorageIndexingType read and write past the end of the 16152-byte heap allocation. The bug is reachable from pure attacker-supplied JavaScript and reproduces deterministically (3/3 runs).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> webkit/webkit<br>
+<strong>Location:</strong> <code>FTLOperations.cpp:95</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow, READ of size 8 at 0 bytes after a 16152-byte region. operationMaterializeObjectInOSR sizes and allocates the Butterfly assuming a contiguous layout, but a concurrent haveABadTime transition flips the global indexing mode so operationPopulateObjectInOSR treats the same buffer as ArrayStorage; the ArrayStorage header/vector layout differs, so index computations in setIndexQuicklyForArrayStorageIndexingType land outside the allocation, yielding OOB read and write.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a well-crafted JavaScript file (3582 bytes) that exploits a race condition in WebKit's JavaScriptCore FTL compiler during OSR exit object materialization. It triggers a heap-buffer-overflow by:
+
+1. Getting a function FTL-compiled with array allocation sinking (PhantomNewArrayWithButterfly)
+2. Triggering `haveABadTime()` via `Object.defineProperty` on `Object.prototype` with an indexed accessor
+3. Causing an OSR exit where `operationMaterializeObjectInOSR` creates a Butterfly with contiguous layout but `operationPopulateObjectInOSR` uses it as ArrayStorage, resulting in an OOB read/write
+
+All 3 reproduction attempts in a fresh Docker container crashed deterministically with:
+- Error: `AddressSanitizer: heap-buffer-overflow`
+- Location: `READ of size 8` at `0 bytes after 16152-byte region`
+- Crash function: `operationPopulateObjectInOSR` at `FTLOperations.cpp:95`
+- Call chain: `putDirectIndex → setIndexQuickly → setIndexQuicklyForArrayStorageIndexingType → WriteBarrierBase::get()`
+- Exit code: 134 (SIGABRT from ASAN abort_on_error)
+
+The crash is entirely in JavaScriptCore project code, is not OOM/timeout related, and reproduces with perfect determinism (3/3 runs).
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Warm a target function until it is FTL-compiled with array allocation sinking (PhantomNewArrayWithButterfly).</li>
+<li>Call Object.defineProperty on Object.prototype with an indexed accessor to trigger haveABadTime().</li>
+<li>Force an OSR exit so operationMaterializeObjectInOSR allocates a contiguous Butterfly but operationPopulateObjectInOSR populates it via the ArrayStorage path, causing OOB access.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-K6DHGAYS.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-K6DHGAYS<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/JSTests/stress/ftl-osr-exit-phantom-new-array-with-butterfly-having-a-bad-time.js b/JSTests/stress/ftl-osr-exit-phantom-new-array-with-butterfly-having-a-bad-time.js</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000000..2611454cf3044</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/JSTests/stress/ftl-osr-exit-phantom-new-array-with-butterfly-having-a-bad-time.js</span>
+<span class="diff-h">@@ -0,0 +1,35 @@</span>
+<span class="diff-a">+//@ runDefault(&quot;--jitPolicyScale=0.1&quot;)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+let trigger = false;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+function cb() {</span>
+<span class="diff-a">+    if (trigger) {</span>
+<span class="diff-a">+        Object.defineProperty(Array.prototype, 0, {</span>
+<span class="diff-a">+            get() { return 42; }, configurable: true</span>
+<span class="diff-a">+        });</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+noInline(cb);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+function collect() { gc(); }</span>
+<span class="diff-a">+noInline(collect);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+function opt() {</span>
+<span class="diff-a">+    let a = new Array(5);</span>
+<span class="diff-a">+    a[0] = 1.1;</span>
+<span class="diff-a">+    a[1] = 2.2;</span>
+<span class="diff-a">+    a[2] = 3.3;</span>
+<span class="diff-a">+    a[3] = 4.4;</span>
+<span class="diff-a">+    a[4] = 5.5;</span>
+<span class="diff-a">+    cb();</span>
+<span class="diff-a">+    collect();</span>
+<span class="diff-a">+    return a[0] + a[1] + a[2] + a[3] + a[4];</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+noInline(opt);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+for (let i = 0; i &lt; 1000; i++)</span>
+<span class="diff-a">+    opt();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+trigger = true;</span>
+<span class="diff-a">+opt();</span>
+<span class="diff-a">+gc();</span>
+<span class="diff-h">diff --git a/Source/JavaScriptCore/ftl/FTLOperations.cpp b/Source/JavaScriptCore/ftl/FTLOperations.cpp</span>
+<span class="diff-h">index d02c76c8578e4..4b4d59d411170 100644</span>
+<span class="diff-h">--- a/Source/JavaScriptCore/ftl/FTLOperations.cpp</span>
+<span class="diff-h">+++ b/Source/JavaScriptCore/ftl/FTLOperations.cpp</span>
+<span class="diff-h">@@ -112,10 +112,17 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationPopulateObjectInOSR, void, (JSGlobalO</span>
+<span class="diff-c">             // empty JSValue is not an Int32. Contiguous is also handled here for the debug ASSERT</span>
+<span class="diff-c">             // in putDirectIndex that null-derefs on the empty JSValue. Write directly into the</span>
+<span class="diff-c">             // butterfly to preserve the indexing type.</span>
+<span class="diff-a">+            //</span>
+<span class="diff-a">+            // If the VM had a bad time between FTL compilation and this OSR exit, the Array was</span>
+<span class="diff-a">+            // switched to SlowPutArrayStorage in operationMaterializeObjectInOSR. A hole (empty</span>
+<span class="diff-a">+            // JSValue) must then be cleared in the ArrayStorage vector rather than the contiguous</span>
+<span class="diff-a">+            // butterfly to match the rematerialized layout.</span>
+<span class="diff-c">             if (hasDouble(array-&gt;indexingType()) &amp;&amp; value.isNumber() &amp;&amp; std::isnan(value.asNumber())) [[unlikely]]</span>
+<span class="diff-c">                 array-&gt;butterfly()-&gt;contiguousDouble().atUnsafe(index) = PNaN;</span>
+<span class="diff-c">             else if ((hasInt32(array-&gt;indexingType()) || hasContiguous(array-&gt;indexingType())) &amp;&amp; !value) [[unlikely]]</span>
+<span class="diff-c">                 array-&gt;butterfly()-&gt;contiguous().atUnsafe(index).setStartingValue(JSValue());</span>
+<span class="diff-a">+            else if (hasAnyArrayStorage(array-&gt;indexingType()) &amp;&amp; !value) [[unlikely]]</span>
+<span class="diff-a">+                array-&gt;butterfly()-&gt;arrayStorage()-&gt;m_vector[index].clear();</span>
+<span class="diff-c">             else</span>
+<span class="diff-c">                 array-&gt;putDirectIndex(globalObject, index, value);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -308,7 +315,13 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationMaterializeObjectInOSR, HeapCell*, (J</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     case PhantomNewArrayWithButterfly: {</span>
+<span class="diff-d">-        Structure* structure = globalObject-&gt;arrayStructureForIndexingTypeDuringAllocation(materialization-&gt;indexingType());</span>
+<span class="diff-a">+        // Rematerialized butterflies are always non-ArrayStorage. However, isHavingABadTime could</span>
+<span class="diff-a">+        // have become true between the FTL compilation and the rematerialization, which would have</span>
+<span class="diff-a">+        // switched arrayStructureForIndexingTypeDuringAllocation to SlowPutArrayStorage for all</span>
+<span class="diff-a">+        // indexing types. To avoid a layout mismatch, the original Array structure is used to</span>
+<span class="diff-a">+        // rematerialize the Array initially. If we&#x27;re having a bad time, the layout is switched to</span>
+<span class="diff-a">+        // SlowPutArrayStorage below.</span>
+<span class="diff-a">+        Structure* structure = globalObject-&gt;originalArrayStructureForIndexingType(materialization-&gt;indexingType());</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         Butterfly* butterfly = nullptr;</span>
+<span class="diff-c">         for (unsigned i = 0; i &lt; materialization-&gt;properties().size(); ++i) {</span>
+<span class="diff-h">@@ -349,6 +362,14 @@ JSC_DEFINE_NOEXCEPT_JIT_OPERATION(operationMaterializeObjectInOSR, HeapCell*, (J</span>
+<span class="diff-c">                 butterfly-&gt;contiguous().atUnsafe(index).setStartingValue(jsNumber(sentinel));</span>
+<span class="diff-c">         }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+        if (globalObject-&gt;isHavingABadTime()) [[unlikely]] {</span>
+<span class="diff-a">+#if ASSERT_ENABLED</span>
+<span class="diff-a">+            Structure* originalStructure = globalObject-&gt;arrayStructureForIndexingTypeDuringAllocation(materialization-&gt;indexingType());</span>
+<span class="diff-a">+            ASSERT(!originalStructure || hasSlowPutArrayStorage(originalStructure-&gt;indexingType()));</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-a">+            result-&gt;switchToSlowPutArrayStorage(vm);</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">         return result;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/WebKit/WebKit/commit/eba64ef44de395091d66bdfdf1c2b1f0f4983c56" rel="noopener noreferrer">https://github.com/WebKit/WebKit/commit/eba64ef44de395091d66bdfdf1c2b1f0f4983c56</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7dee0cf877692adbc6077f63c1523894b696da2817b42e1e84c5d5eafe515981fbabc5677aff61519a61903f6ac395009cf9d94cc2e4241a2fa38f07defbfcdb</p>
+<p class="kicker">Committed 2026-06-09 07:05 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-K6DHGAYS-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-K6DHGAYS%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T20%3A43%3A30%2B00%3A00%22%2C%22description%22%3A%22In%20JavaScriptCore%27s%20FTL%20tier%2C%20array%20allocation%20sinking%20%28PhantomNewArrayWithButterfly%29%20defers%20materialization%20until%20OSR%20exit.%20If%20Object.defineProperty%20installs%20an%20indexed%20accessor%20on%20Object.prototype%20and%20triggers%20haveABadTime%28%29%20between%20operationMaterializeObjectInOSR%20and%20operationPopulateObjectInOSR%2C%20the%20Butterfly%20is%20created%20with%20a%20contiguous%20indexing%20shape%20but%20then%20populated%20via%20the%20ArrayStorage%20path.%20The%20mismatch%20lets%20putDirectIndex%20%E2%86%92%20setIndexQuicklyForArrayStorageIndexingType%20read%20and%20write%20past%20the%20end%20of%20the%2016152-byte%20heap%20allocation.%20The%20bug%20is%20reachable%20from%20pure%20attacker-supplied%20JavaScript%20and%20reproduces%20deterministically%20%283/3%20runs%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22FTLOperations.cpp%3A95%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22webkit%22%2C%22reproduction%22%3A%5B%221.%20Warm%20a%20target%20function%20until%20it%20is%20FTL-compiled%20with%20array%20allocation%20sinking%20%28PhantomNewArrayWithButterfly%29.%22%2C%222.%20Call%20Object.defineProperty%20on%20Object.prototype%20with%20an%20indexed%20accessor%20to%20trigger%20haveABadTime%28%29.%22%2C%223.%20Force%20an%20OSR%20exit%20so%20operationMaterializeObjectInOSR%20allocates%20a%20contiguous%20Butterfly%20but%20operationPopulateObjectInOSR%20populates%20it%20via%20the%20ArrayStorage%20path%2C%20causing%20OOB%20access.%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%2C%20READ%20of%20size%208%20at%200%20bytes%20after%20a%2016152-byte%20region.%20operationMaterializeObjectInOSR%20sizes%20and%20allocates%20the%20Butterfly%20assuming%20a%20contiguous%20layout%2C%20but%20a%20concurrent%20haveABadTime%20transition%20flips%20the%20global%20indexing%20mode%20so%20operationPopulateObjectInOSR%20treats%20the%20same%20buffer%20as%20ArrayStorage%3B%20the%20ArrayStorage%20header/vector%20layout%20differs%2C%20so%20index%20computations%20in%20setIndexQuicklyForArrayStorageIndexingType%20land%20outside%20the%20allocation%2C%20yielding%20OOB%20read%20and%20write.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20FTLOperations.cpp%3A95%22%2C%22vendor_severity%22%3A%22critical%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-K6DHGAYS&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T20:43:30+00:00&#34;,
+  &#34;description&#34;: &#34;In JavaScriptCore&#39;s FTL tier, array allocation sinking (PhantomNewArrayWithButterfly) defers materialization until OSR exit. If Object.defineProperty installs an indexed accessor on Object.prototype and triggers haveABadTime() between operationMaterializeObjectInOSR and operationPopulateObjectInOSR, the Butterfly is created with a contiguous indexing shape but then populated via the ArrayStorage path. The mismatch lets putDirectIndex → setIndexQuicklyForArrayStorageIndexingType read and write past the end of the 16152-byte heap allocation. The bug is reachable from pure attacker-supplied JavaScript and reproduces deterministically (3/3 runs).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;FTLOperations.cpp:95&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;webkit&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Warm a target function until it is FTL-compiled with array allocation sinking (PhantomNewArrayWithButterfly).&#34;,
+    &#34;2. Call Object.defineProperty on Object.prototype with an indexed accessor to trigger haveABadTime().&#34;,
+    &#34;3. Force an OSR exit so operationMaterializeObjectInOSR allocates a contiguous Butterfly but operationPopulateObjectInOSR populates it via the ArrayStorage path, causing OOB access.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow, READ of size 8 at 0 bytes after a 16152-byte region. operationMaterializeObjectInOSR sizes and allocates the Butterfly assuming a contiguous layout, but a concurrent haveABadTime transition flips the global indexing mode so operationPopulateObjectInOSR treats the same buffer as ArrayStorage; the ArrayStorage header/vector layout differs, so index computations in setIndexQuicklyForArrayStorageIndexingType land outside the allocation, yielding OOB read and write.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in FTLOperations.cpp:95&#34;,
+  &#34;vendor_severity&#34;: &#34;critical&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

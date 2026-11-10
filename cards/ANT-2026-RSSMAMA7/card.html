@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-RSSMAMA7 · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-RSSMAMA7 · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  authenticity-not-verified
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5479">CVE-2026-5479</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-RSSMAMA7: wolfSSL EVP_CipherFinal does not verify the Poly1305 tag on ChaCha20-Poly1305 decrypt</h1>
+<p>In wolfSSL's OpenSSL-compatibility EVP layer, wolfSSL_EVP_CipherFinal() (wolfcrypt/src/evp.c) finalised ChaCha20-Poly1305 decryption by computing the Poly1305 tag into ctx-&gt;authTag, overwriting the expected tag the caller had supplied through EVP_CTRL_AEAD_SET_TAG, and then returned success without comparing the two. Any application that decrypts with EVP_chacha20_poly1305() and relies on EVP_DecryptFinal_ex()/EVP_CipherFinal() to reject forgeries, including wolfSSL's own QUIC helper wolfSSL_quic_aead_decrypt() when TLS_CHACHA20_POLY1305_SHA256 is negotiated, therefore accepted tampered or forged ciphertext as authentic. The issue is tracked as CVE-2026-5479 (GHSA-3xr8-r75g-g9c6) and was fixed by commit 1faddd640, which is included in wolfSSL 5.9.1.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>wolfcrypt/src/evp.c:wolfSSL_EVP_CipherFinal</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p><strong>Root cause.</strong> In <code>wolfSSL_EVP_CipherFinal()</code> (<code>wolfcrypt/src/evp.c</code>), the <code>WC_CHACHA20_POLY1305_TYPE</code> case had no <code>ctx-&gt;enc</code> branch: for both encryption and decryption it called <code>wc_ChaCha20Poly1305_Final(&amp;ctx-&gt;cipher.chachaPoly, ctx-&gt;authTag)</code> and returned <code>WOLFSSL_SUCCESS</code> whenever that call succeeded. <code>wc_ChaCha20Poly1305_Final()</code> only generates a tag, so on the decrypt path it overwrote the expected tag that <code>EVP_CIPHER_CTX_ctrl(..., EVP_CTRL_AEAD_SET_TAG, ...)</code> had copied into <code>ctx-&gt;authTag</code>. <code>wc_ChaCha20Poly1305_CheckTag()</code> was not called anywhere in <code>evp.c</code>, and <code>wolfSSL_EVP_DecryptFinal_ex()</code> is a plain passthrough to <code>wolfSSL_EVP_CipherFinal()</code>, so no tag comparison took place at any point. The adjacent AES-GCM branch of the same function does verify the tag.</p>
+<p><strong>Reach and preconditions.</strong> The code is compiled when the EVP compatibility layer is enabled (<code>OPENSSL_EXTRA</code>) together with <code>HAVE_CHACHA</code>/<code>HAVE_POLY1305</code>. It is reached by any caller that follows the standard OpenSSL AEAD pattern: decrypt with <code>EVP_chacha20_poly1305()</code>, set the received tag with <code>EVP_CTRL_AEAD_SET_TAG</code>, and treat a successful <code>EVP_DecryptFinal_ex()</code>/<code>EVP_CipherFinal()</code> as proof of authenticity. wolfSSL's QUIC integration uses exactly this pattern: <code>wolfSSL_quic_get_aead()</code> maps <code>TLS_CHACHA20_POLY1305_SHA256</code> to <code>EVP_chacha20_poly1305()</code>, and <code>wolfSSL_quic_aead_decrypt()</code> (<code>src/quic.c</code>) sets the tag via <code>EVP_CTRL_AEAD_SET_TAG</code> and relies solely on the return value of <code>wolfSSL_EVP_CipherFinal()</code>. wolfSSL's native TLS record layer calls the wolfCrypt ChaCha20-Poly1305 primitives directly and does not go through this EVP path.</p>
+<p><strong>Impact.</strong> Loss of AEAD integrity and authenticity for ChaCha20-Poly1305 via the EVP interface: an attacker who can modify or inject ciphertext has forged or tampered messages accepted, and the resulting plaintext is returned to the application as if it had been authenticated. The published advisory (CVE-2026-5479 / GHSA-3xr8-r75g-g9c6, CWE-354) rates the issue High, CVSS 3.1 8.1 (<code>AV:A/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N</code>).</p>
+<p><strong>Fix.</strong> Commit <code>1faddd640edc8195c1fb7cb3904876e434ecab87</code> ("evp: verify Poly1305 tag on ChaCha20-Poly1305 decrypt"), merged via wolfSSL/wolfssl#10102 on 2026-04-06 and included in the wolfSSL 5.9.1 release (the 5.9.0 release does not contain it), saves the expected tag before calling <code>wc_ChaCha20Poly1305_Final()</code> and, on the decrypt path, compares it against the computed tag with <code>wc_ChaCha20Poly1305_CheckTag()</code>, returning <code>WOLFSSL_FAILURE</code> on mismatch. A regression test was added asserting that <code>EVP_DecryptFinal_ex()</code> rejects a forged tag.</p>
+<pre tabindex="0"><code class="language-c">case WC_CHACHA20_POLY1305_TYPE:
+{
+    byte computedTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];
+    if (!ctx-&gt;enc) {
+        /* Save the expected tag before _Final() overwrites ctx-&gt;authTag */
+        XMEMCPY(computedTag, ctx-&gt;authTag, sizeof(computedTag));
+    }
+    if (wc_ChaCha20Poly1305_Final(&amp;ctx-&gt;cipher.chachaPoly, ctx-&gt;authTag) != 0) {
+        WOLFSSL_MSG(&quot;wc_ChaCha20Poly1305_Final failed&quot;);
+        return WOLFSSL_FAILURE;
+    }
+    if (!ctx-&gt;enc) {
+        int tagErr = wc_ChaCha20Poly1305_CheckTag(computedTag, ctx-&gt;authTag);
+        ForceZero(computedTag, sizeof(computedTag));
+        if (tagErr != 0) {
+            WOLFSSL_MSG(&quot;ChaCha20-Poly1305 tag mismatch&quot;);
+            return WOLFSSL_FAILURE;
+        }
+    }
+    *outl = 0;
+    return WOLFSSL_SUCCESS;
+}
+</code></pre>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-RSSMAMA7.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-RSSMAMA7<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/tests/api/test_evp_cipher.c b/tests/api/test_evp_cipher.c</span>
+<span class="diff-h">index b4e37df7a28..1e88da9979c 100644</span>
+<span class="diff-h">--- a/tests/api/test_evp_cipher.c</span>
+<span class="diff-h">+++ b/tests/api/test_evp_cipher.c</span>
+<span class="diff-h">@@ -1915,6 +1915,7 @@ int test_wolfssl_EVP_chacha20_poly1305(void)</span>
+<span class="diff-c">     byte cipherText[sizeof(plainText)];</span>
+<span class="diff-c">     byte decryptedText[sizeof(plainText)];</span>
+<span class="diff-c">     byte tag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];</span>
+<span class="diff-a">+    byte badTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];</span>
+<span class="diff-c">     EVP_CIPHER_CTX* ctx = NULL;</span>
+<span class="diff-c">     int outSz;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -1979,6 +1980,28 @@ int test_wolfssl_EVP_chacha20_poly1305(void)</span>
+<span class="diff-c">     EVP_CIPHER_CTX_free(ctx);</span>
+<span class="diff-c">     ctx = NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /* Negative test: forged (all-zero) tag must be rejected. */</span>
+<span class="diff-a">+    XMEMSET(badTag, 0, sizeof(badTag));</span>
+<span class="diff-a">+    ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, EVP_chacha20_poly1305(), NULL,</span>
+<span class="diff-a">+                NULL, NULL), WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN,</span>
+<span class="diff-a">+                CHACHA20_POLY1305_AEAD_IV_SIZE, NULL), WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG,</span>
+<span class="diff-a">+                CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE, badTag),</span>
+<span class="diff-a">+                WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_DecryptInit_ex(ctx, NULL, NULL, key, iv),</span>
+<span class="diff-a">+                WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_DecryptUpdate(ctx, NULL, &amp;outSz, aad, sizeof(aad)),</span>
+<span class="diff-a">+                WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    ExpectIntEQ(EVP_DecryptUpdate(ctx, decryptedText, &amp;outSz, cipherText,</span>
+<span class="diff-a">+                sizeof(cipherText)), WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    /* EVP_DecryptFinal_ex MUST return failure on tag mismatch */</span>
+<span class="diff-a">+    ExpectIntNE(EVP_DecryptFinal_ex(ctx, decryptedText, &amp;outSz),</span>
+<span class="diff-a">+                WOLFSSL_SUCCESS);</span>
+<span class="diff-a">+    EVP_CIPHER_CTX_free(ctx);</span>
+<span class="diff-a">+    ctx = NULL;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /* Test partial Inits. CipherInit() allow setting of key and iv</span>
+<span class="diff-c">      * in separate calls. */</span>
+<span class="diff-c">     ExpectNotNull((ctx = EVP_CIPHER_CTX_new()));</span>
+<span class="diff-h">diff --git a/wolfcrypt/src/evp.c b/wolfcrypt/src/evp.c</span>
+<span class="diff-h">index fc4f68eb9fc..121d926555f 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/evp.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/evp.c</span>
+<span class="diff-h">@@ -1499,16 +1499,33 @@ int wolfSSL_EVP_CipherFinal(WOLFSSL_EVP_CIPHER_CTX *ctx, unsigned char *out,</span>
+<span class="diff-c">         * HAVE_FIPS_VERSION &gt;= 2 */</span>
+<span class="diff-c"> #if defined(HAVE_CHACHA) &amp;&amp; defined(HAVE_POLY1305)</span>
+<span class="diff-c">         case WC_CHACHA20_POLY1305_TYPE:</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            byte computedTag[CHACHA20_POLY1305_AEAD_AUTHTAG_SIZE];</span>
+<span class="diff-a">+            if (!ctx-&gt;enc) {</span>
+<span class="diff-a">+                /* Save the expected tag before _Final() overwrites</span>
+<span class="diff-a">+                 * ctx-&gt;authTag */</span>
+<span class="diff-a">+                XMEMCPY(computedTag, ctx-&gt;authTag, sizeof(computedTag));</span>
+<span class="diff-a">+            }</span>
+<span class="diff-c">             if (wc_ChaCha20Poly1305_Final(&amp;ctx-&gt;cipher.chachaPoly,</span>
+<span class="diff-c">                                           ctx-&gt;authTag) != 0) {</span>
+<span class="diff-c">                 WOLFSSL_MSG(&quot;wc_ChaCha20Poly1305_Final failed&quot;);</span>
+<span class="diff-c">                 return WOLFSSL_FAILURE;</span>
+<span class="diff-c">             }</span>
+<span class="diff-d">-            else {</span>
+<span class="diff-d">-                *outl = 0;</span>
+<span class="diff-d">-                return WOLFSSL_SUCCESS;</span>
+<span class="diff-a">+            if (!ctx-&gt;enc) {</span>
+<span class="diff-a">+                /* ctx-&gt;authTag now holds computed tag; computedTag holds</span>
+<span class="diff-a">+                 * expected */</span>
+<span class="diff-a">+                int tagErr = wc_ChaCha20Poly1305_CheckTag(computedTag,</span>
+<span class="diff-a">+                                                          ctx-&gt;authTag);</span>
+<span class="diff-a">+                ForceZero(computedTag, sizeof(computedTag));</span>
+<span class="diff-a">+                if (tagErr != 0) {</span>
+<span class="diff-a">+                    WOLFSSL_MSG(&quot;ChaCha20-Poly1305 tag mismatch&quot;);</span>
+<span class="diff-a">+                    return WOLFSSL_FAILURE;</span>
+<span class="diff-a">+                }</span>
+<span class="diff-c">             }</span>
+<span class="diff-d">-            break;</span>
+<span class="diff-a">+            *outl = 0;</span>
+<span class="diff-a">+            return WOLFSSL_SUCCESS;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        break;</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> #ifdef WOLFSSL_SM4_GCM</span>
+<span class="diff-c">         case WC_SM4_GCM_TYPE:</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/1faddd640" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/1faddd640</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3d2166ecae422707fc5deddb8399d45cfe7100af81f11c4db5e69c322ab9e357919f53f646abd59e37131b10cd08784ab37185431b9cfd803d3bc0f26297cddf</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-RSSMAMA7-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-RSSMAMA7%22%2C%22bug_class%22%3A%22crypto-failure%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A34%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22wolfssl%20evp%20chacha20%20poly1305%20poly1305%20tag%20never%20verifi%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-RSSMAMA7&#34;,
+  &#34;bug_class&#34;: &#34;crypto-failure&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:34+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;wolfssl evp chacha20 poly1305 poly1305 tag never verifi&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

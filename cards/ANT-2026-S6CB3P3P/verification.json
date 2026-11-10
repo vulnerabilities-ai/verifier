@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-S6CB3P3P",
+  "hash": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-S6CB3P3P/card.html",
+    "sha256": "1e6cdcd35cf9cb195eb198fdacc6beefc38b28af48e41e30481b2e553c13b683",
+    "fetched_utc": "2026-11-10T21:07:22Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-S6CB3P3P",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+    "printed_hash": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+    "canonical_rebuild_sha3_512": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:07:22Z",
+  "card_facts": {
+    "printed_hash": "1a81a8c68555b513954cb7daffe6702584f613cf3878faeab4b7f4b4a9b5b80c6b93282ab289d3af24a84df046c42c0e673f533d97f7a509b4a54285a4b828ee",
+    "committed_printed": "2026-05-07 14:53 UTC",
+    "revealed_printed": "2026-07-08 22:58 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-26",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-04-01",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-07-08",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "patch_released_date": "2026-03-26",
+      "discovered_or_logged_date": "2026-04-01",
+      "report_date": "2026-05-07",
+      "acknowledged_date": "2026-05-07",
+      "reveal_date": "2026-07-08"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/isc-projects/bind9/commit/e43e4bd20a99860e79294afbcc9b75f01ff28c26"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [
+    "The card's 'Patch released' date (2026-03-26) is earlier than its 'Discovered or logged' date (2026-04-01)."
+  ],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

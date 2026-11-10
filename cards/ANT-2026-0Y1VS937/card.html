@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-0Y1VS937 · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-0Y1VS937 · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-0Y1VS937: Heap underflow in H.264 xchg_mb_border via slice_num/sentinel collision</h1>
+<p>In FFmpeg's H.264 decoder, slice_table (h264dec.h) is a uint16_t array memset to 0xFFFF as a 'no slice' sentinel, while slice_num = ++h-&gt;current_slice is an uncapped int. At slice 65535, slice_num == 0xFFFF, so comparisons against the never-written spare slice_table entries (one per row, mb_stride = mb_width + 1) spuriously match. This defeats the deblock_topleft check in h264_mb.c:532 and the topleft/top guards in h264_mvpred.h:564, leaving deblock_top and deblock_topleft true at mb_x == 0. xchg_mb_border then computes top_border_m1 = sl-&gt;top_borders[top_idx][sl-&gt;mb_x - 1] (index -1, 96 bytes below the allocation) and performs AV_SWAP64 at offsets -88, -72, -56 — three 8-byte OOB writes whose values are decoded pixel data (src_y - 7) and thus attacker-controlled via DCT coefficients. Trigger requires disable_deblocking_filter_idc = 2 in the slice header, which the attacker sets.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Version:</strong> all releases since the original 2003 H.264 decoder commit through current master (f73849887c)<br>
+<strong>Location:</strong> <code>libavcodec/h264_mb.c:561 (xchg_mb_border)</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: 'heap-buffer-overflow ... READ of size 8 at 0x51b000008528 ... located 88 bytes before 1460-byte region' at h264_mb.c:561. ASan reports the read first, but XCHG is AV_SWAP64 ({tmp=b; b=a; a=tmp}), so a non-instrumented build unconditionally performs the paired write as well. Root cause: the 0xFFFF sentinel in a uint16_t slice_table is reachable by the unbounded int slice_num, turning 'is this macroblock in my slice?' guards into tautologies for spare entries and bypassing the mb_x &gt; 0 protection path.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>==160422==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x51b000008528
+READ of size 8 at 0x51b000008528 thread T0
+    #0 xchg_mb_border libavcodec/h264_mb.c:561:13
+    #1 hl_decode_mb_simple_8 libavcodec/h264_mb_template.c:155:17
+0x51b000008528 is located 88 bytes before 1460-byte region
+SUMMARY: AddressSanitizer: heap-buffer-overflow libavcodec/h264_mb.c:561:13
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an H.264 picture with ~65536 slices so that ++h-&gt;current_slice reaches 0xFFFF.</li>
+<li>Set disable_deblocking_filter_idc = 2 so the deblock_topleft check consults slice_table instead of mb_x &gt; 0.</li>
+<li>On the 0xFFFF-th slice, spare slice_table entries (still 0xFFFF) compare equal to slice_num; guards in h264_mb.c:532 and h264_mvpred.h:564 fail open.</li>
+<li>At mb_x = 0, xchg_mb_border indexes top_borders[top_idx][-1] and executes XCHG/AV_SWAP64 at base-88, base-72, base-56.</li>
+<li>Choose DCT coefficients so decoded src_y pixels — the values swapped in — are attacker-chosen bytes.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>In h264_slice_init (libavcodec/h264_slice.c), reject the slice before incrementing when h-&gt;current_slice &gt;= 0xFFFE, returning AVERROR_INVALIDDATA so slice_num can never equal the 0xFFFF sentinel. Patch/PR provided.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-0Y1VS937.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-0Y1VS937<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavcodec/h264_slice.c b/libavcodec/h264_slice.c</span>
+<span class="diff-h">index 69f70c90bb0de..0ce8e46c72b4a 100644</span>
+<span class="diff-h">--- a/libavcodec/h264_slice.c</span>
+<span class="diff-h">+++ b/libavcodec/h264_slice.c</span>
+<span class="diff-h">@@ -1979,6 +1979,12 @@ static int h264_slice_init(H264Context *h, H264SliceContext *sl,</span>
+<span class="diff-c">                           h-&gt;ps.pps-&gt;chroma_qp_index_offset[1]) +</span>
+<span class="diff-c">                    6 * (h-&gt;ps.sps-&gt;bit_depth_luma - 8);</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    // slice_table is uint16_t initialized to 0xFFFF as a sentinel.</span>
+<span class="diff-a">+    if (h-&gt;current_slice &gt;= 0xFFFE) {</span>
+<span class="diff-a">+        av_log(h-&gt;avctx, AV_LOG_ERROR, &quot;Too many slices (%d)\n&quot;, h-&gt;current_slice + 1);</span>
+<span class="diff-a">+        return AVERROR_PATCHWELCOME;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     sl-&gt;slice_num       = ++h-&gt;current_slice;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (sl-&gt;slice_num)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/39e1969303a0b9ec5fb5f5eb643bf7a5b69c0a89" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/39e1969303a0b9ec5fb5f5eb643bf7a5b69c0a89</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/releases/tag/n8.1" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/releases/tag/n8.1</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">30191b2865ea6cdce0ed85cd477c9f14778acf9fe45608732cb8541b36ddeadcab81d7356f0655b1a64a4e49fb507c6df96c8228ba43210d0c67c23a60899ee8</p>
+<p class="kicker">Committed 2026-03-13 22:05 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:39 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-0Y1VS937-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-0Y1VS937%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A41%3A32%2B00%3A00%22%2C%22description%22%3A%22In%20FFmpeg%27s%20H.264%20decoder%2C%20slice_table%20%28h264dec.h%29%20is%20a%20uint16_t%20array%20memset%20to%200xFFFF%20as%20a%20%27no%20slice%27%20sentinel%2C%20while%20slice_num%20%3D%20%2B%2Bh-%3Ecurrent_slice%20is%20an%20uncapped%20int.%20At%20slice%2065535%2C%20slice_num%20%3D%3D%200xFFFF%2C%20so%20comparisons%20against%20the%20never-written%20spare%20slice_table%20entries%20%28one%20per%20row%2C%20mb_stride%20%3D%20mb_width%20%2B%201%29%20spuriously%20match.%20This%20defeats%20the%20deblock_topleft%20check%20in%20h264_mb.c%3A532%20and%20the%20topleft/top%20guards%20in%20h264_mvpred.h%3A564%2C%20leaving%20deblock_top%20and%20deblock_topleft%20true%20at%20mb_x%20%3D%3D%200.%20xchg_mb_border%20then%20computes%20top_border_m1%20%3D%20sl-%3Etop_borders%5Btop_idx%5D%5Bsl-%3Emb_x%20-%201%5D%20%28index%20-1%2C%2096%20bytes%20below%20the%20allocation%29%20and%20performs%20AV_SWAP64%20at%20offsets%20-88%2C%20-72%2C%20-56%20%E2%80%94%20three%208-byte%20OOB%20writes%20whose%20values%20are%20decoded%20pixel%20data%20%28src_y%20-%207%29%20and%20thus%20attacker-controlled%20via%20DCT%20coefficients.%20Trigger%20requires%20disable_deblocking_filter_idc%20%3D%202%20in%20the%20slice%20header%2C%20which%20the%20attacker%20sets.%22%2C%22discovered_at%22%3A%222026-03-13T22%3A05%3A55%2B00%3A00%22%2C%22location%22%3A%22libavcodec/h264_mb.c%3A561%20%28xchg_mb_border%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20H.264%20picture%20with%20~65536%20slices%20so%20that%20%2B%2Bh-%3Ecurrent_slice%20reaches%200xFFFF.%22%2C%222.%20Set%20disable_deblocking_filter_idc%20%3D%202%20so%20the%20deblock_topleft%20check%20consults%20slice_table%20instead%20of%20mb_x%20%3E%200.%22%2C%223.%20On%20the%200xFFFF-th%20slice%2C%20spare%20slice_table%20entries%20%28still%200xFFFF%29%20compare%20equal%20to%20slice_num%3B%20guards%20in%20h264_mb.c%3A532%20and%20h264_mvpred.h%3A564%20fail%20open.%22%2C%224.%20At%20mb_x%20%3D%200%2C%20xchg_mb_border%20indexes%20top_borders%5Btop_idx%5D%5B-1%5D%20and%20executes%20XCHG/AV_SWAP64%20at%20base-88%2C%20base-72%2C%20base-56.%22%2C%225.%20Choose%20DCT%20coefficients%20so%20decoded%20src_y%20pixels%20%E2%80%94%20the%20values%20swapped%20in%20%E2%80%94%20are%20attacker-chosen%20bytes.%22%5D%2C%22technical_details%22%3A%22Hi%20--%5Cn%5CnI%27ve%20found%20another%20vulnerability%20with%20Claude%20that%20dates%20to%20the%5Cn%5Cnoriginal%20H.264%20decoder%20commit%20in%202003.%20I%20believe%20it%20affects%20every%5Cn%5Cnrelease.%20The%20PoC%20is%20large%20%28~780%20KB%29%20because%20the%20trigger%20is%20a%20picture%5Cn%5Cnwith%2065536%20slices.%5Cn%5CnThis%20one%20fires%20during%20frame%20decode%2C%20not%20just%20probe%2C%20so%20to%20reproduce%20it%5Cn%5Cnyou%20have%20to%20process%20the%20file%5Cn%5Cn%20%20ffmpeg%20-i%20h264_slice_sentinel.h264%20-f%20null%20-%5Cn%5CnThe%20bug%20is%20a%20comes%20up%20because%20in%20h264dec.h%2C%20slice_table%20is%20a%20uint16_t%5Cn%5Cnarray%20that%20records%20which%20slice%20owns%20each%20macroblock.%20It%27s%20initialized%5Cn%5Cnvia%20memset%28...%2C%20-1%2C%20...%29%2C%20and%20so%20every%20entry%20starts%20as%200xFFFF%2C%20used%20as%5Cn%5Cna%20%5C%22no%20slice%20here%20yet%5C%22%20marker.%20Spare%20entries%20%28one%20per%20row%2C%20because%5Cn%5Cnmb_stride%20%3D%20mb_width%20%2B%201%29%20never%20get%20written%20by%20decode%20and%20stay%200xFFFF%5Cn%5Cnpermanently.%5Cn%5CnAt%20the%20same%20time%2C%20slice_num%20%3D%20%2B%2Bh-%3Ecurrent_slice%20is%20an%20uncapped%20int.%5Cn%5CnThe%20existing%20code%20has%20a%20log%20warning%20%28%5C%22Possibly%20too%20many%20slices%5C%22%29%20but%5Cn%5Cnno%20hard%20limit.%5Cn%5CnAt%20slice%2065535%2C%20slice_num%20%3D%3D%200xFFFF.%20Now%20every%20comparison%20of%20the%20form%5Cn%5Cnslice_table%5Bspare_entry%5D%20%3D%3D%20slice_num%20passes.%20Two%20guards%20fail%20open%5Cn%5Cnbecause%20of%20this%3A%5Cn%5Cn%20%20//%20h264_mb.c%3A532%20--%20first%20guard%5Cn%5Cn%20%20if%20%28sl-%3Edeblocking_filter%20%3D%3D%202%29%20%7B%5Cn%5Cn%20%20%20%20%20%20deblock_topleft%20%3D%20h-%3Eslice_table%5Bsl-%3Emb_xy%20-%201%20-%20...%5D%20%3D%3D%20sl-%3Eslice_num%3B%5Cn%5Cn%20%20//%20h264_mvpred.h%3A564%20--%20second%20guard%20%28the%20%21%3D%20variant%29%5Cn%5Cn%20%20if%20%28h-%3Eslice_table%5Btopleft_xy%5D%20%21%3D%20sl-%3Eslice_num%29%20%7B%20%20%20//%200xFFFF%20%21%3D%5Cn%5Cn0xFFFF%20-%3E%20FALSE%5Cn%5Cn%20%20%20%20%20%20sl-%3Etopleft_type%20%3D%200%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20//%20never%20runs%5Cn%5Cn%20%20%20%20%20%20if%20%28h-%3Eslice_table%5Btop_xy%5D%20%21%3D%20sl-%3Eslice_num%29%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20sl-%3Etop_type%20%3D%200%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20//%20never%20runs%5Cn%5Cn%20%20%7D%5Cn%5Cn%20%20//%20top_type%20retains%20stale%20nonzero%20value%20-%3E%20deblock_top%20%3D%20sl-%3Etop_type%20is%20true%5Cn%5CnWith%20both%20guards%20bypassed%2C%20xchg_mb_border%20runs%20at%20mb_x%20%3D%200%3A%5Cn%5Cn%20%20//%20h264_mb.c%3A543%2C%20559-562%5Cn%5Cn%20%20top_border_m1%20%3D%20sl-%3Etop_borders%5Btop_idx%5D%5Bsl-%3Emb_x%20-%201%5D%3B%20%20%20//%20%5B-1%5D%20-%3E%20base%20-%2096%5Cn%5Cn%20%20...%5Cn%5Cn%20%20if%20%28deblock_top%29%20%7B%5Cn%5Cn%20%20%20%20%20%20if%20%28deblock_topleft%29%20%7B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20XCHG%28top_border_m1%20%2B%20%288%20%3C%3C%20pixel_shift%29%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20src_y%20-%20%287%20%3C%3C%20pixel_shift%29%2C%201%29%3B%5Cn%5Cntop_borders%20is%20uint8_t%20%28%2A%5B2%5D%29%5B96%5D.%20Index%20-1%20is%2096%20bytes%20below%20the%5Cn%5Cnallocation%3B%20the%20XCHG%20target%20at%20%2B8%20is%2088%20bytes%20below.%5Cn%5CnXCHG%20expands%20to%20AV_SWAP64%20-%3E%20%7Btmp%20%3D%20b%3B%20b%20%3D%20a%3B%20a%20%3D%20tmp%7D.%20ASan%20fires%20on%5Cn%5Cnthe%20read%20%28first%20error%20wins%29%20but%20the%20write%20follows%20unconditionally%20in%20a%5Cn%5Cnnon-instrumented%20build.%20The%20non-chroma444%20path%20does%20two%20more%20swaps%20at%5Cn%5Cn-72%20and%20-56%20--%20three%20writes%20total%2C%2024%20bytes.%20The%20values%20written%20are%5Cn%5Cndecoded%20pixel%20data%20%28src_y%20-%207%29%2C%20so%20attacker-controlled%20via%20DCT%5Cn%5Cncoefficients.%5Cn%5CnThe%20trigger%20needs%20disable_deblocking_filter_idc%20%3D%202%20in%20the%20slice%5Cn%5Cnheader%20%28attacker-controlled%20--%20that%27s%20what%20makes%20it%20check%20slice_table%5Cn%5Cninstead%20of%20just%20checking%20mb_x%20%3E%200%29.%5Cn%5CnI%27ve%20against%20current%20master%20%28f73849887c%29%3A%5Cn%5Cn%20%20%3D%3D160422%3D%3DERROR%3A%20AddressSanitizer%3A%20heap-buffer-overflow%20on%20address%5Cn%5Cn0x51b000008528%5Cn%5Cn%20%20READ%20of%20size%208%20at%200x51b000008528%20thread%20T0%5Cn%5Cn%20%20%20%20%20%20%230%20xchg_mb_border%20libavcodec/h264_mb.c%3A561%3A13%5Cn%5Cn%20%20%20%20%20%20%231%20hl_decode_mb_simple_8%20libavcodec/h264_mb_template.c%3A155%3A17%5Cn%5Cn%20%200x51b000008528%20is%20located%2088%20bytes%20before%201460-byte%20region%5Cn%5Cn%20%20SUMMARY%3A%20AddressSanitizer%3A%20heap-buffer-overflow%20libavcodec/h264_mb.c%3A561%3A13%5Cn%5CnI%20think%20the%20simplest%20fix%20is%20to%20refuse%20slice_num%20%3E%3D%200xFFFF.%5Cn%5Cndiff%20--git%20a/libavcodec/h264_slice.c%20b/libavcodec/h264_slice.c%5Cn%5Cnindex%2069f70c90bb..fb1d947e5b%20100644%5Cn%5Cn---%20a/libavcodec/h264_slice.c%5Cn%5Cn%2B%2B%2B%20b/libavcodec/h264_slice.c%5Cn%5Cn%40%40%20-1979%2C6%20%2B1979%2C14%20%40%40%20static%20int%20h264_slice_init%28H264Context%20%2Ah%2C%5Cn%5CnH264SliceContext%20%2Asl%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20h-%3Eps.pps-%3Echroma_qp_index_offset%5B1%5D%29%20%2B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%206%20%2A%20%28h-%3Eps.sps-%3Ebit_depth_luma%20-%208%29%3B%5Cn%5Cn%2B%20%20%20%20/%2A%20slice_table%20is%20uint16_t%20initialized%20to%200xFFFF%20as%20a%20sentinel.%20If%5Cn%5Cn%2B%20%20%20%20%20%2A%20slice_num%20reaches%200xFFFF%2C%20comparisons%20against%20spare%20entries%20in%5Cn%5Cn%2B%20%20%20%20%20%2A%20slice_table%20spuriously%20succeed.%20%2A/%5Cn%5Cn%2B%20%20%20%20if%20%28h-%3Ecurrent_slice%20%3E%3D%200xFFFE%29%20%7B%5Cn%5Cn%2B%20%20%20%20%20%20%20%20av_log%28h-%3Eavctx%2C%20AV_LOG_ERROR%2C%20%5C%22Too%20many%20slices%20%28%3E%20%25d%29%5C%5Cn%5C%22%2C%200xFFFE%29%3B%5Cn%5Cn%2B%20%20%20%20%20%20%20%20return%20AVERROR_INVALIDDATA%3B%5Cn%5Cn%2B%20%20%20%20%7D%5Cn%5Cn%2B%5Cn%5Cn%20%20%20%20%20sl-%3Eslice_num%20%20%20%20%20%20%20%3D%20%2B%2Bh-%3Ecurrent_slice%3B%5Cn%5Cn%20%20%20%20%20if%20%28sl-%3Eslice_num%29%5Cn%5Cn65534%20is%20still%20a%20crazy%20number%20of%20slices%20so%20I%20don%27t%20think%20this%20rejects%5Cn%5Cnanything%20real%2C%20but%20you%27d%20know%20better%20than%20me%20if%20there%27s%20some%5Cn%5Cnpathological-but-legitimate%20use%20case%20that%20you%20want%20to%20allow.%20I%27ve%5Cn%5Cnsubmitted%20a%20PR%20with%20this%20for%20the%20time%20being.%5Cn%5CnThanks%2C%5Cn%5CnNicholas%22%2C%22title%22%3A%22Heap%20underflow%20in%20H.264%20xchg_mb_border%20via%20slice_num/sentinel%20collision%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-0Y1VS937&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:41:32+00:00&#34;,
+  &#34;description&#34;: &#34;In FFmpeg&#39;s H.264 decoder, slice_table (h264dec.h) is a uint16_t array memset to 0xFFFF as a &#39;no slice&#39; sentinel, while slice_num = ++h-&gt;current_slice is an uncapped int. At slice 65535, slice_num == 0xFFFF, so comparisons against the never-written spare slice_table entries (one per row, mb_stride = mb_width + 1) spuriously match. This defeats the deblock_topleft check in h264_mb.c:532 and the topleft/top guards in h264_mvpred.h:564, leaving deblock_top and deblock_topleft true at mb_x == 0. xchg_mb_border then computes top_border_m1 = sl-&gt;top_borders[top_idx][sl-&gt;mb_x - 1] (index -1, 96 bytes below the allocation) and performs AV_SWAP64 at offsets -88, -72, -56 — three 8-byte OOB writes whose values are decoded pixel data (src_y - 7) and thus attacker-controlled via DCT coefficients. Trigger requires disable_deblocking_filter_idc = 2 in the slice header, which the attacker sets.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-13T22:05:55+00:00&#34;,
+  &#34;location&#34;: &#34;libavcodec/h264_mb.c:561 (xchg_mb_border)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an H.264 picture with ~65536 slices so that ++h-&gt;current_slice reaches 0xFFFF.&#34;,
+    &#34;2. Set disable_deblocking_filter_idc = 2 so the deblock_topleft check consults slice_table instead of mb_x &gt; 0.&#34;,
+    &#34;3. On the 0xFFFF-th slice, spare slice_table entries (still 0xFFFF) compare equal to slice_num; guards in h264_mb.c:532 and h264_mvpred.h:564 fail open.&#34;,
+    &#34;4. At mb_x = 0, xchg_mb_border indexes top_borders[top_idx][-1] and executes XCHG/AV_SWAP64 at base-88, base-72, base-56.&#34;,
+    &#34;5. Choose DCT coefficients so decoded src_y pixels — the values swapped in — are attacker-chosen bytes.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Hi --\n\nI&#39;ve found another vulnerability with Claude that dates to the\n\noriginal H.264 decoder commit in 2003. I believe it affects every\n\nrelease. The PoC is large (~780 KB) because the trigger is a picture\n\nwith 65536 slices.\n\nThis one fires during frame decode, not just probe, so to reproduce it\n\nyou have to process the file\n\n  ffmpeg -i h264_slice_sentinel.h264 -f null -\n\nThe bug is a comes up because in h264dec.h, slice_table is a uint16_t\n\narray that records which slice owns each macroblock. It&#39;s initialized\n\nvia memset(..., -1, ...), and so every entry starts as 0xFFFF, used as\n\na \&#34;no slice here yet\&#34; marker. Spare entries (one per row, because\n\nmb_stride = mb_width + 1) never get written by decode and stay 0xFFFF\n\npermanently.\n\nAt the same time, slice_num = ++h-&gt;current_slice is an uncapped int.\n\nThe existing code has a log warning (\&#34;Possibly too many slices\&#34;) but\n\nno hard limit.\n\nAt slice 65535, slice_num == 0xFFFF. Now every comparison of the form\n\nslice_table[spare_entry] == slice_num passes. Two guards fail open\n\nbecause of this:\n\n  // h264_mb.c:532 -- first guard\n\n  if (sl-&gt;deblocking_filter == 2) {\n\n      deblock_topleft = h-&gt;slice_table[sl-&gt;mb_xy - 1 - ...] == sl-&gt;slice_num;\n\n  // h264_mvpred.h:564 -- second guard (the != variant)\n\n  if (h-&gt;slice_table[topleft_xy] != sl-&gt;slice_num) {   // 0xFFFF !=\n\n0xFFFF -&gt; FALSE\n\n      sl-&gt;topleft_type = 0;                            // never runs\n\n      if (h-&gt;slice_table[top_xy] != sl-&gt;slice_num)\n\n          sl-&gt;top_type = 0;                            // never runs\n\n  }\n\n  // top_type retains stale nonzero value -&gt; deblock_top = sl-&gt;top_type is true\n\nWith both guards bypassed, xchg_mb_border runs at mb_x = 0:\n\n  // h264_mb.c:543, 559-562\n\n  top_border_m1 = sl-&gt;top_borders[top_idx][sl-&gt;mb_x - 1];   // [-1] -&gt; base - 96\n\n  ...\n\n  if (deblock_top) {\n\n      if (deblock_topleft) {\n\n          XCHG(top_border_m1 + (8 &lt;&lt; pixel_shift),\n\n               src_y - (7 &lt;&lt; pixel_shift), 1);\n\ntop_borders is uint8_t (*[2])[96]. Index -1 is 96 bytes below the\n\nallocation; the XCHG target at +8 is 88 bytes below.\n\nXCHG expands to AV_SWAP64 -&gt; {tmp = b; b = a; a = tmp}. ASan fires on\n\nthe read (first error wins) but the write follows unconditionally in a\n\nnon-instrumented build. The non-chroma444 path does two more swaps at\n\n-72 and -56 -- three writes total, 24 bytes. The values written are\n\ndecoded pixel data (src_y - 7), so attacker-controlled via DCT\n\ncoefficients.\n\nThe trigger needs disable_deblocking_filter_idc = 2 in the slice\n\nheader (attacker-controlled -- that&#39;s what makes it check slice_table\n\ninstead of just checking mb_x &gt; 0).\n\nI&#39;ve against current master (f73849887c):\n\n  ==160422==ERROR: AddressSanitizer: heap-buffer-overflow on address\n\n0x51b000008528\n\n  READ of size 8 at 0x51b000008528 thread T0\n\n      #0 xchg_mb_border libavcodec/h264_mb.c:561:13\n\n      #1 hl_decode_mb_simple_8 libavcodec/h264_mb_template.c:155:17\n\n  0x51b000008528 is located 88 bytes before 1460-byte region\n\n  SUMMARY: AddressSanitizer: heap-buffer-overflow libavcodec/h264_mb.c:561:13\n\nI think the simplest fix is to refuse slice_num &gt;= 0xFFFF.\n\ndiff --git a/libavcodec/h264_slice.c b/libavcodec/h264_slice.c\n\nindex 69f70c90bb..fb1d947e5b 100644\n\n--- a/libavcodec/h264_slice.c\n\n+++ b/libavcodec/h264_slice.c\n\n@@ -1979,6 +1979,14 @@ static int h264_slice_init(H264Context *h,\n\nH264SliceContext *sl,\n\n                           h-&gt;ps.pps-&gt;chroma_qp_index_offset[1]) +\n\n                    6 * (h-&gt;ps.sps-&gt;bit_depth_luma - 8);\n\n+    /* slice_table is uint16_t initialized to 0xFFFF as a sentinel. If\n\n+     * slice_num reaches 0xFFFF, comparisons against spare entries in\n\n+     * slice_table spuriously succeed. */\n\n+    if (h-&gt;current_slice &gt;= 0xFFFE) {\n\n+        av_log(h-&gt;avctx, AV_LOG_ERROR, \&#34;Too many slices (&gt; %d)\\n\&#34;, 0xFFFE);\n\n+        return AVERROR_INVALIDDATA;\n\n+    }\n\n+\n\n     sl-&gt;slice_num       = ++h-&gt;current_slice;\n\n     if (sl-&gt;slice_num)\n\n65534 is still a crazy number of slices so I don&#39;t think this rejects\n\nanything real, but you&#39;d know better than me if there&#39;s some\n\npathological-but-legitimate use case that you want to allow. I&#39;ve\n\nsubmitted a PR with this for the time being.\n\nThanks,\n\nNicholas&#34;,
+  &#34;title&#34;: &#34;Heap underflow in H.264 xchg_mb_border via slice_num/sentinel collision&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

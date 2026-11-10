@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-F1GCJ0JY · graphicsmagick/graphicsmagick</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-F1GCJ0JY · graphicsmagick/graphicsmagick</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-F1GCJ0JY: Use-after-free in miff.c:1048</h1>
+<p>GraphicsMagick's MIFF image reader allocates a buffer at coders/miff.c:1011 and later attempts to grow it via realloc at miff.c:1034. When the realloc fails (e.g., under a low MAGICK_LIMIT_MEMORY setting or memory pressure), the underlying allocator frees the original buffer, but ReadMIFFImage continues and performs a 1-byte write into the freed region at miff.c:1048. An attacker who can supply a crafted 3077-byte MIFF file and induce allocation failure obtains a deterministic heap UAF write primitive.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> graphicsmagick/graphicsmagick<br>
+<strong>Location:</strong> <code>miff.c:1048</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-use-after-free WRITE of size 1 at 0x51d0000012f4 in ReadMIFFImage (coders/miff.c:1048). The buffer was originally allocated at miff.c:1011 via _MagickAllocateResourceLimitedMemoryLoc and freed inside _MagickReallocateResourceLimitedMemoryLoc (magick/memory.c:812) when the realloc at miff.c:1034 failed; the caller does not detect the failure and keeps using the stale pointer.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC (3077-byte MIFF image file) triggers a deterministic heap-use-after-free (write) bug in GraphicsMagick's MIFF image reader. 
+
+All 3 runs in a fresh container produced identical ASAN reports:
+- Error: heap-use-after-free on address 0x51d0000012f4
+- WRITE of size 1 at ReadMIFFImage coders/miff.c:1048
+- The memory was freed at ReadMIFFImage coders/miff.c:1034 via _MagickReallocateResourceLimitedMemoryLoc (magick/memory.c:812), indicating a realloc failure path where the old pointer is freed but then written to.
+- Originally allocated at ReadMIFFImage coders/miff.c:1011 via _MagickAllocateResourceLimitedMemoryLoc (magick/memory.c:959)
+- Exit code: 1 in all 3 runs
+
+The bug is a classic use-after-free pattern: a realloc call (miff.c:1034) frees the original buffer when it cannot grow it (due to MAGICK_LIMIT_MEMORY=3000 constraint), but code at miff.c:1048 continues to write to the now-freed buffer. This is a genuine memory safety vulnerability in GraphicsMagick's MIFF coder.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a ~3KB MIFF image that forces the MIFF reader to allocate then attempt to grow an internal buffer</li>
+<li>Arrange for the resource-limited realloc to fail (e.g., MAGICK_LIMIT_MEMORY=3000)</li>
+<li>GraphicsMagick parses the file; realloc frees the old buffer and returns failure</li>
+<li>ReadMIFFImage writes 1 byte to the freed buffer at miff.c:1048, corrupting heap memory</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-F1GCJ0JY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-F1GCJ0JY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7b9bb753218d1a0d19c8d63a2ac4618d67d97df46a05a9d55eddf8f7739c710907b9e2c8e77d960dd06c7d9ce9aaf25783e3b410821848050dd4c18123c13caa</p>
+<p class="kicker">Committed 2026-05-31 07:18 UTC</p>
+<p class="kicker">Revealed 2026-08-18 10:02 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-F1GCJ0JY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-F1GCJ0JY%22%2C%22bug_class%22%3A%22Use-after-free%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A48%3A02%2B00%3A00%22%2C%22description%22%3A%22GraphicsMagick%27s%20MIFF%20image%20reader%20allocates%20a%20buffer%20at%20coders/miff.c%3A1011%20and%20later%20attempts%20to%20grow%20it%20via%20realloc%20at%20miff.c%3A1034.%20When%20the%20realloc%20fails%20%28e.g.%2C%20under%20a%20low%20MAGICK_LIMIT_MEMORY%20setting%20or%20memory%20pressure%29%2C%20the%20underlying%20allocator%20frees%20the%20original%20buffer%2C%20but%20ReadMIFFImage%20continues%20and%20performs%20a%201-byte%20write%20into%20the%20freed%20region%20at%20miff.c%3A1048.%20An%20attacker%20who%20can%20supply%20a%20crafted%203077-byte%20MIFF%20file%20and%20induce%20allocation%20failure%20obtains%20a%20deterministic%20heap%20UAF%20write%20primitive.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22miff.c%3A1048%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22graphicsmagick%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20~3KB%20MIFF%20image%20that%20forces%20the%20MIFF%20reader%20to%20allocate%20then%20attempt%20to%20grow%20an%20internal%20buffer%22%2C%222.%20Arrange%20for%20the%20resource-limited%20realloc%20to%20fail%20%28e.g.%2C%20MAGICK_LIMIT_MEMORY%3D3000%29%22%2C%223.%20GraphicsMagick%20parses%20the%20file%3B%20realloc%20frees%20the%20old%20buffer%20and%20returns%20failure%22%2C%224.%20ReadMIFFImage%20writes%201%20byte%20to%20the%20freed%20buffer%20at%20miff.c%3A1048%2C%20corrupting%20heap%20memory%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-use-after-free%20WRITE%20of%20size%201%20at%200x51d0000012f4%20in%20ReadMIFFImage%20%28coders/miff.c%3A1048%29.%20The%20buffer%20was%20originally%20allocated%20at%20miff.c%3A1011%20via%20_MagickAllocateResourceLimitedMemoryLoc%20and%20freed%20inside%20_MagickReallocateResourceLimitedMemoryLoc%20%28magick/memory.c%3A812%29%20when%20the%20realloc%20at%20miff.c%3A1034%20failed%3B%20the%20caller%20does%20not%20detect%20the%20failure%20and%20keeps%20using%20the%20stale%20pointer.%22%2C%22title%22%3A%22Use-after-free%20in%20miff.c%3A1048%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-F1GCJ0JY&#34;,
+  &#34;bug_class&#34;: &#34;Use-after-free&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:48:02+00:00&#34;,
+  &#34;description&#34;: &#34;GraphicsMagick&#39;s MIFF image reader allocates a buffer at coders/miff.c:1011 and later attempts to grow it via realloc at miff.c:1034. When the realloc fails (e.g., under a low MAGICK_LIMIT_MEMORY setting or memory pressure), the underlying allocator frees the original buffer, but ReadMIFFImage continues and performs a 1-byte write into the freed region at miff.c:1048. An attacker who can supply a crafted 3077-byte MIFF file and induce allocation failure obtains a deterministic heap UAF write primitive.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;miff.c:1048&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;graphicsmagick&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a ~3KB MIFF image that forces the MIFF reader to allocate then attempt to grow an internal buffer&#34;,
+    &#34;2. Arrange for the resource-limited realloc to fail (e.g., MAGICK_LIMIT_MEMORY=3000)&#34;,
+    &#34;3. GraphicsMagick parses the file; realloc frees the old buffer and returns failure&#34;,
+    &#34;4. ReadMIFFImage writes 1 byte to the freed buffer at miff.c:1048, corrupting heap memory&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-use-after-free WRITE of size 1 at 0x51d0000012f4 in ReadMIFFImage (coders/miff.c:1048). The buffer was originally allocated at miff.c:1011 via _MagickAllocateResourceLimitedMemoryLoc and freed inside _MagickReallocateResourceLimitedMemoryLoc (magick/memory.c:812) when the realloc at miff.c:1034 failed; the caller does not detect the failure and keeps using the stale pointer.&#34;,
+  &#34;title&#34;: &#34;Use-after-free in miff.c:1048&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

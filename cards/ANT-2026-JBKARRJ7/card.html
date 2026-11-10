@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-JBKARRJ7 · libvips/libvips</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-JBKARRJ7 · libvips/libvips</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-35590">CVE-2026-35590</a>
+  <a class="id-badge" href="https://github.com/libvips/libvips/security/advisories/GHSA-jmwm-wc68-mhwm">GHSA-jmwm-wc68-mhwm</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-JBKARRJ7: Out-of-bounds IFD array access in EXIF metadata processing leading to write through corrupted pointer</h1>
+<p>An out-of-bounds index into the IFD array during EXIF parsing produces a corrupted pointer that is then used as a write target.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libvips/libvips<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. A trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-JBKARRJ7.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-JBKARRJ7<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-low">low</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ChangeLog b/ChangeLog</span>
+<span class="diff-h">index bc3e3ace80..5ea68a830d 100644</span>
+<span class="diff-h">--- a/ChangeLog</span>
+<span class="diff-h">+++ b/ChangeLog</span>
+<span class="diff-h">@@ -1,6 +1,7 @@</span>
+<span class="diff-c"> date-tbd 8.18.2</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> - convolution: avoid using unsigned accumulators [nakrovati]</span>
+<span class="diff-a">+- exif: check ifdN range [trailofbits]</span>
+<span class="diff-c"> - tiffload: check jpeg and jp2k components [wooseokdotkim]</span>
+<span class="diff-c"> - uhdrsave: set Q for gainmap recompress, don&#x27;t chroma subsample RGB gainmaps</span>
+<span class="diff-c"> - uhdrsave: prevent early unref of image with alpha channel [lovell]</span>
+<span class="diff-h">diff --git a/libvips/foreign/exif.c b/libvips/foreign/exif.c</span>
+<span class="diff-h">index b98e8cfd06..db4395b5e0 100644</span>
+<span class="diff-h">--- a/libvips/foreign/exif.c</span>
+<span class="diff-h">+++ b/libvips/foreign/exif.c</span>
+<span class="diff-h">@@ -1284,6 +1284,11 @@ vips_exif_image_field(VipsImage *image,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	p = field + strlen(&quot;exif-ifd&quot;);</span>
+<span class="diff-c"> 	ifd = atoi(p);</span>
+<span class="diff-a">+	if (ifd &lt; 0 ||</span>
+<span class="diff-a">+		ifd &gt;= EXIF_IFD_COUNT) {</span>
+<span class="diff-a">+		g_warning(&quot;bad exif ifd %d in \&quot;%s\&quot;&quot;, ifd, field);</span>
+<span class="diff-a">+		return NULL;</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	for (; g_ascii_isdigit(*p); p++)</span>
+<span class="diff-c"> 		;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/libvips/libvips/commit/91ebd4d35341a8353ea490392d556d582e4b846f" rel="noopener noreferrer">https://github.com/libvips/libvips/commit/91ebd4d35341a8353ea490392d556d582e4b846f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-26</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-31</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3d086296fdc3ee597627329b2198c6f0a171f3bd2c5912fead06195a09493bc3afd1314179768a43ecdd28a66f5fc9a18544fc24276ed804afd3496622bb7325</p>
+<p class="kicker">Committed 2026-04-09 18:50 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-JBKARRJ7-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-JBKARRJ7%22%2C%22bug_class%22%3A%22Out-of-bounds%20Write%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A13%2B00%3A00%22%2C%22description%22%3A%22An%20out-of-bounds%20index%20into%20the%20IFD%20array%20during%20EXIF%20parsing%20produces%20a%20corrupted%20pointer%20that%20is%20then%20used%20as%20a%20write%20target.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libvips%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Out-of-bounds%20IFD%20array%20access%20in%20EXIF%20metadata%20processing%20leading%20to%20write%20through%20corrupted%20pointer%22%2C%22vendor_severity%22%3A%22low%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-JBKARRJ7&#34;,
+  &#34;bug_class&#34;: &#34;Out-of-bounds Write&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:13+00:00&#34;,
+  &#34;description&#34;: &#34;An out-of-bounds index into the IFD array during EXIF parsing produces a corrupted pointer that is then used as a write target.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libvips&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Out-of-bounds IFD array access in EXIF metadata processing leading to write through corrupted pointer&#34;,
+  &#34;vendor_severity&#34;: &#34;low&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

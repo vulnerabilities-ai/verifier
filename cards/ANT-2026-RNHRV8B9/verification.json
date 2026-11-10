@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-RNHRV8B9",
+  "hash": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-RNHRV8B9/card.html",
+    "sha256": "638128986a15c060b46b7f8d2dbb398d75e40dcb59e476a2edd9346515b4fd98",
+    "fetched_utc": "2026-11-10T21:07:15Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-RNHRV8B9",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+    "printed_hash": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+    "canonical_rebuild_sha3_512": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:07:15Z",
+  "card_facts": {
+    "printed_hash": "2f4789bd452bfa96bea6d71f747bcaffcfe45f9cc4d83ece8f4cb87f0ce7f68e1186083314d35ad9a564b230684ba9fead02f1f1fcb2b6d2a0f62a5df090bcd7",
+    "committed_printed": "2026-07-22 07:32 UTC",
+    "revealed_printed": "2026-09-28 21:06 UTC",
+    "timeline": [
+      {
+        "date": "2026-04-02",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-07-04",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-07-24",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-12",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-09-28",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-04-02",
+      "report_date": "2026-07-04",
+      "patch_released_date": "2026-07-24",
+      "acknowledged_date": "2026-08-12",
+      "reveal_date": "2026-09-28"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "medium"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/LibreOffice/core/commit/1db305f340787ab7e59d089e51ac9d6fc07c2715"
+      ],
+      "advisory": [],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-63275"
+      ],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

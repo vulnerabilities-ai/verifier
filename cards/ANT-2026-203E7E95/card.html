@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-203E7E95 · twigphp/twig</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-203E7E95 · twigphp/twig</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  filter-bypass
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46639">CVE-2026-46639</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-mm6w-gr99-p3jj">GHSA-mm6w-gr99-p3jj</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Anvil Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-203E7E95: Sandbox bypass via object-destructuring assignment</h1>
+<p>In Twig's ObjectDestructuringSetBinary::compile() (ObjectDestructuringSetBinary.php:67), the compiled call to CoreExtension::getAttribute() passes the 9th argument $sandboxed as a literal <code>false</code> instead of checking for SandboxExtension as the normal GetAttrExpression path does. This causes the checkPropertyAllowed and checkMethodAllowed guards in CoreExtension (lines 1694, 1781, 1896) to be skipped, and because the call type is ANY_CALL it will both read public properties and invoke getX()/isX()/hasX()/__call() methods. An untrusted template author can write <code>{{ ({field: v} = obj) ? '' }}{{ v }}</code> to read any property or call any zero-arg getter on any object in the context. SandboxNodeVisitor does not rewrite this node and operators are not covered by the tag/filter/function allowlist, so no SecurityPolicy configuration can block it — the sandbox's property and method allowlists are fully defeated.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> twigphp/twig<br>
+<strong>Location:</strong> <code>src/Node/Expression/Binary/ObjectDestructuringSetBinary.php:67</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a hard-coded <code>false</code> for the $sandboxed positional argument in the getAttribute() call emitted by ObjectDestructuringSetBinary::compile(), whereas the correct behavior (as in GetAttrExpression.php:146) is to emit <code>$env-&gt;hasExtension(SandboxExtension::class)</code>. With $sandboxed=false, CoreExtension::getAttribute() never consults the SecurityPolicy before resolving properties or invoking getter-style methods, and the destructuring <code>=</code> operator is reachable from plain <code>{{ ... }}</code> output without requiring any allowlisted tag.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker authors a template using the core <code>=</code> infix operator with object-destructuring syntax inside a <code>{{ ... }}</code> expression, e.g. <code>{{ ({password: p} = user) ? '' }}{{ p }}</code>.</li>
+<li>Twig compiles the destructuring node via ObjectDestructuringSetBinary::compile(), emitting CoreExtension::getAttribute(..., ANY_CALL, false, false, false, ...).</li>
+<li>At render time getAttribute() reads the public property or falls through to invoking getPassword()/isPassword()/hasPassword()/__call() without calling checkPropertyAllowed or checkMethodAllowed.</li>
+<li>Attacker outputs the captured variable, exfiltrating the value; repeat for any property/zero-arg getter on any reachable object.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Make object-destructuring attribute reads honor the sandbox: emit the $sandboxed argument as <code>$env-&gt;hasExtension(SandboxExtension::class)</code> (matching GetAttrExpression) rather than hard-coding <code>false</code>, so checkPropertyAllowed/checkMethodAllowed run for destructuring just as for normal attribute access.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-203E7E95.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-203E7E95<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Anvil Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/Node/Expression/Binary/ObjectDestructuringSetBinary.php b/src/Node/Expression/Binary/ObjectDestructuringSetBinary.php</span>
+<span class="diff-h">index b47c50fe896..8c5df6a8028 100644</span>
+<span class="diff-h">--- a/src/Node/Expression/Binary/ObjectDestructuringSetBinary.php</span>
+<span class="diff-h">+++ b/src/Node/Expression/Binary/ObjectDestructuringSetBinary.php</span>
+<span class="diff-h">@@ -13,6 +13,7 @@</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> use Twig\Compiler;</span>
+<span class="diff-c"> use Twig\Error\SyntaxError;</span>
+<span class="diff-a">+use Twig\Extension\SandboxExtension;</span>
+<span class="diff-c"> use Twig\Node\Expression\AbstractExpression;</span>
+<span class="diff-c"> use Twig\Node\Expression\ArrayExpression;</span>
+<span class="diff-c"> use Twig\Node\Expression\Variable\ContextVariable;</span>
+<span class="diff-h">@@ -64,7 +65,7 @@ public function compile(Compiler $compiler): void</span>
+<span class="diff-c">             if ($i) {</span>
+<span class="diff-c">                 $compiler-&gt;raw(&#x27;, &#x27;);</span>
+<span class="diff-c">             }</span>
+<span class="diff-d">-            $compiler-&gt;raw(&#x27;CoreExtension::getAttribute($this-&gt;env, $this-&gt;source, &#x27;)-&gt;subcompile($this-&gt;getNode(&#x27;right&#x27;))-&gt;raw(&#x27;, &#x27;)-&gt;repr($mapping[&#x27;property&#x27;])-&gt;raw(&#x27;, [], \\Twig\\Template::ANY_CALL, false, false, false, &#x27;)-&gt;repr($this-&gt;getNode(&#x27;right&#x27;)-&gt;getTemplateLine())-&gt;raw(&#x27;)&#x27;);</span>
+<span class="diff-a">+            $compiler-&gt;raw(&#x27;CoreExtension::getAttribute($this-&gt;env, $this-&gt;source, &#x27;)-&gt;subcompile($this-&gt;getNode(&#x27;right&#x27;))-&gt;raw(&#x27;, &#x27;)-&gt;repr($mapping[&#x27;property&#x27;])-&gt;raw(&#x27;, [], \\Twig\\Template::ANY_CALL, false, false, &#x27;)-&gt;repr($compiler-&gt;getEnvironment()-&gt;hasExtension(SandboxExtension::class))-&gt;raw(&#x27;, &#x27;)-&gt;repr($this-&gt;getNode(&#x27;right&#x27;)-&gt;getTemplateLine())-&gt;raw(&#x27;)&#x27;);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">         $compiler-&gt;raw(&#x27;]&#x27;);</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">diff --git a/tests/Extension/SandboxTest.php b/tests/Extension/SandboxTest.php</span>
+<span class="diff-h">index 6d8e5035a73..93201d897be 100644</span>
+<span class="diff-h">--- a/tests/Extension/SandboxTest.php</span>
+<span class="diff-h">+++ b/tests/Extension/SandboxTest.php</span>
+<span class="diff-h">@@ -423,6 +423,40 @@ public function testSandboxAllowProperty()</span>
+<span class="diff-c">         $this-&gt;assertEquals(&#x27;bar&#x27;, $twig-&gt;load(&#x27;1_basic4&#x27;)-&gt;render(self::$params), &#x27;Sandbox allow some properties&#x27;);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    public function testSandboxAllowDestructuring()</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $template = &#x27;{% do {bar: x, foo: y} = obj %}{{ x }}-{{ y }}&#x27;;</span>
+<span class="diff-a">+        $twig = $this-&gt;getEnvironment(true, [], [&#x27;index&#x27; =&gt; $template], [&#x27;do&#x27;], [], [&#x27;Twig\Tests\Extension\FooObject&#x27; =&gt; &#x27;foo&#x27;], [&#x27;Twig\Tests\Extension\FooObject&#x27; =&gt; &#x27;bar&#x27;]);</span>
+<span class="diff-a">+        FooObject::reset();</span>
+<span class="diff-a">+        $this-&gt;assertSame(&#x27;bar-foo&#x27;, $twig-&gt;load(&#x27;index&#x27;)-&gt;render(self::$params), &#x27;Sandbox allows destructuring when properties and methods are allowed&#x27;);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function testSandboxUnallowedDestructuringProperty()</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $template = &#x27;{% do {bar: x} = obj %}{{ x }}&#x27;;</span>
+<span class="diff-a">+        $twig = $this-&gt;getEnvironment(true, [], [&#x27;index&#x27; =&gt; $template], [&#x27;do&#x27;]);</span>
+<span class="diff-a">+        try {</span>
+<span class="diff-a">+            $twig-&gt;load(&#x27;index&#x27;)-&gt;render(self::$params);</span>
+<span class="diff-a">+            $this-&gt;fail(&#x27;Sandbox throws a SecurityError exception if an unallowed property is read via destructuring&#x27;);</span>
+<span class="diff-a">+        } catch (SecurityNotAllowedPropertyError $e) {</span>
+<span class="diff-a">+            $this-&gt;assertSame(&#x27;Twig\Tests\Extension\FooObject&#x27;, $e-&gt;getClassName());</span>
+<span class="diff-a">+            $this-&gt;assertSame(&#x27;bar&#x27;, $e-&gt;getPropertyName());</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function testSandboxUnallowedDestructuringMethod()</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $template = &#x27;{% do {foo: y} = obj %}{{ y }}&#x27;;</span>
+<span class="diff-a">+        $twig = $this-&gt;getEnvironment(true, [], [&#x27;index&#x27; =&gt; $template], [&#x27;do&#x27;], [], [], [&#x27;Twig\Tests\Extension\FooObject&#x27; =&gt; &#x27;foo&#x27;]);</span>
+<span class="diff-a">+        try {</span>
+<span class="diff-a">+            $twig-&gt;load(&#x27;index&#x27;)-&gt;render(self::$params);</span>
+<span class="diff-a">+            $this-&gt;fail(&#x27;Sandbox throws a SecurityError exception if an unallowed method is called via destructuring&#x27;);</span>
+<span class="diff-a">+        } catch (SecurityNotAllowedMethodError $e) {</span>
+<span class="diff-a">+            $this-&gt;assertSame(&#x27;Twig\Tests\Extension\FooObject&#x27;, $e-&gt;getClassName());</span>
+<span class="diff-a">+            $this-&gt;assertSame(&#x27;foo&#x27;, $e-&gt;getMethodName());</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     public function testSandboxAllowFunction()</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         $twig = $this-&gt;getEnvironment(true, [], self::$templates, [], [], [], [], [&#x27;cycle&#x27;]);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/twigphp/Twig/commit/3fe13f98f890449af5e7f69f0404b59b8fb776ae" rel="noopener noreferrer">https://github.com/twigphp/Twig/commit/3fe13f98f890449af5e7f69f0404b59b8fb776ae</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-19</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">699e1b73d73a9a017b40c501f94100bad5af00bad49138a465139357628fd2011ed4e03bf327e6d8f77674936eddec6f58ade4ccacd0aceb164b14b22623fc1e</p>
+<p class="kicker">Committed 2026-05-19 21:41 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-203E7E95-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-203E7E95%22%2C%22bug_class%22%3A%22auth_bypass%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-21T16%3A56%3A58%2B00%3A00%22%2C%22description%22%3A%22In%20Twig%27s%20ObjectDestructuringSetBinary%3A%3Acompile%28%29%20%28ObjectDestructuringSetBinary.php%3A67%29%2C%20the%20compiled%20call%20to%20CoreExtension%3A%3AgetAttribute%28%29%20passes%20the%209th%20argument%20%24sandboxed%20as%20a%20literal%20%60false%60%20instead%20of%20checking%20for%20SandboxExtension%20as%20the%20normal%20GetAttrExpression%20path%20does.%20This%20causes%20the%20checkPropertyAllowed%20and%20checkMethodAllowed%20guards%20in%20CoreExtension%20%28lines%201694%2C%201781%2C%201896%29%20to%20be%20skipped%2C%20and%20because%20the%20call%20type%20is%20ANY_CALL%20it%20will%20both%20read%20public%20properties%20and%20invoke%20getX%28%29/isX%28%29/hasX%28%29/__call%28%29%20methods.%20An%20untrusted%20template%20author%20can%20write%20%60%7B%7B%20%28%7Bfield%3A%20v%7D%20%3D%20obj%29%20%3F%20%27%27%20%7D%7D%7B%7B%20v%20%7D%7D%60%20to%20read%20any%20property%20or%20call%20any%20zero-arg%20getter%20on%20any%20object%20in%20the%20context.%20SandboxNodeVisitor%20does%20not%20rewrite%20this%20node%20and%20operators%20are%20not%20covered%20by%20the%20tag/filter/function%20allowlist%2C%20so%20no%20SecurityPolicy%20configuration%20can%20block%20it%20%E2%80%94%20the%20sandbox%27s%20property%20and%20method%20allowlists%20are%20fully%20defeated.%22%2C%22discovered_at%22%3A%222026-04-19T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22src/Node/Expression/Binary/ObjectDestructuringSetBinary.php%3A67%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22twigphp/Twig%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20authors%20a%20template%20using%20the%20core%20%60%3D%60%20infix%20operator%20with%20object-destructuring%20syntax%20inside%20a%20%60%7B%7B%20...%20%7D%7D%60%20expression%2C%20e.g.%20%60%7B%7B%20%28%7Bpassword%3A%20p%7D%20%3D%20user%29%20%3F%20%27%27%20%7D%7D%7B%7B%20p%20%7D%7D%60.%22%2C%222.%20Twig%20compiles%20the%20destructuring%20node%20via%20ObjectDestructuringSetBinary%3A%3Acompile%28%29%2C%20emitting%20CoreExtension%3A%3AgetAttribute%28...%2C%20ANY_CALL%2C%20false%2C%20false%2C%20false%2C%20...%29.%22%2C%223.%20At%20render%20time%20getAttribute%28%29%20reads%20the%20public%20property%20or%20falls%20through%20to%20invoking%20getPassword%28%29/isPassword%28%29/hasPassword%28%29/__call%28%29%20without%20calling%20checkPropertyAllowed%20or%20checkMethodAllowed.%22%2C%224.%20Attacker%20outputs%20the%20captured%20variable%2C%20exfiltrating%20the%20value%3B%20repeat%20for%20any%20property/zero-arg%20getter%20on%20any%20reachable%20object.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20hard-coded%20%60false%60%20for%20the%20%24sandboxed%20positional%20argument%20in%20the%20getAttribute%28%29%20call%20emitted%20by%20ObjectDestructuringSetBinary%3A%3Acompile%28%29%2C%20whereas%20the%20correct%20behavior%20%28as%20in%20GetAttrExpression.php%3A146%29%20is%20to%20emit%20%60%24env-%3EhasExtension%28SandboxExtension%3A%3Aclass%29%60.%20With%20%24sandboxed%3Dfalse%2C%20CoreExtension%3A%3AgetAttribute%28%29%20never%20consults%20the%20SecurityPolicy%20before%20resolving%20properties%20or%20invoking%20getter-style%20methods%2C%20and%20the%20destructuring%20%60%3D%60%20operator%20is%20reachable%20from%20plain%20%60%7B%7B%20...%20%7D%7D%60%20output%20without%20requiring%20any%20allowlisted%20tag.%22%2C%22title%22%3A%22Sandbox%20bypass%20via%20object-destructuring%20assignment%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-203E7E95&#34;,
+  &#34;bug_class&#34;: &#34;auth_bypass&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-21T16:56:58+00:00&#34;,
+  &#34;description&#34;: &#34;In Twig&#39;s ObjectDestructuringSetBinary::compile() (ObjectDestructuringSetBinary.php:67), the compiled call to CoreExtension::getAttribute() passes the 9th argument $sandboxed as a literal `false` instead of checking for SandboxExtension as the normal GetAttrExpression path does. This causes the checkPropertyAllowed and checkMethodAllowed guards in CoreExtension (lines 1694, 1781, 1896) to be skipped, and because the call type is ANY_CALL it will both read public properties and invoke getX()/isX()/hasX()/__call() methods. An untrusted template author can write `{{ ({field: v} = obj) ? &#39;&#39; }}{{ v }}` to read any property or call any zero-arg getter on any object in the context. SandboxNodeVisitor does not rewrite this node and operators are not covered by the tag/filter/function allowlist, so no SecurityPolicy configuration can block it — the sandbox&#39;s property and method allowlists are fully defeated.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-19T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;src/Node/Expression/Binary/ObjectDestructuringSetBinary.php:67&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;twigphp/Twig&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker authors a template using the core `=` infix operator with object-destructuring syntax inside a `{{ ... }}` expression, e.g. `{{ ({password: p} = user) ? &#39;&#39; }}{{ p }}`.&#34;,
+    &#34;2. Twig compiles the destructuring node via ObjectDestructuringSetBinary::compile(), emitting CoreExtension::getAttribute(..., ANY_CALL, false, false, false, ...).&#34;,
+    &#34;3. At render time getAttribute() reads the public property or falls through to invoking getPassword()/isPassword()/hasPassword()/__call() without calling checkPropertyAllowed or checkMethodAllowed.&#34;,
+    &#34;4. Attacker outputs the captured variable, exfiltrating the value; repeat for any property/zero-arg getter on any reachable object.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a hard-coded `false` for the $sandboxed positional argument in the getAttribute() call emitted by ObjectDestructuringSetBinary::compile(), whereas the correct behavior (as in GetAttrExpression.php:146) is to emit `$env-&gt;hasExtension(SandboxExtension::class)`. With $sandboxed=false, CoreExtension::getAttribute() never consults the SecurityPolicy before resolving properties or invoking getter-style methods, and the destructuring `=` operator is reachable from plain `{{ ... }}` output without requiring any allowlisted tag.&#34;,
+  &#34;title&#34;: &#34;Sandbox bypass via object-destructuring assignment&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

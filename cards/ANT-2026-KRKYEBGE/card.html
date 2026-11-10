@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-KRKYEBGE · nftables</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-KRKYEBGE · nftables</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  type-confusion
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-KRKYEBGE: write-primitive in nftables</h1>
+<p>In json_parse_map_stmt(), the parser calls json_parse_set_stmt_list(ctx, &amp;stmt-&gt;set.stmt_list, ...) on a map statement, but set_stmt.stmt_list and map_stmt.data share offset 16 in the enclosing C union. list_add() therefore overwrites stmt-&gt;map.data (a valid expr*) with a pointer to a stmt object and also corrupts expr_data-&gt;list.prev on the heap. When expr_evaluate() later dereferences stmt-&gt;map.data as an expr, it reads stmt fields at expr offsets; the JSON-supplied limit_stmt.burst value lands at the expr.key pointer offset, so an attacker controls the upper 32 bits of a pointer that is subsequently dereferenced (e.g. burst=0x41414141 → RAX=0x4141414100000000). This yields a controlled read target plus a heap write primitive, plausibly chainable toward code execution in a non-ASAN build.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> nftables<br>
+<strong>Location:</strong> <code>src/parser_json.c:2584 (json_parse_map_stmt)</code>  </p>
+<h2>Technical Details</h2>
+<p>Root cause is a copy-paste error: parser_json.c:2584 passes &amp;stmt-&gt;set.stmt_list instead of &amp;stmt-&gt;map.stmt_list, and because both live in the same union at offset 16, list_add() clobbers stmt-&gt;map.data. ASAN reports SEGV in expr_evaluate (evaluate.c:3167) — "address points to the zero page" with a counter stmt, or "dereference of a high value address" with a controlled burst — confirming the stmt object is being read through expr field offsets with attacker-influenced pointer content.</p>
+<p><strong>Crash signature:</strong> <code>ASAN SEGV on attacker-controlled high-value address dereference in expr_evaluate at evaluate.c:3167</code></p>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a table, a dynamic map, and a chain via JSON</li>
+<li>Add a rule containing a "map" expression with op=add, elem, data, map=@m, and a "stmt" array containing a limit statement with an attacker-chosen burst value (e.g. 0x41414141)</li>
+<li>json_parse_set_stmt_list() writes the stmt list head through &amp;stmt-&gt;set.stmt_list, which aliases &amp;stmt-&gt;map.data, overwriting the valid expr pointer and corrupting expr_data-&gt;list.prev</li>
+<li>During evaluation, expr_evaluate() dereferences stmt-&gt;map.data as an expr; limit.burst lands at the expr.key offset, so RAX upper 32 bits equal the burst value and *(RAX+0x39) is read</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-KRKYEBGE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-KRKYEBGE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-21</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-21</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">70fb09becc7548819b6f38c1750c0c600d49c09f63f13099be0d665b42a7605dd607820bc1eb562d1f15a5f29c057b6ac1fcaf4ad108402467db81c5ef011064</p>
+<p class="kicker">Committed 2026-05-28 15:14 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-KRKYEBGE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-KRKYEBGE%22%2C%22bug_class%22%3A%22write-primitive%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A47%3A47%2B00%3A00%22%2C%22description%22%3A%22In%20json_parse_map_stmt%28%29%2C%20the%20parser%20calls%20json_parse_set_stmt_list%28ctx%2C%20%26stmt-%3Eset.stmt_list%2C%20...%29%20on%20a%20map%20statement%2C%20but%20set_stmt.stmt_list%20and%20map_stmt.data%20share%20offset%2016%20in%20the%20enclosing%20C%20union.%20list_add%28%29%20therefore%20overwrites%20stmt-%3Emap.data%20%28a%20valid%20expr%2A%29%20with%20a%20pointer%20to%20a%20stmt%20object%20and%20also%20corrupts%20expr_data-%3Elist.prev%20on%20the%20heap.%20When%20expr_evaluate%28%29%20later%20dereferences%20stmt-%3Emap.data%20as%20an%20expr%2C%20it%20reads%20stmt%20fields%20at%20expr%20offsets%3B%20the%20JSON-supplied%20limit_stmt.burst%20value%20lands%20at%20the%20expr.key%20pointer%20offset%2C%20so%20an%20attacker%20controls%20the%20upper%2032%20bits%20of%20a%20pointer%20that%20is%20subsequently%20dereferenced%20%28e.g.%20burst%3D0x41414141%20%E2%86%92%20RAX%3D0x4141414100000000%29.%20This%20yields%20a%20controlled%20read%20target%20plus%20a%20heap%20write%20primitive%2C%20plausibly%20chainable%20toward%20code%20execution%20in%20a%20non-ASAN%20build.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22src/parser_json.c%3A2584%20%28json_parse_map_stmt%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22nftables%22%2C%22reproduction%22%3A%5B%221.%20Create%20a%20table%2C%20a%20dynamic%20map%2C%20and%20a%20chain%20via%20JSON%22%2C%222.%20Add%20a%20rule%20containing%20a%20%5C%22map%5C%22%20expression%20with%20op%3Dadd%2C%20elem%2C%20data%2C%20map%3D%40m%2C%20and%20a%20%5C%22stmt%5C%22%20array%20containing%20a%20limit%20statement%20with%20an%20attacker-chosen%20burst%20value%20%28e.g.%200x41414141%29%22%2C%223.%20json_parse_set_stmt_list%28%29%20writes%20the%20stmt%20list%20head%20through%20%26stmt-%3Eset.stmt_list%2C%20which%20aliases%20%26stmt-%3Emap.data%2C%20overwriting%20the%20valid%20expr%20pointer%20and%20corrupting%20expr_data-%3Elist.prev%22%2C%224.%20During%20evaluation%2C%20expr_evaluate%28%29%20dereferences%20stmt-%3Emap.data%20as%20an%20expr%3B%20limit.burst%20lands%20at%20the%20expr.key%20offset%2C%20so%20RAX%20upper%2032%20bits%20equal%20the%20burst%20value%20and%20%2A%28RAX%2B0x39%29%20is%20read%22%5D%2C%22technical_details%22%3A%22Root%20cause%20is%20a%20copy-paste%20error%3A%20parser_json.c%3A2584%20passes%20%26stmt-%3Eset.stmt_list%20instead%20of%20%26stmt-%3Emap.stmt_list%2C%20and%20because%20both%20live%20in%20the%20same%20union%20at%20offset%2016%2C%20list_add%28%29%20clobbers%20stmt-%3Emap.data.%20ASAN%20reports%20SEGV%20in%20expr_evaluate%20%28evaluate.c%3A3167%29%20%E2%80%94%20%5C%22address%20points%20to%20the%20zero%20page%5C%22%20with%20a%20counter%20stmt%2C%20or%20%5C%22dereference%20of%20a%20high%20value%20address%5C%22%20with%20a%20controlled%20burst%20%E2%80%94%20confirming%20the%20stmt%20object%20is%20being%20read%20through%20expr%20field%20offsets%20with%20attacker-influenced%20pointer%20content.%22%2C%22title%22%3A%22write-primitive%20in%20nftables%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-KRKYEBGE&#34;,
+  &#34;bug_class&#34;: &#34;write-primitive&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:47:47+00:00&#34;,
+  &#34;description&#34;: &#34;In json_parse_map_stmt(), the parser calls json_parse_set_stmt_list(ctx, &amp;stmt-&gt;set.stmt_list, ...) on a map statement, but set_stmt.stmt_list and map_stmt.data share offset 16 in the enclosing C union. list_add() therefore overwrites stmt-&gt;map.data (a valid expr*) with a pointer to a stmt object and also corrupts expr_data-&gt;list.prev on the heap. When expr_evaluate() later dereferences stmt-&gt;map.data as an expr, it reads stmt fields at expr offsets; the JSON-supplied limit_stmt.burst value lands at the expr.key pointer offset, so an attacker controls the upper 32 bits of a pointer that is subsequently dereferenced (e.g. burst=0x41414141 → RAX=0x4141414100000000). This yields a controlled read target plus a heap write primitive, plausibly chainable toward code execution in a non-ASAN build.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;src/parser_json.c:2584 (json_parse_map_stmt)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;nftables&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Create a table, a dynamic map, and a chain via JSON&#34;,
+    &#34;2. Add a rule containing a \&#34;map\&#34; expression with op=add, elem, data, map=@m, and a \&#34;stmt\&#34; array containing a limit statement with an attacker-chosen burst value (e.g. 0x41414141)&#34;,
+    &#34;3. json_parse_set_stmt_list() writes the stmt list head through &amp;stmt-&gt;set.stmt_list, which aliases &amp;stmt-&gt;map.data, overwriting the valid expr pointer and corrupting expr_data-&gt;list.prev&#34;,
+    &#34;4. During evaluation, expr_evaluate() dereferences stmt-&gt;map.data as an expr; limit.burst lands at the expr.key offset, so RAX upper 32 bits equal the burst value and *(RAX+0x39) is read&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Root cause is a copy-paste error: parser_json.c:2584 passes &amp;stmt-&gt;set.stmt_list instead of &amp;stmt-&gt;map.stmt_list, and because both live in the same union at offset 16, list_add() clobbers stmt-&gt;map.data. ASAN reports SEGV in expr_evaluate (evaluate.c:3167) — \&#34;address points to the zero page\&#34; with a counter stmt, or \&#34;dereference of a high value address\&#34; with a controlled burst — confirming the stmt object is being read through expr field offsets with attacker-influenced pointer content.&#34;,
+  &#34;title&#34;: &#34;write-primitive in nftables&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

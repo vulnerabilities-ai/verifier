@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CGR7Y3J8 · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CGR7Y3J8 · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  session-flaw
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CGR7Y3J8: OAuth authorization code single-use not enforced atomically</h1>
+<p>In the authorization_code grant handler of the OAuth token endpoint, FindOAuthServerAuthorizationByCode is called outside the transaction with no row lock, and the subsequent tx.Destroy(authorization) at line 416 issues a DELETE that reports success even when zero rows are affected. Two concurrent POST /oauth/token requests carrying the same code can therefore both read the approved row, both pass client_id/PKCE/expiry validation, and both receive tokens. An attacker who already holds a valid code, the PKCE verifier, and client credentials can race the endpoint to mint multiple independent refresh-token sessions from a single code. This violates RFC 6749 §4.1.2 single-use semantics and defeats code-replay detection and any logic assuming one code yields one session.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/api/oauthserver/handlers.go:416</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The authorization-code lookup runs outside the transaction with no FOR UPDATE lock, and tx.Destroy uses an unconditional DELETE ... WHERE id=? whose zero-rows-affected case is not checked. Because consumption is not atomic, both racers observe the row as valid and both proceed to token issuance before either delete takes effect. The consent path, by contrast, correctly uses FOR UPDATE SKIP LOCKED.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Obtain a valid authorization code plus its PKCE verifier and client credentials.</li>
+<li>Send two (or more) POST /oauth/token requests with grant_type=authorization_code and the same code concurrently.</li>
+<li>Both requests read the approved authorization row before either deletes it.</li>
+<li>Both requests pass validation and each receives an access/refresh token pair.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Make authorization-code consumption atomic: either SELECT ... FOR UPDATE the authorization row before validating, or perform a conditional DELETE/UPDATE and verify the affected-row count is 1 before issuing tokens.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CGR7Y3J8.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CGR7Y3J8<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/api/oauthserver/handlers.go b/internal/api/oauthserver/handlers.go</span>
+<span class="diff-h">index d219e56530..bdf0b9b259 100644</span>
+<span class="diff-h">--- a/internal/api/oauthserver/handlers.go</span>
+<span class="diff-h">+++ b/internal/api/oauthserver/handlers.go</span>
+<span class="diff-h">@@ -394,6 +394,13 @@ func (s *Server) handleAuthorizationCodeGrant(ctx context.Context, w http.Respon</span>
+<span class="diff-c"> 	grantParams.Scopes = &amp;scopes</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	err = db.Transaction(func(tx *storage.Connection) error {</span>
+<span class="diff-a">+		if _, terr := models.FindOAuthServerAuthorizationByIDForUpdate(tx, authorization.AuthorizationID); terr != nil {</span>
+<span class="diff-a">+			if models.IsNotFoundError(terr) {</span>
+<span class="diff-a">+				return apierrors.NewOAuthError(&quot;invalid_grant&quot;, &quot;Invalid authorization code&quot;)</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+			return apierrors.NewInternalServerError(&quot;Error locking authorization code&quot;).WithInternalError(terr)</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 		authMethod := models.OAuthProviderAuthorizationCode</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		// Create audit log entry for OAuth token exchange</span>
+<span class="diff-h">@@ -424,6 +431,9 @@ func (s *Server) handleAuthorizationCodeGrant(ctx context.Context, w http.Respon</span>
+<span class="diff-c"> 		if httpErr, ok := err.(*apierrors.HTTPError); ok {</span>
+<span class="diff-c"> 			return httpErr</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-a">+		if oauthErr, ok := err.(*apierrors.OAuthError); ok {</span>
+<span class="diff-a">+			return oauthErr</span>
+<span class="diff-a">+		}</span>
+<span class="diff-c"> 		return apierrors.NewInternalServerError(&quot;Error exchanging authorization code&quot;).WithInternalError(err)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/internal/api/oauthserver/handlers_replay_test.go b/internal/api/oauthserver/handlers_replay_test.go</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..3c2fa891e6</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/internal/api/oauthserver/handlers_replay_test.go</span>
+<span class="diff-h">@@ -0,0 +1,65 @@</span>
+<span class="diff-a">+package oauthserver</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import (</span>
+<span class="diff-a">+	&quot;net/http&quot;</span>
+<span class="diff-a">+	&quot;net/http/httptest&quot;</span>
+<span class="diff-a">+	&quot;sync&quot;</span>
+<span class="diff-a">+	&quot;sync/atomic&quot;</span>
+<span class="diff-a">+	&quot;time&quot;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	&quot;github.com/gofrs/uuid&quot;</span>
+<span class="diff-a">+	&quot;github.com/stretchr/testify/assert&quot;</span>
+<span class="diff-a">+	&quot;github.com/stretchr/testify/require&quot;</span>
+<span class="diff-a">+	&quot;github.com/supabase/auth/internal/api/shared&quot;</span>
+<span class="diff-a">+	&quot;github.com/supabase/auth/internal/models&quot;</span>
+<span class="diff-a">+)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+func (ts *OAuthClientTestSuite) mintApprovedCode(clientID, userID uuid.UUID) string {</span>
+<span class="diff-a">+	auth := models.NewOAuthServerAuthorization(models.NewOAuthServerAuthorizationParams{</span>
+<span class="diff-a">+		ClientID:    clientID,</span>
+<span class="diff-a">+		RedirectURI: &quot;https://example.com/callback&quot;,</span>
+<span class="diff-a">+		Scope:       &quot;profile&quot;,</span>
+<span class="diff-a">+		TTL:         time.Hour,</span>
+<span class="diff-a">+	})</span>
+<span class="diff-a">+	require.NoError(ts.T(), models.CreateOAuthServerAuthorization(ts.DB, auth))</span>
+<span class="diff-a">+	require.NoError(ts.T(), auth.SetUser(ts.DB, userID))</span>
+<span class="diff-a">+	require.NoError(ts.T(), auth.Approve(ts.DB))</span>
+<span class="diff-a">+	return *auth.AuthorizationCode</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+func (ts *OAuthClientTestSuite) TestAuthCodeReplayRace() {</span>
+<span class="diff-a">+	client, _ := ts.createTestOAuthClient()</span>
+<span class="diff-a">+	user := ts.createTestUser(&quot;replay-race@example.com&quot;)</span>
+<span class="diff-a">+	code := ts.mintApprovedCode(client.ID, user.ID)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	const n = 10</span>
+<span class="diff-a">+	start := make(chan struct{})</span>
+<span class="diff-a">+	var wg sync.WaitGroup</span>
+<span class="diff-a">+	var success int32</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	for i := 0; i &lt; n; i++ {</span>
+<span class="diff-a">+		wg.Add(1)</span>
+<span class="diff-a">+		go func() {</span>
+<span class="diff-a">+			defer wg.Done()</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			req := httptest.NewRequest(http.MethodPost, &quot;/oauth/token&quot;, nil)</span>
+<span class="diff-a">+			ctx := shared.WithOAuthServerClient(req.Context(), client)</span>
+<span class="diff-a">+			req = req.WithContext(ctx)</span>
+<span class="diff-a">+			w := httptest.NewRecorder()</span>
+<span class="diff-a">+			params := &amp;OAuthTokenParams{GrantType: GrantTypeAuthorizationCode, Code: code}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			&lt;-start</span>
+<span class="diff-a">+			if err := ts.Server.handleAuthorizationCodeGrant(ctx, w, req, params); err == nil {</span>
+<span class="diff-a">+				atomic.AddInt32(&amp;success, 1)</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+		}()</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	close(start)</span>
+<span class="diff-a">+	wg.Wait()</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	assert.Equal(ts.T(), int32(1), success, &quot;authorization code must be single-use: expected exactly one successful redemption, got %d&quot;, success)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	_, err := models.FindOAuthServerAuthorizationByCode(ts.DB, code)</span>
+<span class="diff-a">+	assert.True(ts.T(), models.IsNotFoundError(err), &quot;authorization code should be consumed after redemption&quot;)</span>
+<span class="diff-a">+}</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/bdbf01eb99ac8750bfa6ec06626002673cf5479d" rel="noopener noreferrer">https://github.com/supabase/auth/commit/bdbf01eb99ac8750bfa6ec06626002673cf5479d</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-14</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">df05c60b9a6d1c310232d67398246397993f18f427124c42e5df05c3f6c58d759aa78303fefeda597149fdba22e57fa9993c5d003e91978ad965b4dc992c72e4</p>
+<p class="kicker">Committed 2026-05-18 01:00 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CGR7Y3J8-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CGR7Y3J8%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A01%3A29%2B00%3A00%22%2C%22description%22%3A%22In%20the%20authorization_code%20grant%20handler%20of%20the%20OAuth%20token%20endpoint%2C%20FindOAuthServerAuthorizationByCode%20is%20called%20outside%20the%20transaction%20with%20no%20row%20lock%2C%20and%20the%20subsequent%20tx.Destroy%28authorization%29%20at%20line%20416%20issues%20a%20DELETE%20that%20reports%20success%20even%20when%20zero%20rows%20are%20affected.%20Two%20concurrent%20POST%20/oauth/token%20requests%20carrying%20the%20same%20code%20can%20therefore%20both%20read%20the%20approved%20row%2C%20both%20pass%20client_id/PKCE/expiry%20validation%2C%20and%20both%20receive%20tokens.%20An%20attacker%20who%20already%20holds%20a%20valid%20code%2C%20the%20PKCE%20verifier%2C%20and%20client%20credentials%20can%20race%20the%20endpoint%20to%20mint%20multiple%20independent%20refresh-token%20sessions%20from%20a%20single%20code.%20This%20violates%20RFC%206749%20%C2%A74.1.2%20single-use%20semantics%20and%20defeats%20code-replay%20detection%20and%20any%20logic%20assuming%20one%20code%20yields%20one%20session.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/api/oauthserver/handlers.go%3A416%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%221.%20Obtain%20a%20valid%20authorization%20code%20plus%20its%20PKCE%20verifier%20and%20client%20credentials.%22%2C%222.%20Send%20two%20%28or%20more%29%20POST%20/oauth/token%20requests%20with%20grant_type%3Dauthorization_code%20and%20the%20same%20code%20concurrently.%22%2C%223.%20Both%20requests%20read%20the%20approved%20authorization%20row%20before%20either%20deletes%20it.%22%2C%224.%20Both%20requests%20pass%20validation%20and%20each%20receives%20an%20access/refresh%20token%20pair.%22%5D%2C%22technical_details%22%3A%22The%20authorization-code%20lookup%20runs%20outside%20the%20transaction%20with%20no%20FOR%20UPDATE%20lock%2C%20and%20tx.Destroy%20uses%20an%20unconditional%20DELETE%20...%20WHERE%20id%3D%3F%20whose%20zero-rows-affected%20case%20is%20not%20checked.%20Because%20consumption%20is%20not%20atomic%2C%20both%20racers%20observe%20the%20row%20as%20valid%20and%20both%20proceed%20to%20token%20issuance%20before%20either%20delete%20takes%20effect.%20The%20consent%20path%2C%20by%20contrast%2C%20correctly%20uses%20FOR%20UPDATE%20SKIP%20LOCKED.%22%2C%22title%22%3A%22OAuth%20authorization%20code%20single-use%20not%20enforced%20atomically%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CGR7Y3J8&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:01:29+00:00&#34;,
+  &#34;description&#34;: &#34;In the authorization_code grant handler of the OAuth token endpoint, FindOAuthServerAuthorizationByCode is called outside the transaction with no row lock, and the subsequent tx.Destroy(authorization) at line 416 issues a DELETE that reports success even when zero rows are affected. Two concurrent POST /oauth/token requests carrying the same code can therefore both read the approved row, both pass client_id/PKCE/expiry validation, and both receive tokens. An attacker who already holds a valid code, the PKCE verifier, and client credentials can race the endpoint to mint multiple independent refresh-token sessions from a single code. This violates RFC 6749 §4.1.2 single-use semantics and defeats code-replay detection and any logic assuming one code yields one session.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/api/oauthserver/handlers.go:416&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Obtain a valid authorization code plus its PKCE verifier and client credentials.&#34;,
+    &#34;2. Send two (or more) POST /oauth/token requests with grant_type=authorization_code and the same code concurrently.&#34;,
+    &#34;3. Both requests read the approved authorization row before either deletes it.&#34;,
+    &#34;4. Both requests pass validation and each receives an access/refresh token pair.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The authorization-code lookup runs outside the transaction with no FOR UPDATE lock, and tx.Destroy uses an unconditional DELETE ... WHERE id=? whose zero-rows-affected case is not checked. Because consumption is not atomic, both racers observe the row as valid and both proceed to token issuance before either delete takes effect. The consent path, by contrast, correctly uses FOR UPDATE SKIP LOCKED.&#34;,
+  &#34;title&#34;: &#34;OAuth authorization code single-use not enforced atomically&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

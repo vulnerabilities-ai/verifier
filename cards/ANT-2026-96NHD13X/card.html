@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-96NHD13X · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-96NHD13X · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  session-flaw
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-96NHD13X: Factor-type string mismatch prevents session AAL downgrade</h1>
+<p>In supabase/auth, DowngradeSessionsToAAL1 (internal/models/factor.go:406) issues a DELETE on AMR claims with <code>authentication_method = f.FactorType</code>. FactorType is 'phone' or 'webauthn', but AMR rows are stored as 'mfa/phone' and 'mfa/webauthn' via AuthenticationMethod.String(), so the delete matches nothing for those factor types (TOTP matches by coincidence). Although sessions.aal is set to 'aal1', the next token issuance re-derives AAL from the surviving AMR claims and re-promotes the session to AAL2. An attacker who already holds a compromised AAL2 session elevated via phone or WebAuthn therefore keeps AAL2 access even after the victim unenrolls that factor.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/models/factor.go:406</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a string-constant mismatch between the FactorType values ('phone', 'webauthn') used in the DELETE WHERE clause and the AuthenticationMethod.String() values ('mfa/phone', 'mfa/webauthn') actually stored in the amr table (internal/models/factor.go:97-100, internal/models/amr.go:35). Because the WHERE clause never matches for phone/WebAuthn, the stale AMR claim survives and CalculateAALAndAMR in internal/models/sessions.go recomputes the session as AAL2 on every refresh, silently defeating the intended downgrade.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker compromises a victim session that has been elevated to AAL2 via phone or WebAuthn MFA</li>
+<li>Victim notices suspicious activity and unenrolls the phone/WebAuthn factor</li>
+<li>DowngradeSessionsToAAL1 runs but its AMR DELETE matches zero rows due to the 'phone' vs 'mfa/phone' mismatch</li>
+<li>On the attacker's next token refresh, CalculateAALAndAMR finds the surviving 'mfa/phone' or 'mfa/webauthn' AMR claim and re-promotes the session to AAL2</li>
+<li>Attacker continues performing AAL2-gated operations indefinitely</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Ensure factor unenrollment deletes AMR claims using the same authentication_method string that was stored (e.g., map FactorType to its AuthenticationMethod.String() form before the DELETE) so session AAL is recomputed without the removed factor.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-96NHD13X.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-96NHD13X<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/models/factor.go b/internal/models/factor.go</span>
+<span class="diff-h">index 267c36ac6f..de67f801a5 100644</span>
+<span class="diff-h">--- a/internal/models/factor.go</span>
+<span class="diff-h">+++ b/internal/models/factor.go</span>
+<span class="diff-h">@@ -135,7 +135,7 @@ func ParseAuthenticationMethod(authMethod string) (AuthenticationMethod, error)</span>
+<span class="diff-c"> 		return EmailChange, nil</span>
+<span class="diff-c"> 	case &quot;token_refresh&quot;:</span>
+<span class="diff-c"> 		return TokenRefresh, nil</span>
+<span class="diff-d">-	case &quot;mfa/sms&quot;:</span>
+<span class="diff-a">+	case &quot;mfa/phone&quot;:</span>
+<span class="diff-c"> 		return MFAPhone, nil</span>
+<span class="diff-c"> 	case &quot;mfa/webauthn&quot;:</span>
+<span class="diff-c"> 		return MFAWebAuthn, nil</span>
+<span class="diff-h">@@ -397,13 +397,32 @@ func (f *Factor) UpdateStatus(tx *storage.Connection, state FactorState) error {</span>
+<span class="diff-c"> 	return tx.UpdateOnly(f, &quot;status&quot;, &quot;updated_at&quot;)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+// amrMethodForFactorType returns the AMR authentication_method string stored in</span>
+<span class="diff-a">+// mfa_amr_claims for a given factor type.</span>
+<span class="diff-a">+func amrMethodForFactorType(factorType string) (string, error) {</span>
+<span class="diff-a">+	switch factorType {</span>
+<span class="diff-a">+	case TOTP:</span>
+<span class="diff-a">+		return TOTPSignIn.String(), nil</span>
+<span class="diff-a">+	case Phone:</span>
+<span class="diff-a">+		return MFAPhone.String(), nil</span>
+<span class="diff-a">+	case WebAuthn:</span>
+<span class="diff-a">+		return MFAWebAuthn.String(), nil</span>
+<span class="diff-a">+	default:</span>
+<span class="diff-a">+		return &quot;&quot;, fmt.Errorf(&quot;no AMR authentication method mapped for factor type %q&quot;, factorType)</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func (f *Factor) DowngradeSessionsToAAL1(tx *storage.Connection) error {</span>
+<span class="diff-c"> 	sessions, err := FindSessionsByFactorID(tx, f.ID)</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		return err</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-a">+	amrMethod, err := amrMethodForFactorType(f.FactorType)</span>
+<span class="diff-a">+	if err != nil {</span>
+<span class="diff-a">+		return err</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> 	for _, session := range sessions {</span>
+<span class="diff-d">-		if err := tx.RawQuery(&quot;DELETE FROM &quot;+(&amp;pop.Model{Value: AMRClaim{}}).TableName()+&quot; WHERE session_id = ? AND authentication_method = ?&quot;, session.ID, f.FactorType).Exec(); err != nil {</span>
+<span class="diff-a">+		if err := tx.RawQuery(&quot;DELETE FROM &quot;+(&amp;pop.Model{Value: AMRClaim{}}).TableName()+&quot; WHERE session_id = ? AND authentication_method = ?&quot;, session.ID, amrMethod).Exec(); err != nil {</span>
+<span class="diff-c"> 			return err</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-h">diff --git a/internal/models/factor_test.go b/internal/models/factor_test.go</span>
+<span class="diff-h">index effefa7c1f..5091f85306 100644</span>
+<span class="diff-h">--- a/internal/models/factor_test.go</span>
+<span class="diff-h">+++ b/internal/models/factor_test.go</span>
+<span class="diff-h">@@ -2,6 +2,7 @@ package models</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> import (</span>
+<span class="diff-c"> 	&quot;encoding/json&quot;</span>
+<span class="diff-a">+	&quot;fmt&quot;</span>
+<span class="diff-c"> 	&quot;testing&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	&quot;github.com/gofrs/uuid&quot;</span>
+<span class="diff-h">@@ -31,6 +32,31 @@ func TestFactor(t *testing.T) {</span>
+<span class="diff-c"> 	suite.Run(t, ts)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+// TestAMRMethodForFactorType pins the factor-type -&gt; AMR method mapping.</span>
+<span class="diff-a">+func TestAMRMethodForFactorType(t *testing.T) {</span>
+<span class="diff-a">+	for factorType, want := range map[string]AuthenticationMethod{</span>
+<span class="diff-a">+		TOTP:     TOTPSignIn,</span>
+<span class="diff-a">+		Phone:    MFAPhone,</span>
+<span class="diff-a">+		WebAuthn: MFAWebAuthn,</span>
+<span class="diff-a">+	} {</span>
+<span class="diff-a">+		got, err := amrMethodForFactorType(factorType)</span>
+<span class="diff-a">+		require.NoError(t, err, &quot;factor type %q must map&quot;, factorType)</span>
+<span class="diff-a">+		require.Equal(t, want.String(), got)</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	_, err := amrMethodForFactorType(&quot;not-a-real-factor-type&quot;)</span>
+<span class="diff-a">+	require.Error(t, err)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestAuthenticationMethodRoundTrip guards the String() &lt;-&gt; ParseAuthenticationMethod symmetry.</span>
+<span class="diff-a">+func TestAuthenticationMethodRoundTrip(t *testing.T) {</span>
+<span class="diff-a">+	for _, m := range []AuthenticationMethod{TOTPSignIn, MFAPhone, MFAWebAuthn} {</span>
+<span class="diff-a">+		parsed, err := ParseAuthenticationMethod(m.String())</span>
+<span class="diff-a">+		require.NoError(t, err, &quot;method %q must round-trip&quot;, m.String())</span>
+<span class="diff-a">+		require.Equal(t, m, parsed)</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func (ts *FactorTestSuite) SetupTest() {</span>
+<span class="diff-c"> 	TruncateAll(ts.db)</span>
+<span class="diff-c"> 	user, err := NewUser(&quot;&quot;, &quot;agenericemail@gmail.com&quot;, &quot;secret&quot;, &quot;test&quot;, nil)</span>
+<span class="diff-h">@@ -72,3 +98,69 @@ func (ts *FactorTestSuite) TestEncodedFactorDoesNotLeakSecret() {</span>
+<span class="diff-c"> 	json.Unmarshal(encodedFactor, &amp;decodedFactor)</span>
+<span class="diff-c"> 	require.Equal(ts.T(), decodedFactor.Secret, &quot;&quot;)</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestDowngradeSessionsToAAL1RemovesAMRClaim asserts that unenrolling a verified</span>
+<span class="diff-a">+// factor strips the AMR claim it granted, dropping the session back to AAL1.</span>
+<span class="diff-a">+func (ts *FactorTestSuite) TestDowngradeSessionsToAAL1RemovesAMRClaim() {</span>
+<span class="diff-a">+	cases := []struct {</span>
+<span class="diff-a">+		desc       string</span>
+<span class="diff-a">+		newFactor  func(u *User) *Factor</span>
+<span class="diff-a">+		authMethod AuthenticationMethod</span>
+<span class="diff-a">+	}{</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:       &quot;phone&quot;,</span>
+<span class="diff-a">+			newFactor:  func(u *User) *Factor { return NewPhoneFactor(u, &quot;+15555555555&quot;, &quot;&quot;) },</span>
+<span class="diff-a">+			authMethod: MFAPhone,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:       &quot;webauthn&quot;,</span>
+<span class="diff-a">+			newFactor:  func(u *User) *Factor { return NewWebAuthnFactor(u, &quot;webauthnfactor&quot;) },</span>
+<span class="diff-a">+			authMethod: MFAWebAuthn,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:       &quot;totp&quot;,</span>
+<span class="diff-a">+			newFactor:  func(u *User) *Factor { return NewTOTPFactor(u, &quot;totpfactor&quot;) },</span>
+<span class="diff-a">+			authMethod: TOTPSignIn,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	for i, c := range cases {</span>
+<span class="diff-a">+		ts.Run(c.desc, func() {</span>
+<span class="diff-a">+			user, err := NewUser(&quot;&quot;, fmt.Sprintf(&quot;downgrade-%d@example.com&quot;, i), &quot;secret&quot;, &quot;test&quot;, nil)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			require.NoError(ts.T(), ts.db.Create(user))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			factor := c.newFactor(user)</span>
+<span class="diff-a">+			require.NoError(ts.T(), factor.SetSecret(&quot;secretkey&quot;, false, &quot;&quot;, &quot;&quot;))</span>
+<span class="diff-a">+			require.NoError(ts.T(), ts.db.Create(factor))</span>
+<span class="diff-a">+			require.NoError(ts.T(), factor.UpdateStatus(ts.db, FactorStateVerified))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			session, err := NewSession(user.ID, &amp;factor.ID)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			require.NoError(ts.T(), ts.db.Create(session))</span>
+<span class="diff-a">+			require.NoError(ts.T(), AddClaimToSession(ts.db, session.ID, c.authMethod))</span>
+<span class="diff-a">+			require.NoError(ts.T(), session.UpdateAALAndAssociatedFactor(ts.db, AAL2, &amp;factor.ID))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			// the claim upgrades the session to AAL2.</span>
+<span class="diff-a">+			loaded, err := FindSessionByID(ts.db, session.ID, false)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			aal, _, err := loaded.CalculateAALAndAMR(user)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			require.Equal(ts.T(), AAL2, aal)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			require.NoError(ts.T(), factor.DowngradeSessionsToAAL1(ts.db))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			downgraded, err := FindSessionByID(ts.db, session.ID, false)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			require.Equal(ts.T(), AAL1.String(), downgraded.GetAAL())</span>
+<span class="diff-a">+			require.Nil(ts.T(), downgraded.FactorID)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			aal, _, err = downgraded.CalculateAALAndAMR(user)</span>
+<span class="diff-a">+			require.NoError(ts.T(), err)</span>
+<span class="diff-a">+			require.Equal(ts.T(), AAL1, aal)</span>
+<span class="diff-a">+			for _, claim := range downgraded.AMRClaims {</span>
+<span class="diff-a">+				require.NotEqual(ts.T(), c.authMethod.String(), claim.GetAuthenticationMethod())</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+		})</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/dfe62d0fcc047099614c2eaff4b4d20d807671d9" rel="noopener noreferrer">https://github.com/supabase/auth/commit/dfe62d0fcc047099614c2eaff4b4d20d807671d9</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">55fda01fbdd16921ede118882fab035328376e34384c613c34ab13fbf2b26e1e879dd81353fd7c92787e0720f2815f2acb669f640083962a208b0f40c898d365</p>
+<p class="kicker">Committed 2026-05-18 00:59 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-96NHD13X-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-96NHD13X%22%2C%22bug_class%22%3A%22auth-bypass%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A02%3A05%2B00%3A00%22%2C%22description%22%3A%22In%20supabase/auth%2C%20DowngradeSessionsToAAL1%20%28internal/models/factor.go%3A406%29%20issues%20a%20DELETE%20on%20AMR%20claims%20with%20%60authentication_method%20%3D%20f.FactorType%60.%20FactorType%20is%20%27phone%27%20or%20%27webauthn%27%2C%20but%20AMR%20rows%20are%20stored%20as%20%27mfa/phone%27%20and%20%27mfa/webauthn%27%20via%20AuthenticationMethod.String%28%29%2C%20so%20the%20delete%20matches%20nothing%20for%20those%20factor%20types%20%28TOTP%20matches%20by%20coincidence%29.%20Although%20sessions.aal%20is%20set%20to%20%27aal1%27%2C%20the%20next%20token%20issuance%20re-derives%20AAL%20from%20the%20surviving%20AMR%20claims%20and%20re-promotes%20the%20session%20to%20AAL2.%20An%20attacker%20who%20already%20holds%20a%20compromised%20AAL2%20session%20elevated%20via%20phone%20or%20WebAuthn%20therefore%20keeps%20AAL2%20access%20even%20after%20the%20victim%20unenrolls%20that%20factor.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/models/factor.go%3A406%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20compromises%20a%20victim%20session%20that%20has%20been%20elevated%20to%20AAL2%20via%20phone%20or%20WebAuthn%20MFA%22%2C%222.%20Victim%20notices%20suspicious%20activity%20and%20unenrolls%20the%20phone/WebAuthn%20factor%22%2C%223.%20DowngradeSessionsToAAL1%20runs%20but%20its%20AMR%20DELETE%20matches%20zero%20rows%20due%20to%20the%20%27phone%27%20vs%20%27mfa/phone%27%20mismatch%22%2C%224.%20On%20the%20attacker%27s%20next%20token%20refresh%2C%20CalculateAALAndAMR%20finds%20the%20surviving%20%27mfa/phone%27%20or%20%27mfa/webauthn%27%20AMR%20claim%20and%20re-promotes%20the%20session%20to%20AAL2%22%2C%225.%20Attacker%20continues%20performing%20AAL2-gated%20operations%20indefinitely%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20string-constant%20mismatch%20between%20the%20FactorType%20values%20%28%27phone%27%2C%20%27webauthn%27%29%20used%20in%20the%20DELETE%20WHERE%20clause%20and%20the%20AuthenticationMethod.String%28%29%20values%20%28%27mfa/phone%27%2C%20%27mfa/webauthn%27%29%20actually%20stored%20in%20the%20amr%20table%20%28internal/models/factor.go%3A97-100%2C%20internal/models/amr.go%3A35%29.%20Because%20the%20WHERE%20clause%20never%20matches%20for%20phone/WebAuthn%2C%20the%20stale%20AMR%20claim%20survives%20and%20CalculateAALAndAMR%20in%20internal/models/sessions.go%20recomputes%20the%20session%20as%20AAL2%20on%20every%20refresh%2C%20silently%20defeating%20the%20intended%20downgrade.%22%2C%22title%22%3A%22Factor-type%20string%20mismatch%20prevents%20session%20AAL%20downgrade%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-96NHD13X&#34;,
+  &#34;bug_class&#34;: &#34;auth-bypass&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:02:05+00:00&#34;,
+  &#34;description&#34;: &#34;In supabase/auth, DowngradeSessionsToAAL1 (internal/models/factor.go:406) issues a DELETE on AMR claims with `authentication_method = f.FactorType`. FactorType is &#39;phone&#39; or &#39;webauthn&#39;, but AMR rows are stored as &#39;mfa/phone&#39; and &#39;mfa/webauthn&#39; via AuthenticationMethod.String(), so the delete matches nothing for those factor types (TOTP matches by coincidence). Although sessions.aal is set to &#39;aal1&#39;, the next token issuance re-derives AAL from the surviving AMR claims and re-promotes the session to AAL2. An attacker who already holds a compromised AAL2 session elevated via phone or WebAuthn therefore keeps AAL2 access even after the victim unenrolls that factor.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/models/factor.go:406&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker compromises a victim session that has been elevated to AAL2 via phone or WebAuthn MFA&#34;,
+    &#34;2. Victim notices suspicious activity and unenrolls the phone/WebAuthn factor&#34;,
+    &#34;3. DowngradeSessionsToAAL1 runs but its AMR DELETE matches zero rows due to the &#39;phone&#39; vs &#39;mfa/phone&#39; mismatch&#34;,
+    &#34;4. On the attacker&#39;s next token refresh, CalculateAALAndAMR finds the surviving &#39;mfa/phone&#39; or &#39;mfa/webauthn&#39; AMR claim and re-promotes the session to AAL2&#34;,
+    &#34;5. Attacker continues performing AAL2-gated operations indefinitely&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a string-constant mismatch between the FactorType values (&#39;phone&#39;, &#39;webauthn&#39;) used in the DELETE WHERE clause and the AuthenticationMethod.String() values (&#39;mfa/phone&#39;, &#39;mfa/webauthn&#39;) actually stored in the amr table (internal/models/factor.go:97-100, internal/models/amr.go:35). Because the WHERE clause never matches for phone/WebAuthn, the stale AMR claim survives and CalculateAALAndAMR in internal/models/sessions.go recomputes the session as AAL2 on every refresh, silently defeating the intended downgrade.&#34;,
+  &#34;title&#34;: &#34;Factor-type string mismatch prevents session AAL downgrade&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

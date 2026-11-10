@@ -15,6 +15,37 @@
       "sha256": "4f6512fe6e9cbb84ecef5a8c456839b86eeb5c9280984291b308342316c7d925",
       "stored_at": "cards/ANT-2026-87DJGDRB/card.html",
       "newly_stored": true
+    },
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-87DJGDRB.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-87DJGDRB",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:05:12Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 14193,
+      "sha256": "56ba2642c7338cec4b077cc2f5efa21447469fca084518b75fec9bec17ac3a27",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:05:13 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=T5r7nmYPrastRF4%2FoJuZMMj6Hs3dPLlmGGFKQdZlU4G%2F%2BXxWTfN4m5%2F6Gs3TcTakwX7BqSm5ohE8OcsWK7r8gQSDpmjT%2FcG%2FAplTLkZ2NO7I6kxiYYzSEUkwE0PoAOJN5DTTSw%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a5880397ff3b31f4-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-87DJGDRB/card.T210512Z.html",
+      "newly_stored": true,
+      "attempts_before": []
     }
   ],
   "unavailable": [],
@@ -28,6 +59,15 @@
       "sha3_512": "f35e4f410ec58dab28431670e173e03fd1e5105f8afefc79c7edd5117d684d3aa377d218762d2f1ab70c6262e31227885bacaf2062958b077e305e5aebc6c37d",
       "stored_at": "cards/ANT-2026-87DJGDRB/preimage.json",
       "newly_stored": true
+    },
+    {
+      "extracted_from": "cards/ANT-2026-87DJGDRB/card.T210512Z.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:05:12Z",
+      "size_bytes": 1398,
+      "sha256": "27f00fcb09b205a5d7bffed36c0a2805485f5b41425d9f321e844e29a282501c",
+      "stored_at": "cards/ANT-2026-87DJGDRB/preimage.json",
+      "newly_stored": false
     }
   ]
 }

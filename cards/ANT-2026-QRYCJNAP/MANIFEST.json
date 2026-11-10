@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-QRYCJNAP",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-QRYCJNAP.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-QRYCJNAP",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:07:10Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 15590,
+      "sha256": "90644466b2006dba9958ac095bb8fdfd48a742a13cddd2bf7e9a29fd62f9a7a8",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:07:11 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=W1ev%2FxZqbqxT4UK6W7skQfHu3u8Ok1PZyKSP9qPlngiJAVbo466t1U%2FfmJiZxhZnS%2Fo2%2BVqR9GbLMEjpQ9JbT3HsNFJ79gWBtDubS8V54pkmNakODc1xy8FRbWqasMLYw3UEwg%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58806794a8b8183-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-QRYCJNAP/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-QRYCJNAP/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:07:10Z",
+      "size_bytes": 2826,
+      "sha256": "db4ce7a33e05863275f2d4c030503207f76ad20004f2bc18c302f5797f72f678",
+      "stored_at": "cards/ANT-2026-QRYCJNAP/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

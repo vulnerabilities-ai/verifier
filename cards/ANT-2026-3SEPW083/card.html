@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-3SEPW083 · ncurses</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-3SEPW083 · ncurses</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">an unreleased Anthropic model</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-3SEPW083: Stack buffer overflow in SGR mouse response parser</h1>
+<p>In ncurses' SGR-1006 mouse parser (lib_mouse.c), read_SGR() stores parsed parameters into result-&gt;params[MAX_PARAMS] (MAX_PARAMS=9) but advances the index <code>now</code> on every semicolon and digit group with no check against MAX_PARAMS; only the 80-byte kbuf limits input length, permitting <code>now</code> to reach ~76. A sequence like ESC [ &lt; ;;;...;1234567890M therefore writes to params[60+] on the stack of decode_xterm_SGR1006(), roughly 200+ bytes past the 36-byte array and over the saved frame pointer and return address. An attacker controlling the terminal/pty master chooses the written integer values digit-by-digit. SGR-1006 mode is auto-enabled when the terminfo XM capability contains '1006', which is the case for xterm-1006/1002/1003, tmux, alacritty, and kitty entries shipped in terminfo.src, so any curses application calling mousemask() under these TERMs is reachable.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ncurses<br>
+<strong>Version:</strong> commit 87c2c84cbd2332d6d94b12a1dcaf12ad1a51a938 (present at current HEAD)<br>
+<strong>Location:</strong> <code>ncurses/base/lib_mouse.c:1249</code>  </p>
+<h2>Technical Details</h2>
+<p>Built a minimal curses program (initscr/keypad/mousemask/getch) under TERM=mouse1006 (XM contains '1006', kmous=\E[&lt;). Fed stdin '\E[&lt;;;;;...(60x);1234567890M'. read_SGR() at lib_mouse.c:1249 increments 'now' once per semicolon with no MAX_PARAMS bound, then writes result-&gt;params[60]. UBSAN reports 'index 60 out of bounds for type int[9]' at lib_mouse.c:1249. The SGR_DATA struct (48 bytes) lives on decode_xterm_SGR1006's stack; params[60] is ~200 bytes past it, covering saved registers/return address.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>../ncurses/./base/lib_mouse.c:1249:29: runtime error: index 60 out of bounds for type 'int[9]'
+==12==WARNING: invalid path to external symbolizer!
+==12==WARNING: Failed to use and restart external symbolizer!
+    #0 0xaaaab9ae65e4  (/out/mdrv+0x1e65e4) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #1 0xaaaab9adccb4  (/out/mdrv+0x1dccb4) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #2 0xaaaab9ae04c0  (/out/mdrv+0x1e04c0) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #3 0xaaaab9adb8f0  (/out/mdrv+0x1db8f0) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #4 0xffffa14d2258  (/lib/aarch64-linux-gnu/libc.so.6+0x22258) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #5 0xffffa14d2338  (/lib/aarch64-linux-gnu/libc.so.6+0x22338) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #6 0xaaaab99f96ac  (/out/mdrv+0xf96ac) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../ncurses/./base/lib_mouse.c:1249:29 
+../ncurses/./base/lib_mouse.c:1249:6: runtime error: index 60 out of bounds for type 'int[9]'
+    #0 0xaaaab9ae680c  (/out/mdrv+0x1e680c) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #1 0xaaaab9adccb4  (/out/mdrv+0x1dccb4) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #2 0xaaaab9ae04c0  (/out/mdrv+0x1e04c0) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #3 0xaaaab9adb8f0  (/out/mdrv+0x1db8f0) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+    #4 0xffffa14d2258  (/lib/aarch64-linux-gnu/libc.so.6+0x22258) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #5 0xffffa14d2338  (/lib/aarch64-linux-gnu/libc.so.6+0x22338) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #6 0xaaaab99f96ac  (/out/mdrv+0xf96ac) (BuildId: 3f13f46ce1c3e987ff5057949530b6e62732f84f)
+
+SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior ../ncurses/./base/lib_mouse.c:1249:6
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a pty pair and spawn the target curses program on the slave with TERM=xterm-1006.</li>
+<li>Let the program initialize curses and call mousemask(), which enables SGR-1006 mouse mode via the XM capability.</li>
+<li>From the pty master, write: \x1b[&lt; followed by ~60-70 semicolons, then attacker-chosen digits, then 'M' (e.g., \x1b[&lt;;;;;;...;1234567890M).</li>
+<li>When the program calls getch()/wgetch(), input dispatch recognizes CSI-&lt; and calls decode_xterm_SGR1006() -&gt; read_SGR().</li>
+<li>Each semicolon increments <code>now</code> past MAX_PARAMS; the trailing digits write controlled ints into params[now] far past the 9-int array, overwriting saved RBP/return address.</li>
+<li>On function return, control transfers to attacker-chosen address / ROP chain.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-3SEPW083.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-3SEPW083<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-18</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-18</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6c64a707f8b3af9b99108c07e688e3a615414a3ba738c64097b2dbaa5b1ab401d8d2c4e1bb5cf1045da255c67374f598d15de102a8a60cc1e168bed82840059d</p>
+<p class="kicker">Committed 2026-04-23 07:04 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-3SEPW083-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-3SEPW083%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-09T05%3A34%3A53%2B00%3A00%22%2C%22description%22%3A%22In%20ncurses%27%20SGR-1006%20mouse%20parser%20%28lib_mouse.c%29%2C%20read_SGR%28%29%20stores%20parsed%20parameters%20into%20result-%3Eparams%5BMAX_PARAMS%5D%20%28MAX_PARAMS%3D9%29%20but%20advances%20the%20index%20%60now%60%20on%20every%20semicolon%20and%20digit%20group%20with%20no%20check%20against%20MAX_PARAMS%3B%20only%20the%2080-byte%20kbuf%20limits%20input%20length%2C%20permitting%20%60now%60%20to%20reach%20~76.%20A%20sequence%20like%20ESC%20%5B%20%3C%20%3B%3B%3B...%3B1234567890M%20therefore%20writes%20to%20params%5B60%2B%5D%20on%20the%20stack%20of%20decode_xterm_SGR1006%28%29%2C%20roughly%20200%2B%20bytes%20past%20the%2036-byte%20array%20and%20over%20the%20saved%20frame%20pointer%20and%20return%20address.%20An%20attacker%20controlling%20the%20terminal/pty%20master%20chooses%20the%20written%20integer%20values%20digit-by-digit.%20SGR-1006%20mode%20is%20auto-enabled%20when%20the%20terminfo%20XM%20capability%20contains%20%271006%27%2C%20which%20is%20the%20case%20for%20xterm-1006/1002/1003%2C%20tmux%2C%20alacritty%2C%20and%20kitty%20entries%20shipped%20in%20terminfo.src%2C%20so%20any%20curses%20application%20calling%20mousemask%28%29%20under%20these%20TERMs%20is%20reachable.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22ncurses/base/lib_mouse.c%3A1249%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ncurses%22%2C%22reproduction%22%3A%5B%221.%20Create%20a%20pty%20pair%20and%20spawn%20the%20target%20curses%20program%20on%20the%20slave%20with%20TERM%3Dxterm-1006.%22%2C%222.%20Let%20the%20program%20initialize%20curses%20and%20call%20mousemask%28%29%2C%20which%20enables%20SGR-1006%20mouse%20mode%20via%20the%20XM%20capability.%22%2C%223.%20From%20the%20pty%20master%2C%20write%3A%20%5C%5Cx1b%5B%3C%20followed%20by%20~60-70%20semicolons%2C%20then%20attacker-chosen%20digits%2C%20then%20%27M%27%20%28e.g.%2C%20%5C%5Cx1b%5B%3C%3B%3B%3B%3B%3B...%3B1234567890M%29.%22%2C%224.%20When%20the%20program%20calls%20getch%28%29/wgetch%28%29%2C%20input%20dispatch%20recognizes%20CSI-%3C%20and%20calls%20decode_xterm_SGR1006%28%29%20-%3E%20read_SGR%28%29.%22%2C%225.%20Each%20semicolon%20increments%20%60now%60%20past%20MAX_PARAMS%3B%20the%20trailing%20digits%20write%20controlled%20ints%20into%20params%5Bnow%5D%20far%20past%20the%209-int%20array%2C%20overwriting%20saved%20RBP/return%20address.%22%2C%226.%20On%20function%20return%2C%20control%20transfers%20to%20attacker-chosen%20address%20/%20ROP%20chain.%22%5D%2C%22technical_details%22%3A%22Built%20a%20minimal%20curses%20program%20%28initscr/keypad/mousemask/getch%29%20under%20TERM%3Dmouse1006%20%28XM%20contains%20%271006%27%2C%20kmous%3D%5C%5C%5C%5CE%5B%3C%29.%20Fed%20stdin%20%27%5C%5C%5C%5CE%5B%3C%3B%3B%3B%3B...%2860x%29%3B1234567890M%27.%20read_SGR%28%29%20at%20lib_mouse.c%3A1249%20increments%20%27now%27%20once%20per%20semicolon%20with%20no%20MAX_PARAMS%20bound%2C%20then%20writes%20result-%3Eparams%5B60%5D.%20UBSAN%20reports%20%27index%2060%20out%20of%20bounds%20for%20type%20int%5B9%5D%27%20at%20lib_mouse.c%3A1249.%20The%20SGR_DATA%20struct%20%2848%20bytes%29%20lives%20on%20decode_xterm_SGR1006%27s%20stack%3B%20params%5B60%5D%20is%20~200%20bytes%20past%20it%2C%20covering%20saved%20registers/return%20address.%22%2C%22title%22%3A%22Stack%20buffer%20overflow%20in%20SGR%20mouse%20response%20parser%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-3SEPW083&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-09T05:34:53+00:00&#34;,
+  &#34;description&#34;: &#34;In ncurses&#39; SGR-1006 mouse parser (lib_mouse.c), read_SGR() stores parsed parameters into result-&gt;params[MAX_PARAMS] (MAX_PARAMS=9) but advances the index `now` on every semicolon and digit group with no check against MAX_PARAMS; only the 80-byte kbuf limits input length, permitting `now` to reach ~76. A sequence like ESC [ &lt; ;;;...;1234567890M therefore writes to params[60+] on the stack of decode_xterm_SGR1006(), roughly 200+ bytes past the 36-byte array and over the saved frame pointer and return address. An attacker controlling the terminal/pty master chooses the written integer values digit-by-digit. SGR-1006 mode is auto-enabled when the terminfo XM capability contains &#39;1006&#39;, which is the case for xterm-1006/1002/1003, tmux, alacritty, and kitty entries shipped in terminfo.src, so any curses application calling mousemask() under these TERMs is reachable.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;ncurses/base/lib_mouse.c:1249&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ncurses&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Create a pty pair and spawn the target curses program on the slave with TERM=xterm-1006.&#34;,
+    &#34;2. Let the program initialize curses and call mousemask(), which enables SGR-1006 mouse mode via the XM capability.&#34;,
+    &#34;3. From the pty master, write: \\x1b[&lt; followed by ~60-70 semicolons, then attacker-chosen digits, then &#39;M&#39; (e.g., \\x1b[&lt;;;;;;...;1234567890M).&#34;,
+    &#34;4. When the program calls getch()/wgetch(), input dispatch recognizes CSI-&lt; and calls decode_xterm_SGR1006() -&gt; read_SGR().&#34;,
+    &#34;5. Each semicolon increments `now` past MAX_PARAMS; the trailing digits write controlled ints into params[now] far past the 9-int array, overwriting saved RBP/return address.&#34;,
+    &#34;6. On function return, control transfers to attacker-chosen address / ROP chain.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Built a minimal curses program (initscr/keypad/mousemask/getch) under TERM=mouse1006 (XM contains &#39;1006&#39;, kmous=\\\\E[&lt;). Fed stdin &#39;\\\\E[&lt;;;;;...(60x);1234567890M&#39;. read_SGR() at lib_mouse.c:1249 increments &#39;now&#39; once per semicolon with no MAX_PARAMS bound, then writes result-&gt;params[60]. UBSAN reports &#39;index 60 out of bounds for type int[9]&#39; at lib_mouse.c:1249. The SGR_DATA struct (48 bytes) lives on decode_xterm_SGR1006&#39;s stack; params[60] is ~200 bytes past it, covering saved registers/return address.&#34;,
+  &#34;title&#34;: &#34;Stack buffer overflow in SGR mouse response parser&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-KNXJMVYC · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-KNXJMVYC · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  authenticity-not-verified
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5466">CVE-2026-5466</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-47qf-hp3h-rwmm">GHSA-47qf-hp3h-rwmm</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-KNXJMVYC: Universal ECCSI signature forgery in wolfSSL wc_VerifyEccsiHash via r = 0, s = 0</h1>
+<p>wolfSSL's ECCSI (RFC 6507) signature verifier, wc_VerifyEccsiHash() in wolfcrypt/src/eccsi.c, decoded the signature components r and s from the signature buffer with mp_read_unsigned_bin() and never checked that they lie in the range [1, q-1]. A signature carrying s = 0 makes the verification point J the point at infinity, whose x-coordinate is treated as 0, and with r = 0 the final comparison of J's x-coordinate against r succeeds, so the forged signature is accepted for any message and any signer identity using only publicly known constants. The issue is CVE-2026-5466 / GHSA-47qf-hp3h-rwmm, rated High, and is fixed in wolfSSL 5.9.1.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>wolfcrypt/src/eccsi.c:wc_VerifyEccsiHash (and eccsi_calc_j)</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>ECCSI verification (RFC 6507, section 5.2.2) in wolfSSL decodes a signature of the form <code>r | s | PVT</code>, computes <code>HE = hash(HS | r | M)</code>, <code>Y = [HS]PVT + KPAK</code> and <code>J = [s]([HE]G + [r]Y)</code>, and accepts the signature when the x-coordinate of J compares equal to r. In <code>wolfcrypt/src/eccsi.c</code>, <code>eccsi_decode_sig_r_pvt()</code> and <code>eccsi_decode_sig_s()</code> read r and s with <code>mp_read_unsigned_bin()</code>; before the fix, the checks applied to the signature were its length and that PVT decodes to a point on the curve. Neither r nor s was validated against <code>[1, q-1]</code>.</p>
+<p>With s = 0, the scalar multiplication in <code>eccsi_calc_j()</code> returns the point at infinity, so J's x-coordinate is 0. With r = 0, the final <code>mp_cmp(jx, r) == MP_EQ</code> test in <code>wc_VerifyEccsiHash()</code> then holds and <code>*verified</code> is set to 1. Because this outcome does not depend on the message or the signer identity, an attacker who supplies r = 0 and s = 0 together with a PVT that is a valid curve point obtains a signature that verifies against any message for any identity, using only publicly known constants. The code is reachable by any application that passes attacker-controlled signatures to <code>wc_VerifyEccsiHash()</code> in a build with ECCSI support (<code>WOLFCRYPT_HAVE_ECCSI</code>).</p>
+<ul>
+<li>Impact: universal signature forgery / improper verification of cryptographic signature (CWE-347). Severity High (CVSS v3.1 base score 8.1 as recorded in the GitHub Advisory Database).</li>
+<li>Identifiers: CVE-2026-5466, GHSA-47qf-hp3h-rwmm.</li>
+<li>Fix: commit <code>13a016367ff4b4d3cc4c9bc2bfdfe692a512dd81</code> ("eccsi: fix universal signature forgery via r=0/s=0"), merged via wolfSSL PR #10102 and released in wolfSSL 5.9.1. The patch adds <code>[1, q-1]</code> range checks for r (in <code>wc_VerifyEccsiHash()</code>, after the curve parameters are loaded) and for s (in <code>eccsi_calc_j()</code>, after <code>eccsi_decode_sig_s()</code>), returning <code>MP_ZERO_E</code> or <code>ECC_OUT_OF_RANGE_E</code> and mirroring the existing <code>wc_ecc_check_r_s_range()</code> checks, and adds a defense-in-depth rejection of J = point at infinity (<code>ECC_INF_E</code>) before the final comparison.</li>
+</ul>
+<pre tabindex="0"><code class="language-c">/* added in wc_VerifyEccsiHash(); an equivalent check on s is added in eccsi_calc_j() */
+if (err == 0) {
+    if (mp_iszero(r)) {
+        err = MP_ZERO_E;
+    }
+    else if (mp_cmp(r, ¶ms-&gt;order) != MP_LT) {
+        err = ECC_OUT_OF_RANGE_E;
+    }
+}
+</code></pre>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-KNXJMVYC.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-KNXJMVYC<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/wolfcrypt/src/eccsi.c b/wolfcrypt/src/eccsi.c</span>
+<span class="diff-h">index b4cf859e500..d919dd8a341 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/eccsi.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/eccsi.c</span>
+<span class="diff-h">@@ -2159,6 +2159,18 @@ static int eccsi_calc_j(EccsiKey* key, const mp_int* hem, const byte* sig,</span>
+<span class="diff-c">     if (err == 0) {</span>
+<span class="diff-c">         err = eccsi_decode_sig_s(key, sig, sigSz, s);</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+    /* Validate s is in [1, q-1]: reject zero or out-of-range second signature</span>
+<span class="diff-a">+     * component.  With s=0, [s](...) yields the point at infinity whose</span>
+<span class="diff-a">+     * affine x-coordinate is 0, making the final mp_cmp(0,0) accept any</span>
+<span class="diff-a">+     * forged signature. */</span>
+<span class="diff-a">+    if (err == 0) {</span>
+<span class="diff-a">+        if (mp_iszero(s)) {</span>
+<span class="diff-a">+            err = MP_ZERO_E;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        else if (mp_cmp(s, &amp;key-&gt;params.order) != MP_LT) {</span>
+<span class="diff-a">+            err = ECC_OUT_OF_RANGE_E;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c">     /* [s]( [HE]G + [r]Y ) */</span>
+<span class="diff-c">     if (err == 0) {</span>
+<span class="diff-c">         err = eccsi_mulmod_point(key, s, j, j, 1);</span>
+<span class="diff-h">@@ -2238,6 +2250,19 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,</span>
+<span class="diff-c">         err = mp_montgomery_setup(&amp;params-&gt;prime, &amp;mp);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /* Validate r is in [1, q-1]: reject zero or out-of-range first signature</span>
+<span class="diff-a">+     * component before any scalar multiplication takes place.</span>
+<span class="diff-a">+     * Without this check, r=0 causes J_x=0 and the final mp_cmp(0,0)==MP_EQ</span>
+<span class="diff-a">+     * comparison accepts the forged signature unconditionally. */</span>
+<span class="diff-a">+    if (err == 0) {</span>
+<span class="diff-a">+        if (mp_iszero(r)) {</span>
+<span class="diff-a">+            err = MP_ZERO_E;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        else if (mp_cmp(r, &amp;params-&gt;order) != MP_LT) {</span>
+<span class="diff-a">+            err = ECC_OUT_OF_RANGE_E;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /* Step 1: Validate PVT is on curve */</span>
+<span class="diff-c">     if (err == 0) {</span>
+<span class="diff-c">         err = wc_ecc_is_point(pvt, &amp;params-&gt;a, &amp;params-&gt;b, &amp;params-&gt;prime);</span>
+<span class="diff-h">@@ -2273,6 +2298,16 @@ int wc_VerifyEccsiHash(EccsiKey* key, enum wc_HashType hashType,</span>
+<span class="diff-c">         key-&gt;params.haveBase = 0;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /* Defense-in-depth: reject J = point at infinity before the final</span>
+<span class="diff-a">+     * comparison. Catches any future path that might reach this point</span>
+<span class="diff-a">+     * with a neutral-element result (e.g. s = 0 mod q for a non-zero</span>
+<span class="diff-a">+     * encoded s). */</span>
+<span class="diff-a">+    if (err == 0) {</span>
+<span class="diff-a">+        if (wc_ecc_point_is_at_infinity(j)) {</span>
+<span class="diff-a">+            err = ECC_INF_E;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /* Step 6: Jx fitting, compare with r */</span>
+<span class="diff-c">     if (err == 0) {</span>
+<span class="diff-c">         jx = &amp;key-&gt;tmp;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/13a016367" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/13a016367</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e4b9aa3b2e76b2e8e469e6d0bcadd5f14c9a876e667184ecf444b15e78488876b22e9c62781469f71687db5744334620cfa82068c52c47642611ed20394f2bcd</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-KNXJMVYC-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-KNXJMVYC%22%2C%22bug_class%22%3A%22signature-bypass%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A34%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22eccsi%20universal%20signature%20forgery%20via%20r%200%20s%200%20missing%20s%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-KNXJMVYC&#34;,
+  &#34;bug_class&#34;: &#34;signature-bypass&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:34+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;eccsi universal signature forgery via r 0 s 0 missing s&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

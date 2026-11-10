@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-N7D3E5WK · rdkit</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-N7D3E5WK · rdkit</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-N7D3E5WK: Heap-use-after-free in Chirality::cleanupStereoGroups at Chirality.cpp:2188 via SMILES stereo group referencing atom freed by removeHs</h1>
+<p>OSS-Fuzz's smiles_string_to_mol_fuzzer target triggered a heap-use-after-free in RDKit's C++ SMILES parsing code path. A crafted SMILES string causes the molecule-graph construction logic to read from a heap allocation after it has been freed. An attacker controls the SMILES input string, which is a common unauthenticated entry point in cheminformatics web services, REST APIs, and the RDKit PostgreSQL cartridge. The result is a reliable crash (DoS), with potential for stale-heap information disclosure and theoretical escalation to RCE via heap grooming.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> rdkit<br>
+<strong>Location:</strong> <code>getChiralTag at Code/GraphMol/Atom.h:245, called from Chirality::cleanupStereoGroups at Code/GraphMol/Chirality.cpp:2188</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: READ on freed heap memory (heap-use-after-free). The SMILES parser dereferences a pointer into a heap region that has already been freed during molecule construction; the precise root cause — iterator invalidation, premature object destruction, or a dangling pointer in graph construction — could not be determined without the crashing input or stack trace.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1722987467
+INFO: Loaded 1 modules   (74698 inline 8-bit counters): 74698 [0x5a06ecc91fb0, 0x5a06ecca437a), 
+INFO: Loaded 1 PC tables (74698 PCs): 74698 [0x5a06ecca4380,0x5a06ecdc8020), 
+/out/smiles_string_to_mol_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-use-after-free on address 0x779acfbe25f0 at pc 0x5a06ec9521e8 bp 0x7ffca09025f0 sp 0x7ffca09025e8
+READ of size 1 at 0x779acfbe25f0 thread T0
+    #0 0x5a06ec9521e7 in getChiralTag /src/rdkit/Code/GraphMol/Atom.h:245:36
+    #1 0x5a06ec9521e7 in RDKit::Chirality::cleanupStereoGroups(RDKit::ROMol&amp;) /src/rdkit/Code/GraphMol/Chirality.cpp:2188:17
+    #2 0x5a06ec95572c in RDKit::Chirality::legacyStereoPerception(RDKit::ROMol&amp;, bool, bool) /src/rdkit/Code/GraphMol/Chirality.cpp:2506:5
+    #3 0x5a06ec95da5e in RDKit::MolOps::assignStereochemistry(RDKit::ROMol&amp;, bool, bool, bool) /src/rdkit/Code/GraphMol/Chirality.cpp:2902:5
+    #4 0x5a06ec5b4649 in RDKit::v2::SmilesParse::MolFromSmiles(std::__1::basic_string&lt;char, std::__1::char_traits&lt;char&gt;, std::__1::allocator&lt;char&gt;&gt; const&amp;, RDKit::v2::SmilesParse::SmilesParserParams const&amp;) /src/rdkit/Code/GraphMol/SmilesParse/SmilesParse.cpp:505:5
+    #5 0x5a06ec5ae294 in SmilesToMol /src/rdkit/Code/GraphMol/SmilesParse/SmilesParse.h:186:10
+    #6 0x5a06ec5ae294 in LLVMFuzzerTestOneInput /src/rdkit/Code/Fuzz/smiles_string_to_mol_fuzzer.cc:28:9
+    #7 0x5a06ec44b8ad in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    [... 31 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a malicious SMILES string that exercises the vulnerable parser code path</li>
+<li>Submit the string to an RDKit-backed endpoint (web service, REST API, PostgreSQL cartridge, or notebook)</li>
+<li>Parser reads freed heap memory during molecule graph construction, causing a crash or returning stale data</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-N7D3E5WK.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-N7D3E5WK<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-29</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">faac8bacfa232209d5fb178c1929923e784b68d6032c8e5ff929f350eaceace723716f2ef18c9173f09a0398414b03c1d1985a2274d40a42ae2472215f795f73</p>
+<p class="kicker">Committed 2026-05-07 14:53 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-N7D3E5WK-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-N7D3E5WK%22%2C%22bug_class%22%3A%22heap-use-after-free%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-20T19%3A13%3A47%2B00%3A00%22%2C%22description%22%3A%22OSS-Fuzz%27s%20smiles_string_to_mol_fuzzer%20target%20triggered%20a%20heap-use-after-free%20in%20RDKit%27s%20C%2B%2B%20SMILES%20parsing%20code%20path.%20A%20crafted%20SMILES%20string%20causes%20the%20molecule-graph%20construction%20logic%20to%20read%20from%20a%20heap%20allocation%20after%20it%20has%20been%20freed.%20An%20attacker%20controls%20the%20SMILES%20input%20string%2C%20which%20is%20a%20common%20unauthenticated%20entry%20point%20in%20cheminformatics%20web%20services%2C%20REST%20APIs%2C%20and%20the%20RDKit%20PostgreSQL%20cartridge.%20The%20result%20is%20a%20reliable%20crash%20%28DoS%29%2C%20with%20potential%20for%20stale-heap%20information%20disclosure%20and%20theoretical%20escalation%20to%20RCE%20via%20heap%20grooming.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22getChiralTag%20at%20Code/GraphMol/Atom.h%3A245%2C%20called%20from%20Chirality%3A%3AcleanupStereoGroups%20at%20Code/GraphMol/Chirality.cpp%3A2188%22%2C%22poc_sha256%22%3A%220379c80704d5560a129ef06fc9ca23902197791806918bf29515145f28860e27%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22rdkit%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20malicious%20SMILES%20string%20that%20exercises%20the%20vulnerable%20parser%20code%20path%22%2C%222.%20Submit%20the%20string%20to%20an%20RDKit-backed%20endpoint%20%28web%20service%2C%20REST%20API%2C%20PostgreSQL%20cartridge%2C%20or%20notebook%29%22%2C%223.%20Parser%20reads%20freed%20heap%20memory%20during%20molecule%20graph%20construction%2C%20causing%20a%20crash%20or%20returning%20stale%20data%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20READ%20on%20freed%20heap%20memory%20%28heap-use-after-free%29.%20The%20SMILES%20parser%20dereferences%20a%20pointer%20into%20a%20heap%20region%20that%20has%20already%20been%20freed%20during%20molecule%20construction%3B%20the%20precise%20root%20cause%20%E2%80%94%20iterator%20invalidation%2C%20premature%20object%20destruction%2C%20or%20a%20dangling%20pointer%20in%20graph%20construction%20%E2%80%94%20could%20not%20be%20determined%20without%20the%20crashing%20input%20or%20stack%20trace.%22%2C%22title%22%3A%22Heap-use-after-free%20in%20Chirality%3A%3AcleanupStereoGroups%20at%20Chirality.cpp%3A2188%20via%20SMILES%20stereo%20group%20referencing%20atom%20freed%20by%20removeHs%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-N7D3E5WK&#34;,
+  &#34;bug_class&#34;: &#34;heap-use-after-free&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-20T19:13:47+00:00&#34;,
+  &#34;description&#34;: &#34;OSS-Fuzz&#39;s smiles_string_to_mol_fuzzer target triggered a heap-use-after-free in RDKit&#39;s C++ SMILES parsing code path. A crafted SMILES string causes the molecule-graph construction logic to read from a heap allocation after it has been freed. An attacker controls the SMILES input string, which is a common unauthenticated entry point in cheminformatics web services, REST APIs, and the RDKit PostgreSQL cartridge. The result is a reliable crash (DoS), with potential for stale-heap information disclosure and theoretical escalation to RCE via heap grooming.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;getChiralTag at Code/GraphMol/Atom.h:245, called from Chirality::cleanupStereoGroups at Code/GraphMol/Chirality.cpp:2188&#34;,
+  &#34;poc_sha256&#34;: &#34;0379c80704d5560a129ef06fc9ca23902197791806918bf29515145f28860e27&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;rdkit&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a malicious SMILES string that exercises the vulnerable parser code path&#34;,
+    &#34;2. Submit the string to an RDKit-backed endpoint (web service, REST API, PostgreSQL cartridge, or notebook)&#34;,
+    &#34;3. Parser reads freed heap memory during molecule graph construction, causing a crash or returning stale data&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: READ on freed heap memory (heap-use-after-free). The SMILES parser dereferences a pointer into a heap region that has already been freed during molecule construction; the precise root cause — iterator invalidation, premature object destruction, or a dangling pointer in graph construction — could not be determined without the crashing input or stack trace.&#34;,
+  &#34;title&#34;: &#34;Heap-use-after-free in Chirality::cleanupStereoGroups at Chirality.cpp:2188 via SMILES stereo group referencing atom freed by removeHs&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>
