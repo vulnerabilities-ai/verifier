@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-ZZY4987K · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-ZZY4987K · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  weak-crypto
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5477">CVE-2026-5477</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-grqc-3vmg-p68x">GHSA-grqc-3vmg-p68x</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-ZZY4987K: wolfCrypt wc_CmacUpdate: 32-bit totalSz wraparound enables CMAC forgery on &gt;4 GiB messages</h1>
+<p>wolfCrypt's streaming CMAC implementation kept the number of bytes processed in a 32-bit counter (totalSz) and used the test <code>totalSz != 0</code> to decide whether to XOR the running digest into the next block before encrypting it. After 4 GiB of input the counter wraps back to zero, so wc_CmacUpdate() skips the chaining step a second time and silently discards the accumulated CBC-MAC state. As a result, any two messages that are identical from the 4 GiB offset onward produce the same CMAC tag under the same key, allowing an attacker who holds one valid tag for such a message to substitute the first 4 GiB with arbitrary content (CVE-2026-5477, GHSA-grqc-3vmg-p68x). wolfSSL fixed the issue by making the XOR unconditional; the fix is included in wolfSSL 5.9.1.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>wolfcrypt/src/cmac.c:wc_CmacUpdate</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p><strong>Component.</strong> <code>wc_CmacUpdate()</code> in <code>wolfcrypt/src/cmac.c</code>, and the equivalent block-flush path in <code>wc_local_CmacUpdateAes()</code> in <code>wolfcrypt/src/aes.c</code>.</p>
+<p><strong>Root cause.</strong> When the internal 16-byte buffer is full and more input remains, the update routine chains the buffered block into the CBC-MAC state and encrypts it:</p>
+<pre tabindex="0"><code class="language-c">if (cmac-&gt;bufferSz == WC_AES_BLOCK_SIZE &amp;&amp; inSz != 0) {
+    if (cmac-&gt;totalSz != 0) {                       /* removed by the fix */
+        xorbuf(cmac-&gt;buffer, cmac-&gt;digest, WC_AES_BLOCK_SIZE);
+    }
+    wc_AesEncryptDirect(&amp;cmac-&gt;aes, cmac-&gt;digest, cmac-&gt;buffer);
+    cmac-&gt;totalSz += WC_AES_BLOCK_SIZE;
+    ...
+</code></pre>
+<p>The <code>totalSz != 0</code> guard was meant only to skip the XOR on the very first block, where <code>digest</code> is all zeros and the XOR is a no-op. <code>totalSz</code> is a <code>word32</code>, however, and after 2^28 block flushes (4 GiB of input) it wraps to zero. On the next flush the guard fires again, the XOR with the live digest is skipped, and the block is encrypted on its own: the CBC-MAC chain is restarted and every preceding block stops contributing to the tag.</p>
+<p><strong>Reachability and impact.</strong> The defect is reached by processing a single message longer than 4 GiB through the streaming CMAC update API. Any two messages sharing a common suffix beyond the 4 GiB mark then produce identical CMAC tags, so an attacker who observes one valid tag for a message longer than 4 GiB can replace the first 4 GiB with arbitrary data without invalidating the tag — a zero-work prefix-substitution forgery. This is an integrity failure (CWE-190, Integer Overflow or Wraparound); the published advisory rates it High (CVSS 3.1 base score 7.5, AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N). Messages of 4 GiB or less are not affected.</p>
+<p><strong>Fix.</strong> Commit <code>10953f021</code> ("CMAC: fix wraparound in streaming update", wolfSSL/wolfssl#10102, merged 2026-04-06) removes the guard in both files so the XOR is performed unconditionally; first-block behaviour is unchanged because <code>wc_InitCmac_ex()</code> zero-initialises <code>digest</code>. The fix is included in wolfSSL 5.9.1. Tracked as CVE-2026-5477 / GHSA-grqc-3vmg-p68x.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-ZZY4987K.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-ZZY4987K<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/wolfcrypt/src/aes.c b/wolfcrypt/src/aes.c</span>
+<span class="diff-h">index cb4258e6349..a3b75dbb34b 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/aes.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/aes.c</span>
+<span class="diff-h">@@ -16377,9 +16377,7 @@ int wc_local_CmacUpdateAes(struct Cmac *cmac, const byte* in, word32 inSz) {</span>
+<span class="diff-c">         in += add;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         if (cmac-&gt;bufferSz == WC_AES_BLOCK_SIZE &amp;&amp; inSz != 0) {</span>
+<span class="diff-d">-            if (cmac-&gt;totalSz != 0) {</span>
+<span class="diff-d">-                xorbuf(cmac-&gt;buffer, cmac-&gt;digest, WC_AES_BLOCK_SIZE);</span>
+<span class="diff-d">-            }</span>
+<span class="diff-a">+            xorbuf(cmac-&gt;buffer, cmac-&gt;digest, WC_AES_BLOCK_SIZE);</span>
+<span class="diff-c">             ret = AesEncrypt_preFetchOpt(aes, cmac-&gt;buffer,</span>
+<span class="diff-c">                                             cmac-&gt;digest, &amp;did_prefetches);</span>
+<span class="diff-c">             if (ret == 0) {</span>
+<span class="diff-h">diff --git a/wolfcrypt/src/cmac.c b/wolfcrypt/src/cmac.c</span>
+<span class="diff-h">index 66e45f92477..ba579516d1b 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/cmac.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/cmac.c</span>
+<span class="diff-h">@@ -238,9 +238,7 @@ int wc_CmacUpdate(Cmac* cmac, const byte* in, word32 inSz)</span>
+<span class="diff-c">             inSz -= add;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             if (cmac-&gt;bufferSz == WC_AES_BLOCK_SIZE &amp;&amp; inSz != 0) {</span>
+<span class="diff-d">-                if (cmac-&gt;totalSz != 0) {</span>
+<span class="diff-d">-                    xorbuf(cmac-&gt;buffer, cmac-&gt;digest, WC_AES_BLOCK_SIZE);</span>
+<span class="diff-d">-                }</span>
+<span class="diff-a">+                xorbuf(cmac-&gt;buffer, cmac-&gt;digest, WC_AES_BLOCK_SIZE);</span>
+<span class="diff-c">                 wc_AesEncryptDirect(&amp;cmac-&gt;aes, cmac-&gt;digest,</span>
+<span class="diff-c">                         cmac-&gt;buffer);</span>
+<span class="diff-c">                 cmac-&gt;totalSz += WC_AES_BLOCK_SIZE;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/10953f021" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/10953f021</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">23871c9f0508a22245ce5d325672eb271592a851965032d220707bf02393f1648f311b3bbe08069181e62c17d40b03a0254368f0ea65ec6100f839e4c80f1be0</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-ZZY4987K-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-ZZY4987K%22%2C%22bug_class%22%3A%22integer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A33%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22cmac%2032%20bit%20totalsz%20wraparound%20prefix%20substitution%20forg%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-ZZY4987K&#34;,
+  &#34;bug_class&#34;: &#34;integer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:33+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;cmac 32 bit totalsz wraparound prefix substitution forg&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

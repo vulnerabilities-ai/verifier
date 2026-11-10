@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-TZQ1KH7E · cesnet/libyang</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-TZQ1KH7E · cesnet/libyang</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-41401">CVE-2026-41401</a>
+  <a class="id-badge" href="https://github.com/CESNET/libyang/security/advisories/GHSA-9f49-8x56-jmjc">GHSA-9f49-8x56-jmjc</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-v7jp-vmx6-5429">GHSA-v7jp-vmx6-5429</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-TZQ1KH7E: Heap use-after-free write in metadata list management during XML data parsing due to incorrect list head pointer update</h1>
+<p>A heap use-after-free write occurs in metadata list management during XML data parsing due to an incorrect update of the list head pointer.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> cesnet/libyang<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>During XML data parsing, the code managing the metadata linked list updates the list head pointer incorrectly, leaving a reference to freed heap memory that is subsequently written to.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-TZQ1KH7E.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-TZQ1KH7E<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+<div class="report-body" tabindex="0"><h3>Summary</h3>
+<p>A heap use-after-free write in libyang’s XML data parser can be triggered by a crafted YANG XML document with specific metadata attributes, leading to memory corruption (process crash, and potentially code execution in some deployments).</p>
+<p>In <code>lyd_parser_set_data_flags</code> at <code>src/parser_common.c:316-319</code>, the metadata list head pointer is incorrectly updated when freeing a non-head "default" metadata entry. </p>
+<p>Validated against: https://github.com/CESNET/libyang @ 6b5ed47ee674fbe86b31bbebc4ff26889aeff38c (devel)</p>
+<h3>Details and PoC</h3>
+<p>Build fuzzers:</p>
+<pre tabindex="0"><code class="language-bash">  git clone https://github.com/google/oss-fuzz.git
+  cd oss-fuzz
+  python3 infra/helper.py build_fuzzers --sanitizer address libyang
+</code></pre>
+<p>Run the PoC: <code>python3 infra/helper.py reproduce libyang lyd_parse_mem_xml poc.bin</code></p>
+<p>Expected output: ASAN reports heap-use-after-free WRITE in lyd_insert_meta at tree_data.c:1313.</p>
+<p><strong>We have attached a zip containing:</strong></p>
+<ul>
+<li>Full technical details of each finding</li>
+<li>Reproduction steps and proof-of-concept where applicable</li>
+<li>Candidate patch(es) with regression tests</li>
+</ul>
+<h3>Impact</h3>
+<p>Any application using libyang to parse attacker-controlled (or semi-trusted) XML-encoded YANG instance data (NETCONF/RESTCONF, config import, etc.) is impacted. That can lead to denial of service issues. Depending on allocator behavior and application heap layout, memory corruption could potentially be leveraged further.</p>
+<h3>Bug discovery context</h3>
+<p>Anthropic is conducting research into the use of large language models for automated vulnerability discovery in open source software. As part of that work, Anthropic used Claude to scan a set of widely used open source projects for security issues. Anthropic then engaged Trail of Bits to independently triage, manually validate, and develop patches for the findings. Each issue in this report has been reviewed and confirmed by human security researchers at Trail of Bits.</p>
+<p>Thank you for your work on libyang! </p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/parser_common.c b/src/parser_common.c</span>
+<span class="diff-h">index 39fb4ab0a..f11fce560 100644</span>
+<span class="diff-h">--- a/src/parser_common.c</span>
+<span class="diff-h">+++ b/src/parser_common.c</span>
+<span class="diff-h">@@ -313,8 +313,8 @@ lyd_parser_set_data_flags(struct lyd_node *node, struct lyd_meta **meta, struct</span>
+<span class="diff-c">             next_meta = meta2-&gt;next;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             /* delete the metadata */</span>
+<span class="diff-d">-            if (meta != &amp;node-&gt;meta) {</span>
+<span class="diff-d">-                *meta = (*meta)-&gt;next;</span>
+<span class="diff-a">+            if ((meta != &amp;node-&gt;meta) &amp;&amp; (meta2 == *meta)) {</span>
+<span class="diff-a">+                *meta = next_meta;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c">             lyd_free_meta_single(meta2);</span>
+<span class="diff-c">             if (prev_meta) {</span>
+<span class="diff-h">diff --git a/tests/fuzz/corpus/lyd_parse_mem_xml/advisory2026_03_26 b/tests/fuzz/corpus/lyd_parse_mem_xml/advisory2026_03_26</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000..7e3b6c39e</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/tests/fuzz/corpus/lyd_parse_mem_xml/advisory2026_03_26</span>
+<span class="diff-h">@@ -0,0 +1,5 @@</span>
+<span class="diff-a">+&lt;int32 xmlns=&quot;urn:tests:types&quot;</span>
+<span class="diff-a">+       xmlns:yang=&quot;urn:ietf:params:xml:ns:yang:1&quot;</span>
+<span class="diff-a">+       xmlns:dflt=&quot;urn:ietf:params:xml:ns:netconf:default:1.0&quot;</span>
+<span class="diff-a">+       yang:operation=&quot;create&quot;</span>
+<span class="diff-a">+       dflt:default=&quot;true&quot;&gt;5&lt;/int32&gt;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/CESNET/libyang/commit/54c3276d871023da266d4ed3ceaee7e8d71d0b04" rel="noopener noreferrer">https://github.com/CESNET/libyang/commit/54c3276d871023da266d4ed3ceaee7e8d71d0b04</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-26</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-26</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e0d7ff03175cfb6f262ec1ce13576b26ab2125bf68ff4ba73e0038c768ad2a44514bb277f85c8737968bf040c411a277752967b60dfd39ae451244fd83ed6ad4</p>
+<p class="kicker">Committed 2026-05-07 07:01 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-TZQ1KH7E-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-TZQ1KH7E%22%2C%22bug_class%22%3A%22Use-After-Free%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A15%2B00%3A00%22%2C%22description%22%3A%22A%20heap%20use-after-free%20write%20occurs%20in%20metadata%20list%20management%20during%20XML%20data%20parsing%20due%20to%20an%20incorrect%20update%20of%20the%20list%20head%20pointer.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libyang%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22During%20XML%20data%20parsing%2C%20the%20code%20managing%20the%20metadata%20linked%20list%20updates%20the%20list%20head%20pointer%20incorrectly%2C%20leaving%20a%20reference%20to%20freed%20heap%20memory%20that%20is%20subsequently%20written%20to.%22%2C%22title%22%3A%22Heap%20use-after-free%20write%20in%20metadata%20list%20management%20during%20XML%20data%20parsing%20due%20to%20incorrect%20list%20head%20pointer%20update%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-TZQ1KH7E&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Free&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:15+00:00&#34;,
+  &#34;description&#34;: &#34;A heap use-after-free write occurs in metadata list management during XML data parsing due to an incorrect update of the list head pointer.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libyang&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;During XML data parsing, the code managing the metadata linked list updates the list head pointer incorrectly, leaving a reference to freed heap memory that is subsequently written to.&#34;,
+  &#34;title&#34;: &#34;Heap use-after-free write in metadata list management during XML data parsing due to incorrect list head pointer update&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

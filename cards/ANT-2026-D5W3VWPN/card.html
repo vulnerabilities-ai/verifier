@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-D5W3VWPN · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-D5W3VWPN · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-68579">CVE-2026-68579</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-m37j-jcr2-8gcc">GHSA-m37j-jcr2-8gcc</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-D5W3VWPN: Windows clipboard stream read ignores caller buffer size</h1>
+<p>The Windows FreeRDP client's IStream::Read implementation for remote clipboard files (CliprdrStream_Read, wf_cliprdr.c:249) calls CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize) where req_fsize is taken directly from the server's CLIPRDR_FILE_CONTENTS_RESPONSE (wf_cliprdr.c:2449, cliprdr_common.c:377) and never compared to the caller's buffer size cb before the copy. The resulting IStream is handed to arbitrary paste consumers (e.g., explorer.exe) via OleSetClipboard and IDataObject::GetData. A malicious RDP server can answer a small FILECONTENTS_RANGE read with an arbitrarily large payload, and the client memcpy()s the entire attacker-controlled payload into the consumer's fixed-size buffer. This yields a scope-changing heap overflow with attacker-controlled content in a process outside the RDP client, enabling code execution.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>client/Windows/wf_cliprdr.c:249</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>req_fsize is assigned directly from fileContentsResponse-&gt;cbRequested, which is derived from the server-sent PDU dataLen (response-&gt;cbRequested = response-&gt;common.dataLen - 4) with no validation or correlation to the original requested size. The only size comparison (req_fsize &lt; cb at wf_cliprdr.c:256) runs after the CopyMemory and only handles short reads, so an oversized server response is copied in full before any check occurs.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker's RDP server advertises CFSTR_FILEDESCRIPTORW / CFSTR_FILECONTENTS on the shared clipboard</li>
+<li>Victim presses Ctrl+V in Explorer; Explorer obtains the IStream from FreeRDP's IDataObject and calls IStream::Read(pv, 0x1000, &amp;read)</li>
+<li>FreeRDP sends a FILECONTENTS_RANGE request for 0x1000 bytes</li>
+<li>Server replies with a CB_FILECONTENTS_RESPONSE carrying ~0x100000 bytes of attacker data</li>
+<li>wf_cliprdr_server_file_contents_response() sets req_fsize=0x100000; CliprdrStream_Read() CopyMemory()s 1 MiB into Explorer's 4 KiB buffer</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Clamp the bytes copied and reported in CliprdrStream_Read to min(cb, server-returned size), and treat server responses larger than the requested range as a protocol error; retain the requested size from cliprdr_send_request_filecontents() so it can be validated against the response.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-D5W3VWPN.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-D5W3VWPN<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><p>This issue was found using AI and agents, and has been reviewed manually.</p>
+<p>This is a Windows-only issues, but I don't have access to a Window machine so did not create an end-to-end windows reproducer. 
+I left out a harness-based Linux reproducer to as I think auditing the code should be sufficient to identify the vulnerability. Let me know if you need more information from me and I will see if I can extract it.</p>
+<h2>Summary</h2>
+<p>FreeRDP's Windows client exposes clipboard file contents to OLE paste consumers
+(e.g. <code>explorer.exe</code>) through a COM <code>IStream</code>. When the consumer calls
+<code>IStream::Read(pv, cb, …)</code> — <code>pv</code> is its own fixed-size buffer of <code>cb</code> bytes —
+<code>CliprdrStream_Read()</code> asks the RDP server for the data via a
+<code>CB_FILECONTENTS_RANGE</code> request, then copies the server's response into <code>pv</code> using
+the <strong>server-supplied length</strong> (<code>req_fsize</code>), not <code>cb</code>:</p>
+<pre tabindex="0"><code class="language-c">CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize);   // length is server-controlled
+</code></pre>
+<p>A malicious or compromised RDP server answers the bounded request with an
+arbitrarily large <code>CB_FILECONTENTS_RESPONSE</code>; <code>req_fsize</code> becomes the attacker's
+chosen size and the copy overflows the consumer's buffer with attacker-controlled
+content.</p>
+<h2>Affected versions</h2>
+<ul>
+<li><strong>FreeRDP <code>master</code></strong> — HEAD <code>5e8e987b469b60a3bafadf8f5afc40f91c09f458</code>,
+  <code>client/Windows/wf_cliprdr.c:249</code> (<code>CliprdrStream_Read</code>): the copy still uses
+  <code>clipboard-&gt;req_fsize</code> with no clamp to <code>cb</code>. Unpatched.</li>
+<li><strong>FreeRDP 3.x</strong> — present in the released Windows client.</li>
+<li>Appears novel — no GHSA/CVE found for <code>CliprdrStream_Read</code> copying a
+  server-controlled length.</li>
+</ul>
+<h2>Details</h2>
+<p>All line numbers at <code>master</code> HEAD <code>5e8e987b</code>, <code>client/Windows/wf_cliprdr.c</code>.</p>
+<pre tabindex="0"><code class="language-c">// CliprdrStream_Read() :225
+static HRESULT STDMETHODCALLTYPE CliprdrStream_Read(IStream* This, void* pv, ULONG cb,
+                                                    ULONG* pcbRead)
+{
+    ...
+    /* Ask the server for the file contents (bounded request of cb bytes). */
+    ret = cliprdr_send_request_filecontents(clipboard, (void*)This, instance-&gt;m_lIndex,
+                                            FILECONTENTS_RANGE, instance-&gt;m_lOffset.QuadPart, cb);
+    if (ret &lt; 0)
+        return E_FAIL;
+
+    if (clipboard-&gt;req_fdata)
+    {
+        CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize);   // :249  cb is IGNORED
+        free(clipboard-&gt;req_fdata);
+    }
+    ...
+}
+</code></pre>
+<p><code>req_fsize</code> / <code>req_fdata</code> are set by the channel callback
+<code>wf_cliprdr_server_file_contents_response()</code> directly from the server's
+<code>CB_FILECONTENTS_RESPONSE</code> PDU (the <code>CopyMemory</code> of the server payload is around
+<code>:2455</code>). Nothing constrains <code>req_fsize</code> to the <code>cb</code> the consumer passed, so the
+copy at <code>:249</code> writes <code>req_fsize</code> bytes into a <code>cb</code>-byte buffer. <code>cb</code> is the size
+the paste consumer requested (commonly a small, fixed value); <code>req_fsize</code> is
+whatever the server put in the response.</p>
+<p><strong>Reach:</strong> OLE paste consumer → <code>IStream::Read</code> → <code>CliprdrStream_Read</code> →
+<code>cliprdr_send_request_filecontents</code> (server round-trip) → <code>CopyMemory</code> overflow.</p>
+<h2>Impact</h2>
+<p>A malicious/compromised RDP server overflows a fixed-size heap buffer in the OLE
+paste consumer (e.g. <code>explorer.exe</code>) with attacker-controlled bytes when a user
+pastes server-offered clipboard file contents — a classic attacker-content heap
+overflow, in a process outside the RDP client.</p>
+<h2>Suggested fix</h2>
+<p>Clamp the copy to the caller's buffer size, and report only what fits:</p>
+<pre tabindex="0"><code class="language-diff">     if (clipboard-&gt;req_fdata)
+     {
+-        CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize);
++        ULONG n = (clipboard-&gt;req_fsize &lt; cb) ? clipboard-&gt;req_fsize : cb;
++        CopyMemory(pv, clipboard-&gt;req_fdata, n);
+         free(clipboard-&gt;req_fdata);
+     }
+-    *pcbRead = clipboard-&gt;req_fsize;
+-    instance-&gt;m_lOffset.QuadPart += clipboard-&gt;req_fsize;
++    *pcbRead = n;
++    instance-&gt;m_lOffset.QuadPart += n;
+</code></pre>
+<p>(An <code>IStream::Read</code> must never write more than <code>cb</code> bytes into <code>pv</code>; a server
+returning more than requested should be treated as a short read or an error.)</p>
+<h2>References</h2>
+<ul>
+<li><code>client/Windows/wf_cliprdr.c</code> (master <code>5e8e987b</code>) — <code>CliprdrStream_Read</code>
+  (<code>:225</code>, overflowing <code>CopyMemory</code> at <code>:249</code>), server file-contents response
+  handler (<code>CopyMemory</code> of the server payload near <code>:2455</code>).</li>
+<li>CWE-787 (Out-of-bounds Write), CWE-120, CWE-130.</li>
+</ul>
+<h2>Attribution</h2>
+<p>This issue was found using AI and agents, and has been reviewed manually. Please
+credit <strong>Claude</strong> and <strong>Ada Logics</strong> — found by Anthropic using agents to study the
+security of open-source projects, with Ada Logics validating and reporting. Let us
+know if you need any more information.</p>
+<h2>Disclosure</h2>
+<p>We follow coordinated disclosure policy here:
+https://www.anthropic.com/coordinated-vulnerability-disclosure (90 day deadline).</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/client/Windows/wf_cliprdr.c b/client/Windows/wf_cliprdr.c</span>
+<span class="diff-h">index 70895ba3999c..c0a6feea6f3d 100644</span>
+<span class="diff-h">--- a/client/Windows/wf_cliprdr.c</span>
+<span class="diff-h">+++ b/client/Windows/wf_cliprdr.c</span>
+<span class="diff-h">@@ -225,25 +225,27 @@ static ULONG STDMETHODCALLTYPE CliprdrStream_Release(IStream* This)</span>
+<span class="diff-c"> static HRESULT STDMETHODCALLTYPE CliprdrStream_Read(IStream* This, void* pv, ULONG cb,</span>
+<span class="diff-c">                                                     ULONG* pcbRead)</span>
+<span class="diff-c"> {</span>
+<span class="diff-d">-	int ret;</span>
+<span class="diff-c"> 	CliprdrStream* instance = (CliprdrStream*)This;</span>
+<span class="diff-d">-	wfClipboard* clipboard;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (!pv || !pcbRead || !instance)</span>
+<span class="diff-c"> 		return E_INVALIDARG;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	clipboard = (wfClipboard*)instance-&gt;m_pData;</span>
+<span class="diff-a">+	wfClipboard* clipboard = (wfClipboard*)instance-&gt;m_pData;</span>
+<span class="diff-c"> 	*pcbRead = 0;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (instance-&gt;m_lOffset.QuadPart &gt;= instance-&gt;m_lSize.QuadPart)</span>
+<span class="diff-c"> 		return S_FALSE;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	ret = cliprdr_send_request_filecontents(clipboard, (void*)This, instance-&gt;m_lIndex,</span>
+<span class="diff-d">-	                                        FILECONTENTS_RANGE, instance-&gt;m_lOffset.QuadPart, cb);</span>
+<span class="diff-a">+	const int ret =</span>
+<span class="diff-a">+	    cliprdr_send_request_filecontents(clipboard, (void*)This, instance-&gt;m_lIndex,</span>
+<span class="diff-a">+	                                      FILECONTENTS_RANGE, instance-&gt;m_lOffset.QuadPart, cb);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	if (ret &lt; 0)</span>
+<span class="diff-c"> 		return E_FAIL;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+	if (clipboard-&gt;req_fsize &gt; cb)</span>
+<span class="diff-a">+		return E_FAIL;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	if (clipboard-&gt;req_fdata)</span>
+<span class="diff-c"> 	{</span>
+<span class="diff-c"> 		CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/680426e58a986b6fd0f1c352624f813708fc3432" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/680426e58a986b6fd0f1c352624f813708fc3432</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">94f4c703ec61699c8fd0ad4be74e234d085309ee2bb5837ca53b81cda8e86e1c3929d5ff789e4decaa75dca0af0433f6ba2a82a3f0d4299ddb8fd529d6f8a703</p>
+<p class="kicker">Committed 2026-07-22 07:29 UTC</p>
+<p class="kicker">Revealed 2026-09-28 21:38 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-D5W3VWPN-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-D5W3VWPN%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A52%3A39%2B00%3A00%22%2C%22description%22%3A%22The%20Windows%20FreeRDP%20client%27s%20IStream%3A%3ARead%20implementation%20for%20remote%20clipboard%20files%20%28CliprdrStream_Read%2C%20wf_cliprdr.c%3A249%29%20calls%20CopyMemory%28pv%2C%20clipboard-%3Ereq_fdata%2C%20clipboard-%3Ereq_fsize%29%20where%20req_fsize%20is%20taken%20directly%20from%20the%20server%27s%20CLIPRDR_FILE_CONTENTS_RESPONSE%20%28wf_cliprdr.c%3A2449%2C%20cliprdr_common.c%3A377%29%20and%20never%20compared%20to%20the%20caller%27s%20buffer%20size%20cb%20before%20the%20copy.%20The%20resulting%20IStream%20is%20handed%20to%20arbitrary%20paste%20consumers%20%28e.g.%2C%20explorer.exe%29%20via%20OleSetClipboard%20and%20IDataObject%3A%3AGetData.%20A%20malicious%20RDP%20server%20can%20answer%20a%20small%20FILECONTENTS_RANGE%20read%20with%20an%20arbitrarily%20large%20payload%2C%20and%20the%20client%20memcpy%28%29s%20the%20entire%20attacker-controlled%20payload%20into%20the%20consumer%27s%20fixed-size%20buffer.%20This%20yields%20a%20scope-changing%20heap%20overflow%20with%20attacker-controlled%20content%20in%20a%20process%20outside%20the%20RDP%20client%2C%20enabling%20code%20execution.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22client/Windows/wf_cliprdr.c%3A249%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp/freerdp%22%2C%22reproduction%22%3A%5B%221.%20Attacker%27s%20RDP%20server%20advertises%20CFSTR_FILEDESCRIPTORW%20/%20CFSTR_FILECONTENTS%20on%20the%20shared%20clipboard%22%2C%222.%20Victim%20presses%20Ctrl%2BV%20in%20Explorer%3B%20Explorer%20obtains%20the%20IStream%20from%20FreeRDP%27s%20IDataObject%20and%20calls%20IStream%3A%3ARead%28pv%2C%200x1000%2C%20%26read%29%22%2C%223.%20FreeRDP%20sends%20a%20FILECONTENTS_RANGE%20request%20for%200x1000%20bytes%22%2C%224.%20Server%20replies%20with%20a%20CB_FILECONTENTS_RESPONSE%20carrying%20~0x100000%20bytes%20of%20attacker%20data%22%2C%225.%20wf_cliprdr_server_file_contents_response%28%29%20sets%20req_fsize%3D0x100000%3B%20CliprdrStream_Read%28%29%20CopyMemory%28%29s%201%20MiB%20into%20Explorer%27s%204%20KiB%20buffer%22%5D%2C%22technical_details%22%3A%22req_fsize%20is%20assigned%20directly%20from%20fileContentsResponse-%3EcbRequested%2C%20which%20is%20derived%20from%20the%20server-sent%20PDU%20dataLen%20%28response-%3EcbRequested%20%3D%20response-%3Ecommon.dataLen%20-%204%29%20with%20no%20validation%20or%20correlation%20to%20the%20original%20requested%20size.%20The%20only%20size%20comparison%20%28req_fsize%20%3C%20cb%20at%20wf_cliprdr.c%3A256%29%20runs%20after%20the%20CopyMemory%20and%20only%20handles%20short%20reads%2C%20so%20an%20oversized%20server%20response%20is%20copied%20in%20full%20before%20any%20check%20occurs.%22%2C%22title%22%3A%22Windows%20clipboard%20stream%20read%20ignores%20caller%20buffer%20size%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-D5W3VWPN&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:52:39+00:00&#34;,
+  &#34;description&#34;: &#34;The Windows FreeRDP client&#39;s IStream::Read implementation for remote clipboard files (CliprdrStream_Read, wf_cliprdr.c:249) calls CopyMemory(pv, clipboard-&gt;req_fdata, clipboard-&gt;req_fsize) where req_fsize is taken directly from the server&#39;s CLIPRDR_FILE_CONTENTS_RESPONSE (wf_cliprdr.c:2449, cliprdr_common.c:377) and never compared to the caller&#39;s buffer size cb before the copy. The resulting IStream is handed to arbitrary paste consumers (e.g., explorer.exe) via OleSetClipboard and IDataObject::GetData. A malicious RDP server can answer a small FILECONTENTS_RANGE read with an arbitrarily large payload, and the client memcpy()s the entire attacker-controlled payload into the consumer&#39;s fixed-size buffer. This yields a scope-changing heap overflow with attacker-controlled content in a process outside the RDP client, enabling code execution.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;client/Windows/wf_cliprdr.c:249&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp/freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker&#39;s RDP server advertises CFSTR_FILEDESCRIPTORW / CFSTR_FILECONTENTS on the shared clipboard&#34;,
+    &#34;2. Victim presses Ctrl+V in Explorer; Explorer obtains the IStream from FreeRDP&#39;s IDataObject and calls IStream::Read(pv, 0x1000, &amp;read)&#34;,
+    &#34;3. FreeRDP sends a FILECONTENTS_RANGE request for 0x1000 bytes&#34;,
+    &#34;4. Server replies with a CB_FILECONTENTS_RESPONSE carrying ~0x100000 bytes of attacker data&#34;,
+    &#34;5. wf_cliprdr_server_file_contents_response() sets req_fsize=0x100000; CliprdrStream_Read() CopyMemory()s 1 MiB into Explorer&#39;s 4 KiB buffer&#34;
+  ],
+  &#34;technical_details&#34;: &#34;req_fsize is assigned directly from fileContentsResponse-&gt;cbRequested, which is derived from the server-sent PDU dataLen (response-&gt;cbRequested = response-&gt;common.dataLen - 4) with no validation or correlation to the original requested size. The only size comparison (req_fsize &lt; cb at wf_cliprdr.c:256) runs after the CopyMemory and only handles short reads, so an oversized server response is copied in full before any check occurs.&#34;,
+  &#34;title&#34;: &#34;Windows clipboard stream read ignores caller buffer size&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

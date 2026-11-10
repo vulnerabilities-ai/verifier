@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GBSMA7AY · tz</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GBSMA7AY · tz</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">an unreleased Anthropic model</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GBSMA7AY: Stack buffer overflow via abbreviation suffix-alias expansion</h1>
+<p>In zic's writezone(), abbreviations are copied into a 256-byte stack array <code>thischars[TZ_MAX_CHARS]</code> via an unchecked strcpy at zic.c:2958. The implicit size invariant is broken because addtype() searches chars[] byte-by-byte, letting many distinct types share suffix-aliased storage inside one long abbreviation string. If the type holding the full string is omitted in pass 1 (via limitrange() dropping pre-1901 transitions) while increasing-length suffix types survive, each suffix fails the dedup scan and is copied independently, summing to far more than 256 bytes. An attacker who supplies a crafted .zi source controls the abbreviation bytes and can overflow past thischars into omittype, typemap, indmap and ultimately writezone()'s saved return address (~32KB overflow achievable within TZ_MAX_TYPES).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> tz<br>
+<strong>Version:</strong> commit 37a4d178474e3b85faede06e44abda4d0b2a4da0 (still present at HEAD)<br>
+<strong>Location:</strong> <code>zic.c:2958</code>  </p>
+<h2>Technical Details</h2>
+<p>Generated a 63-line .zi file: Rule at year 1800 with a 200-char LETTERS field and SAVE=1:00 (DST), a non-DST decoy Rule at 1850, and 60 post-1901 Rules whose LETTERS are increasing-length suffixes of the long string with distinct SAVE values. ASan-built zic crashed with <code>stack-buffer-overflow ... WRITE of size 23 ... [2112,2368) 'thischars' (line 2803) &lt;== Memory access at offset 2368 overflows this variable</code>. The strcpy at zic.c:2958 writes past the 256-byte stack array exactly as described. CORRECTION to the finding's recipe: the long-string rule must be DST (SAVE != 0) — otherwise outzone() picks it as the global defaulttype (zic.c:3668), range64.defaulttype carries it into pass 1 via the override at zic.c:2858, and it is never omitted. With the long type DST and the decoy non-DST, the decoy becomes both range32 and range64 defaulttype, type 0 is omitted in pass 1, and the suffix copies overflow.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>warning: &quot;/tmp/overflow.zi&quot;, line 63: time zone abbreviation has too many characters (ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr) (rule from &quot;/tmp/overflow.zi&quot;, line 1)
+=================================================================
+==18==ERROR: AddressSanitizer: stack-buffer-overflow on address 0xffff95501940 at pc 0xaaaad313a6e0 bp 0xffffcff54230 sp 0xffffcff53a20
+WRITE of size 23 at 0xffff95501940 thread T0
+==18==WARNING: invalid path to external symbolizer!
+==18==WARNING: Failed to use and restart external symbolizer!
+    #0 0xaaaad313a6dc  (/work/zic+0xca6dc) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c)
+    #1 0xaaaad31a3c40  (/work/zic+0x133c40) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c)
+    #2 0xaaaad319721c  (/work/zic+0x12721c) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c)
+    #3 0xffff96ee2258  (/lib/aarch64-linux-gnu/libc.so.6+0x22258) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #4 0xffff96ee2338  (/lib/aarch64-linux-gnu/libc.so.6+0x22338) (BuildId: 45918bc10b33fd96afc550c98de062dccdf44328)
+    #5 0xaaaad30b116c  (/work/zic+0x4116c) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c)
+
+Address 0xffff95501940 is located in stack of thread T0 at offset 2368 in frame
+    #0 0xaaaad31a23f8  (/work/zic+0x1323f8) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c)
+
+  This frame has 23 object(s):
+    [32, 36) 'buf.i2444' (line 2576)
+    [48, 52) 'buf.i.i2409' (line 2576)
+    [64, 72) 'buf.i2410' (line 2588)
+    [96, 100) 'buf.i2394' (line 2576)
+    [112, 116) 'buf.i.i2359' (line 2576)
+    [128, 136) 'buf.i2360' (line 2588)
+    [160, 164) 'buf.i2342' (line 2576)
+    [176, 180) 'buf.i.i2307' (line 2576)
+    [192, 200) 'buf.i2308' (line 2588)
+    [224, 228) 'buf.i.i2272' (line 2576)
+    [240, 248) 'buf.i2273' (line 2588)
+    [272, 276) 'buf.i.i' (line 2576)
+    [288, 296) 'buf.i2257' (line 2588)
+    [320, 324) 'buf.i' (line 2576)
+    [336, 344) 'tempname' (line 2659)
+    [368, 376) 'outname' (line 2660)
+    [400, 448) 'byval-temp' (line 2758)
+    [480, 528) 'byval-temp380' (line 2762)
+    [560, 604) 'tzh' (line 2795)
+    [640, 896) 'omittype' (line 2800)
+    [960, 1984) 'typemap' (line 2801)
+    [2112, 2368) 'thischars' (line 2803) &lt;== Memory access at offset 2368 overflows this variable
+    [2432, 3456) 'indmap' (line 2806)
+HINT: this may be a false positive if your program uses some custom stack unwind mechanism, swapcontext or vfork
+      (longjmp and C++ exceptions *are* supported)
+SUMMARY: AddressSanitizer: stack-buffer-overflow (/work/zic+0xca6dc) (BuildId: d777d845fbc562b7a70e47afca8be13d4322602c) 
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a .zi file with <code>Zone Foo 0:00 R %s</code>.</li>
+<li>Add <code>Rule R 1800 only - Jan 1 0:00 1:00 &lt;254-char LETTERS&gt;</code> — the full-string DST type occupying chars[0..254].</li>
+<li>Add a non-DST decoy <code>Rule R 1850 only - Jan 1 0:00 0 Q</code> so limitrange() in pass 1 makes the decoy the defaulttype and omits type 0.</li>
+<li>Add 22+ Rules at years 1910,1911,... with distinct SAVE values and LETTERS fields that are increasing-length suffixes of the long string; addtype()'s byte-wise search aliases each to a distinct desigidx inside the existing string.</li>
+<li>Run <code>zic -d /tmp/zout overflow.zi</code>.</li>
+<li>In writezone() pass 1, type 0 is omitted; each suffix type has a unique desigidx (indmap miss) and fails the strcmp dedup against shorter prior entries, so strcpy at zic.c:2958 appends each one.</li>
+<li>thischarcnt exceeds 256 (e.g. 275 bytes for 22 suffixes, up to ~32KB for ~254 suffixes), overflowing thischars into adjacent stack objects and the saved return address.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GBSMA7AY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GBSMA7AY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-23</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">df284ea74e40921d64c0eed1c08fedd31735b920612dfa66e0f26a76259eeea32706f84635c3390475dd2010a82257cd100feb7e9914ef3c1b0718bab693bf12</p>
+<p class="kicker">Committed 2026-05-07 14:53 UTC</p>
+<p class="kicker">Revealed 2026-07-08 22:59 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GBSMA7AY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GBSMA7AY%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-09T05%3A38%3A42%2B00%3A00%22%2C%22description%22%3A%22In%20zic%27s%20writezone%28%29%2C%20abbreviations%20are%20copied%20into%20a%20256-byte%20stack%20array%20%60thischars%5BTZ_MAX_CHARS%5D%60%20via%20an%20unchecked%20strcpy%20at%20zic.c%3A2958.%20The%20implicit%20size%20invariant%20is%20broken%20because%20addtype%28%29%20searches%20chars%5B%5D%20byte-by-byte%2C%20letting%20many%20distinct%20types%20share%20suffix-aliased%20storage%20inside%20one%20long%20abbreviation%20string.%20If%20the%20type%20holding%20the%20full%20string%20is%20omitted%20in%20pass%201%20%28via%20limitrange%28%29%20dropping%20pre-1901%20transitions%29%20while%20increasing-length%20suffix%20types%20survive%2C%20each%20suffix%20fails%20the%20dedup%20scan%20and%20is%20copied%20independently%2C%20summing%20to%20far%20more%20than%20256%20bytes.%20An%20attacker%20who%20supplies%20a%20crafted%20.zi%20source%20controls%20the%20abbreviation%20bytes%20and%20can%20overflow%20past%20thischars%20into%20omittype%2C%20typemap%2C%20indmap%20and%20ultimately%20writezone%28%29%27s%20saved%20return%20address%20%28~32KB%20overflow%20achievable%20within%20TZ_MAX_TYPES%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22zic.c%3A2958%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22tz%22%2C%22reproduction%22%3A%5B%221.%20Create%20a%20.zi%20file%20with%20%60Zone%20Foo%200%3A00%20R%20%25s%60.%22%2C%222.%20Add%20%60Rule%20R%201800%20only%20-%20Jan%201%200%3A00%201%3A00%20%3C254-char%20LETTERS%3E%60%20%E2%80%94%20the%20full-string%20DST%20type%20occupying%20chars%5B0..254%5D.%22%2C%223.%20Add%20a%20non-DST%20decoy%20%60Rule%20R%201850%20only%20-%20Jan%201%200%3A00%200%20Q%60%20so%20limitrange%28%29%20in%20pass%201%20makes%20the%20decoy%20the%20defaulttype%20and%20omits%20type%200.%22%2C%224.%20Add%2022%2B%20Rules%20at%20years%201910%2C1911%2C...%20with%20distinct%20SAVE%20values%20and%20LETTERS%20fields%20that%20are%20increasing-length%20suffixes%20of%20the%20long%20string%3B%20addtype%28%29%27s%20byte-wise%20search%20aliases%20each%20to%20a%20distinct%20desigidx%20inside%20the%20existing%20string.%22%2C%225.%20Run%20%60zic%20-d%20/tmp/zout%20overflow.zi%60.%22%2C%226.%20In%20writezone%28%29%20pass%201%2C%20type%200%20is%20omitted%3B%20each%20suffix%20type%20has%20a%20unique%20desigidx%20%28indmap%20miss%29%20and%20fails%20the%20strcmp%20dedup%20against%20shorter%20prior%20entries%2C%20so%20strcpy%20at%20zic.c%3A2958%20appends%20each%20one.%22%2C%227.%20thischarcnt%20exceeds%20256%20%28e.g.%20275%20bytes%20for%2022%20suffixes%2C%20up%20to%20~32KB%20for%20~254%20suffixes%29%2C%20overflowing%20thischars%20into%20adjacent%20stack%20objects%20and%20the%20saved%20return%20address.%22%5D%2C%22technical_details%22%3A%22Generated%20a%2063-line%20.zi%20file%3A%20Rule%20at%20year%201800%20with%20a%20200-char%20LETTERS%20field%20and%20SAVE%3D1%3A00%20%28DST%29%2C%20a%20non-DST%20decoy%20Rule%20at%201850%2C%20and%2060%20post-1901%20Rules%20whose%20LETTERS%20are%20increasing-length%20suffixes%20of%20the%20long%20string%20with%20distinct%20SAVE%20values.%20ASan-built%20zic%20crashed%20with%20%60stack-buffer-overflow%20...%20WRITE%20of%20size%2023%20...%20%5B2112%2C2368%29%20%27thischars%27%20%28line%202803%29%20%3C%3D%3D%20Memory%20access%20at%20offset%202368%20overflows%20this%20variable%60.%20The%20strcpy%20at%20zic.c%3A2958%20writes%20past%20the%20256-byte%20stack%20array%20exactly%20as%20described.%20CORRECTION%20to%20the%20finding%27s%20recipe%3A%20the%20long-string%20rule%20must%20be%20DST%20%28SAVE%20%21%3D%200%29%20%E2%80%94%20otherwise%20outzone%28%29%20picks%20it%20as%20the%20global%20defaulttype%20%28zic.c%3A3668%29%2C%20range64.defaulttype%20carries%20it%20into%20pass%201%20via%20the%20override%20at%20zic.c%3A2858%2C%20and%20it%20is%20never%20omitted.%20With%20the%20long%20type%20DST%20and%20the%20decoy%20non-DST%2C%20the%20decoy%20becomes%20both%20range32%20and%20range64%20defaulttype%2C%20type%200%20is%20omitted%20in%20pass%201%2C%20and%20the%20suffix%20copies%20overflow.%22%2C%22title%22%3A%22Stack%20buffer%20overflow%20via%20abbreviation%20suffix-alias%20expansion%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GBSMA7AY&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-09T05:38:42+00:00&#34;,
+  &#34;description&#34;: &#34;In zic&#39;s writezone(), abbreviations are copied into a 256-byte stack array `thischars[TZ_MAX_CHARS]` via an unchecked strcpy at zic.c:2958. The implicit size invariant is broken because addtype() searches chars[] byte-by-byte, letting many distinct types share suffix-aliased storage inside one long abbreviation string. If the type holding the full string is omitted in pass 1 (via limitrange() dropping pre-1901 transitions) while increasing-length suffix types survive, each suffix fails the dedup scan and is copied independently, summing to far more than 256 bytes. An attacker who supplies a crafted .zi source controls the abbreviation bytes and can overflow past thischars into omittype, typemap, indmap and ultimately writezone()&#39;s saved return address (~32KB overflow achievable within TZ_MAX_TYPES).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;zic.c:2958&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;tz&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Create a .zi file with `Zone Foo 0:00 R %s`.&#34;,
+    &#34;2. Add `Rule R 1800 only - Jan 1 0:00 1:00 &lt;254-char LETTERS&gt;` — the full-string DST type occupying chars[0..254].&#34;,
+    &#34;3. Add a non-DST decoy `Rule R 1850 only - Jan 1 0:00 0 Q` so limitrange() in pass 1 makes the decoy the defaulttype and omits type 0.&#34;,
+    &#34;4. Add 22+ Rules at years 1910,1911,... with distinct SAVE values and LETTERS fields that are increasing-length suffixes of the long string; addtype()&#39;s byte-wise search aliases each to a distinct desigidx inside the existing string.&#34;,
+    &#34;5. Run `zic -d /tmp/zout overflow.zi`.&#34;,
+    &#34;6. In writezone() pass 1, type 0 is omitted; each suffix type has a unique desigidx (indmap miss) and fails the strcmp dedup against shorter prior entries, so strcpy at zic.c:2958 appends each one.&#34;,
+    &#34;7. thischarcnt exceeds 256 (e.g. 275 bytes for 22 suffixes, up to ~32KB for ~254 suffixes), overflowing thischars into adjacent stack objects and the saved return address.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Generated a 63-line .zi file: Rule at year 1800 with a 200-char LETTERS field and SAVE=1:00 (DST), a non-DST decoy Rule at 1850, and 60 post-1901 Rules whose LETTERS are increasing-length suffixes of the long string with distinct SAVE values. ASan-built zic crashed with `stack-buffer-overflow ... WRITE of size 23 ... [2112,2368) &#39;thischars&#39; (line 2803) &lt;== Memory access at offset 2368 overflows this variable`. The strcpy at zic.c:2958 writes past the 256-byte stack array exactly as described. CORRECTION to the finding&#39;s recipe: the long-string rule must be DST (SAVE != 0) — otherwise outzone() picks it as the global defaulttype (zic.c:3668), range64.defaulttype carries it into pass 1 via the override at zic.c:2858, and it is never omitted. With the long type DST and the decoy non-DST, the decoy becomes both range32 and range64 defaulttype, type 0 is omitted in pass 1, and the suffix copies overflow.&#34;,
+  &#34;title&#34;: &#34;Stack buffer overflow via abbreviation suffix-alias expansion&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

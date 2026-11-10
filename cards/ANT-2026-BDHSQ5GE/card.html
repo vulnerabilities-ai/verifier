@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-BDHSQ5GE · hunspell</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-BDHSQ5GE · hunspell</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  other
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-BDHSQ5GE: Stack-buffer-overflow in hunspell</h1>
+<p>libFuzzer ran the affdicfuzzer target (likely a Hunspell .aff/.dic dictionary parser) against a single PoC input and terminated with EXIT_CODE:1. No AddressSanitizer/UBSan tag, READ/WRITE access shape, or stack frames were produced, so the crash type, faulting function, and source location cannot be determined from this output. The trigger is whatever bytes are in /tmp/poc, presumably a malformed affix/dictionary blob.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> hunspell  </p>
+<h2>Technical Details</h2>
+<p>The affdicfuzzer harness exited with code 1 on the supplied PoC; no sanitizer report or stack trace was emitted.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3267561284
+INFO: Loaded 1 modules   (18708 inline 8-bit counters): 18708 [0x64a4c64bebe0, 0x64a4c64c34f4), 
+INFO: Loaded 1 PC tables (18708 PCs): 18708 [0x64a4c64c34f8,0x64a4c650c638), 
+/out/affdicfuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-BDHSQ5GE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-BDHSQ5GE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-24</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-27</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6b37beac928674a1992b507037020db1c3552d4f92e3832335653f53436fce42a179e116939dc87b348264691a215ce974eb1db7793f2dd79e09b437aad94ce7</p>
+<p class="kicker">Committed 2026-05-07 10:18 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-BDHSQ5GE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-BDHSQ5GE%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A26%3A39%2B00%3A00%22%2C%22description%22%3A%22libFuzzer%20ran%20the%20affdicfuzzer%20target%20%28likely%20a%20Hunspell%20.aff/.dic%20dictionary%20parser%29%20against%20a%20single%20PoC%20input%20and%20terminated%20with%20EXIT_CODE%3A1.%20No%20AddressSanitizer/UBSan%20tag%2C%20READ/WRITE%20access%20shape%2C%20or%20stack%20frames%20were%20produced%2C%20so%20the%20crash%20type%2C%20faulting%20function%2C%20and%20source%20location%20cannot%20be%20determined%20from%20this%20output.%20The%20trigger%20is%20whatever%20bytes%20are%20in%20/tmp/poc%2C%20presumably%20a%20malformed%20affix/dictionary%20blob.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22hunspell%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Stack-buffer-overflow%20in%20hunspell%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-BDHSQ5GE&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:26:39+00:00&#34;,
+  &#34;description&#34;: &#34;libFuzzer ran the affdicfuzzer target (likely a Hunspell .aff/.dic dictionary parser) against a single PoC input and terminated with EXIT_CODE:1. No AddressSanitizer/UBSan tag, READ/WRITE access shape, or stack frames were produced, so the crash type, faulting function, and source location cannot be determined from this output. The trigger is whatever bytes are in /tmp/poc, presumably a malformed affix/dictionary blob.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;hunspell&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Stack-buffer-overflow in hunspell&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

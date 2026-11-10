@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-HJ61D4C3 · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-HJ61D4C3 · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-HJ61D4C3: Heap-buffer-overflow in vf_boxblur.c:157</h1>
+<p>A 3040-byte crafted MKV containing a 128x128 gbrp HEVC stream, when processed through FFmpeg's boxblur filter with radius expression <code>min(w,h)/2</code>, triggers a 1-byte out-of-bounds heap read in <code>blur8</code> at libavfilter/vf_boxblur.c:157. The overflow occurs during vertical blur processing via the call chain vblur → blur_power → blur → blur8, reading past a 16448-byte heap allocation. The bug is deterministic: three independent runs in a fresh container produced identical ASAN reports. An attacker who can supply input to an FFmpeg pipeline using boxblur can at minimum cause a crash (DoS) and potentially leak adjacent heap memory.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>vf_boxblur.c:157</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: READ of size 1 past the end of a 16448-byte heap region in blur8 (vf_boxblur.c:157). During the vertical blur pass, the blur kernel indexes one byte beyond the allocated plane buffer when the blur radius is derived from <code>min(w,h)/2</code> on a 128x128 gbrp frame, indicating a missing or off-by-one bounds check on the source pointer in the inner blur loop.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC (3040-byte MKV file) triggers a deterministic heap-buffer-overflow in FFmpeg's boxblur video filter. When processed with the command `/src/ffmpeg/ffmpeg -y -i /tmp/poc_boxblur_heap_overflow.mkv -vf &quot;boxblur=min(w\,h)/2&quot; -frames:v 1 -f null -`, ASAN detects a READ of size 1 past the end of a 16448-byte heap allocation in the `blur8` function at `libavfilter/vf_boxblur.c:157`. The crash occurs in thread T7 during vertical blur processing (`vblur` → `blur_power` → `blur` → `blur8`). The bug is in the boxblur filter's frame processing when handling a 128x128 gbrp HEVC video. All 3 reproduction runs in a fresh container produced identical ASAN reports with exit code 1. This is a genuine, security-relevant heap-buffer-overflow vulnerability in FFmpeg's filter code.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a 128x128 gbrp HEVC stream muxed into MKV (PoC is 3040 bytes)</li>
+<li>Have the target run: ffmpeg -i poc.mkv -vf "boxblur=min(w\,h)/2" -frames:v 1 -f null -</li>
+<li>During vblur → blur_power → blur → blur8, a 1-byte OOB heap read occurs and ASAN aborts</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-HJ61D4C3.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-HJ61D4C3<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-16</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">569388744e9b916155bcb2385df936d0e06836deb7c39c9cbdfe8f3bca85fd20bad5f235898a9516ecb6fa725a0976e4a4f80985be46b836b541d570302facce</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-07-21 04:56 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-HJ61D4C3-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-HJ61D4C3%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A45%3A45%2B00%3A00%22%2C%22description%22%3A%22A%203040-byte%20crafted%20MKV%20containing%20a%20128x128%20gbrp%20HEVC%20stream%2C%20when%20processed%20through%20FFmpeg%27s%20boxblur%20filter%20with%20radius%20expression%20%60min%28w%2Ch%29/2%60%2C%20triggers%20a%201-byte%20out-of-bounds%20heap%20read%20in%20%60blur8%60%20at%20libavfilter/vf_boxblur.c%3A157.%20The%20overflow%20occurs%20during%20vertical%20blur%20processing%20via%20the%20call%20chain%20vblur%20%E2%86%92%20blur_power%20%E2%86%92%20blur%20%E2%86%92%20blur8%2C%20reading%20past%20a%2016448-byte%20heap%20allocation.%20The%20bug%20is%20deterministic%3A%20three%20independent%20runs%20in%20a%20fresh%20container%20produced%20identical%20ASAN%20reports.%20An%20attacker%20who%20can%20supply%20input%20to%20an%20FFmpeg%20pipeline%20using%20boxblur%20can%20at%20minimum%20cause%20a%20crash%20%28DoS%29%20and%20potentially%20leak%20adjacent%20heap%20memory.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22vf_boxblur.c%3A157%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20128x128%20gbrp%20HEVC%20stream%20muxed%20into%20MKV%20%28PoC%20is%203040%20bytes%29%22%2C%222.%20Have%20the%20target%20run%3A%20ffmpeg%20-i%20poc.mkv%20-vf%20%5C%22boxblur%3Dmin%28w%5C%5C%2Ch%29/2%5C%22%20-frames%3Av%201%20-f%20null%20-%22%2C%223.%20During%20vblur%20%E2%86%92%20blur_power%20%E2%86%92%20blur%20%E2%86%92%20blur8%2C%20a%201-byte%20OOB%20heap%20read%20occurs%20and%20ASAN%20aborts%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20READ%20of%20size%201%20past%20the%20end%20of%20a%2016448-byte%20heap%20region%20in%20blur8%20%28vf_boxblur.c%3A157%29.%20During%20the%20vertical%20blur%20pass%2C%20the%20blur%20kernel%20indexes%20one%20byte%20beyond%20the%20allocated%20plane%20buffer%20when%20the%20blur%20radius%20is%20derived%20from%20%60min%28w%2Ch%29/2%60%20on%20a%20128x128%20gbrp%20frame%2C%20indicating%20a%20missing%20or%20off-by-one%20bounds%20check%20on%20the%20source%20pointer%20in%20the%20inner%20blur%20loop.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20vf_boxblur.c%3A157%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-HJ61D4C3&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:45:45+00:00&#34;,
+  &#34;description&#34;: &#34;A 3040-byte crafted MKV containing a 128x128 gbrp HEVC stream, when processed through FFmpeg&#39;s boxblur filter with radius expression `min(w,h)/2`, triggers a 1-byte out-of-bounds heap read in `blur8` at libavfilter/vf_boxblur.c:157. The overflow occurs during vertical blur processing via the call chain vblur → blur_power → blur → blur8, reading past a 16448-byte heap allocation. The bug is deterministic: three independent runs in a fresh container produced identical ASAN reports. An attacker who can supply input to an FFmpeg pipeline using boxblur can at minimum cause a crash (DoS) and potentially leak adjacent heap memory.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;vf_boxblur.c:157&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a 128x128 gbrp HEVC stream muxed into MKV (PoC is 3040 bytes)&#34;,
+    &#34;2. Have the target run: ffmpeg -i poc.mkv -vf \&#34;boxblur=min(w\\,h)/2\&#34; -frames:v 1 -f null -&#34;,
+    &#34;3. During vblur → blur_power → blur → blur8, a 1-byte OOB heap read occurs and ASAN aborts&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: READ of size 1 past the end of a 16448-byte heap region in blur8 (vf_boxblur.c:157). During the vertical blur pass, the blur kernel indexes one byte beyond the allocated plane buffer when the blur radius is derived from `min(w,h)/2` on a 128x128 gbrp frame, indicating a missing or off-by-one bounds check on the source pointer in the inner blur loop.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in vf_boxblur.c:157&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

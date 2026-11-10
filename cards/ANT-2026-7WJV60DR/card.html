@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-7WJV60DR · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-7WJV60DR · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-7WJV60DR: Manual identity linking enables account takeover via unverified email</h1>
+<p>When GOTRUE_SECURITY_MANUAL_LINKING_ENABLED is true, GET /user/identities/authorize calls linkIdentityToUser, which invokes createNewIdentity with whatever email the external provider returned without calling IsDuplicatedEmail or checking that the provider asserted the email as verified. Providers like Discord return a user's primary email even when unverified, so an attacker can link a Discord identity carrying victim@example.com to their own Supabase user. Later, when the real victim signs in via a default-linking-domain provider (e.g. Google), DetermineAccountLinking matches identities by email without filtering on verification and attaches the victim's new identity to the attacker's user. The attacker then controls the account the victim logs into.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/api/identity.go:135</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>linkIdentityToUser trusts the provider-returned email unconditionally: it neither checks IsDuplicatedEmail against existing users nor requires the provider to assert the email as verified. DetermineAccountLinking (linking.go:114) then queries identities by email alone, so an attacker-planted unverified-email identity is treated as a valid link target.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker creates a normal account on the target app.</li>
+<li>Attacker creates a Discord account and sets its email to victim@example.com without verifying it.</li>
+<li>While logged in, attacker calls GET /user/identities/authorize?provider=discord and completes OAuth; linkIdentityToUser writes an identity {provider:discord, email:victim@example.com, user_id:attacker}.</li>
+<li>Victim later signs in with Google using verified victim@example.com.</li>
+<li>DetermineAccountLinking matches the attacker's Discord identity by email and returns LinkAccount with User=attacker.</li>
+<li>Victim's Google identity is attached to the attacker's user; attacker can now log in as the victim.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Reject manual identity links whose email collides with another user, and restrict automatic account linking to identities whose email was asserted as verified by the upstream provider.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-7WJV60DR.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-7WJV60DR<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-06</span>
+      <span class="timeline-label">Patch released (corrected: this date was published in error)</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec</p>
+<p class="kicker">Committed 2026-05-18 01:02 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-7WJV60DR-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-7WJV60DR%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A00%3A14%2B00%3A00%22%2C%22description%22%3A%22When%20GOTRUE_SECURITY_MANUAL_LINKING_ENABLED%20is%20true%2C%20GET%20/user/identities/authorize%20calls%20linkIdentityToUser%2C%20which%20invokes%20createNewIdentity%20with%20whatever%20email%20the%20external%20provider%20returned%20without%20calling%20IsDuplicatedEmail%20or%20checking%20that%20the%20provider%20asserted%20the%20email%20as%20verified.%20Providers%20like%20Discord%20return%20a%20user%27s%20primary%20email%20even%20when%20unverified%2C%20so%20an%20attacker%20can%20link%20a%20Discord%20identity%20carrying%20victim%40example.com%20to%20their%20own%20Supabase%20user.%20Later%2C%20when%20the%20real%20victim%20signs%20in%20via%20a%20default-linking-domain%20provider%20%28e.g.%20Google%29%2C%20DetermineAccountLinking%20matches%20identities%20by%20email%20without%20filtering%20on%20verification%20and%20attaches%20the%20victim%27s%20new%20identity%20to%20the%20attacker%27s%20user.%20The%20attacker%20then%20controls%20the%20account%20the%20victim%20logs%20into.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/api/identity.go%3A135%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20creates%20a%20normal%20account%20on%20the%20target%20app.%22%2C%222.%20Attacker%20creates%20a%20Discord%20account%20and%20sets%20its%20email%20to%20victim%40example.com%20without%20verifying%20it.%22%2C%223.%20While%20logged%20in%2C%20attacker%20calls%20GET%20/user/identities/authorize%3Fprovider%3Ddiscord%20and%20completes%20OAuth%3B%20linkIdentityToUser%20writes%20an%20identity%20%7Bprovider%3Adiscord%2C%20email%3Avictim%40example.com%2C%20user_id%3Aattacker%7D.%22%2C%224.%20Victim%20later%20signs%20in%20with%20Google%20using%20verified%20victim%40example.com.%22%2C%225.%20DetermineAccountLinking%20matches%20the%20attacker%27s%20Discord%20identity%20by%20email%20and%20returns%20LinkAccount%20with%20User%3Dattacker.%22%2C%226.%20Victim%27s%20Google%20identity%20is%20attached%20to%20the%20attacker%27s%20user%3B%20attacker%20can%20now%20log%20in%20as%20the%20victim.%22%5D%2C%22technical_details%22%3A%22linkIdentityToUser%20trusts%20the%20provider-returned%20email%20unconditionally%3A%20it%20neither%20checks%20IsDuplicatedEmail%20against%20existing%20users%20nor%20requires%20the%20provider%20to%20assert%20the%20email%20as%20verified.%20DetermineAccountLinking%20%28linking.go%3A114%29%20then%20queries%20identities%20by%20email%20alone%2C%20so%20an%20attacker-planted%20unverified-email%20identity%20is%20treated%20as%20a%20valid%20link%20target.%22%2C%22title%22%3A%22Manual%20identity%20linking%20enables%20account%20takeover%20via%20unverified%20email%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-7WJV60DR&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:00:14+00:00&#34;,
+  &#34;description&#34;: &#34;When GOTRUE_SECURITY_MANUAL_LINKING_ENABLED is true, GET /user/identities/authorize calls linkIdentityToUser, which invokes createNewIdentity with whatever email the external provider returned without calling IsDuplicatedEmail or checking that the provider asserted the email as verified. Providers like Discord return a user&#39;s primary email even when unverified, so an attacker can link a Discord identity carrying victim@example.com to their own Supabase user. Later, when the real victim signs in via a default-linking-domain provider (e.g. Google), DetermineAccountLinking matches identities by email without filtering on verification and attaches the victim&#39;s new identity to the attacker&#39;s user. The attacker then controls the account the victim logs into.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/api/identity.go:135&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker creates a normal account on the target app.&#34;,
+    &#34;2. Attacker creates a Discord account and sets its email to victim@example.com without verifying it.&#34;,
+    &#34;3. While logged in, attacker calls GET /user/identities/authorize?provider=discord and completes OAuth; linkIdentityToUser writes an identity {provider:discord, email:victim@example.com, user_id:attacker}.&#34;,
+    &#34;4. Victim later signs in with Google using verified victim@example.com.&#34;,
+    &#34;5. DetermineAccountLinking matches the attacker&#39;s Discord identity by email and returns LinkAccount with User=attacker.&#34;,
+    &#34;6. Victim&#39;s Google identity is attached to the attacker&#39;s user; attacker can now log in as the victim.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;linkIdentityToUser trusts the provider-returned email unconditionally: it neither checks IsDuplicatedEmail against existing users nor requires the provider to assert the email as verified. DetermineAccountLinking (linking.go:114) then queries identities by email alone, so an attacker-planted unverified-email identity is treated as a valid link target.&#34;,
+  &#34;title&#34;: &#34;Manual identity linking enables account takeover via unverified email&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GACTPNVK · wireshark/wireshark</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GACTPNVK · wireshark/wireshark</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-76890">CVE-2026-76890</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-low">low</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GACTPNVK: sharkd iograph error path leaks stack-array listeners</h1>
+<p>sharkd_session_process_iograph() declares <code>struct sharkd_iograph graphs[10]</code> on the stack and registers each as a tap listener. If a later graph in the same request has an invalid filter or field, the function emits an error and returns without removing the listeners already registered for earlier valid graphs, leaving the global tap_listener_queue holding pointers into a dead stack frame. On the next request that triggers retap/redissection, the io-stat packet callback runs with a dangling tapdata pointer, reads garbage fields, and calls g_realloc on stack garbage before writing back into the reused frame. A connected sharkd client fully controls the graphN/filterN JSON strings needed to trigger this, yielding memory corruption and a plausible path to RCE.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wireshark/wireshark<br>
+<strong>Location:</strong> <code>sharkd_session.c:4758</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The error path at lines 4758–4765 returns immediately when graph-&gt;error is set, but listener removal (remove_tap_listener at line 4818) is only reached on the success path after the loop. Because register_tap_listener stores the address of the stack-local graph struct (tap.c:576–608) into the global tap_listener_queue, any subsequent retap invokes sharkd_iograph_packet on freed stack memory, where it dereferences graph-&gt;interval/num_items/space_items and calls g_realloc(graph-&gt;items, ...) on whatever now occupies that slot.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Send {"req":"iograph","graph0":"packets","graph1":"packets","filter1":"!!invalid!!"} — graph0 registers &amp;graphs[0]; graph1's filter fails compilation and the handler returns early without cleanup.</li>
+<li>Send any request that calls sharkd_retap() (e.g. {"req":"iograph","graph0":"bytes"}, or tap/follow/download-rtp).</li>
+<li>tap_push_tapped_queue invokes sharkd_iograph_packet with tapdata pointing at reused stack memory, calling g_realloc on garbage and writing into the current frame.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Remove all successfully-registered tap listeners before any early return — restructure to a single exit point with unconditional cleanup, or validate all graph inputs before registering any listener.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GACTPNVK.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GACTPNVK<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/sharkd_session.c b/sharkd_session.c</span>
+<span class="diff-h">index 610967eef7d..481119fc69f 100644</span>
+<span class="diff-h">--- a/sharkd_session.c</span>
+<span class="diff-h">+++ b/sharkd_session.c</span>
+<span class="diff-h">@@ -4680,10 +4680,9 @@ sharkd_session_process_iograph(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-c">     const char *tok_interval = json_find_attr(buf, tokens, count, &quot;interval&quot;);</span>
+<span class="diff-c">     const char *tok_interval_units = json_find_attr(buf, tokens, count, &quot;interval_units&quot;);</span>
+<span class="diff-c">     struct sharkd_iograph graphs[10];</span>
+<span class="diff-d">-    bool is_any_ok = false;</span>
+<span class="diff-d">-    int graph_count;</span>
+<span class="diff-a">+    unsigned graph_count;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    int i;</span>
+<span class="diff-a">+    unsigned i;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     /* default: 1000ms = one per second */</span>
+<span class="diff-c">     uint32_t interval = 1000;</span>
+<span class="diff-h">@@ -4721,7 +4720,7 @@ sharkd_session_process_iograph(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-c">         interval_us = 1000000 * interval;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    for (i = graph_count = 0; i &lt; (int) G_N_ELEMENTS(graphs); i++)</span>
+<span class="diff-a">+    for (i = graph_count = 0; i &lt; G_N_ELEMENTS(graphs); i++)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         struct sharkd_iograph *graph = &amp;graphs[graph_count];</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -4791,8 +4790,6 @@ sharkd_session_process_iograph(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-c">         if (!graph-&gt;error)</span>
+<span class="diff-c">             graph-&gt;error = register_tap_listener(&quot;frame&quot;, graph, tok_filter, TL_REQUIRES_PROTO_TREE, NULL, sharkd_iograph_packet, NULL, NULL);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        graph_count++;</span>
+<span class="diff-d">-</span>
+<span class="diff-c">         if (graph-&gt;error)</span>
+<span class="diff-c">         {</span>
+<span class="diff-c">             sharkd_json_error(</span>
+<span class="diff-h">@@ -4800,15 +4797,14 @@ sharkd_session_process_iograph(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-c">                     &quot;%s&quot;, graph-&gt;error-&gt;str</span>
+<span class="diff-c">                     );</span>
+<span class="diff-c">             g_string_free(graph-&gt;error, TRUE);</span>
+<span class="diff-d">-            return;</span>
+<span class="diff-a">+            goto cleanup;</span>
+<span class="diff-c">         }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        if (graph-&gt;error == NULL)</span>
+<span class="diff-d">-            is_any_ok = true;</span>
+<span class="diff-a">+        graph_count++;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     /* retap only if we have at least one ok */</span>
+<span class="diff-d">-    if (is_any_ok)</span>
+<span class="diff-a">+    if (graph_count)</span>
+<span class="diff-c">         sharkd_retap();</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     sharkd_json_result_prologue(rpcid);</span>
+<span class="diff-h">@@ -4853,12 +4849,19 @@ sharkd_session_process_iograph(char *buf, const jsmntok_t *tokens, int count)</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">         json_dumper_end_object(&amp;dumper);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        remove_tap_listener(graph);</span>
+<span class="diff-d">-        g_free(graph-&gt;items);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c">     sharkd_json_array_close();</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     sharkd_json_result_epilogue();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+cleanup:</span>
+<span class="diff-a">+    for (i = 0; i &lt; graph_count; i++)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        struct sharkd_iograph *graph = &amp;graphs[i];</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        remove_tap_listener(graph);</span>
+<span class="diff-a">+        g_free(graph-&gt;items);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /**</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wireshark/wireshark/commit/d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8" rel="noopener noreferrer">https://github.com/wireshark/wireshark/commit/d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-06</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">ab180bc6dad222dd8d350da26913a397d4ed975e56370475735de8b0eaf7643f9df293cb10754ccd26af8a4fdf0452eaaf04f98a01c8dbabbd3efd0af47a4785</p>
+<p class="kicker">Committed 2026-07-22 07:34 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:38 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GACTPNVK-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GACTPNVK%22%2C%22bug_class%22%3A%22Use-After-Return%20/%20Memory%20Corruption%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T14%3A11%3A17%2B00%3A00%22%2C%22description%22%3A%22sharkd_session_process_iograph%28%29%20declares%20%60struct%20sharkd_iograph%20graphs%5B10%5D%60%20on%20the%20stack%20and%20registers%20each%20as%20a%20tap%20listener.%20If%20a%20later%20graph%20in%20the%20same%20request%20has%20an%20invalid%20filter%20or%20field%2C%20the%20function%20emits%20an%20error%20and%20returns%20without%20removing%20the%20listeners%20already%20registered%20for%20earlier%20valid%20graphs%2C%20leaving%20the%20global%20tap_listener_queue%20holding%20pointers%20into%20a%20dead%20stack%20frame.%20On%20the%20next%20request%20that%20triggers%20retap/redissection%2C%20the%20io-stat%20packet%20callback%20runs%20with%20a%20dangling%20tapdata%20pointer%2C%20reads%20garbage%20fields%2C%20and%20calls%20g_realloc%20on%20stack%20garbage%20before%20writing%20back%20into%20the%20reused%20frame.%20A%20connected%20sharkd%20client%20fully%20controls%20the%20graphN/filterN%20JSON%20strings%20needed%20to%20trigger%20this%2C%20yielding%20memory%20corruption%20and%20a%20plausible%20path%20to%20RCE.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22sharkd_session.c%3A4758%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wireshark/wireshark%22%2C%22reproduction%22%3A%5B%221.%20Send%20%7B%5C%22req%5C%22%3A%5C%22iograph%5C%22%2C%5C%22graph0%5C%22%3A%5C%22packets%5C%22%2C%5C%22graph1%5C%22%3A%5C%22packets%5C%22%2C%5C%22filter1%5C%22%3A%5C%22%21%21invalid%21%21%5C%22%7D%20%E2%80%94%20graph0%20registers%20%26graphs%5B0%5D%3B%20graph1%27s%20filter%20fails%20compilation%20and%20the%20handler%20returns%20early%20without%20cleanup.%22%2C%222.%20Send%20any%20request%20that%20calls%20sharkd_retap%28%29%20%28e.g.%20%7B%5C%22req%5C%22%3A%5C%22iograph%5C%22%2C%5C%22graph0%5C%22%3A%5C%22bytes%5C%22%7D%2C%20or%20tap/follow/download-rtp%29.%22%2C%223.%20tap_push_tapped_queue%20invokes%20sharkd_iograph_packet%20with%20tapdata%20pointing%20at%20reused%20stack%20memory%2C%20calling%20g_realloc%20on%20garbage%20and%20writing%20into%20the%20current%20frame.%22%5D%2C%22technical_details%22%3A%22The%20error%20path%20at%20lines%204758%E2%80%934765%20returns%20immediately%20when%20graph-%3Eerror%20is%20set%2C%20but%20listener%20removal%20%28remove_tap_listener%20at%20line%204818%29%20is%20only%20reached%20on%20the%20success%20path%20after%20the%20loop.%20Because%20register_tap_listener%20stores%20the%20address%20of%20the%20stack-local%20graph%20struct%20%28tap.c%3A576%E2%80%93608%29%20into%20the%20global%20tap_listener_queue%2C%20any%20subsequent%20retap%20invokes%20sharkd_iograph_packet%20on%20freed%20stack%20memory%2C%20where%20it%20dereferences%20graph-%3Einterval/num_items/space_items%20and%20calls%20g_realloc%28graph-%3Eitems%2C%20...%29%20on%20whatever%20now%20occupies%20that%20slot.%22%2C%22title%22%3A%22sharkd%20iograph%20error%20path%20leaks%20stack-array%20listeners%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GACTPNVK&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Return / Memory Corruption&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T14:11:17+00:00&#34;,
+  &#34;description&#34;: &#34;sharkd_session_process_iograph() declares `struct sharkd_iograph graphs[10]` on the stack and registers each as a tap listener. If a later graph in the same request has an invalid filter or field, the function emits an error and returns without removing the listeners already registered for earlier valid graphs, leaving the global tap_listener_queue holding pointers into a dead stack frame. On the next request that triggers retap/redissection, the io-stat packet callback runs with a dangling tapdata pointer, reads garbage fields, and calls g_realloc on stack garbage before writing back into the reused frame. A connected sharkd client fully controls the graphN/filterN JSON strings needed to trigger this, yielding memory corruption and a plausible path to RCE.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;sharkd_session.c:4758&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wireshark/wireshark&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Send {\&#34;req\&#34;:\&#34;iograph\&#34;,\&#34;graph0\&#34;:\&#34;packets\&#34;,\&#34;graph1\&#34;:\&#34;packets\&#34;,\&#34;filter1\&#34;:\&#34;!!invalid!!\&#34;} — graph0 registers &amp;graphs[0]; graph1&#39;s filter fails compilation and the handler returns early without cleanup.&#34;,
+    &#34;2. Send any request that calls sharkd_retap() (e.g. {\&#34;req\&#34;:\&#34;iograph\&#34;,\&#34;graph0\&#34;:\&#34;bytes\&#34;}, or tap/follow/download-rtp).&#34;,
+    &#34;3. tap_push_tapped_queue invokes sharkd_iograph_packet with tapdata pointing at reused stack memory, calling g_realloc on garbage and writing into the current frame.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The error path at lines 4758–4765 returns immediately when graph-&gt;error is set, but listener removal (remove_tap_listener at line 4818) is only reached on the success path after the loop. Because register_tap_listener stores the address of the stack-local graph struct (tap.c:576–608) into the global tap_listener_queue, any subsequent retap invokes sharkd_iograph_packet on freed stack memory, where it dereferences graph-&gt;interval/num_items/space_items and calls g_realloc(graph-&gt;items, ...) on whatever now occupies that slot.&#34;,
+  &#34;title&#34;: &#34;sharkd iograph error path leaks stack-array listeners&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

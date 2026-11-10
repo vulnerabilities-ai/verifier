@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-MAPZGQDY · jsoncons</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-MAPZGQDY · jsoncons</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-MAPZGQDY: Heap-buffer-overflow in bigint.hpp:260</h1>
+<p>During a basic_bigint modulo operation (operator%), the nested divide → unnormalize → divide call chain invokes resize/reserve on the internal storage. The reserve function at bigint.hpp:257 allocates a heap region of only 1 byte, then at bigint.hpp:260 calls memcpy to copy 32 bytes into that region, writing 31 bytes out of bounds. This appears to be a size-calculation error — likely allocating N bytes instead of N * sizeof(unsigned long), or a wraparound in the capacity computation — that an attacker can trigger by supplying crafted bigint operands to the modulo operator.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> jsoncons<br>
+<strong>Location:</strong> <code>bigint.hpp:260</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 32 at 0x7526765e0091 ... located 0 bytes after 1-byte region". The allocation stack and crash stack both land in the same reserve() call: line 257 allocates via allocator_traits::allocate, line 260 memcpy's into it. A 1-byte allocation for a container of unsigned long (8 bytes each) is impossible if the element count is correctly multiplied by sizeof(T), so the capacity argument reaching allocate() has been miscomputed or truncated — yet the subsequent memcpy uses the original (larger) length, producing a 32-byte heap OOB write.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 787429306
+INFO: Loaded 1 modules   (591 inline 8-bit counters): 591 [0x61bbc50e3058, 0x61bbc50e32a7), 
+INFO: Loaded 1 PC tables (591 PCs): 591 [0x61bbc50e32a8,0x61bbc50e5798), 
+/out/fuzz_bigint: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7526765e0091 at pc 0x61bbc4ff6b0e bp 0x7ffd397ae0e0 sp 0x7ffd397ad8a0
+WRITE of size 32 at 0x7526765e0091 thread T0
+    #0 0x61bbc4ff6b0d in __asan_memcpy /src/llvm-project/compiler-rt/lib/asan/asan_interceptors_memintrinsics.cpp:63:3
+    #1 0x61bbc503f218 in reserve /src/jsoncons/./include/jsoncons/utility/bigint.hpp:260:17
+    #2 0x61bbc503f218 in jsoncons::detail::bigint_storage&lt;std::__1::allocator&lt;unsigned long&gt;&gt;::reserve(unsigned long) /src/jsoncons/./include/jsoncons/utility/bigint.hpp:461:27
+    #3 0x61bbc503ec98 in jsoncons::detail::bigint_storage&lt;std::__1::allocator&lt;unsigned long&gt;&gt;::resize(unsigned long) /src/jsoncons/./include/jsoncons/utility/bigint.hpp:521:9
+    #4 0x61bbc5042672 in resize /src/jsoncons/./include/jsoncons/utility/bigint.hpp:821:18
+    #5 0x61bbc5042672 in jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt;::divide(jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt; const&amp;, jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt;&amp;, jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt;&amp;, bool) const /src/jsoncons/./include/jsoncons/utility/bigint.hpp:1668:14
+    #6 0x61bbc5044514 in operator/= /src/jsoncons/./include/jsoncons/utility/bigint.hpp:1034:9
+    #7 0x61bbc5044514 in jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt;::unnormalize(jsoncons::basic_bigint&lt;std::__1::allocator&lt;unsigned long&gt;&gt;&amp;, int, bool) const /src/jsoncons/./include/jsoncons/utility/bigint.hpp:1832:17
+    [... 30 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Construct two basic_bigint values whose division path reaches divide() → unnormalize() → divide() with a resize target that miscomputes in reserve()</li>
+<li>Invoke operator% on those operands</li>
+<li>reserve() at bigint.hpp:257 allocates a 1-byte buffer</li>
+<li>memcpy at bigint.hpp:260 writes 32 bytes past the allocation boundary</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-MAPZGQDY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-MAPZGQDY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">dbb46766ab13fa61edb019733154bfa9ac89f9a90eea7296fcd1ff9911890f89fc91123d15a799782dd054c39a6cab451ac6e7637f86ff89a0e2714ce219462c</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-MAPZGQDY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-MAPZGQDY%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A30%3A02%2B00%3A00%22%2C%22description%22%3A%22During%20a%20basic_bigint%20modulo%20operation%20%28operator%25%29%2C%20the%20nested%20divide%20%E2%86%92%20unnormalize%20%E2%86%92%20divide%20call%20chain%20invokes%20resize/reserve%20on%20the%20internal%20storage.%20The%20reserve%20function%20at%20bigint.hpp%3A257%20allocates%20a%20heap%20region%20of%20only%201%20byte%2C%20then%20at%20bigint.hpp%3A260%20calls%20memcpy%20to%20copy%2032%20bytes%20into%20that%20region%2C%20writing%2031%20bytes%20out%20of%20bounds.%20This%20appears%20to%20be%20a%20size-calculation%20error%20%E2%80%94%20likely%20allocating%20N%20bytes%20instead%20of%20N%20%2A%20sizeof%28unsigned%20long%29%2C%20or%20a%20wraparound%20in%20the%20capacity%20computation%20%E2%80%94%20that%20an%20attacker%20can%20trigger%20by%20supplying%20crafted%20bigint%20operands%20to%20the%20modulo%20operator.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22bigint.hpp%3A260%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22jsoncons%22%2C%22reproduction%22%3A%5B%22Construct%20two%20basic_bigint%20values%20whose%20division%20path%20reaches%20divide%28%29%20%E2%86%92%20unnormalize%28%29%20%E2%86%92%20divide%28%29%20with%20a%20resize%20target%20that%20miscomputes%20in%20reserve%28%29%22%2C%22Invoke%20operator%25%20on%20those%20operands%22%2C%22reserve%28%29%20at%20bigint.hpp%3A257%20allocates%20a%201-byte%20buffer%22%2C%22memcpy%20at%20bigint.hpp%3A260%20writes%2032%20bytes%20past%20the%20allocation%20boundary%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%2032%20at%200x7526765e0091%20...%20located%200%20bytes%20after%201-byte%20region%5C%22.%20The%20allocation%20stack%20and%20crash%20stack%20both%20land%20in%20the%20same%20reserve%28%29%20call%3A%20line%20257%20allocates%20via%20allocator_traits%3A%3Aallocate%2C%20line%20260%20memcpy%27s%20into%20it.%20A%201-byte%20allocation%20for%20a%20container%20of%20unsigned%20long%20%288%20bytes%20each%29%20is%20impossible%20if%20the%20element%20count%20is%20correctly%20multiplied%20by%20sizeof%28T%29%2C%20so%20the%20capacity%20argument%20reaching%20allocate%28%29%20has%20been%20miscomputed%20or%20truncated%20%E2%80%94%20yet%20the%20subsequent%20memcpy%20uses%20the%20original%20%28larger%29%20length%2C%20producing%20a%2032-byte%20heap%20OOB%20write.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20bigint.hpp%3A260%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-MAPZGQDY&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:30:02+00:00&#34;,
+  &#34;description&#34;: &#34;During a basic_bigint modulo operation (operator%), the nested divide → unnormalize → divide call chain invokes resize/reserve on the internal storage. The reserve function at bigint.hpp:257 allocates a heap region of only 1 byte, then at bigint.hpp:260 calls memcpy to copy 32 bytes into that region, writing 31 bytes out of bounds. This appears to be a size-calculation error — likely allocating N bytes instead of N * sizeof(unsigned long), or a wraparound in the capacity computation — that an attacker can trigger by supplying crafted bigint operands to the modulo operator.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;bigint.hpp:260&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;jsoncons&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Construct two basic_bigint values whose division path reaches divide() → unnormalize() → divide() with a resize target that miscomputes in reserve()&#34;,
+    &#34;Invoke operator% on those operands&#34;,
+    &#34;reserve() at bigint.hpp:257 allocates a 1-byte buffer&#34;,
+    &#34;memcpy at bigint.hpp:260 writes 32 bytes past the allocation boundary&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 32 at 0x7526765e0091 ... located 0 bytes after 1-byte region\&#34;. The allocation stack and crash stack both land in the same reserve() call: line 257 allocates via allocator_traits::allocate, line 260 memcpy&#39;s into it. A 1-byte allocation for a container of unsigned long (8 bytes each) is impossible if the element count is correctly multiplied by sizeof(T), so the capacity argument reaching allocate() has been miscomputed or truncated — yet the subsequent memcpy uses the original (larger) length, producing a 32-byte heap OOB write.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in bigint.hpp:260&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

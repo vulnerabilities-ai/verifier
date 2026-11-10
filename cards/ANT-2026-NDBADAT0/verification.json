@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-NDBADAT0",
+  "hash": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-NDBADAT0/card.html",
+    "sha256": "632359af4270a43c92462a957195888ec867702772ee564105e6a996d8147f9c",
+    "fetched_utc": "2026-11-10T21:06:50Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-NDBADAT0",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+    "printed_hash": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+    "canonical_rebuild_sha3_512": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:50Z",
+  "card_facts": {
+    "printed_hash": "2915f7a37cf642bc1ec7f0b611650f9dad814a40feedb9c94596c549b1f3a52d0dc25b365f9373de1c97402e14a89d610e3d6a92d8ceb32558b788cac2c011ec",
+    "committed_printed": "2026-02-26",
+    "revealed_printed": "2026-05-28 09:00 UTC",
+    "timeline": [
+      {
+        "date": "2026-02-26",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-02-26",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-10",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-28",
+        "label": "Publicly revealed"
+      },
+      {
+        "date": "2026-06-26",
+        "label": "Patch released"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-02-26",
+      "report_date": "2026-02-26",
+      "acknowledged_date": "2026-05-10",
+      "reveal_date": "2026-05-28",
+      "patch_released_date": "2026-06-26"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/Sentinel-One/purple-mcp/releases/tag/v0.7.0"
+      ],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

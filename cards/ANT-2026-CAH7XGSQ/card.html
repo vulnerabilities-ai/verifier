@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CAH7XGSQ · lua/lua</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CAH7XGSQ · lua/lua</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  unbounded-recursion
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Anvil Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CAH7XGSQ: stack-overflow (C stack exhaustion via unbounded recursion) — LOW VALUE tier.</h1>
+<p>The match() function in lstrlib.c recurses during pattern matching and is protected by a matchdepth counter initialized to MAXCCALLS=200. When a pattern error is caught by pcall, the counter is not properly restored, so subsequent pattern operations recurse without bound. ASAN confirms ~250 recursive frames before the guard page triggers SIGSEGV, and UBSAN separately confirms the counter wraps past INT_MIN. An attacker who can run Lua code or supply pattern strings achieves deterministic denial of service; the guard page prevents escalation to memory corruption.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> lua/lua<br>
+<strong>Location:</strong> <code>lstrlib.c:573</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "ERROR: AddressSanitizer: stack-overflow on address 0x7ffc43d9aff8" — the trace shows ~250 self-recursive frames of match(), far past the MAXCCALLS=200 limit that should have thrown an error. The root cause is that the matchdepth field in MatchState is not reset when a prior pattern error unwinds through pcall, so the decrement-and-check at function entry operates on stale state and never fires. The secondary UBSAN hit ("signed integer overflow: -2147483648 - 1") corroborates that the counter has been decrementing unchecked across many invocations.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>=== Production binary (/usr/local/bin/lua) ===
+Segmentation fault
+EXIT=139
+
+=== ASAN build (/workspace/repo/lua) ===
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==347==ERROR: AddressSanitizer: stack-overflow on address 0x7ffc43d9aff8 (pc 0x55d511094374 bp 0x7ffc43d9b030 sp 0x7ffc43d9afe0 T0)
+    #0 0x55d511094374 in match /workspace/repo/lstrlib.c:573
+    #1 0x55d5110951bb in match /workspace/repo/lstrlib.c:645
+    #2 0x55d5110951bb in match /workspace/repo/lstrlib.c:645
+    ... [~250 frames of match /workspace/repo/lstrlib.c:645] ...
+SUMMARY: AddressSanitizer: stack-overflow /workspace/repo/lstrlib.c:573 in match
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Invoke a pattern-matching call that raises an error inside match(), caught by pcall, leaving matchdepth unrestored</li>
+<li>Repeat to drive the residual matchdepth value negative (optionally to INT_MIN for the UBSAN variant)</li>
+<li>Invoke a pattern with a recursive construct; the depth check never triggers because the counter is already below zero</li>
+<li>match() self-recurses ~250+ frames until the C stack hits the guard page and the process receives SIGSEGV</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CAH7XGSQ.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CAH7XGSQ<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Anvil Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-low">low</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/lstrlib.c b/lstrlib.c</span>
+<span class="diff-h">index 874cec8086..dd3c0fd08c 100644</span>
+<span class="diff-h">--- a/lstrlib.c</span>
+<span class="diff-h">+++ b/lstrlib.c</span>
+<span class="diff-h">@@ -757,19 +757,25 @@ static int nospecials (const char *p, size_t l) {</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+** Prepare state for matches. These fields are not affected by each match.</span>
+<span class="diff-a">+*/</span>
+<span class="diff-c"> static void prepstate (MatchState *ms, lua_State *L,</span>
+<span class="diff-c">                        const char *s, size_t ls, const char *p, size_t lp) {</span>
+<span class="diff-c">   ms-&gt;L = L;</span>
+<span class="diff-d">-  ms-&gt;matchdepth = MAXCCALLS;</span>
+<span class="diff-c">   ms-&gt;src_init = s;</span>
+<span class="diff-c">   ms-&gt;src_end = s + ls;</span>
+<span class="diff-c">   ms-&gt;p_end = p + lp;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+** (Re)prepare state for a match, setting fields that change during</span>
+<span class="diff-a">+** each match.</span>
+<span class="diff-a">+*/</span>
+<span class="diff-c"> static void reprepstate (MatchState *ms) {</span>
+<span class="diff-a">+  ms-&gt;matchdepth = MAXCCALLS;</span>
+<span class="diff-c">   ms-&gt;level = 0;</span>
+<span class="diff-d">-  lua_assert(ms-&gt;matchdepth == MAXCCALLS);</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/testes/pm.lua b/testes/pm.lua</span>
+<span class="diff-h">index 720d2a3562..feab33dbbe 100644</span>
+<span class="diff-h">--- a/testes/pm.lua</span>
+<span class="diff-h">+++ b/testes/pm.lua</span>
+<span class="diff-h">@@ -347,6 +347,16 @@ do   -- init parameter in gmatch</span>
+<span class="diff-c"> end</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-a">+do  -- bug since 5.3</span>
+<span class="diff-a">+  local N = 20000</span>
+<span class="diff-a">+  local iter = string.gmatch(string.rep(&quot;a&quot;, N), string.rep(&quot;a?&quot;, N))</span>
+<span class="diff-a">+  pcall(iter)   -- error for pattern too complex</span>
+<span class="diff-a">+  -- calling function again found recursion count (&#x27;matchdepth&#x27;) equal</span>
+<span class="diff-a">+  -- to -1, so it did not detect next C-stack overflow</span>
+<span class="diff-a">+  pcall(iter)</span>
+<span class="diff-a">+end</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> -- tests for `%f&#x27; (`frontiers&#x27;)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> assert(string.gsub(&quot;aaa aa a aaa a&quot;, &quot;%f[%w]a&quot;, &quot;x&quot;) == &quot;xaa xa x xaa x&quot;)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/lua/lua/commit/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60" rel="noopener noreferrer">https://github.com/lua/lua/commit/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-20</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-01</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b29364e75f34a3b4b7e66d5461c338ca5e875426bdf8210361f5b47562d73733b1a51aa88d15858d2065e5809f5f5e296a2d5248703efd326e53afa0ed32ab8e</p>
+<p class="kicker">Committed 2026-04-09 18:50 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CAH7XGSQ-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CAH7XGSQ%22%2C%22bug_class%22%3A%22stack-overflow%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-20T19%3A13%3A27%2B00%3A00%22%2C%22description%22%3A%22The%20match%28%29%20function%20in%20lstrlib.c%20recurses%20during%20pattern%20matching%20and%20is%20protected%20by%20a%20matchdepth%20counter%20initialized%20to%20MAXCCALLS%3D200.%20When%20a%20pattern%20error%20is%20caught%20by%20pcall%2C%20the%20counter%20is%20not%20properly%20restored%2C%20so%20subsequent%20pattern%20operations%20recurse%20without%20bound.%20ASAN%20confirms%20~250%20recursive%20frames%20before%20the%20guard%20page%20triggers%20SIGSEGV%2C%20and%20UBSAN%20separately%20confirms%20the%20counter%20wraps%20past%20INT_MIN.%20An%20attacker%20who%20can%20run%20Lua%20code%20or%20supply%20pattern%20strings%20achieves%20deterministic%20denial%20of%20service%3B%20the%20guard%20page%20prevents%20escalation%20to%20memory%20corruption.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22lstrlib.c%3A573%22%2C%22poc_sha256%22%3A%22867a98c87e1c062c035d2ed9525b6b66bcd36e93d1559869c9da25e22629bf56%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22lua%22%2C%22reproduction%22%3A%5B%221.%20Invoke%20a%20pattern-matching%20call%20that%20raises%20an%20error%20inside%20match%28%29%2C%20caught%20by%20pcall%2C%20leaving%20matchdepth%20unrestored%22%2C%222.%20Repeat%20to%20drive%20the%20residual%20matchdepth%20value%20negative%20%28optionally%20to%20INT_MIN%20for%20the%20UBSAN%20variant%29%22%2C%223.%20Invoke%20a%20pattern%20with%20a%20recursive%20construct%3B%20the%20depth%20check%20never%20triggers%20because%20the%20counter%20is%20already%20below%20zero%22%2C%224.%20match%28%29%20self-recurses%20~250%2B%20frames%20until%20the%20C%20stack%20hits%20the%20guard%20page%20and%20the%20process%20receives%20SIGSEGV%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22ERROR%3A%20AddressSanitizer%3A%20stack-overflow%20on%20address%200x7ffc43d9aff8%5C%22%20%E2%80%94%20the%20trace%20shows%20~250%20self-recursive%20frames%20of%20match%28%29%2C%20far%20past%20the%20MAXCCALLS%3D200%20limit%20that%20should%20have%20thrown%20an%20error.%20The%20root%20cause%20is%20that%20the%20matchdepth%20field%20in%20MatchState%20is%20not%20reset%20when%20a%20prior%20pattern%20error%20unwinds%20through%20pcall%2C%20so%20the%20decrement-and-check%20at%20function%20entry%20operates%20on%20stale%20state%20and%20never%20fires.%20The%20secondary%20UBSAN%20hit%20%28%5C%22signed%20integer%20overflow%3A%20-2147483648%20-%201%5C%22%29%20corroborates%20that%20the%20counter%20has%20been%20decrementing%20unchecked%20across%20many%20invocations.%22%2C%22title%22%3A%22stack-overflow%20%28C%20stack%20exhaustion%20via%20unbounded%20recursion%29%20%E2%80%94%20LOW%20VALUE%20tier.%22%2C%22vendor_severity%22%3A%22low%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CAH7XGSQ&#34;,
+  &#34;bug_class&#34;: &#34;stack-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-20T19:13:27+00:00&#34;,
+  &#34;description&#34;: &#34;The match() function in lstrlib.c recurses during pattern matching and is protected by a matchdepth counter initialized to MAXCCALLS=200. When a pattern error is caught by pcall, the counter is not properly restored, so subsequent pattern operations recurse without bound. ASAN confirms ~250 recursive frames before the guard page triggers SIGSEGV, and UBSAN separately confirms the counter wraps past INT_MIN. An attacker who can run Lua code or supply pattern strings achieves deterministic denial of service; the guard page prevents escalation to memory corruption.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;lstrlib.c:573&#34;,
+  &#34;poc_sha256&#34;: &#34;867a98c87e1c062c035d2ed9525b6b66bcd36e93d1559869c9da25e22629bf56&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;lua&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Invoke a pattern-matching call that raises an error inside match(), caught by pcall, leaving matchdepth unrestored&#34;,
+    &#34;2. Repeat to drive the residual matchdepth value negative (optionally to INT_MIN for the UBSAN variant)&#34;,
+    &#34;3. Invoke a pattern with a recursive construct; the depth check never triggers because the counter is already below zero&#34;,
+    &#34;4. match() self-recurses ~250+ frames until the C stack hits the guard page and the process receives SIGSEGV&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;ERROR: AddressSanitizer: stack-overflow on address 0x7ffc43d9aff8\&#34; — the trace shows ~250 self-recursive frames of match(), far past the MAXCCALLS=200 limit that should have thrown an error. The root cause is that the matchdepth field in MatchState is not reset when a prior pattern error unwinds through pcall, so the decrement-and-check at function entry operates on stale state and never fires. The secondary UBSAN hit (\&#34;signed integer overflow: -2147483648 - 1\&#34;) corroborates that the counter has been decrementing unchecked across many invocations.&#34;,
+  &#34;title&#34;: &#34;stack-overflow (C stack exhaustion via unbounded recursion) — LOW VALUE tier.&#34;,
+  &#34;vendor_severity&#34;: &#34;low&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

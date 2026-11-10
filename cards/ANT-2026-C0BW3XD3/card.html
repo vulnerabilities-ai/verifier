@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-C0BW3XD3 · libmspub</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-C0BW3XD3 · libmspub</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-C0BW3XD3: Heap-buffer-overflow in MSPUBParser.cpp:1575</h1>
+<p>When parsing a crafted Microsoft Publisher document, MSPUBParser::getNewFill allocates a 16-byte std::vector at MSPUBParser.cpp:2077 and then reads one byte immediately past its end at line 2084. The bug is reached via MSPUBDocument::parse → parseEscher → parseShapeGroup → parseEscherShape → getNewFill, so any consumer that opens untrusted .pub files (e.g. LibreOffice importers built on libmspub) is exposed. The attacker controls the input document bytes that determine the vector's size and the subsequent index. Impact is likely limited to a crash or a single leaked heap byte.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libmspub<br>
+<strong>Location:</strong> <code>MSPUBParser.cpp:1575</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 1 at 0x7165cf1e39e0 ... 0 bytes after 16-byte region". The vector created at line 2077 is exactly 16 bytes, but the indexing expression at line 2084 (column 101) accesses element 16, i.e. one past the last valid index. The code appears to lack a bounds check against the vector size before indexing fill color/stop data derived from the Escher shape record.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3052835924
+INFO: Loaded 1 modules   (33587 inline 8-bit counters): 33587 [0x5ca246270a38, 0x5ca246278d6b), 
+INFO: Loaded 1 PC tables (33587 PCs): 33587 [0x5ca246278d70,0x5ca2462fc0a0), 
+/out/pubfuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7165cf1e39e0 at pc 0x5ca24449fac0 bp 0x7ffdccf06550 sp 0x7ffdccf06548
+READ of size 1 at 0x7165cf1e39e0 thread T0
+    #0 0x5ca24449fabf in libmspub::MSPUBParser::getNewFill(std::__1::map&lt;unsigned short, unsigned int, std::__1::less&lt;unsigned short&gt;, std::__1::allocator&lt;std::__1::pair&lt;unsigned short const, unsigned int&gt;&gt;&gt; const&amp;, bool&amp;, std::__1::map&lt;unsigned short, std::__1::vector&lt;unsigned char, std::__1::allocator&lt;unsigned char&gt;&gt;, std::__1::less&lt;unsigned short&gt;, std::__1::allocator&lt;std::__1::pair&lt;unsigned short const, std::__1::vector&lt;unsigned char, std::__1::allocator&lt;unsigned char&gt;&gt;&gt;&gt;&gt;&amp;) /src/libmspub/src/lib/MSPUBParser.cpp:2084:101
+    #1 0x5ca2444924df in libmspub::MSPUBParser::parseEscherShape(librevenge::RVNGInputStream*, libmspub::EscherContainerInfo const&amp;, libmspub::Coordinate&amp;, libmspub::Coordinate&amp;) /src/libmspub/src/lib/MSPUBParser.cpp:1723:44
+    #2 0x5ca24448ecd9 in libmspub::MSPUBParser::parseShapeGroup(librevenge::RVNGInputStream*, libmspub::EscherContainerInfo const&amp;, libmspub::Coordinate, libmspub::Coordinate) /src/libmspub/src/lib/MSPUBParser.cpp:1598:7
+    #3 0x5ca24447e58d in libmspub::MSPUBParser::parseEscher(librevenge::RVNGInputStream*) /src/libmspub/src/lib/MSPUBParser.cpp:1575:7
+    #4 0x5ca2444772ad in libmspub::MSPUBParser::parse() /src/libmspub/src/lib/MSPUBParser.cpp:219:8
+    #5 0x5ca2444767b4 in libmspub::MSPUBDocument::parse(librevenge::RVNGInputStream*, librevenge::RVNGDrawingInterface*) /src/libmspub/src/lib/MSPUBDocument.cpp:150:22
+    #6 0x5ca244475d69 in LLVMFuzzerTestOneInput /src/libmspub/src/fuzz/pubfuzzer.cpp:23:3
+    #7 0x5ca2446ccc2d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    [... 27 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a .pub document containing an Escher container with a shape whose fill property blob is sized such that the vector constructed at MSPUBParser.cpp:2077 is shorter than the index used at line 2084</li>
+<li>Deliver the file to the victim (email attachment, download, etc.)</li>
+<li>Victim opens/imports the file; parser reaches getNewFill via parseEscher → parseShapeGroup → parseEscherShape</li>
+<li>getNewFill reads one byte past the end of the heap vector</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-C0BW3XD3.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-C0BW3XD3<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-26</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">0fafa89709fdbbb4e17edcd49473be9be669b854ea4d545f7e021f838e7bc877ca5bcc474919cacf4b1c7529fc153a81c4c7f22bfc4fda4b02595633dfa9a7d8</p>
+<p class="kicker">Committed 2026-05-19 22:00 UTC</p>
+<p class="kicker">Revealed 2026-08-17 21:14 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-C0BW3XD3-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-C0BW3XD3%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A27%3A32%2B00%3A00%22%2C%22description%22%3A%22When%20parsing%20a%20crafted%20Microsoft%20Publisher%20document%2C%20MSPUBParser%3A%3AgetNewFill%20allocates%20a%2016-byte%20std%3A%3Avector%3Cunsigned%20char%3E%20at%20MSPUBParser.cpp%3A2077%20and%20then%20reads%20one%20byte%20immediately%20past%20its%20end%20at%20line%202084.%20The%20bug%20is%20reached%20via%20MSPUBDocument%3A%3Aparse%20%E2%86%92%20parseEscher%20%E2%86%92%20parseShapeGroup%20%E2%86%92%20parseEscherShape%20%E2%86%92%20getNewFill%2C%20so%20any%20consumer%20that%20opens%20untrusted%20.pub%20files%20%28e.g.%20LibreOffice%20importers%20built%20on%20libmspub%29%20is%20exposed.%20The%20attacker%20controls%20the%20input%20document%20bytes%20that%20determine%20the%20vector%27s%20size%20and%20the%20subsequent%20index.%20Impact%20is%20likely%20limited%20to%20a%20crash%20or%20a%20single%20leaked%20heap%20byte.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22MSPUBParser.cpp%3A1575%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22dlplibs%22%2C%22reproduction%22%3A%5B%22Craft%20a%20.pub%20document%20containing%20an%20Escher%20container%20with%20a%20shape%20whose%20fill%20property%20blob%20is%20sized%20such%20that%20the%20vector%20constructed%20at%20MSPUBParser.cpp%3A2077%20is%20shorter%20than%20the%20index%20used%20at%20line%202084%22%2C%22Deliver%20the%20file%20to%20the%20victim%20%28email%20attachment%2C%20download%2C%20etc.%29%22%2C%22Victim%20opens/imports%20the%20file%3B%20parser%20reaches%20getNewFill%20via%20parseEscher%20%E2%86%92%20parseShapeGroup%20%E2%86%92%20parseEscherShape%22%2C%22getNewFill%20reads%20one%20byte%20past%20the%20end%20of%20the%20heap%20vector%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%201%20at%200x7165cf1e39e0%20...%200%20bytes%20after%2016-byte%20region%5C%22.%20The%20vector%20created%20at%20line%202077%20is%20exactly%2016%20bytes%2C%20but%20the%20indexing%20expression%20at%20line%202084%20%28column%20101%29%20accesses%20element%2016%2C%20i.e.%20one%20past%20the%20last%20valid%20index.%20The%20code%20appears%20to%20lack%20a%20bounds%20check%20against%20the%20vector%20size%20before%20indexing%20fill%20color/stop%20data%20derived%20from%20the%20Escher%20shape%20record.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20MSPUBParser.cpp%3A1575%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-C0BW3XD3&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:27:32+00:00&#34;,
+  &#34;description&#34;: &#34;When parsing a crafted Microsoft Publisher document, MSPUBParser::getNewFill allocates a 16-byte std::vector&lt;unsigned char&gt; at MSPUBParser.cpp:2077 and then reads one byte immediately past its end at line 2084. The bug is reached via MSPUBDocument::parse → parseEscher → parseShapeGroup → parseEscherShape → getNewFill, so any consumer that opens untrusted .pub files (e.g. LibreOffice importers built on libmspub) is exposed. The attacker controls the input document bytes that determine the vector&#39;s size and the subsequent index. Impact is likely limited to a crash or a single leaked heap byte.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;MSPUBParser.cpp:1575&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;dlplibs&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Craft a .pub document containing an Escher container with a shape whose fill property blob is sized such that the vector constructed at MSPUBParser.cpp:2077 is shorter than the index used at line 2084&#34;,
+    &#34;Deliver the file to the victim (email attachment, download, etc.)&#34;,
+    &#34;Victim opens/imports the file; parser reaches getNewFill via parseEscher → parseShapeGroup → parseEscherShape&#34;,
+    &#34;getNewFill reads one byte past the end of the heap vector&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 1 at 0x7165cf1e39e0 ... 0 bytes after 16-byte region\&#34;. The vector created at line 2077 is exactly 16 bytes, but the indexing expression at line 2084 (column 101) accesses element 16, i.e. one past the last valid index. The code appears to lack a bounds check against the vector size before indexing fill color/stop data derived from the Escher shape record.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in MSPUBParser.cpp:1575&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

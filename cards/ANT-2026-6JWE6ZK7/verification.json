@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-6JWE6ZK7",
+  "hash": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-6JWE6ZK7/card.html",
+    "sha256": "5fc0f5a323f1ca52a6b6bbe8d8d3893974a712f920cdc71e54c69b3f1b55af28",
+    "fetched_utc": "2026-11-10T21:05:04Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-6JWE6ZK7",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+    "printed_hash": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+    "canonical_rebuild_sha3_512": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:05:04Z",
+  "card_facts": {
+    "printed_hash": "24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454",
+    "committed_printed": "2026-05-19 21:41 UTC",
+    "revealed_printed": "2026-08-17 17:47 UTC",
+    "timeline": [
+      {
+        "date": "2026-04-19",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-19",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-19",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-06-17",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-04-19",
+      "report_date": "2026-05-19",
+      "acknowledged_date": "2026-05-19",
+      "patch_released_date": "2026-06-17",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/langchain-ai/deepagentsjs/commit/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

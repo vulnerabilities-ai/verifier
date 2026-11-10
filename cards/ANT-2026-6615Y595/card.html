@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-6615Y595 · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-6615Y595 · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5448">CVE-2026-5448</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-5jqq-xpcr-q3r7">GHSA-5jqq-xpcr-q3r7</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-low">low</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-6615Y595: Final Assessment: 2-Byte Heap Overflow in wolfSSL_X509_notAfter / wolfSSL_X509_notBefore</h1>
+<p>The public getters wolfSSL_X509_notAfter() and wolfSSL_X509_notBefore() at src/x509.c:4418-4449 serialize a certificate date as [type][length][data] into a 32-byte notAfterData/notBeforeData array, but the upstream parser (internal.c:13831-13835) clamps the date length to MAX_DATE_SZ=32 rather than 30, so the memcpy at offset +2 writes up to 34 bytes into a 32-byte field. Because notAfterData is the last field of the heap-allocated WOLFSSL_X509 struct in common builds, the 2 excess bytes spill past the allocation boundary. An attacker supplying a certificate with a 32-byte GeneralizedTime fully controls the two overflowed bytes (date validation is bypassed under verify=0 in the d2i path), which land on the adjacent heap chunk's size/prev_size metadata under glibc ptmalloc. Triggering requires a build with OPENSSL_EXTRA/KEEP_PEER_CERT/SESSION_CERTS (ubiquitous in practice) and an explicit application call to wolfSSL_X509_notAfter() — a WOLFSSL_ABI export used by JSSE but not invoked automatically during the TLS handshake.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>wolfSSL_X509_notAfter() at src/x509.c:4446</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 32 at 0x5220000015f8 ... 0 bytes after 5368-byte region" — the XMEMCPY at x509.c:4446 copies notAfter.length (up to 32) bytes starting at &amp;notAfterData[2], leaving only 30 bytes of in-bounds space. The root cause is an off-by-2 mismatch: the parser/copy at internal.c:13832 and CheckDate() at asn.c:20252 cap the date at MAX_DATE_SZ/CTC_DATE_SIZE (32), but neither accounts for the 2-byte type+length prefix that the getter prepends into the same 32-byte buffer. The +2 header was accounted for elsewhere (asn.c:34471 uses MAX_DATE_SIZE+2), indicating an oversight at this sink.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>==403==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x5220000015f8
+WRITE of size 32 at 0x5220000015f8 thread T0
+    #1 0x... in wolfSSL_X509_notAfter /opt/wolfssl/./src/x509.c:4446:5
+0x5220000015f8 is located 0 bytes after 5368-byte region
+allocated by thread T0 here:
+    #1 0x... in wolfSSL_X509_new_ex /opt/wolfssl/./src/x509.c:6171:27
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a DER X.509 certificate whose notAfter (and optionally notBefore) is a 32-byte GeneralizedTime, e.g. '20250101000000.0000000000000000Z', placing the two desired overflow bytes at positions 31-32.</li>
+<li>Deliver the certificate to the victim — as a malicious TLS server's peer cert, or as input to any code path calling wolfSSL_X509_d2i() on untrusted DER.</li>
+<li>The d2i path parses with verify=0, so CheckDate errors are suppressed and the raw 32-byte date (arbitrary bytes) is stored into x509-&gt;notAfter via CopyDecodedToX509.</li>
+<li>Victim calls wolfSSL_X509_notAfter(); XMEMCPY writes 32 bytes at notAfterData+2, spilling bytes 31-32 past the 5368-byte WOLFSSL_X509 heap chunk.</li>
+<li>With heap grooming, the 2 bytes overwrite the low 16 bits of the next glibc chunk's size field (or adjacent object data on jemalloc/musl), enabling chunk-overlap / size-corruption exploitation on a later free().</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Clamp the copy length at the sink: use min(x509-&gt;notAfter.length, CTC_DATE_SIZE - 2) before the XMEMCPY at src/x509.c:4446 (and the mirror for notBefore at :4429). Alternatively, clamp to MAX_DATE_SZ - 2 at the source in internal.c:13824/13832.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-6615Y595.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-6615Y595<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/internal.c b/src/internal.c</span>
+<span class="diff-h">index 516f7ccc683..d59559112c1 100644</span>
+<span class="diff-h">--- a/src/internal.c</span>
+<span class="diff-h">+++ b/src/internal.c</span>
+<span class="diff-h">@@ -13743,11 +13743,34 @@ static int CopyREQAttributes(WOLFSSL_X509* x509, DecodedCert* dCert)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> #endif /* WOLFSSL_CERT_REQ */</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/* Copy an ASN-encoded date (type + length + data) into a WOLFSSL_ASN1_TIME.</span>
+<span class="diff-a">+ * srcDate: ASN date buffer where [0]=type, [1]=length, [2..]=date bytes.</span>
+<span class="diff-a">+ * srcDateLen: total length of srcDate (0 means no date present). */</span>
+<span class="diff-a">+static void CopyDateToASN1_TIME(const byte* srcDate, int srcDateLen,</span>
+<span class="diff-a">+                                WOLFSSL_ASN1_TIME* dst)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    if (srcDateLen &gt;= 2) {</span>
+<span class="diff-a">+        /* Clamp the date length to the maximum allowed size.</span>
+<span class="diff-a">+         * This needs to match the size of WOLFSSL_ASN1_TIME minus the </span>
+<span class="diff-a">+         * the type and length fields. */</span>
+<span class="diff-a">+        const int maxSz = CTC_DATE_SIZE - 2;</span>
+<span class="diff-a">+        const int copySz = (int)min(srcDate[1], maxSz);</span>
+<span class="diff-a">+        dst-&gt;type = srcDate[0];</span>
+<span class="diff-a">+        dst-&gt;length = copySz;</span>
+<span class="diff-a">+        XMEMCPY(dst-&gt;data, &amp;srcDate[2], copySz);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    else {</span>
+<span class="diff-a">+        dst-&gt;length = 0;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /* Copy parts X509 needs from Decoded cert, 0 on success */</span>
+<span class="diff-c"> int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c">     int ret = 0;</span>
+<span class="diff-a">+#ifdef WOLFSSL_SEP</span>
+<span class="diff-c">     int minSz;</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (x509 == NULL || dCert == NULL ||</span>
+<span class="diff-c">         dCert-&gt;subjectCNLen &lt; 0)</span>
+<span class="diff-h">@@ -13820,22 +13843,10 @@ int CopyDecodedToX509(WOLFSSL_X509* x509, DecodedCert* dCert)</span>
+<span class="diff-c">         x509-&gt;hwSerialNumSz = 0;</span>
+<span class="diff-c"> #endif /* WOLFSSL_SEP */</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (dCert-&gt;beforeDateLen &gt; 0) {</span>
+<span class="diff-d">-        minSz = (int)min(dCert-&gt;beforeDate[1], MAX_DATE_SZ);</span>
+<span class="diff-d">-        x509-&gt;notBefore.type = dCert-&gt;beforeDate[0];</span>
+<span class="diff-d">-        x509-&gt;notBefore.length = minSz;</span>
+<span class="diff-d">-        XMEMCPY(x509-&gt;notBefore.data, &amp;dCert-&gt;beforeDate[2], minSz);</span>
+<span class="diff-d">-    }</span>
+<span class="diff-d">-    else</span>
+<span class="diff-d">-        x509-&gt;notBefore.length = 0;</span>
+<span class="diff-d">-    if (dCert-&gt;afterDateLen &gt; 0) {</span>
+<span class="diff-d">-        minSz = (int)min(dCert-&gt;afterDate[1], MAX_DATE_SZ);</span>
+<span class="diff-d">-        x509-&gt;notAfter.type = dCert-&gt;afterDate[0];</span>
+<span class="diff-d">-        x509-&gt;notAfter.length = minSz;</span>
+<span class="diff-d">-        XMEMCPY(x509-&gt;notAfter.data, &amp;dCert-&gt;afterDate[2], minSz);</span>
+<span class="diff-d">-    }</span>
+<span class="diff-d">-    else</span>
+<span class="diff-d">-        x509-&gt;notAfter.length = 0;</span>
+<span class="diff-a">+    CopyDateToASN1_TIME(dCert-&gt;beforeDate, dCert-&gt;beforeDateLen,</span>
+<span class="diff-a">+        &amp;x509-&gt;notBefore);</span>
+<span class="diff-a">+    CopyDateToASN1_TIME(dCert-&gt;afterDate, dCert-&gt;afterDateLen,</span>
+<span class="diff-a">+        &amp;x509-&gt;notAfter);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (dCert-&gt;publicKey != NULL &amp;&amp; dCert-&gt;pubKeySize != 0) {</span>
+<span class="diff-c">         x509-&gt;pubKey.buffer = (byte*)XMALLOC(</span>
+<span class="diff-h">@@ -14217,29 +14228,10 @@ int CopyDecodedAcertToX509(WOLFSSL_X509_ACERT* x509, DecodedAcert* dAcert)</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     /* Copy before and after dates. */</span>
+<span class="diff-d">-    {</span>
+<span class="diff-d">-        int minSz = 0;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-        if (dAcert-&gt;beforeDateLen &gt; 0) {</span>
+<span class="diff-d">-            minSz = (int)min(dAcert-&gt;beforeDate[1], MAX_DATE_SZ);</span>
+<span class="diff-d">-            x509-&gt;notBefore.type = dAcert-&gt;beforeDate[0];</span>
+<span class="diff-d">-            x509-&gt;notBefore.length = minSz;</span>
+<span class="diff-d">-            XMEMCPY(x509-&gt;notBefore.data, &amp;dAcert-&gt;beforeDate[2], minSz);</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-        else {</span>
+<span class="diff-d">-            x509-&gt;notBefore.length = 0;</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-        if (dAcert-&gt;afterDateLen &gt; 0) {</span>
+<span class="diff-d">-            minSz = (int)min(dAcert-&gt;afterDate[1], MAX_DATE_SZ);</span>
+<span class="diff-d">-            x509-&gt;notAfter.type = dAcert-&gt;afterDate[0];</span>
+<span class="diff-d">-            x509-&gt;notAfter.length = minSz;</span>
+<span class="diff-d">-            XMEMCPY(x509-&gt;notAfter.data, &amp;dAcert-&gt;afterDate[2], minSz);</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-        else {</span>
+<span class="diff-d">-            x509-&gt;notAfter.length = 0;</span>
+<span class="diff-d">-        }</span>
+<span class="diff-d">-    }</span>
+<span class="diff-a">+    CopyDateToASN1_TIME(dAcert-&gt;beforeDate, dAcert-&gt;beforeDateLen,</span>
+<span class="diff-a">+        &amp;x509-&gt;notBefore);</span>
+<span class="diff-a">+    CopyDateToASN1_TIME(dAcert-&gt;afterDate, dAcert-&gt;afterDateLen,</span>
+<span class="diff-a">+        &amp;x509-&gt;notAfter);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     /* Copy the signature. */</span>
+<span class="diff-c">     if (dAcert-&gt;signature != NULL &amp;&amp; dAcert-&gt;sigLength != 0 &amp;&amp;</span>
+<span class="diff-h">diff --git a/src/ssl_api_crl_ocsp.c b/src/ssl_api_crl_ocsp.c</span>
+<span class="diff-h">index 0bd3237c66d..677aad46812 100644</span>
+<span class="diff-h">--- a/src/ssl_api_crl_ocsp.c</span>
+<span class="diff-h">+++ b/src/ssl_api_crl_ocsp.c</span>
+<span class="diff-h">@@ -424,7 +424,7 @@ int wolfSSL_get_ocsp_producedDate_tm(WOLFSSL *ssl, struct tm *produced_tm) {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (ExtractDate(ssl-&gt;ocspProducedDate,</span>
+<span class="diff-c">             (unsigned char)ssl-&gt;ocspProducedDateFormat, produced_tm, &amp;idx,</span>
+<span class="diff-d">-            MAX_DATE_SZ))</span>
+<span class="diff-a">+            MAX_DATE_SIZE))</span>
+<span class="diff-c">         return 0;</span>
+<span class="diff-c">     else</span>
+<span class="diff-c">         return ASN_PARSE_E;</span>
+<span class="diff-h">diff --git a/src/x509.c b/src/x509.c</span>
+<span class="diff-h">index 8fc8edc57b6..48720eda71d 100644</span>
+<span class="diff-h">--- a/src/x509.c</span>
+<span class="diff-h">+++ b/src/x509.c</span>
+<span class="diff-h">@@ -4419,8 +4419,14 @@ const byte* wolfSSL_X509_notBefore(WOLFSSL_X509* x509)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c">     WOLFSSL_ENTER(&quot;wolfSSL_X509_notBefore&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (x509 == NULL)</span>
+<span class="diff-a">+    if (x509 == NULL) {</span>
+<span class="diff-c">         return NULL;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    if (x509-&gt;notBefore.length &lt; 0 ||</span>
+<span class="diff-a">+            x509-&gt;notBefore.length &gt; (int)sizeof(x509-&gt;notBeforeData) - 2) {</span>
+<span class="diff-a">+        return NULL;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     XMEMSET(x509-&gt;notBeforeData, 0, sizeof(x509-&gt;notBeforeData));</span>
+<span class="diff-c">     x509-&gt;notBeforeData[0] = (byte)x509-&gt;notBefore.type;</span>
+<span class="diff-h">@@ -4437,8 +4443,14 @@ const byte* wolfSSL_X509_notAfter(WOLFSSL_X509* x509)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c">     WOLFSSL_ENTER(&quot;wolfSSL_X509_notAfter&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (x509 == NULL)</span>
+<span class="diff-a">+    if (x509 == NULL) {</span>
+<span class="diff-a">+        return NULL;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    if (x509-&gt;notAfter.length &lt; 0 ||</span>
+<span class="diff-a">+            x509-&gt;notAfter.length &gt; (int)sizeof(x509-&gt;notAfterData) - 2) {</span>
+<span class="diff-c">         return NULL;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     XMEMSET(x509-&gt;notAfterData, 0, sizeof(x509-&gt;notAfterData));</span>
+<span class="diff-c">     x509-&gt;notAfterData[0] = (byte)x509-&gt;notAfter.type;</span>
+<span class="diff-h">@@ -16060,6 +16072,10 @@ int wolfSSL_X509_set_notAfter(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)</span>
+<span class="diff-c">         return WOLFSSL_FAILURE;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    if (t-&gt;length &lt; 0 || t-&gt;length &gt; CTC_DATE_SIZE - 2) {</span>
+<span class="diff-a">+        return WOLFSSL_FAILURE;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     x509-&gt;notAfter.type = t-&gt;type;</span>
+<span class="diff-c">     x509-&gt;notAfter.length = t-&gt;length;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -16074,6 +16090,10 @@ int wolfSSL_X509_set_notBefore(WOLFSSL_X509* x509, const WOLFSSL_ASN1_TIME* t)</span>
+<span class="diff-c">         return WOLFSSL_FAILURE;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    if (t-&gt;length &lt; 0 || t-&gt;length &gt; CTC_DATE_SIZE - 2) {</span>
+<span class="diff-a">+        return WOLFSSL_FAILURE;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     x509-&gt;notBefore.type = t-&gt;type;</span>
+<span class="diff-c">     x509-&gt;notBefore.length = t-&gt;length;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/wolfssl/internal.h b/wolfssl/internal.h</span>
+<span class="diff-h">index 216b75bde1c..53981450e88 100644</span>
+<span class="diff-h">--- a/wolfssl/internal.h</span>
+<span class="diff-h">+++ b/wolfssl/internal.h</span>
+<span class="diff-h">@@ -2471,10 +2471,6 @@ struct WOLFSSL_OCSP {</span>
+<span class="diff-c"> };</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-#ifndef MAX_DATE_SIZE</span>
+<span class="diff-d">-#define MAX_DATE_SIZE 32</span>
+<span class="diff-d">-#endif</span>
+<span class="diff-d">-</span>
+<span class="diff-c"> typedef struct CRL_Entry CRL_Entry;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #if defined(WOLFSSL_SM2) &amp;&amp; defined(WOLFSSL_SM3)</span>
+<span class="diff-h">@@ -5312,10 +5308,6 @@ typedef struct Arrays {</span>
+<span class="diff-c">     #endif</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-#ifndef MAX_DATE_SZ</span>
+<span class="diff-d">-#define MAX_DATE_SZ 32</span>
+<span class="diff-d">-#endif</span>
+<span class="diff-d">-</span>
+<span class="diff-c"> typedef enum {</span>
+<span class="diff-c">     STACK_TYPE_X509               = 0,</span>
+<span class="diff-c">     STACK_TYPE_GEN_NAME           = 1,</span>
+<span class="diff-h">@@ -6327,7 +6319,7 @@ struct WOLFSSL {</span>
+<span class="diff-c"> #endif /* HAVE_TLS_EXTENSIONS */</span>
+<span class="diff-c"> #ifdef HAVE_OCSP</span>
+<span class="diff-c">         void*       ocspIOCtx;</span>
+<span class="diff-d">-        byte ocspProducedDate[MAX_DATE_SZ];</span>
+<span class="diff-a">+        byte ocspProducedDate[MAX_DATE_SIZE];</span>
+<span class="diff-c">         int ocspProducedDateFormat;</span>
+<span class="diff-c">         buffer      ocspCsrResp[1 + MAX_CHAIN_DEPTH];</span>
+<span class="diff-c">     #if defined(OPENSSL_ALL) || defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY)</span>
+<span class="diff-h">diff --git a/wolfssl/wolfcrypt/asn.h b/wolfssl/wolfcrypt/asn.h</span>
+<span class="diff-h">index 08dab649ae0..6c04b4d2c01 100644</span>
+<span class="diff-h">--- a/wolfssl/wolfcrypt/asn.h</span>
+<span class="diff-h">+++ b/wolfssl/wolfcrypt/asn.h</span>
+<span class="diff-h">@@ -1272,7 +1272,7 @@ enum Misc_ASN {</span>
+<span class="diff-c">     DSA_PARAM_INTS      =   3,     /* DSA parameter ints */</span>
+<span class="diff-c">     RSA_PUB_INTS        =   2,     /* RSA ints in public key */</span>
+<span class="diff-c">     MIN_DATE_SIZE       =  12,</span>
+<span class="diff-d">-    MAX_DATE_SIZE       =  32,</span>
+<span class="diff-a">+    MAX_DATE_SIZE       =  CTC_DATE_SIZE,</span>
+<span class="diff-c">     ASN_GEN_TIME_SZ     =  15,     /* 7 numbers * 2 + Zulu tag */</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #ifdef WOLFSSL_CERT_GEN</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/452652bbc" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/452652bbc</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-26</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">bfaf579a04a708cc492bf7ea857d05814b0c5713f6c98f9d79026fe2e6a91382574d2f01df0491068ff7e56f372eaad683f4ab6cc4e3c3894368a6756e4347e6</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-6615Y595-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-6615Y595%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-20T01%3A20%3A34%2B00%3A00%22%2C%22description%22%3A%22The%20public%20getters%20wolfSSL_X509_notAfter%28%29%20and%20wolfSSL_X509_notBefore%28%29%20at%20src/x509.c%3A4418-4449%20serialize%20a%20certificate%20date%20as%20%5Btype%5D%5Blength%5D%5Bdata%5D%20into%20a%2032-byte%20notAfterData/notBeforeData%20array%2C%20but%20the%20upstream%20parser%20%28internal.c%3A13831-13835%29%20clamps%20the%20date%20length%20to%20MAX_DATE_SZ%3D32%20rather%20than%2030%2C%20so%20the%20memcpy%20at%20offset%20%2B2%20writes%20up%20to%2034%20bytes%20into%20a%2032-byte%20field.%20Because%20notAfterData%20is%20the%20last%20field%20of%20the%20heap-allocated%20WOLFSSL_X509%20struct%20in%20common%20builds%2C%20the%202%20excess%20bytes%20spill%20past%20the%20allocation%20boundary.%20An%20attacker%20supplying%20a%20certificate%20with%20a%2032-byte%20GeneralizedTime%20fully%20controls%20the%20two%20overflowed%20bytes%20%28date%20validation%20is%20bypassed%20under%20verify%3D0%20in%20the%20d2i%20path%29%2C%20which%20land%20on%20the%20adjacent%20heap%20chunk%27s%20size/prev_size%20metadata%20under%20glibc%20ptmalloc.%20Triggering%20requires%20a%20build%20with%20OPENSSL_EXTRA/KEEP_PEER_CERT/SESSION_CERTS%20%28ubiquitous%20in%20practice%29%20and%20an%20explicit%20application%20call%20to%20wolfSSL_X509_notAfter%28%29%20%E2%80%94%20a%20WOLFSSL_ABI%20export%20used%20by%20JSSE%20but%20not%20invoked%20automatically%20during%20the%20TLS%20handshake.%22%2C%22discovered_at%22%3A%222026-03-26T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22wolfSSL_X509_notAfter%28%29%20at%20src/x509.c%3A4446%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20DER%20X.509%20certificate%20whose%20notAfter%20%28and%20optionally%20notBefore%29%20is%20a%2032-byte%20GeneralizedTime%2C%20e.g.%20%2720250101000000.0000000000000000Z%27%2C%20placing%20the%20two%20desired%20overflow%20bytes%20at%20positions%2031-32.%22%2C%222.%20Deliver%20the%20certificate%20to%20the%20victim%20%E2%80%94%20as%20a%20malicious%20TLS%20server%27s%20peer%20cert%2C%20or%20as%20input%20to%20any%20code%20path%20calling%20wolfSSL_X509_d2i%28%29%20on%20untrusted%20DER.%22%2C%223.%20The%20d2i%20path%20parses%20with%20verify%3D0%2C%20so%20CheckDate%20errors%20are%20suppressed%20and%20the%20raw%2032-byte%20date%20%28arbitrary%20bytes%29%20is%20stored%20into%20x509-%3EnotAfter%20via%20CopyDecodedToX509.%22%2C%224.%20Victim%20calls%20wolfSSL_X509_notAfter%28%29%3B%20XMEMCPY%20writes%2032%20bytes%20at%20notAfterData%2B2%2C%20spilling%20bytes%2031-32%20past%20the%205368-byte%20WOLFSSL_X509%20heap%20chunk.%22%2C%225.%20With%20heap%20grooming%2C%20the%202%20bytes%20overwrite%20the%20low%2016%20bits%20of%20the%20next%20glibc%20chunk%27s%20size%20field%20%28or%20adjacent%20object%20data%20on%20jemalloc/musl%29%2C%20enabling%20chunk-overlap%20/%20size-corruption%20exploitation%20on%20a%20later%20free%28%29.%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%2032%20at%200x5220000015f8%20...%200%20bytes%20after%205368-byte%20region%5C%22%20%E2%80%94%20the%20XMEMCPY%20at%20x509.c%3A4446%20copies%20notAfter.length%20%28up%20to%2032%29%20bytes%20starting%20at%20%26notAfterData%5B2%5D%2C%20leaving%20only%2030%20bytes%20of%20in-bounds%20space.%20The%20root%20cause%20is%20an%20off-by-2%20mismatch%3A%20the%20parser/copy%20at%20internal.c%3A13832%20and%20CheckDate%28%29%20at%20asn.c%3A20252%20cap%20the%20date%20at%20MAX_DATE_SZ/CTC_DATE_SIZE%20%2832%29%2C%20but%20neither%20accounts%20for%20the%202-byte%20type%2Blength%20prefix%20that%20the%20getter%20prepends%20into%20the%20same%2032-byte%20buffer.%20The%20%2B2%20header%20was%20accounted%20for%20elsewhere%20%28asn.c%3A34471%20uses%20MAX_DATE_SIZE%2B2%29%2C%20indicating%20an%20oversight%20at%20this%20sink.%22%2C%22title%22%3A%22Final%20Assessment%3A%202-Byte%20Heap%20Overflow%20in%20wolfSSL_X509_notAfter%20/%20wolfSSL_X509_notBefore%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-6615Y595&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-20T01:20:34+00:00&#34;,
+  &#34;description&#34;: &#34;The public getters wolfSSL_X509_notAfter() and wolfSSL_X509_notBefore() at src/x509.c:4418-4449 serialize a certificate date as [type][length][data] into a 32-byte notAfterData/notBeforeData array, but the upstream parser (internal.c:13831-13835) clamps the date length to MAX_DATE_SZ=32 rather than 30, so the memcpy at offset +2 writes up to 34 bytes into a 32-byte field. Because notAfterData is the last field of the heap-allocated WOLFSSL_X509 struct in common builds, the 2 excess bytes spill past the allocation boundary. An attacker supplying a certificate with a 32-byte GeneralizedTime fully controls the two overflowed bytes (date validation is bypassed under verify=0 in the d2i path), which land on the adjacent heap chunk&#39;s size/prev_size metadata under glibc ptmalloc. Triggering requires a build with OPENSSL_EXTRA/KEEP_PEER_CERT/SESSION_CERTS (ubiquitous in practice) and an explicit application call to wolfSSL_X509_notAfter() — a WOLFSSL_ABI export used by JSSE but not invoked automatically during the TLS handshake.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-26T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;wolfSSL_X509_notAfter() at src/x509.c:4446&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a DER X.509 certificate whose notAfter (and optionally notBefore) is a 32-byte GeneralizedTime, e.g. &#39;20250101000000.0000000000000000Z&#39;, placing the two desired overflow bytes at positions 31-32.&#34;,
+    &#34;2. Deliver the certificate to the victim — as a malicious TLS server&#39;s peer cert, or as input to any code path calling wolfSSL_X509_d2i() on untrusted DER.&#34;,
+    &#34;3. The d2i path parses with verify=0, so CheckDate errors are suppressed and the raw 32-byte date (arbitrary bytes) is stored into x509-&gt;notAfter via CopyDecodedToX509.&#34;,
+    &#34;4. Victim calls wolfSSL_X509_notAfter(); XMEMCPY writes 32 bytes at notAfterData+2, spilling bytes 31-32 past the 5368-byte WOLFSSL_X509 heap chunk.&#34;,
+    &#34;5. With heap grooming, the 2 bytes overwrite the low 16 bits of the next glibc chunk&#39;s size field (or adjacent object data on jemalloc/musl), enabling chunk-overlap / size-corruption exploitation on a later free().&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 32 at 0x5220000015f8 ... 0 bytes after 5368-byte region\&#34; — the XMEMCPY at x509.c:4446 copies notAfter.length (up to 32) bytes starting at &amp;notAfterData[2], leaving only 30 bytes of in-bounds space. The root cause is an off-by-2 mismatch: the parser/copy at internal.c:13832 and CheckDate() at asn.c:20252 cap the date at MAX_DATE_SZ/CTC_DATE_SIZE (32), but neither accounts for the 2-byte type+length prefix that the getter prepends into the same 32-byte buffer. The +2 header was accounted for elsewhere (asn.c:34471 uses MAX_DATE_SIZE+2), indicating an oversight at this sink.&#34;,
+  &#34;title&#34;: &#34;Final Assessment: 2-Byte Heap Overflow in wolfSSL_X509_notAfter / wolfSSL_X509_notBefore&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

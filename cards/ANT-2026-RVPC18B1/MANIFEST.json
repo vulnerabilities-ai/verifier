@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-RVPC18B1",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-RVPC18B1.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-RVPC18B1",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:07:18Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 7783,
+      "sha256": "123560eef76453b2fe5cc8510aaa8198c851260ca900a65922fe72f03a0e54f3",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:07:19 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=ZgO2U7qLjeZogdY6VXgrZXBQYqa0gP1T8vdTUiqL8YgQzbq5zLdQl5udXf1yH9aDO0EO0YC8SqI%2F7v%2FKGUQSYtFX%2BQxI0ufO82cJoRlFkOKI%2BPPqdjqXeGnD6hT%2FDTbVkTNI7Q%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58806ab4b39a473-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-RVPC18B1/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-RVPC18B1/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:07:18Z",
+      "size_bytes": 614,
+      "sha256": "c286731adad62fca65d3b3e0251ad9c8491c373e0db9ce5fac35b119663e0d4f",
+      "stored_at": "cards/ANT-2026-RVPC18B1/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-3ZHWVDTX",
+  "hash": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-3ZHWVDTX/card.html",
+    "sha256": "98d1ab226dbbbadf87efd6bfcf93a3f0a4d0eb24cd0670202faa99f4add80a32",
+    "fetched_utc": "2026-11-10T21:04:46Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-3ZHWVDTX",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+    "printed_hash": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+    "canonical_rebuild_sha3_512": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:46Z",
+  "card_facts": {
+    "printed_hash": "23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6",
+    "committed_printed": "2026-03-29 04:27 UTC",
+    "revealed_printed": "2026-08-18 00:36 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-28",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-03-28",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-04-13",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-05-14",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-08-18",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "report_date": "2026-03-28",
+      "acknowledged_date": "2026-03-28",
+      "patch_released_date": "2026-04-13",
+      "discovered_or_logged_date": "2026-05-14",
+      "reveal_date": "2026-08-18"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/kjur/jsrsasign/releases/tag/11.1.2"
+      ],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [
+    "The card's 'Patch released' date (2026-04-13) is earlier than its 'Discovered or logged' date (2026-05-14)."
+  ],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

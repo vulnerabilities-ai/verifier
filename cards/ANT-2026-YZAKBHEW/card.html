@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-YZAKBHEW · facebook/hermes</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-YZAKBHEW · facebook/hermes</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical (revised; sealed as high)</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-YZAKBHEW: Heap-buffer-overflow in hermes.cpp:262</h1>
+<p>Hermes's TextEncoder.prototype.encodeInto passes its destination argument through getTypedArrayBuffer() in JSIUtils.cpp, which reads the <code>buffer</code>, <code>byteOffset</code>, and <code>byteLength</code> properties off the object without verifying the object is a real TypedArray or that the claimed length fits the backing ArrayBuffer. A 646-byte JavaScript PoC supplies a plain object wrapping an 8-byte ArrayBuffer but claiming byteLength 1000000, together with a 100000-character string. convertUTF16ToUTF8BufferWithReplacements then writes UTF-8 output far past the 8-byte heap block. ASAN confirms a heap-buffer-overflow WRITE inside the 8-byte region allocated by JSArrayBuffer::createDataBlock, reproducing identically across three fresh container runs (exit 134).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> facebook/hermes<br>
+<strong>Location:</strong> <code>hermes.cpp:262</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "heap-buffer-overflow on address 0x602000005018 ... WRITE of size 1" in convertUTF16ToUTF8BufferWithReplacements (UTF8.cpp:149:19). The root cause is getTypedArrayBuffer() duck-typing the destination: it trusts user-controlled <code>byteLength</code>/<code>byteOffset</code> properties instead of validating them against the real ArrayBuffer size, so encodeInto is handed a buffer pointer/length pair where length vastly exceeds the actual 8-byte allocation.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a 646-byte JavaScript file that exploits a heap-buffer-overflow vulnerability in Hermes's TextEncoder.encodeInto implementation. The exploit works by passing a plain object with a spoofed `buffer` (8-byte ArrayBuffer), `byteOffset` (0), and `byteLength` (1000000) to TextEncoder.prototype.encodeInto, along with a large string (&quot;A&quot;.repeat(100000)). The underlying C++ code in `getTypedArrayBuffer()` (JSIUtils.cpp) trusts these duck-typed properties without validating them against the actual ArrayBuffer size, causing `convertUTF16ToUTF8BufferWithReplacements` to write far past the 8-byte heap allocation.
+
+All 3 reproduction runs in a fresh Docker container produced identical results:
+- Error: AddressSanitizer: heap-buffer-overflow on address 0x602000005018
+- Type: WRITE of size 1
+- Crashing function: hermes::convertUTF16ToUTF8BufferWithReplacements at /workspace/repo/lib/Support/UTF8.cpp:149:19
+- Called from: textEncoderEncodeInto at /workspace/repo/API/hermes/extensions/TextEncoder.cpp:139:11
+- Overflowed allocation: 8-byte region allocated by JSArrayBuffer::createDataBlock at /workspace/repo/lib/VM/JSArrayBuffer.cpp:252:42
+- Exit code: 134 (all 3 runs)
+- No OOM or timeout indicators present
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Allocate a small ArrayBuffer (e.g., 8 bytes).</li>
+<li>Construct a plain JS object with <code>buffer</code> set to that ArrayBuffer, <code>byteOffset: 0</code>, and a large spoofed <code>byteLength</code> (e.g., 1000000).</li>
+<li>Call new TextEncoder().encodeInto(largeString, fakeView) with a long string (e.g., 'A'.repeat(100000)).</li>
+<li>encodeInto writes UTF-8 bytes past the 8-byte allocation, corrupting adjacent heap memory.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-YZAKBHEW.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-YZAKBHEW<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The severity shown is the firm's current assessment; the report was sealed with the firm's earlier assessment of high.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical (revised; sealed as high)</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/API/hermes/extensions/JSIUtils.cpp b/API/hermes/extensions/JSIUtils.cpp</span>
+<span class="diff-h">index 92f4c1acf89..e53ad607dd1 100644</span>
+<span class="diff-h">--- a/API/hermes/extensions/JSIUtils.cpp</span>
+<span class="diff-h">+++ b/API/hermes/extensions/JSIUtils.cpp</span>
+<span class="diff-h">@@ -45,6 +45,13 @@ TypedArrayBufferInfo getTypedArrayBuffer(</span>
+<span class="diff-c">     throwTypeError(rt, detachedErrorMessage);</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+  // byteOffset and byteLength come from a caller-supplied object, so they must</span>
+<span class="diff-a">+  // be validated.</span>
+<span class="diff-a">+  size_t bufferSize = arrayBuffer.size(rt);</span>
+<span class="diff-a">+  if (*byteOffset &gt; bufferSize || *byteLength &gt; bufferSize - *byteOffset) {</span>
+<span class="diff-a">+    throw jsi::JSError(rt, errorMessage);</span>
+<span class="diff-a">+  }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">   return {bufferData + *byteOffset, *byteLength};</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/test/hermes/regress-typedarray-view-bounds.js b/test/hermes/regress-typedarray-view-bounds.js</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 00000000000..7d1b8de46a4</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/test/hermes/regress-typedarray-view-bounds.js</span>
+<span class="diff-h">@@ -0,0 +1,68 @@</span>
+<span class="diff-a">+/**</span>
+<span class="diff-a">+ * Copyright (c) Meta Platforms, Inc. and affiliates.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * This source code is licensed under the MIT license found in the</span>
+<span class="diff-a">+ * LICENSE file in the root directory of this source tree.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// REQUIRES: core_extensions</span>
+<span class="diff-a">+// RUN: LC_ALL=en_US.UTF-8 %hermes -O -target=HBC %s | %FileCheck --match-full-lines %s</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// Regression test: TextEncoder.encodeInto() and TextDecoder.decode() accept a</span>
+<span class="diff-a">+// duck-typed TypedArray view -- any object exposing buffer/byteOffset/byteLength.</span>
+<span class="diff-a">+// The view geometry was previously trusted without checking that</span>
+<span class="diff-a">+// byteOffset + byteLength stays within the backing ArrayBuffer, so a plain</span>
+<span class="diff-a">+// object with out-of-bounds values produced an out-of-bounds write/read relative</span>
+<span class="diff-a">+// to the buffer. Such views must now throw instead. Both APIs share the same</span>
+<span class="diff-a">+// bounds check, so exercising the write path is sufficient to cover it.</span>
+<span class="diff-a">+&quot;use strict&quot;;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+print(&#x27;typedarray-view-bounds&#x27;);</span>
+<span class="diff-a">+// CHECK-LABEL: typedarray-view-bounds</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+const enc = new TextEncoder();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// Out of bounds because byteOffset is past the end (exploit shape).</span>
+<span class="diff-a">+try {</span>
+<span class="diff-a">+  const ab = new ArrayBuffer(16);</span>
+<span class="diff-a">+  enc.encodeInto(&quot;A&quot;.repeat(0x1000), {</span>
+<span class="diff-a">+    buffer: ab,</span>
+<span class="diff-a">+    byteOffset: 0x100000,</span>
+<span class="diff-a">+    byteLength: 0x1000,</span>
+<span class="diff-a">+  });</span>
+<span class="diff-a">+  print(&quot;FAIL: OOB byteOffset did not throw&quot;);</span>
+<span class="diff-a">+} catch (e) {</span>
+<span class="diff-a">+  print(e.message);</span>
+<span class="diff-a">+  // CHECK-NEXT: The second argument should be a Uint8Array</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// Out of bounds because byteLength runs past the end (offset is valid).</span>
+<span class="diff-a">+try {</span>
+<span class="diff-a">+  const ab = new ArrayBuffer(16);</span>
+<span class="diff-a">+  enc.encodeInto(&quot;A&quot;.repeat(17), {buffer: ab, byteOffset: 0, byteLength: 17});</span>
+<span class="diff-a">+  print(&quot;FAIL: OOB byteLength did not throw&quot;);</span>
+<span class="diff-a">+} catch (e) {</span>
+<span class="diff-a">+  print(e.message);</span>
+<span class="diff-a">+  // CHECK-NEXT: The second argument should be a Uint8Array</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// In bounds: byteOffset + byteLength == size must be accepted (off-by-one guard).</span>
+<span class="diff-a">+const ab1 = new ArrayBuffer(10);</span>
+<span class="diff-a">+let r = enc.encodeInto(&quot;ABCD&quot;, {buffer: ab1, byteOffset: 6, byteLength: 4});</span>
+<span class="diff-a">+print(r.read + &quot; &quot; + r.written + &quot; &quot; + new Uint8Array(ab1).slice(6).join(&quot;,&quot;));</span>
+<span class="diff-a">+// CHECK-NEXT: 4 4 65,66,67,68</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// In bounds: empty view at the very end (byteOffset == size, byteLength == 0).</span>
+<span class="diff-a">+const ab2 = new ArrayBuffer(4);</span>
+<span class="diff-a">+r = enc.encodeInto(&quot;xyz&quot;, {buffer: ab2, byteOffset: 4, byteLength: 0});</span>
+<span class="diff-a">+print(r.read + &quot; &quot; + r.written);</span>
+<span class="diff-a">+// CHECK-NEXT: 0 0</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// A real Uint8Array still round-trips through the normal path.</span>
+<span class="diff-a">+const view = new Uint8Array(8);</span>
+<span class="diff-a">+r = enc.encodeInto(&quot;hello&quot;, view);</span>
+<span class="diff-a">+print(r.read + &quot; &quot; + r.written + &quot; &quot; + view.slice(0, 5).join(&quot;,&quot;));</span>
+<span class="diff-a">+// CHECK-NEXT: 5 5 104,101,108,108,111</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+print(&#x27;done&#x27;);</span>
+<span class="diff-a">+// CHECK-NEXT: done</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/facebook/hermes/commit/cb8a9a3fa39f9165f6db93dcee871cfa625a9753" rel="noopener noreferrer">https://github.com/facebook/hermes/commit/cb8a9a3fa39f9165f6db93dcee871cfa625a9753</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/facebook/hermes/commit/cb8a9a3fa39f9165f6db93dcee871cfa625a9753" rel="noopener noreferrer">https://github.com/facebook/hermes/commit/cb8a9a3fa39f9165f6db93dcee871cfa625a9753</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-30</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">b8f68e30d2504bc523231e47bed1dc203ca4d7040ace64aed55cb014c904c4d4926560b4e62873f8fa6ecd36aafc7e8931ec45db3f926ae30a1560fd4c9f18e3</p>
+<p class="kicker">Committed 2026-04-30 07:03 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-YZAKBHEW-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-YZAKBHEW%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A47%3A16%2B00%3A00%22%2C%22description%22%3A%22Hermes%27s%20TextEncoder.prototype.encodeInto%20passes%20its%20destination%20argument%20through%20getTypedArrayBuffer%28%29%20in%20JSIUtils.cpp%2C%20which%20reads%20the%20%60buffer%60%2C%20%60byteOffset%60%2C%20and%20%60byteLength%60%20properties%20off%20the%20object%20without%20verifying%20the%20object%20is%20a%20real%20TypedArray%20or%20that%20the%20claimed%20length%20fits%20the%20backing%20ArrayBuffer.%20A%20646-byte%20JavaScript%20PoC%20supplies%20a%20plain%20object%20wrapping%20an%208-byte%20ArrayBuffer%20but%20claiming%20byteLength%201000000%2C%20together%20with%20a%20100000-character%20string.%20convertUTF16ToUTF8BufferWithReplacements%20then%20writes%20UTF-8%20output%20far%20past%20the%208-byte%20heap%20block.%20ASAN%20confirms%20a%20heap-buffer-overflow%20WRITE%20inside%20the%208-byte%20region%20allocated%20by%20JSArrayBuffer%3A%3AcreateDataBlock%2C%20reproducing%20identically%20across%20three%20fresh%20container%20runs%20%28exit%20134%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22hermes.cpp%3A262%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22hermes%22%2C%22reproduction%22%3A%5B%221.%20Allocate%20a%20small%20ArrayBuffer%20%28e.g.%2C%208%20bytes%29.%22%2C%222.%20Construct%20a%20plain%20JS%20object%20with%20%60buffer%60%20set%20to%20that%20ArrayBuffer%2C%20%60byteOffset%3A%200%60%2C%20and%20a%20large%20spoofed%20%60byteLength%60%20%28e.g.%2C%201000000%29.%22%2C%223.%20Call%20new%20TextEncoder%28%29.encodeInto%28largeString%2C%20fakeView%29%20with%20a%20long%20string%20%28e.g.%2C%20%27A%27.repeat%28100000%29%29.%22%2C%224.%20encodeInto%20writes%20UTF-8%20bytes%20past%20the%208-byte%20allocation%2C%20corrupting%20adjacent%20heap%20memory.%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22heap-buffer-overflow%20on%20address%200x602000005018%20...%20WRITE%20of%20size%201%5C%22%20in%20convertUTF16ToUTF8BufferWithReplacements%20%28UTF8.cpp%3A149%3A19%29.%20The%20root%20cause%20is%20getTypedArrayBuffer%28%29%20duck-typing%20the%20destination%3A%20it%20trusts%20user-controlled%20%60byteLength%60/%60byteOffset%60%20properties%20instead%20of%20validating%20them%20against%20the%20real%20ArrayBuffer%20size%2C%20so%20encodeInto%20is%20handed%20a%20buffer%20pointer/length%20pair%20where%20length%20vastly%20exceeds%20the%20actual%208-byte%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20hermes.cpp%3A262%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-YZAKBHEW&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:47:16+00:00&#34;,
+  &#34;description&#34;: &#34;Hermes&#39;s TextEncoder.prototype.encodeInto passes its destination argument through getTypedArrayBuffer() in JSIUtils.cpp, which reads the `buffer`, `byteOffset`, and `byteLength` properties off the object without verifying the object is a real TypedArray or that the claimed length fits the backing ArrayBuffer. A 646-byte JavaScript PoC supplies a plain object wrapping an 8-byte ArrayBuffer but claiming byteLength 1000000, together with a 100000-character string. convertUTF16ToUTF8BufferWithReplacements then writes UTF-8 output far past the 8-byte heap block. ASAN confirms a heap-buffer-overflow WRITE inside the 8-byte region allocated by JSArrayBuffer::createDataBlock, reproducing identically across three fresh container runs (exit 134).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;hermes.cpp:262&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;hermes&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Allocate a small ArrayBuffer (e.g., 8 bytes).&#34;,
+    &#34;2. Construct a plain JS object with `buffer` set to that ArrayBuffer, `byteOffset: 0`, and a large spoofed `byteLength` (e.g., 1000000).&#34;,
+    &#34;3. Call new TextEncoder().encodeInto(largeString, fakeView) with a long string (e.g., &#39;A&#39;.repeat(100000)).&#34;,
+    &#34;4. encodeInto writes UTF-8 bytes past the 8-byte allocation, corrupting adjacent heap memory.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;heap-buffer-overflow on address 0x602000005018 ... WRITE of size 1\&#34; in convertUTF16ToUTF8BufferWithReplacements (UTF8.cpp:149:19). The root cause is getTypedArrayBuffer() duck-typing the destination: it trusts user-controlled `byteLength`/`byteOffset` properties instead of validating them against the real ArrayBuffer size, so encodeInto is handed a buffer pointer/length pair where length vastly exceeds the actual 8-byte allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in hermes.cpp:262&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

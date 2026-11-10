@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-3JR8RVFB",
+  "hash": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-3JR8RVFB/card.html",
+    "sha256": "1bd0cd14787defd5076b1926239f03206e85bafa31c3127aba02d21438dcba43",
+    "fetched_utc": "2026-11-10T21:04:42Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-3JR8RVFB",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+    "printed_hash": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+    "canonical_rebuild_sha3_512": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:42Z",
+  "card_facts": {
+    "printed_hash": "4f95389e236666b66822f179fbb1d597f1fb0ec7cd01e6183b654b7a64e4d413a8c0e9aaed16719a98f36005a6796d7b94cabc01c9ad599d5ecaf5b9c70d7484",
+    "committed_printed": "2026-04-09 18:49 UTC",
+    "revealed_printed": "2026-08-17 20:03 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-20",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-03-20",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-03-29",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "report_date": "2026-03-20",
+      "patch_released_date": "2026-03-20",
+      "discovered_or_logged_date": "2026-03-29",
+      "acknowledged_date": "2026-05-07",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "medium",
+      "firm": "medium",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/DanBloomberg/leptonica/commit/a0ca522b7d48f471c6225b4a4dc0c63463f10843"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [
+    "The card's 'Patch released' date (2026-03-20) is earlier than its 'Discovered or logged' date (2026-03-29)."
+  ],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

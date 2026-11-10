@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-0NGQ3EZK · gpg/gnupg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-0NGQ3EZK · gpg/gnupg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-0NGQ3EZK: TOFU trust bypass via forged certification without signature verification</h1>
+<p>In the TOFU trust model, signed_by_utk() and cross_sigs() (g10/tofu.c) decide whether a new key is trusted by scanning certification-signature packets and comparing sig-&gt;keyid against the ultimately-trusted-key list via tdb_keyid_is_utk(). The issuer keyid is an unauthenticated subpacket copied verbatim from the imported key, and neither function calls check_key_signature() to verify the certification. An attacker who appends a fabricated 0x13 certification claiming the victim's own UTK keyid to their key causes signed_by_utk() to return 1, get_policy() to assign TOFU_POLICY_GOOD, and tofu_get_validity() to return TRUST_FULLY. Default <code>gpg --import</code> does not set IMPORT_SELF_SIGS_ONLY or IMPORT_CLEAN, and key_check_all_keysigs() detects the bad signature but never deletes the node, so the forged packet reaches the keyring and the TOFU evaluator. The attacker's key is then treated as fully trusted with no prompt, letting them pass signature verification and receive encrypted traffic.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> gpg/gnupg<br>
+<strong>Location:</strong> <code>g10/tofu.c:1489</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>At tofu.c:1508, signed_by_utk() calls tdb_keyid_is_utk(sig-&gt;keyid) — a pure 64-bit keyid comparison against utk_list — on raw signature packets from the keyblock, with sig-&gt;keyid populated verbatim from the attacker-supplied SIGSUBPKT_ISSUER subpacket (parse-packet.c:2267). No check_key_signature()/check_signature_over_key_or_uid() is invoked anywhere in signed_by_utk() or cross_sigs(), so the claimed issuer identity is trusted without any cryptographic verification. merge_selfsigs() only verifies self-sigs, and the import path (chk_self_sigs, delete_inv_parts, key_check_all_keysigs) leaves well-formed third-party certs in the keyblock even when detected as bad, so the forged packet survives to the trust decision.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Generate an attacker keypair for the target identity (e.g. alice@example.org).</li>
+<li>Append a fabricated 0x13 certification signature packet to the attacker key's UID, setting the Issuer subpacket to the victim's ultimately-trusted key's 64-bit keyid (public information).</li>
+<li>Distribute the crafted public key via WKD, LDAP keyserver, email attachment, or any channel leading to <code>gpg --import</code> / <code>--locate-keys</code>.</li>
+<li>Victim imports the key; default import options do not strip the forged third-party certification.</li>
+<li>On first use, TOFU's get_policy() → signed_by_utk() matches the forged keyid against the UTK list and sets TOFU_POLICY_GOOD → TRUST_FULLY with no conflict prompt.</li>
+<li>Attacker sends signed messages that <code>gpg --verify</code> reports as good with full validity, and/or receives mail encrypted to the attacker key as if it were Alice's.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Cryptographically verify any certification signature (via check_key_signature or equivalent) against the claimed issuer's public key before using its issuer keyid in signed_by_utk()/cross_sigs() trust decisions.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-0NGQ3EZK.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-0NGQ3EZK<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/g10/tofu.c b/g10/tofu.c</span>
+<span class="diff-h">index 740ee6475..188879de3 100644</span>
+<span class="diff-h">--- a/g10/tofu.c</span>
+<span class="diff-h">+++ b/g10/tofu.c</span>
+<span class="diff-h">@@ -1458,14 +1458,16 @@ cross_sigs (const char *email, kbnode_t a, kbnode_t b)</span>
+<span class="diff-c">   return 1;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /* Return whether the key was signed by an ultimately trusted key.  */</span>
+<span class="diff-c"> static int</span>
+<span class="diff-d">-signed_by_utk (const char *email, kbnode_t a)</span>
+<span class="diff-a">+signed_by_utk (ctrl_t ctrl, const char *email, kbnode_t keyblock)</span>
+<span class="diff-c"> {</span>
+<span class="diff-a">+  gpg_error_t err;</span>
+<span class="diff-c">   kbnode_t n;</span>
+<span class="diff-c">   int saw_email = 0;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  for (n = a; n; n = n-&gt;next)</span>
+<span class="diff-a">+  for (n = keyblock; n; n = n-&gt;next)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">       PKT_signature *sig;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -1496,29 +1498,43 @@ signed_by_utk (const char *email, kbnode_t a)</span>
+<span class="diff-c"> </span>
+<span class="diff-c">       sig = n-&gt;pkt-&gt;pkt.signature;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-      if (! (sig-&gt;sig_class == 0x10</span>
+<span class="diff-d">-             || sig-&gt;sig_class == 0x11</span>
+<span class="diff-d">-             || sig-&gt;sig_class == 0x12</span>
+<span class="diff-d">-             || sig-&gt;sig_class == 0x13))</span>
+<span class="diff-d">-        /* Not a signature over a user id.  */</span>
+<span class="diff-d">-        continue;</span>
+<span class="diff-a">+      if (!IS_UID_SIG (sig))</span>
+<span class="diff-a">+        continue; /* Not a signature over a user id.  */</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-      /* SIG is on SIGNEE&#x27;s keyblock.  If SIG was generated by the</span>
+<span class="diff-d">-         signer, then it&#x27;s a match.  */</span>
+<span class="diff-d">-      if (tdb_keyid_is_utk (sig-&gt;keyid))</span>
+<span class="diff-d">-        {</span>
+<span class="diff-d">-          /* Match!  */</span>
+<span class="diff-d">-          if (DBG_TRUST)</span>
+<span class="diff-d">-            log_debug (&quot;TOFU: %s is signed by an ultimately trusted key.\n&quot;,</span>
+<span class="diff-d">-                       pk_keyid_str (a-&gt;pkt-&gt;pkt.public_key));</span>
+<span class="diff-a">+      /* Check if SIG is on signee&#x27;s keyblock.  If SIG was generated</span>
+<span class="diff-a">+       * by the signer, then it&#x27;s a match.  */</span>
+<span class="diff-a">+      if (!tdb_keyid_is_utk (sig-&gt;keyid))</span>
+<span class="diff-a">+        continue; /* Signature is not by an UTK.  */</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+      /* Check that the signature is valid.  We treat anything under</span>
+<span class="diff-a">+       * our min_cert_level as an invalid signature.  */</span>
+<span class="diff-a">+      if(sig-&gt;sig_class &gt;= SIGCLASS_CERT11</span>
+<span class="diff-a">+         &amp;&amp; sig-&gt;sig_class &lt;= SIGCLASS_CERT13</span>
+<span class="diff-a">+         &amp;&amp; sig-&gt;sig_class - SIGCLASS_CERT &lt; opt.min_cert_level)</span>
+<span class="diff-a">+	continue;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-          return 1;</span>
+<span class="diff-a">+      if ((err = check_key_signature (ctrl, keyblock, n, NULL)))</span>
+<span class="diff-a">+	{</span>
+<span class="diff-a">+          if (DBG_TRUST)</span>
+<span class="diff-a">+            log_debug (&quot;TOFU: %s has a bad signature claiming&quot;</span>
+<span class="diff-a">+                       &quot; to be from an ultimately trusted key: %s\n&quot;,</span>
+<span class="diff-a">+                       pk_keyid_str (keyblock-&gt;pkt-&gt;pkt.public_key),</span>
+<span class="diff-a">+                       gpg_strerror (err));</span>
+<span class="diff-a">+          continue;</span>
+<span class="diff-c">         }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+      /* Match!  */</span>
+<span class="diff-a">+      if (DBG_TRUST)</span>
+<span class="diff-a">+        log_debug (&quot;TOFU: %s is signed by an ultimately trusted key.\n&quot;,</span>
+<span class="diff-a">+                   pk_keyid_str (keyblock-&gt;pkt-&gt;pkt.public_key));</span>
+<span class="diff-a">+      return 1;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   if (DBG_TRUST)</span>
+<span class="diff-c">     log_debug (&quot;TOFU: %s is NOT signed by an ultimately trusted key.\n&quot;,</span>
+<span class="diff-d">-               pk_keyid_str (a-&gt;pkt-&gt;pkt.public_key));</span>
+<span class="diff-a">+               pk_keyid_str (keyblock-&gt;pkt-&gt;pkt.public_key));</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   return 0;</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">@@ -2503,7 +2519,7 @@ get_policy (ctrl_t ctrl, tofu_dbs_t dbs, PKT_public_key *pk,</span>
+<span class="diff-c">           }</span>
+<span class="diff-c">         else</span>
+<span class="diff-c">           {</span>
+<span class="diff-d">-            int is_signed_by_utk = signed_by_utk (email, kb);</span>
+<span class="diff-a">+            int is_signed_by_utk = signed_by_utk (ctrl, email, kb);</span>
+<span class="diff-c">             release_kbnode (kb);</span>
+<span class="diff-c">             if (is_signed_by_utk)</span>
+<span class="diff-c">               {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/gpg/gnupg/commit/08611f5da8ad4b9cc80bb05f0f8610ec6baa6063" rel="noopener noreferrer">https://github.com/gpg/gnupg/commit/08611f5da8ad4b9cc80bb05f0f8610ec6baa6063</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-01</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-10</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-10</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">1cd2e7f9bcfcb6d052571dba39cb1dc09079ec09927ce8b83fcc186123b255c62eb8daac8f57b8c3a8dd5a3724c1471bb50e372fb03ce29300fefabd8478c684</p>
+<p class="kicker">Committed 2026-08-01 07:06 UTC</p>
+<p class="kicker">Revealed 2026-09-28 22:41 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-0NGQ3EZK-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-0NGQ3EZK%22%2C%22bug_class%22%3A%22Cryptographic%20Trust%20Bypass%20/%20Authentication%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T02%3A33%3A19%2B00%3A00%22%2C%22description%22%3A%22In%20the%20TOFU%20trust%20model%2C%20signed_by_utk%28%29%20and%20cross_sigs%28%29%20%28g10/tofu.c%29%20decide%20whether%20a%20new%20key%20is%20trusted%20by%20scanning%20certification-signature%20packets%20and%20comparing%20sig-%3Ekeyid%20against%20the%20ultimately-trusted-key%20list%20via%20tdb_keyid_is_utk%28%29.%20The%20issuer%20keyid%20is%20an%20unauthenticated%20subpacket%20copied%20verbatim%20from%20the%20imported%20key%2C%20and%20neither%20function%20calls%20check_key_signature%28%29%20to%20verify%20the%20certification.%20An%20attacker%20who%20appends%20a%20fabricated%200x13%20certification%20claiming%20the%20victim%27s%20own%20UTK%20keyid%20to%20their%20key%20causes%20signed_by_utk%28%29%20to%20return%201%2C%20get_policy%28%29%20to%20assign%20TOFU_POLICY_GOOD%2C%20and%20tofu_get_validity%28%29%20to%20return%20TRUST_FULLY.%20Default%20%60gpg%20--import%60%20does%20not%20set%20IMPORT_SELF_SIGS_ONLY%20or%20IMPORT_CLEAN%2C%20and%20key_check_all_keysigs%28%29%20detects%20the%20bad%20signature%20but%20never%20deletes%20the%20node%2C%20so%20the%20forged%20packet%20reaches%20the%20keyring%20and%20the%20TOFU%20evaluator.%20The%20attacker%27s%20key%20is%20then%20treated%20as%20fully%20trusted%20with%20no%20prompt%2C%20letting%20them%20pass%20signature%20verification%20and%20receive%20encrypted%20traffic.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22g10/tofu.c%3A1489%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gpg/gnupg%22%2C%22reproduction%22%3A%5B%221.%20Generate%20an%20attacker%20keypair%20for%20the%20target%20identity%20%28e.g.%20alice%40example.org%29.%22%2C%222.%20Append%20a%20fabricated%200x13%20certification%20signature%20packet%20to%20the%20attacker%20key%27s%20UID%2C%20setting%20the%20Issuer%20subpacket%20to%20the%20victim%27s%20ultimately-trusted%20key%27s%2064-bit%20keyid%20%28public%20information%29.%22%2C%223.%20Distribute%20the%20crafted%20public%20key%20via%20WKD%2C%20LDAP%20keyserver%2C%20email%20attachment%2C%20or%20any%20channel%20leading%20to%20%60gpg%20--import%60%20/%20%60--locate-keys%60.%22%2C%224.%20Victim%20imports%20the%20key%3B%20default%20import%20options%20do%20not%20strip%20the%20forged%20third-party%20certification.%22%2C%225.%20On%20first%20use%2C%20TOFU%27s%20get_policy%28%29%20%E2%86%92%20signed_by_utk%28%29%20matches%20the%20forged%20keyid%20against%20the%20UTK%20list%20and%20sets%20TOFU_POLICY_GOOD%20%E2%86%92%20TRUST_FULLY%20with%20no%20conflict%20prompt.%22%2C%226.%20Attacker%20sends%20signed%20messages%20that%20%60gpg%20--verify%60%20reports%20as%20good%20with%20full%20validity%2C%20and/or%20receives%20mail%20encrypted%20to%20the%20attacker%20key%20as%20if%20it%20were%20Alice%27s.%22%5D%2C%22technical_details%22%3A%22At%20tofu.c%3A1508%2C%20signed_by_utk%28%29%20calls%20tdb_keyid_is_utk%28sig-%3Ekeyid%29%20%E2%80%94%20a%20pure%2064-bit%20keyid%20comparison%20against%20utk_list%20%E2%80%94%20on%20raw%20signature%20packets%20from%20the%20keyblock%2C%20with%20sig-%3Ekeyid%20populated%20verbatim%20from%20the%20attacker-supplied%20SIGSUBPKT_ISSUER%20subpacket%20%28parse-packet.c%3A2267%29.%20No%20check_key_signature%28%29/check_signature_over_key_or_uid%28%29%20is%20invoked%20anywhere%20in%20signed_by_utk%28%29%20or%20cross_sigs%28%29%2C%20so%20the%20claimed%20issuer%20identity%20is%20trusted%20without%20any%20cryptographic%20verification.%20merge_selfsigs%28%29%20only%20verifies%20self-sigs%2C%20and%20the%20import%20path%20%28chk_self_sigs%2C%20delete_inv_parts%2C%20key_check_all_keysigs%29%20leaves%20well-formed%20third-party%20certs%20in%20the%20keyblock%20even%20when%20detected%20as%20bad%2C%20so%20the%20forged%20packet%20survives%20to%20the%20trust%20decision.%22%2C%22title%22%3A%22TOFU%20trust%20bypass%20via%20forged%20certification%20without%20signature%20verification%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-0NGQ3EZK&#34;,
+  &#34;bug_class&#34;: &#34;Cryptographic Trust Bypass / Authentication&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T02:33:19+00:00&#34;,
+  &#34;description&#34;: &#34;In the TOFU trust model, signed_by_utk() and cross_sigs() (g10/tofu.c) decide whether a new key is trusted by scanning certification-signature packets and comparing sig-&gt;keyid against the ultimately-trusted-key list via tdb_keyid_is_utk(). The issuer keyid is an unauthenticated subpacket copied verbatim from the imported key, and neither function calls check_key_signature() to verify the certification. An attacker who appends a fabricated 0x13 certification claiming the victim&#39;s own UTK keyid to their key causes signed_by_utk() to return 1, get_policy() to assign TOFU_POLICY_GOOD, and tofu_get_validity() to return TRUST_FULLY. Default `gpg --import` does not set IMPORT_SELF_SIGS_ONLY or IMPORT_CLEAN, and key_check_all_keysigs() detects the bad signature but never deletes the node, so the forged packet reaches the keyring and the TOFU evaluator. The attacker&#39;s key is then treated as fully trusted with no prompt, letting them pass signature verification and receive encrypted traffic.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;g10/tofu.c:1489&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gpg/gnupg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Generate an attacker keypair for the target identity (e.g. alice@example.org).&#34;,
+    &#34;2. Append a fabricated 0x13 certification signature packet to the attacker key&#39;s UID, setting the Issuer subpacket to the victim&#39;s ultimately-trusted key&#39;s 64-bit keyid (public information).&#34;,
+    &#34;3. Distribute the crafted public key via WKD, LDAP keyserver, email attachment, or any channel leading to `gpg --import` / `--locate-keys`.&#34;,
+    &#34;4. Victim imports the key; default import options do not strip the forged third-party certification.&#34;,
+    &#34;5. On first use, TOFU&#39;s get_policy() → signed_by_utk() matches the forged keyid against the UTK list and sets TOFU_POLICY_GOOD → TRUST_FULLY with no conflict prompt.&#34;,
+    &#34;6. Attacker sends signed messages that `gpg --verify` reports as good with full validity, and/or receives mail encrypted to the attacker key as if it were Alice&#39;s.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;At tofu.c:1508, signed_by_utk() calls tdb_keyid_is_utk(sig-&gt;keyid) — a pure 64-bit keyid comparison against utk_list — on raw signature packets from the keyblock, with sig-&gt;keyid populated verbatim from the attacker-supplied SIGSUBPKT_ISSUER subpacket (parse-packet.c:2267). No check_key_signature()/check_signature_over_key_or_uid() is invoked anywhere in signed_by_utk() or cross_sigs(), so the claimed issuer identity is trusted without any cryptographic verification. merge_selfsigs() only verifies self-sigs, and the import path (chk_self_sigs, delete_inv_parts, key_check_all_keysigs) leaves well-formed third-party certs in the keyblock even when detected as bad, so the forged packet survives to the trust decision.&#34;,
+  &#34;title&#34;: &#34;TOFU trust bypass via forged certification without signature verification&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

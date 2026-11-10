@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-TNDDD6NW · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-TNDDD6NW · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-TNDDD6NW: Stack buffer overflow in mpegts.c pmt_cb via multiple IOD</h1>
+<p>The MPEG-TS PMT parser in libavformat/mpegts.c allocates a fixed 16-entry (1152-byte) Mp4Descr array on the stack and, for each IOD_DESCRIPTOR in the program_info loop, calls mp4_read_iods() with a base pointer offset by the accumulated count but a constant limit of MAX_MP4_DESCR_COUNT (16). mp4_read_iods()/init_MP4DescrParseContext() reset the local descr_count to 0, so the bounds check in parse_MP4ESDescrTag compares 0 against 16 and always passes. A PMT containing two IOD descriptors of 16 ESDescrs each fills slots 0..15 on the first pass and then writes slots 16..31 on the second, overflowing the stack array by 1152 bytes. The bug fires inside avformat_open_input(), so simply running ffprobe on a crafted file is enough to trigger it.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Version:</strong> commit fec2836483 (Oct 2011) through current master<br>
+<strong>Location:</strong> <code>parse_MP4ESDescrTag() at libavformat/mpegts.c:1570; called from pmt_cb() at mpegts.c:2616</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "stack-buffer-overflow WRITE of size 4 at 0x73054bb01b60" in parse_MP4ESDescrTag (mpegts.c:1570). The root cause is that pmt_cb() passes <code>mp4_descr + mp4_descr_count</code> as the destination but still passes the full <code>MAX_MP4_DESCR_COUNT</code> as the limit, and mp4_read_iods() resets its internal counter to 0 and later overwrites (rather than increments) *descr_count. The per-call bounds check <code>d-&gt;descr_count &gt;= d-&gt;max_descr_count</code> therefore never accounts for entries written by earlier IOD descriptors, allowing <code>d-&gt;active_descr = d-&gt;descr + (d-&gt;descr_count++)</code> to point past the end of the stack array.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>==1999653==ERROR: AddressSanitizer: stack-buffer-overflow
+WRITE of size 4 at 0x73054bb01b60 thread T0
+    #0 parse_MP4ESDescrTag libavformat/mpegts.c:1570:28
+    ...
+    #6 pmt_cb libavformat/mpegts.c:2616
+    #7 write_section_data libavformat/mpegts.c:474
+    ...
+    #11 avformat_open_input libavformat/demux.c:323
+  [1760, 2912) 'mp4_descr' (line 2548) &lt;== access at offset 2912 overflows
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an MPEG-TS stream with a PMT whose program_info loop contains two IOD_DESCRIPTOR entries.</li>
+<li>Populate each IOD with 16 ESDescr entries (MAX_MP4_DESCR_COUNT).</li>
+<li>Deliver the file to the target (e.g. upload to a transcoding service, or get a user to run ffprobe/ffmpeg on it).</li>
+<li>avformat_open_input() parses the PMT; the first IOD fills mp4_descr[0..15]; the second IOD receives base = mp4_descr+16 with a fresh limit of 16 and writes mp4_descr[16..31], 1152 bytes past the stack array.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>In mp4_read_iods(), accumulate into the caller's count (<code>*descr_count += d.descr_count</code>) instead of assigning, and in pmt_cb() pass the remaining capacity (<code>MAX_MP4_DESCR_COUNT - mp4_descr_count</code>) rather than the full constant, so subsequent IOD descriptors cannot exceed the stack array. The reporter notes multiple IODs appear to be permitted by ISO/IEC 13818-1:2007 §2.6.40, so rejecting a second IOD outright may not be spec-compliant.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-TNDDD6NW.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-TNDDD6NW<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavformat/mpegts.c b/libavformat/mpegts.c</span>
+<span class="diff-h">index bfbdbf5b19ecd..4b326d309b490 100644</span>
+<span class="diff-h">--- a/libavformat/mpegts.c</span>
+<span class="diff-h">+++ b/libavformat/mpegts.c</span>
+<span class="diff-h">@@ -1703,7 +1703,7 @@ static int mp4_read_iods(AVFormatContext *s, const uint8_t *buf, unsigned size,</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     ret = parse_mp4_descr(&amp;d, avio_tell(&amp;d.pb.pub), size, MP4IODescrTag);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    *descr_count = d.descr_count;</span>
+<span class="diff-a">+    *descr_count += d.descr_count;</span>
+<span class="diff-c">     return ret;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -2614,7 +2614,7 @@ static void pmt_cb(MpegTSFilter *filter, const uint8_t *section, int section_len</span>
+<span class="diff-c">             get8(&amp;p, p_end); // label</span>
+<span class="diff-c">             len -= 2;</span>
+<span class="diff-c">             mp4_read_iods(ts-&gt;stream, p, len, mp4_descr + mp4_descr_count,</span>
+<span class="diff-d">-                          &amp;mp4_descr_count, MAX_MP4_DESCR_COUNT);</span>
+<span class="diff-a">+                          &amp;mp4_descr_count, MAX_MP4_DESCR_COUNT - mp4_descr_count);</span>
+<span class="diff-c">         } else if (tag == REGISTRATION_DESCRIPTOR &amp;&amp; len &gt;= 4) {</span>
+<span class="diff-c">             prog_reg_desc = bytestream_get_le32(&amp;p);</span>
+<span class="diff-c">             len -= 4;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/3e8bec7871bae6722f8f615020374c1b53de7b56" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/3e8bec7871bae6722f8f615020374c1b53de7b56</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-15</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">1698abbbbb54be9a701346efecbae99f089ad37494c6efe9e4b5a6cba6dfa9c4a944cefeffb2e5aa3c4062b59a43bac96e496d8c2b07e7adee79652d48c85af5</p>
+<p class="kicker">Committed 2026-03-15 12:36 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:41 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-TNDDD6NW-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-TNDDD6NW%22%2C%22bug_class%22%3A%22Stack%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A41%3A34%2B00%3A00%22%2C%22description%22%3A%22The%20MPEG-TS%20PMT%20parser%20in%20libavformat/mpegts.c%20allocates%20a%20fixed%2016-entry%20%281152-byte%29%20Mp4Descr%20array%20on%20the%20stack%20and%2C%20for%20each%20IOD_DESCRIPTOR%20in%20the%20program_info%20loop%2C%20calls%20mp4_read_iods%28%29%20with%20a%20base%20pointer%20offset%20by%20the%20accumulated%20count%20but%20a%20constant%20limit%20of%20MAX_MP4_DESCR_COUNT%20%2816%29.%20mp4_read_iods%28%29/init_MP4DescrParseContext%28%29%20reset%20the%20local%20descr_count%20to%200%2C%20so%20the%20bounds%20check%20in%20parse_MP4ESDescrTag%20compares%200%20against%2016%20and%20always%20passes.%20A%20PMT%20containing%20two%20IOD%20descriptors%20of%2016%20ESDescrs%20each%20fills%20slots%200..15%20on%20the%20first%20pass%20and%20then%20writes%20slots%2016..31%20on%20the%20second%2C%20overflowing%20the%20stack%20array%20by%201152%20bytes.%20The%20bug%20fires%20inside%20avformat_open_input%28%29%2C%20so%20simply%20running%20ffprobe%20on%20a%20crafted%20file%20is%20enough%20to%20trigger%20it.%22%2C%22discovered_at%22%3A%222026-03-15T12%3A36%3A50%2B00%3A00%22%2C%22location%22%3A%22parse_MP4ESDescrTag%28%29%20at%20libavformat/mpegts.c%3A1570%3B%20called%20from%20pmt_cb%28%29%20at%20mpegts.c%3A2616%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20MPEG-TS%20stream%20with%20a%20PMT%20whose%20program_info%20loop%20contains%20two%20IOD_DESCRIPTOR%20entries.%22%2C%222.%20Populate%20each%20IOD%20with%2016%20ESDescr%20entries%20%28MAX_MP4_DESCR_COUNT%29.%22%2C%223.%20Deliver%20the%20file%20to%20the%20target%20%28e.g.%20upload%20to%20a%20transcoding%20service%2C%20or%20get%20a%20user%20to%20run%20ffprobe/ffmpeg%20on%20it%29.%22%2C%224.%20avformat_open_input%28%29%20parses%20the%20PMT%3B%20the%20first%20IOD%20fills%20mp4_descr%5B0..15%5D%3B%20the%20second%20IOD%20receives%20base%20%3D%20mp4_descr%2B16%20with%20a%20fresh%20limit%20of%2016%20and%20writes%20mp4_descr%5B16..31%5D%2C%201152%20bytes%20past%20the%20stack%20array.%22%5D%2C%22technical_details%22%3A%22Hi%20--%5Cn%5CnI%27ve%20got%20another%20vulnerability%20with%20Claude.%20This%20one%20is%20in%20the%20MPEG-TS%5Cn%5CnPMT%20parser%20and%20dates%20to%20fec2836483%20%28from%20October%202011%29.%5Cn%5CnIt%20fires%20inside%20avformat_open_input%2C%20so%20again%20ffprobe%20alone%20triggers%20it%3A%5Cn%5Cn%20%20ffprobe%20attack.mp4%5Cn%5CnThe%20bug%20is%20in%20pmt_cb%28%29%2C%20in%20libavformat/mpegts.c.%20The%20PMT%20program_info%5Cn%5Cnloop%20walks%20the%20list%20of%20descriptors%2C%20and%20for%20each%20IOD_DESCRIPTOR%20it%5Cn%5Cncalls%20mp4_read_iods%28%29%3A%5Cn%5Cn%20%20//%20mpegts.c%5Cn%5Cn%20%20int%20mp4_descr_count%20%3D%200%3B%5Cn%5Cn%20%20Mp4Descr%20mp4_descr%5BMAX_MP4_DESCR_COUNT%5D%20%3D%20%7B%20%7B%200%20%7D%20%7D%3B%20%20//%2016%20%2A%2072%20%3D%201152B%20stack%5Cn%5Cn%20%20...%5Cn%5Cn%20%20if%20%28tag%20%3D%3D%20IOD_DESCRIPTOR%20%26%26%20len%20%3E%3D%202%29%20%7B%5Cn%5Cn%20%20%20%20%20%20...%5Cn%5Cn%20%20%20%20%20%20mp4_read_iods%28ts-%3Estream%2C%20p%2C%20len%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20mp4_descr%20%2B%20mp4_descr_count%2C%20%20%20%20//%20base%20shifts%20forward%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%26mp4_descr_count%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20MAX_MP4_DESCR_COUNT%29%3B%20%20%20%20%20%20%20%20%20%20%20//%20but%20limit%20stays%20at%2016%5Cn%5Cn%20%20%7D%5Cn%5CnIn%20the%20code%20above%2C%20the%20base%20pointer%20advances%20by%20the%20running%20count%2C%20but%5Cn%5Cnthe%20capacity%20argument%20is%20always%2016.%20Inside%2C%20mp4_read_iods%28%29%20resets%20its%5Cn%5Cnown%20counter%20to%200%20and%20the%20bounds%20check%20compares%20that%20against%2016%3A%5Cn%5Cn%20%20//%20init_MP4DescrParseContext%5Cn%5Cn%20%20d-%3Edescr_count%20%3D%200%3B%5Cn%5Cn%20%20//%20parse_MP4ESDescrTag%5Cn%5Cn%20%20if%20%28d-%3Edescr_count%20%3E%3D%20d-%3Emax_descr_count%29%20%20%20//%200%20%3E%3D%2016%3F%5Cn%5Cn%20%20%20%20%20%20return%20AVERROR_INVALIDDATA%3B%5Cn%5Cn%20%20d-%3Eactive_descr%20%3D%20d-%3Edescr%20%2B%20%28d-%3Edescr_count%2B%2B%29%3B%5Cn%5Cn%20%20d-%3Eactive_descr-%3Ees_id%20%3D%20es_id%3B%20%20%20%20%20%20%20%20%20%20%20%20%20//%20OOB%20write%5Cn%5CnThe%20PoC%20creates%20a%20PMT%20with%20two%20IOD%20descriptors%20of%2016%20ESDescrs%20each.%5Cn%5CnThe%20first%20fills%20mp4_descr%5B0..15%5D%2C%20and%20the%20second%20gets%20base%20%3D%20mp4_descr%5Cn%5Cn%2B%2016%20with%20a%20fresh%20count%20of%200%20and%20writes%20mp4_descr%5B16..31%5D.%20Every%20write%5Cn%5Cnin%20the%20second%20IOD%20is%20past%20the%20end%20of%20the%20stack%20array%2C%20for%201152%20bytes%5Cn%5Cntotal.%5Cn%5CnI%27ve%20tested%20against%20the%20current%20master%20and%20hit%20an%20ASAN%20again%3A%5Cn%5Cn%20%20%3D%3D1999653%3D%3DERROR%3A%20AddressSanitizer%3A%20stack-buffer-overflow%5Cn%5Cn%20%20WRITE%20of%20size%204%20at%200x73054bb01b60%20thread%20T0%5Cn%5Cn%20%20%20%20%20%20%230%20parse_MP4ESDescrTag%20libavformat/mpegts.c%3A1570%3A28%5Cn%5Cn%20%20%20%20%20%20...%5Cn%5Cn%20%20%20%20%20%20%236%20pmt_cb%20libavformat/mpegts.c%3A2616%5Cn%5Cn%20%20%20%20%20%20%237%20write_section_data%20libavformat/mpegts.c%3A474%5Cn%5Cn%20%20%20%20%20%20...%5Cn%5Cn%20%20%20%20%20%20%2311%20avformat_open_input%20libavformat/demux.c%3A323%5Cn%5Cn%20%20%20%20%5B1760%2C%202912%29%20%27mp4_descr%27%20%28line%202548%29%20%3C%3D%3D%20access%20at%20offset%202912%20overflows%5Cn%5CnI%27m%20unsure%20again%20exactly%20how%20you%20would%20prefer%20a%20fix.%20It%20looks%20like%5Cn%5Cnmultiple%20IODs%20are%20required%20by%20the%20spec%20%28if%20I%27m%20reading%20ISO/IEC%5Cn%5Cn13818-1%3A2007%20sec%202.6.40%20right%29%2C%20so%20I%27m%20not%20really%20sure%20the%20best%20way%20to%5Cn%5Cnhandle%20this.%5Cn%5CnOne%20way%20would%20be%20to%20increment%20the%20count%20%28instead%20of%20just%20assign%29%20and%5Cn%5Cnthen%20offset%20in%20the%20calls%20to%20read.%20I%27m%20not%20sure%20if%20this%20is%20a%20fix%20that%5Cn%5Cnyou%27d%20like%2C%20but%20it%20does%20prevent%20the%20PoC.%5Cn%5Cndiff%20--git%20a/libavformat/mpegts.c%20b/libavformat/mpegts.c%5Cn%5Cnindex%20bfbdbf5b19..4b326d309b%20100644%5Cn%5Cn---%20a/libavformat/mpegts.c%5Cn%5Cn%2B%2B%2B%20b/libavformat/mpegts.c%5Cn%5Cn%40%40%20-1703%2C7%20%2B1703%2C7%20%40%40%20static%20int%20mp4_read_iods%28AVFormatContext%20%2As%2C%5Cn%5Cnconst%20uint8_t%20%2Abuf%2C%20unsigned%20size%2C%5Cn%5Cn%20%20%20%20%20ret%20%3D%20parse_mp4_descr%28%26d%2C%20avio_tell%28%26d.pb.pub%29%2C%20size%2C%20MP4IODescrTag%29%3B%5Cn%5Cn-%20%20%20%20%2Adescr_count%20%3D%20d.descr_count%3B%5Cn%5Cn%2B%20%20%20%20%2Adescr_count%20%2B%3D%20d.descr_count%3B%5Cn%5Cn%20%20%20%20%20return%20ret%3B%5Cn%5Cn%20%7D%5Cn%5Cn%40%40%20-2614%2C7%20%2B2614%2C7%20%40%40%20static%20void%20pmt_cb%28MpegTSFilter%20%2Afilter%2C%20const%5Cn%5Cnuint8_t%20%2Asection%2C%20int%20section_len%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20get8%28%26p%2C%20p_end%29%3B%20//%20label%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20len%20-%3D%202%3B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20mp4_read_iods%28ts-%3Estream%2C%20p%2C%20len%2C%20mp4_descr%20%2B%20mp4_descr_count%2C%5Cn%5Cn-%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%26mp4_descr_count%2C%20MAX_MP4_DESCR_COUNT%29%3B%5Cn%5Cn%2B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%26mp4_descr_count%2C%20MAX_MP4_DESCR_COUNT%20-%5Cn%5Cnmp4_descr_count%29%3B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%7D%20else%20if%20%28tag%20%3D%3D%20REGISTRATION_DESCRIPTOR%20%26%26%20len%20%3E%3D%204%29%20%7B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20prog_reg_desc%20%3D%20bytestream_get_le32%28%26p%29%3B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20len%20-%3D%204%3B%5Cn%5CnThanks%2C%5Cn%5CnNicholas%22%2C%22title%22%3A%22Stack%20buffer%20overflow%20in%20mpegts.c%20pmt_cb%20via%20multiple%20IOD%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-TNDDD6NW&#34;,
+  &#34;bug_class&#34;: &#34;Stack Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:41:34+00:00&#34;,
+  &#34;description&#34;: &#34;The MPEG-TS PMT parser in libavformat/mpegts.c allocates a fixed 16-entry (1152-byte) Mp4Descr array on the stack and, for each IOD_DESCRIPTOR in the program_info loop, calls mp4_read_iods() with a base pointer offset by the accumulated count but a constant limit of MAX_MP4_DESCR_COUNT (16). mp4_read_iods()/init_MP4DescrParseContext() reset the local descr_count to 0, so the bounds check in parse_MP4ESDescrTag compares 0 against 16 and always passes. A PMT containing two IOD descriptors of 16 ESDescrs each fills slots 0..15 on the first pass and then writes slots 16..31 on the second, overflowing the stack array by 1152 bytes. The bug fires inside avformat_open_input(), so simply running ffprobe on a crafted file is enough to trigger it.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-15T12:36:50+00:00&#34;,
+  &#34;location&#34;: &#34;parse_MP4ESDescrTag() at libavformat/mpegts.c:1570; called from pmt_cb() at mpegts.c:2616&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an MPEG-TS stream with a PMT whose program_info loop contains two IOD_DESCRIPTOR entries.&#34;,
+    &#34;2. Populate each IOD with 16 ESDescr entries (MAX_MP4_DESCR_COUNT).&#34;,
+    &#34;3. Deliver the file to the target (e.g. upload to a transcoding service, or get a user to run ffprobe/ffmpeg on it).&#34;,
+    &#34;4. avformat_open_input() parses the PMT; the first IOD fills mp4_descr[0..15]; the second IOD receives base = mp4_descr+16 with a fresh limit of 16 and writes mp4_descr[16..31], 1152 bytes past the stack array.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Hi --\n\nI&#39;ve got another vulnerability with Claude. This one is in the MPEG-TS\n\nPMT parser and dates to fec2836483 (from October 2011).\n\nIt fires inside avformat_open_input, so again ffprobe alone triggers it:\n\n  ffprobe attack.mp4\n\nThe bug is in pmt_cb(), in libavformat/mpegts.c. The PMT program_info\n\nloop walks the list of descriptors, and for each IOD_DESCRIPTOR it\n\ncalls mp4_read_iods():\n\n  // mpegts.c\n\n  int mp4_descr_count = 0;\n\n  Mp4Descr mp4_descr[MAX_MP4_DESCR_COUNT] = { { 0 } };  // 16 * 72 = 1152B stack\n\n  ...\n\n  if (tag == IOD_DESCRIPTOR &amp;&amp; len &gt;= 2) {\n\n      ...\n\n      mp4_read_iods(ts-&gt;stream, p, len,\n\n                    mp4_descr + mp4_descr_count,    // base shifts forward\n\n                    &amp;mp4_descr_count,\n\n                    MAX_MP4_DESCR_COUNT);           // but limit stays at 16\n\n  }\n\nIn the code above, the base pointer advances by the running count, but\n\nthe capacity argument is always 16. Inside, mp4_read_iods() resets its\n\nown counter to 0 and the bounds check compares that against 16:\n\n  // init_MP4DescrParseContext\n\n  d-&gt;descr_count = 0;\n\n  // parse_MP4ESDescrTag\n\n  if (d-&gt;descr_count &gt;= d-&gt;max_descr_count)   // 0 &gt;= 16?\n\n      return AVERROR_INVALIDDATA;\n\n  d-&gt;active_descr = d-&gt;descr + (d-&gt;descr_count++);\n\n  d-&gt;active_descr-&gt;es_id = es_id;             // OOB write\n\nThe PoC creates a PMT with two IOD descriptors of 16 ESDescrs each.\n\nThe first fills mp4_descr[0..15], and the second gets base = mp4_descr\n\n+ 16 with a fresh count of 0 and writes mp4_descr[16..31]. Every write\n\nin the second IOD is past the end of the stack array, for 1152 bytes\n\ntotal.\n\nI&#39;ve tested against the current master and hit an ASAN again:\n\n  ==1999653==ERROR: AddressSanitizer: stack-buffer-overflow\n\n  WRITE of size 4 at 0x73054bb01b60 thread T0\n\n      #0 parse_MP4ESDescrTag libavformat/mpegts.c:1570:28\n\n      ...\n\n      #6 pmt_cb libavformat/mpegts.c:2616\n\n      #7 write_section_data libavformat/mpegts.c:474\n\n      ...\n\n      #11 avformat_open_input libavformat/demux.c:323\n\n    [1760, 2912) &#39;mp4_descr&#39; (line 2548) &lt;== access at offset 2912 overflows\n\nI&#39;m unsure again exactly how you would prefer a fix. It looks like\n\nmultiple IODs are required by the spec (if I&#39;m reading ISO/IEC\n\n13818-1:2007 sec 2.6.40 right), so I&#39;m not really sure the best way to\n\nhandle this.\n\nOne way would be to increment the count (instead of just assign) and\n\nthen offset in the calls to read. I&#39;m not sure if this is a fix that\n\nyou&#39;d like, but it does prevent the PoC.\n\ndiff --git a/libavformat/mpegts.c b/libavformat/mpegts.c\n\nindex bfbdbf5b19..4b326d309b 100644\n\n--- a/libavformat/mpegts.c\n\n+++ b/libavformat/mpegts.c\n\n@@ -1703,7 +1703,7 @@ static int mp4_read_iods(AVFormatContext *s,\n\nconst uint8_t *buf, unsigned size,\n\n     ret = parse_mp4_descr(&amp;d, avio_tell(&amp;d.pb.pub), size, MP4IODescrTag);\n\n-    *descr_count = d.descr_count;\n\n+    *descr_count += d.descr_count;\n\n     return ret;\n\n }\n\n@@ -2614,7 +2614,7 @@ static void pmt_cb(MpegTSFilter *filter, const\n\nuint8_t *section, int section_len\n\n             get8(&amp;p, p_end); // label\n\n             len -= 2;\n\n             mp4_read_iods(ts-&gt;stream, p, len, mp4_descr + mp4_descr_count,\n\n-                          &amp;mp4_descr_count, MAX_MP4_DESCR_COUNT);\n\n+                          &amp;mp4_descr_count, MAX_MP4_DESCR_COUNT -\n\nmp4_descr_count);\n\n         } else if (tag == REGISTRATION_DESCRIPTOR &amp;&amp; len &gt;= 4) {\n\n             prog_reg_desc = bytestream_get_le32(&amp;p);\n\n             len -= 4;\n\nThanks,\n\nNicholas&#34;,
+  &#34;title&#34;: &#34;Stack buffer overflow in mpegts.c pmt_cb via multiple IOD&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

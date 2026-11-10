@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-CRFDC4JM",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-CRFDC4JM.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-CRFDC4JM",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:05:46Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 16880,
+      "sha256": "702a27031bcee3b375fe798145a8a33590cd5a1ba5d97419dd63e1e845122c66",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:05:47 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=rRl%2BGU5l6A8QmFbOPNCRZIF9FxcUAS1JLSoTAyC%2F4mqmoVb3JtBY6MyFbHf3PDgXAagJZ3ZaN9fseNQgz%2F2coMw7Bne75RE5%2BW6wfq2Rs5yL4D70VSxsmJx%2BohIXirVwsqb%2FkA%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a588046c2a6ca473-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-CRFDC4JM/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-CRFDC4JM/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:05:46Z",
+      "size_bytes": 2206,
+      "sha256": "d6adc4f56896d3a408e8babb1b9b174d1b9b2b051a2aad1b827d3e3248728f85",
+      "stored_at": "cards/ANT-2026-CRFDC4JM/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

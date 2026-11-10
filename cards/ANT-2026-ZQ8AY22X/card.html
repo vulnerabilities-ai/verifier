@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-ZQ8AY22X · craftcms/cms</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-ZQ8AY22X · craftcms/cms</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://github.com/advisories/GHSA-cc7p-2j3x-x7xf">GHSA-cc7p-2j3x-x7xf</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-ZQ8AY22X: Privilege Escalation/Bypass through UsersController-&gt;actionImpersonateWithToken()</h1>
+<p>Craft CMS's actionPreview() re-dispatches requests with $skipSpecialHandling=true and $checkToken=false, allowing an attacker-supplied action query parameter to redirect execution to UsersController::actionImpersonateWithToken(). That endpoint's only guard, requireToken(), merely checks the boolean _hadToken set when the preview token was resolved, without verifying the token was minted for impersonation. Because the action is also listed in $allowAnonymous, no prior authentication is enforced. An editor (or anyone holding a shared preview URL) can therefore append &amp;action=users/impersonate-with-token&amp;userId=1&amp;prevUserId=1 to a preview URL and be logged in as user 1 (admin).</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> craftcms/cms<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Root cause is a confused-deputy between the preview dispatcher and the impersonation endpoint: actionPreview() passes $skipSpecialHandling=true to handleRequest() and $checkToken=false to checkIfActionRequest(), so security guards are skipped and the action parameter is attacker-controlled. requireToken() on actionImpersonateWithToken() only inspects _hadToken (set for any valid token) rather than validating that the token was issued for this route, and the action is in $allowAnonymous, so no further authorization occurs.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-ZQ8AY22X.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-ZQ8AY22X<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/CHANGELOG.md b/CHANGELOG.md</span>
+<span class="diff-h">index 9a940756613..ddca7497e41 100644</span>
+<span class="diff-h">--- a/CHANGELOG.md</span>
+<span class="diff-h">+++ b/CHANGELOG.md</span>
+<span class="diff-h">@@ -1,5 +1,11 @@</span>
+<span class="diff-c"> # Release Notes for Craft CMS 4</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+## Unreleased</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+- Added `craft\services\Tokens::getRemainingTokenUsages()`.</span>
+<span class="diff-a">+- Added `craft\web\Request::getTokenRoute()`.</span>
+<span class="diff-a">+- Fixed a [high-severity](https://github.com/craftcms/cms/security/policy#severity--remediation) permission escalation vulnerability. (GHSA-cc7p-2j3x-x7xf)</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> ## 4.17.5 - 2026-02-17</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> - Added `craft\web\Request::getWantsImage()`.</span>
+<span class="diff-h">diff --git a/src/helpers/UrlHelper.php b/src/helpers/UrlHelper.php</span>
+<span class="diff-h">index c29f01f2a6a..737b3b90443 100644</span>
+<span class="diff-h">--- a/src/helpers/UrlHelper.php</span>
+<span class="diff-h">+++ b/src/helpers/UrlHelper.php</span>
+<span class="diff-h">@@ -658,9 +658,15 @@ private static function _createUrl(</span>
+<span class="diff-c">                 $params[$generalConfig-&gt;siteToken] = $siteToken;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c">             if ($request-&gt;getIsSiteRequest()) {</span>
+<span class="diff-d">-                if ($addToken &amp;&amp; !isset($params[$generalConfig-&gt;tokenParam]) &amp;&amp; ($token = $request-&gt;getToken()) !== null) {</span>
+<span class="diff-a">+                if (</span>
+<span class="diff-a">+                    $addToken &amp;&amp;</span>
+<span class="diff-a">+                    !isset($params[$generalConfig-&gt;tokenParam]) &amp;&amp;</span>
+<span class="diff-a">+                    ($token = $request-&gt;getToken()) !== null &amp;&amp;</span>
+<span class="diff-a">+                    Craft::$app-&gt;getTokens()-&gt;getRemainingTokenUsages($token) !== 0</span>
+<span class="diff-a">+                ) {</span>
+<span class="diff-c">                     $params[$generalConfig-&gt;tokenParam] = $token;</span>
+<span class="diff-c">                 }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">                 if (</span>
+<span class="diff-c">                     !isset($params[&#x27;x-craft-preview&#x27;]) &amp;&amp;</span>
+<span class="diff-c">                     !isset($params[&#x27;x-craft-live-preview&#x27;]) &amp;&amp;</span>
+<span class="diff-h">diff --git a/src/services/Tokens.php b/src/services/Tokens.php</span>
+<span class="diff-h">index 37dff3c34b0..a3cb272a6d7 100644</span>
+<span class="diff-h">--- a/src/services/Tokens.php</span>
+<span class="diff-h">+++ b/src/services/Tokens.php</span>
+<span class="diff-h">@@ -34,6 +34,12 @@ class Tokens extends Component</span>
+<span class="diff-c">      */</span>
+<span class="diff-c">     private bool $_deletedExpiredTokens = false;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /**</span>
+<span class="diff-a">+     * @var array&lt;string,int|null&gt;</span>
+<span class="diff-a">+     * @see getRemainingTokenUsages()</span>
+<span class="diff-a">+     */</span>
+<span class="diff-a">+    private array $_remainingTokenUsages = [];</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /**</span>
+<span class="diff-c">      * Creates a new token and returns it.</span>
+<span class="diff-c">      * ---</span>
+<span class="diff-h">@@ -137,24 +143,25 @@ public function getTokenRoute(string $token): array|false</span>
+<span class="diff-c">                 -&gt;one();</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             if (!$result) {</span>
+<span class="diff-d">-                // Remove it from the request  so it doesn’t get added to generated URLs</span>
+<span class="diff-d">-                Craft::$app-&gt;getRequest()-&gt;setToken(null);</span>
+<span class="diff-a">+                $this-&gt;_remainingTokenUsages[$token] = 0;</span>
+<span class="diff-c">                 return false;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             // Usage limit enforcement (for future requests)</span>
+<span class="diff-c">             if ($result[&#x27;usageLimit&#x27;]) {</span>
+<span class="diff-c">                 // Does it have any more life after this?</span>
+<span class="diff-d">-                if ($result[&#x27;usageCount&#x27;] &lt; $result[&#x27;usageLimit&#x27;] - 1) {</span>
+<span class="diff-a">+                $newUsageCount = $result[&#x27;usageCount&#x27;] + 1;</span>
+<span class="diff-a">+                if ($newUsageCount &lt; $result[&#x27;usageLimit&#x27;]) {</span>
+<span class="diff-c">                     // Increment its count</span>
+<span class="diff-c">                     $this-&gt;incrementTokenUsageCountById($result[&#x27;id&#x27;]);</span>
+<span class="diff-a">+                    $this-&gt;_remainingTokenUsages[$token] = $result[&#x27;usageLimit&#x27;] - $newUsageCount;</span>
+<span class="diff-c">                 } else {</span>
+<span class="diff-c">                     // Just delete it</span>
+<span class="diff-c">                     $this-&gt;deleteTokenById($result[&#x27;id&#x27;]);</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-                    // Remove it from the request as well so it doesn’t get added to generated URLs</span>
+<span class="diff-d">-                    Craft::$app-&gt;getRequest()-&gt;setToken(null);</span>
+<span class="diff-a">+                    $this-&gt;_remainingTokenUsages[$token] = 0;</span>
+<span class="diff-c">                 }</span>
+<span class="diff-a">+            } else {</span>
+<span class="diff-a">+                $this-&gt;_remainingTokenUsages[$token] = null;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             return (array)Json::decodeIfJson($result[&#x27;route&#x27;]);</span>
+<span class="diff-h">@@ -163,6 +170,36 @@ public function getTokenRoute(string $token): array|false</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /**</span>
+<span class="diff-a">+     * Returns the remaining usage count for a given token, if it has a limit.</span>
+<span class="diff-a">+     *</span>
+<span class="diff-a">+     * @param string $token</span>
+<span class="diff-a">+     * @return int|null</span>
+<span class="diff-a">+     * @since 4.17.6</span>
+<span class="diff-a">+     */</span>
+<span class="diff-a">+    public function getRemainingTokenUsages(string $token): ?int</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        if (!array_key_exists($token, $this-&gt;_remainingTokenUsages)) {</span>
+<span class="diff-a">+            $result = (new Query())</span>
+<span class="diff-a">+                -&gt;select([&#x27;usageLimit&#x27;, &#x27;usageCount&#x27;])</span>
+<span class="diff-a">+                -&gt;from([Table::TOKENS])</span>
+<span class="diff-a">+                -&gt;where([&#x27;token&#x27; =&gt; $token])</span>
+<span class="diff-a">+                -&gt;one();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+            if ($result) {</span>
+<span class="diff-a">+                if ($result[&#x27;usageLimit&#x27;]) {</span>
+<span class="diff-a">+                    $this-&gt;_remainingTokenUsages[$token] = $result[&#x27;usageLimit&#x27;] - $result[&#x27;usageCount&#x27;];</span>
+<span class="diff-a">+                } else {</span>
+<span class="diff-a">+                    $this-&gt;_remainingTokenUsages[$token] = null;</span>
+<span class="diff-a">+                }</span>
+<span class="diff-a">+            } else {</span>
+<span class="diff-a">+                $this-&gt;_remainingTokenUsages[$token] = 0;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        return $this-&gt;_remainingTokenUsages[$token];</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /**</span>
+<span class="diff-c">      * Increments a token&#x27;s usage count.</span>
+<span class="diff-c">      *</span>
+<span class="diff-h">diff --git a/src/web/Controller.php b/src/web/Controller.php</span>
+<span class="diff-h">index a5c16a9281f..9c7b5f9da63 100644</span>
+<span class="diff-h">--- a/src/web/Controller.php</span>
+<span class="diff-h">+++ b/src/web/Controller.php</span>
+<span class="diff-h">@@ -526,7 +526,8 @@ public function requireAcceptsJson(): void</span>
+<span class="diff-c">      */</span>
+<span class="diff-c">     public function requireToken(): void</span>
+<span class="diff-c">     {</span>
+<span class="diff-d">-        if (!$this-&gt;request-&gt;getHadToken()) {</span>
+<span class="diff-a">+        $tokenRoute = $this-&gt;request-&gt;getTokenRoute()[0] ?? null;</span>
+<span class="diff-a">+        if ($tokenRoute !== $this-&gt;getRoute()) {</span>
+<span class="diff-c">             throw new BadRequestHttpException(&#x27;Valid token required&#x27;);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">diff --git a/src/web/Request.php b/src/web/Request.php</span>
+<span class="diff-h">index f854e2081a2..a5b36d5730a 100644</span>
+<span class="diff-h">--- a/src/web/Request.php</span>
+<span class="diff-h">+++ b/src/web/Request.php</span>
+<span class="diff-h">@@ -17,6 +17,7 @@</span>
+<span class="diff-c"> use craft\helpers\StringHelper;</span>
+<span class="diff-c"> use craft\models\Site;</span>
+<span class="diff-c"> use craft\services\Sites;</span>
+<span class="diff-a">+use craft\services\Tokens;</span>
+<span class="diff-c"> use yii\base\InvalidArgumentException;</span>
+<span class="diff-c"> use yii\base\InvalidConfigException;</span>
+<span class="diff-c"> use yii\db\Exception as DbException;</span>
+<span class="diff-h">@@ -197,6 +198,12 @@ class Request extends \yii\web\Request</span>
+<span class="diff-c">      */</span>
+<span class="diff-c">     public ?string $_token = null;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /**</span>
+<span class="diff-a">+     * @var array|null</span>
+<span class="diff-a">+     * @see getTokenRoute()</span>
+<span class="diff-a">+     */</span>
+<span class="diff-a">+    public ?array $_tokenRoute = null;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /**</span>
+<span class="diff-c">      * @inheritdoc</span>
+<span class="diff-c">      */</span>
+<span class="diff-h">@@ -510,7 +517,7 @@ public function getHadToken(): bool</span>
+<span class="diff-c">      *</span>
+<span class="diff-c">      * @return string|null The token, or `null` if there isn’t one.</span>
+<span class="diff-c">      * @throws BadRequestHttpException if an invalid token is supplied</span>
+<span class="diff-d">-     * @see \craft\services\Tokens::createToken()</span>
+<span class="diff-a">+     * @see Tokens::createToken()</span>
+<span class="diff-c">      * @see Controller::requireToken()</span>
+<span class="diff-c">      */</span>
+<span class="diff-c">     public function getToken(): ?string</span>
+<span class="diff-h">@@ -519,6 +526,21 @@ public function getToken(): ?string</span>
+<span class="diff-c">         return $this-&gt;_token;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    /**</span>
+<span class="diff-a">+     * Returns the route the request’s token resolves to.</span>
+<span class="diff-a">+     *</span>
+<span class="diff-a">+     * @return array|null The route, or `null` if there isn’t one.</span>
+<span class="diff-a">+     * @throws BadRequestHttpException if an invalid token is supplied</span>
+<span class="diff-a">+     * @see getToken())</span>
+<span class="diff-a">+     * @see Tokens::createToken()</span>
+<span class="diff-a">+     * @since 4.17.6</span>
+<span class="diff-a">+     */</span>
+<span class="diff-a">+    public function getTokenRoute(): ?array</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $this-&gt;_findToken();</span>
+<span class="diff-a">+        return $this-&gt;_tokenRoute;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     /**</span>
+<span class="diff-c">      * Sets the token value.</span>
+<span class="diff-c">      *</span>
+<span class="diff-h">@@ -549,10 +571,17 @@ private function _findToken(): void</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         $this-&gt;_token = ($this-&gt;getQueryParam($this-&gt;generalConfig-&gt;tokenParam) ?? $this-&gt;getHeaders()-&gt;get(&#x27;X-Craft-Token&#x27;)) ?: null;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        if ($this-&gt;_token &amp;&amp; !preg_match(&#x27;/^[A-Za-z0-9_-]+$/&#x27;, $this-&gt;_token)) {</span>
+<span class="diff-d">-            $this-&gt;_token = null;</span>
+<span class="diff-d">-            $this-&gt;_hadToken = false;</span>
+<span class="diff-d">-            throw new BadRequestHttpException(&#x27;Invalid token&#x27;);</span>
+<span class="diff-a">+        if ($this-&gt;_token) {</span>
+<span class="diff-a">+            if (!preg_match(&#x27;/^[A-Za-z0-9_-]+$/&#x27;, $this-&gt;_token)) {</span>
+<span class="diff-a">+                $this-&gt;_token = null;</span>
+<span class="diff-a">+                $this-&gt;_hadToken = false;</span>
+<span class="diff-a">+                throw new BadRequestHttpException(&#x27;Invalid token&#x27;);</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+            $this-&gt;_tokenRoute = Craft::$app-&gt;getTokens()-&gt;getTokenRoute($this-&gt;_token) ?: null;</span>
+<span class="diff-a">+            if (!$this-&gt;_tokenRoute) {</span>
+<span class="diff-a">+                $this-&gt;_token = null;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-c">         }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         $this-&gt;_hadToken = isset($this-&gt;_token);</span>
+<span class="diff-h">diff --git a/src/web/UrlManager.php b/src/web/UrlManager.php</span>
+<span class="diff-h">index 9af83c76b5d..4c3e2f9b0a2 100644</span>
+<span class="diff-h">--- a/src/web/UrlManager.php</span>
+<span class="diff-h">+++ b/src/web/UrlManager.php</span>
+<span class="diff-h">@@ -548,6 +548,7 @@ private function _getTokenRoute(Request $request): array|false</span>
+<span class="diff-c">         }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         $token = $request-&gt;getToken();</span>
+<span class="diff-a">+        $route = $request-&gt;getTokenRoute();</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         if (App::devMode()) {</span>
+<span class="diff-c">             Craft::debug([</span>
+<span class="diff-h">@@ -557,10 +558,6 @@ private</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/craftcms/cms/commit/6301e217c5f15617d939c432cb770db50af14b33" rel="noopener noreferrer">https://github.com/craftcms/cms/commit/6301e217c5f15617d939c432cb770db50af14b33</a></p>
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/craftcms/cms/security/advisories/GHSA-cc7p-2j3x-x7xf" rel="noopener noreferrer">https://github.com/craftcms/cms/security/advisories/GHSA-cc7p-2j3x-x7xf</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-18</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-18</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">dc75439eef02f2f72ba1440db7ca5fbae9599c252caba20b38f6b5c634fae74db645c91470b08c00012cc38b7353a9a7f79f52cf703bb1a668c6df7682c8907f</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-ZQ8AY22X-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-ZQ8AY22X%22%2C%22bug_class%22%3A%22privilege-escalation%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A35%2B00%3A00%22%2C%22description%22%3A%22Craft%20CMS%27s%20actionPreview%28%29%20re-dispatches%20requests%20with%20%24skipSpecialHandling%3Dtrue%20and%20%24checkToken%3Dfalse%2C%20allowing%20an%20attacker-supplied%20action%20query%20parameter%20to%20redirect%20execution%20to%20UsersController%3A%3AactionImpersonateWithToken%28%29.%20That%20endpoint%27s%20only%20guard%2C%20requireToken%28%29%2C%20merely%20checks%20the%20boolean%20_hadToken%20set%20when%20the%20preview%20token%20was%20resolved%2C%20without%20verifying%20the%20token%20was%20minted%20for%20impersonation.%20Because%20the%20action%20is%20also%20listed%20in%20%24allowAnonymous%2C%20no%20prior%20authentication%20is%20enforced.%20An%20editor%20%28or%20anyone%20holding%20a%20shared%20preview%20URL%29%20can%20therefore%20append%20%26action%3Dusers/impersonate-with-token%26userId%3D1%26prevUserId%3D1%20to%20a%20preview%20URL%20and%20be%20logged%20in%20as%20user%201%20%28admin%29.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22CraftCMS%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22Root%20cause%20is%20a%20confused-deputy%20between%20the%20preview%20dispatcher%20and%20the%20impersonation%20endpoint%3A%20actionPreview%28%29%20passes%20%24skipSpecialHandling%3Dtrue%20to%20handleRequest%28%29%20and%20%24checkToken%3Dfalse%20to%20checkIfActionRequest%28%29%2C%20so%20security%20guards%20are%20skipped%20and%20the%20action%20parameter%20is%20attacker-controlled.%20requireToken%28%29%20on%20actionImpersonateWithToken%28%29%20only%20inspects%20_hadToken%20%28set%20for%20any%20valid%20token%29%20rather%20than%20validating%20that%20the%20token%20was%20issued%20for%20this%20route%2C%20and%20the%20action%20is%20in%20%24allowAnonymous%2C%20so%20no%20further%20authorization%20occurs.%22%2C%22title%22%3A%22Privilege%20Escalation/Bypass%20through%20UsersController-%3EactionImpersonateWithToken%28%29%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-ZQ8AY22X&#34;,
+  &#34;bug_class&#34;: &#34;privilege-escalation&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:35+00:00&#34;,
+  &#34;description&#34;: &#34;Craft CMS&#39;s actionPreview() re-dispatches requests with $skipSpecialHandling=true and $checkToken=false, allowing an attacker-supplied action query parameter to redirect execution to UsersController::actionImpersonateWithToken(). That endpoint&#39;s only guard, requireToken(), merely checks the boolean _hadToken set when the preview token was resolved, without verifying the token was minted for impersonation. Because the action is also listed in $allowAnonymous, no prior authentication is enforced. An editor (or anyone holding a shared preview URL) can therefore append &amp;action=users/impersonate-with-token&amp;userId=1&amp;prevUserId=1 to a preview URL and be logged in as user 1 (admin).&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;CraftCMS&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;Root cause is a confused-deputy between the preview dispatcher and the impersonation endpoint: actionPreview() passes $skipSpecialHandling=true to handleRequest() and $checkToken=false to checkIfActionRequest(), so security guards are skipped and the action parameter is attacker-controlled. requireToken() on actionImpersonateWithToken() only inspects _hadToken (set for any valid token) rather than validating that the token was issued for this route, and the action is in $allowAnonymous, so no further authorization occurs.&#34;,
+  &#34;title&#34;: &#34;Privilege Escalation/Bypass through UsersController-&gt;actionImpersonateWithToken()&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

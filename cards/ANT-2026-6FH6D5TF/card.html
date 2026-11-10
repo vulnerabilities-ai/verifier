@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-6FH6D5TF · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-6FH6D5TF · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  exposed-secret
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-6FH6D5TF: Hardcoded Realtime tenant-credential encryption key with no override</h1>
+<p>In docker/docker-compose.yml the Realtime service sets DB_ENC_KEY to the literal string 'supabaserealtime' rather than interpolating from .env like every adjacent secret. The variable is absent from .env.example and untouched by generate-keys.sh, so users who follow the documented secret-rotation guidance still ship the public default. Realtime uses this key to AES-encrypt tenant database credentials (including the Postgres password) stored in the _realtime schema. An attacker who can read those tables — via backup leak, read-only SQLi, or misconfigured role — can decrypt the credentials offline and escalate to full database control.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>docker/docker-compose.yml:314</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>DB_ENC_KEY is assigned a fixed literal instead of a ${VAR} reference, and no generation/override path exists in .env.example or generate-keys.sh. Because the key is public in the repository, the AES encryption applied to tenant credentials in the _realtime schema provides no confidentiality against anyone who can read the ciphertext.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Obtain read access to _realtime.extensions / _realtime.tenants (backup dump, SQLi, or over-privileged role)</li>
+<li>Extract the AES-encrypted tenant database credential fields</li>
+<li>Decrypt them offline using the publicly-known key 'supabaserealtime'</li>
+<li>Use the recovered Postgres superuser password to authenticate with full privileges</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Source DB_ENC_KEY from deployment-specific configuration (a ${VAR} in .env) with no functional hardcoded fallback, add it to .env.example and generate-keys.sh, and include it in the documented secret-rotation workflow.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-6FH6D5TF.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-6FH6D5TF<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/docs/content/guides/self-hosting/docker.mdx b/apps/docs/content/guides/self-hosting/docker.mdx</span>
+<span class="diff-h">index aede885d84035..e029e8e261838 100644</span>
+<span class="diff-h">--- a/apps/docs/content/guides/self-hosting/docker.mdx</span>
+<span class="diff-h">+++ b/apps/docs/content/guides/self-hosting/docker.mdx</span>
+<span class="diff-h">@@ -514,9 +514,10 @@ sh run.sh recreate</span>
+<span class="diff-c"> The `generate-keys.sh` script sets the following secrets automatically. You can also configure them manually in the `.env` file if needed:</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> - `SECRET_KEY_BASE`: encryption key for securing Realtime and Supavisor communications. (Must be at least 64 characters; generate with `openssl rand -base64 48`)</span>
+<span class="diff-a">+- `REALTIME_DB_ENC_KEY`: encryption key used by Realtime for sensitive fields in the `_realtime` schema. (Must be exactly 16 characters; generate with `openssl rand -hex 8`)</span>
+<span class="diff-c"> - `VAULT_ENC_KEY`: encryption key used by Supavisor for storing encrypted configuration. (Must be exactly 32 characters; generate with `openssl rand -hex 16`)</span>
+<span class="diff-c"> - `PG_META_CRYPTO_KEY`: encryption key for securing connection strings used by Studio against postgres-meta. (Must be at least 32 characters; generate with `openssl rand -base64 24`)</span>
+<span class="diff-d">-- `LOGFLARE_PUBLIC_ACCESS_TOKEN`: API token for log ingestion and querying. Used by Vector and Studio to send and query logs. (Must be at least 32 characters; generate with `openssl rand -base64 24`)</span>
+<span class="diff-a">+- `LOGFLARE_PUBLIC_ACCESS_TOKEN`: API token for log ingestion used by Logflare and Vector. (Must be at least 32 characters; generate with `openssl rand -base64 24`)</span>
+<span class="diff-c"> - `LOGFLARE_PRIVATE_ACCESS_TOKEN`: API token for Logflare management operations. Used by Studio for administrative tasks. Never expose client-side. (Must be at least 32 characters; generate with `openssl rand -base64 24`)</span>
+<span class="diff-c"> - `S3_PROTOCOL_ACCESS_KEY_ID`: Access key ID (username-like) for [accessing](/docs/guides/self-hosting/self-hosted-s3) the S3 protocol endpoint in Storage. (Generate with `openssl rand -hex 16`)</span>
+<span class="diff-c"> - `S3_PROTOCOL_ACCESS_KEY_SECRET`: Secret key (password-like) used with S3_PROTOCOL_ACCESS_KEY_ID. (Generate with `openssl rand -hex 32`)</span>
+<span class="diff-h">diff --git a/docker/.env.example b/docker/.env.example</span>
+<span class="diff-h">index 417e384fbf7ca..c944f572097ac 100644</span>
+<span class="diff-h">--- a/docker/.env.example</span>
+<span class="diff-h">+++ b/docker/.env.example</span>
+<span class="diff-h">@@ -58,23 +58,34 @@ JWT_JWKS=</span>
+<span class="diff-c"> DASHBOARD_USERNAME=supabase</span>
+<span class="diff-c"> DASHBOARD_PASSWORD=this_password_is_insecure_and_should_be_updated</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-# Used by Realtime and Supavisor</span>
+<span class="diff-a">+# Encryption key for securing Realtime and Supavisor communications.</span>
+<span class="diff-a">+# (Must be at least 64 characters; generate with: openssl rand -base64 48)</span>
+<span class="diff-c"> SECRET_KEY_BASE=UpNVntn3cDxHJpq99YMc1T1AQgQpc8kfYTuRgBiYa15BLrx8etQoXz3gZv1/u2oq</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-# Used by Supavisor</span>
+<span class="diff-a">+# Encryption key used by Realtime for sensitive fields in the `_realtime` schema.</span>
+<span class="diff-a">+# (Must be exactly 16 characters; generate with: `openssl rand -hex 8`)</span>
+<span class="diff-a">+REALTIME_DB_ENC_KEY=supabaserealtime</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Encryption key used by Supavisor for storing encrypted configuration.</span>
+<span class="diff-a">+# (Must be exactly 32 characters; generate with: openssl rand -hex 16)</span>
+<span class="diff-c"> VAULT_ENC_KEY=your-32-character-encryption-key</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-# Used by Studio to access Postgres via postgres-meta</span>
+<span class="diff-a">+# Encryption key for securing connection strings used by Studio against postgres-meta.</span>
+<span class="diff-a">+# (Must be at least 32 characters; generate with openssl rand -base64 24)</span>
+<span class="diff-c"> PG_META_CRYPTO_KEY=your-encryption-key-32-chars-min</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-# Analytics - API tokens for log ingestion/querying, and for management</span>
+<span class="diff-d">-# If Logflare has to be externally exposed - configure securely!</span>
+<span class="diff-d">-# Used in the docker-compose.logs.yml override.</span>
+<span class="diff-a">+# API token for log ingestion used by Logflare and Vector.</span>
+<span class="diff-a">+# (Must be at least 32 characters; generate with openssl rand -base64 24)</span>
+<span class="diff-c"> LOGFLARE_PUBLIC_ACCESS_TOKEN=your-super-secret-and-long-logflare-key-public</span>
+<span class="diff-a">+# API token used for Logflare management operations. Never expose client-side.</span>
+<span class="diff-a">+# (Must be at least 32 characters; generate with openssl rand -base64 24)</span>
+<span class="diff-c"> LOGFLARE_PRIVATE_ACCESS_TOKEN=your-super-secret-and-long-logflare-key-private</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-# Access to Storage via S3 protocol endpoint (see below)</span>
+<span class="diff-a">+# Access key ID (username-like) for accessing the S3 protocol endpoint in Storage.</span>
+<span class="diff-a">+# (Generate with: openssl rand -hex 16)</span>
+<span class="diff-c"> S3_PROTOCOL_ACCESS_KEY_ID=625729a08b95bf1b7ff351a663f3a23c</span>
+<span class="diff-a">+# Secret key (password-like) used with S3_PROTOCOL_ACCESS_KEY_ID.</span>
+<span class="diff-a">+# (Generate with: openssl rand -hex 32)</span>
+<span class="diff-c"> S3_PROTOCOL_ACCESS_KEY_SECRET=850181e4652dd023b7a98c58ae0d2d34bd487ee0cc3254aed6eda37307425907</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -269,6 +280,8 @@ REGION=stub</span>
+<span class="diff-c"> # Used by MinIO when added via:</span>
+<span class="diff-c"> # docker compose -f docker-compose.yml -f docker-compose.s3.yml up -d</span>
+<span class="diff-c"> MINIO_ROOT_USER=supa-storage</span>
+<span class="diff-a">+# Root administrator password for the RustFS or MinIO server.</span>
+<span class="diff-a">+# (Must be 8+ characters; generate with: openssl rand -hex 16)</span>
+<span class="diff-c"> MINIO_ROOT_PASSWORD=secret1234</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> # Equivalent to project_ref as described here:</span>
+<span class="diff-h">diff --git a/docker/CONFIG.md b/docker/CONFIG.md</span>
+<span class="diff-h">index ae5ed04fd049e..50cb34b88b504 100644</span>
+<span class="diff-h">--- a/docker/CONFIG.md</span>
+<span class="diff-h">+++ b/docker/CONFIG.md</span>
+<span class="diff-h">@@ -126,7 +126,6 @@ These mirror the running PostgREST configuration so the dashboard can display co</span>
+<span class="diff-c"> |---|---|---|---|---|</span>
+<span class="diff-c"> | `LOGFLARE_API_KEY` | string | Self-hosted | Legacy alias for `LOGFLARE_PUBLIC_ACCESS_TOKEN`. | Deprecated. Declared in `apps/studio/turbo.jsonc` but not read by Studio code; kept only for backward compatibility with older deployments. |</span>
+<span class="diff-c"> | `LOGFLARE_PRIVATE_ACCESS_TOKEN` | string | Both | Private API token Studio uses server-side to query Logflare endpoints (logs, charts). | Required for logs/analytics features to work on self-hosted. |</span>
+<span class="diff-d">-| `LOGFLARE_PUBLIC_ACCESS_TOKEN` | string | Self-hosted | Public API token used by the analytics (supabase/logflare) container for ingestion. | Not read by Studio code (despite being in `apps/studio/turbo.jsonc`). Passed through the `studio` service env in `docker-compose.yml` for parity only. |</span>
+<span class="diff-c"> | `LOGFLARE_URL` | URL | Both | Base URL of the Logflare/analytics service. | E.g. `http://analytics:4000`. Used to build the `PROJECT_ANALYTICS_URL`. |</span>
+<span class="diff-c"> | `NEXT_ANALYTICS_BACKEND_PROVIDER` | enum | Both | Historically intended to select the analytics container&#x27;s backend (`postgres` or `bigquery`). | No-op today: not read by Studio code, and the `analytics` (supabase/logflare) container chooses its backend via `POSTGRES_BACKEND_URL` / `LOGFLARE_FEATURE_FLAG_OVERRIDE` instead. Safe to ignore. |</span>
+<span class="diff-c"> | `NEXT_PUBLIC_ENABLE_LOGS` | boolean | Both | Historically intended to toggle visibility of log explorer pages. | Not read by Studio code today, and not declared in `apps/studio/turbo.jsonc`. Use `ENABLED_FEATURES_LOGS_ALL` (see Feature flags below) for runtime control of the logs section. |</span>
+<span class="diff-h">diff --git a/docker/docker-compose.yml b/docker/docker-compose.yml</span>
+<span class="diff-h">index bdf8926ecc65d..db9ab04a4f8e7 100644</span>
+<span class="diff-h">--- a/docker/docker-compose.yml</span>
+<span class="diff-h">+++ b/docker/docker-compose.yml</span>
+<span class="diff-h">@@ -312,7 +312,7 @@ services:</span>
+<span class="diff-c">       DB_PASSWORD: ${POSTGRES_PASSWORD}</span>
+<span class="diff-c">       DB_NAME: ${POSTGRES_DB}</span>
+<span class="diff-c">       DB_AFTER_CONNECT_QUERY: &#x27;SET search_path TO _realtime&#x27;</span>
+<span class="diff-d">-      DB_ENC_KEY: supabaserealtime</span>
+<span class="diff-a">+      DB_ENC_KEY: ${REALTIME_DB_ENC_KEY:-supabaserealtime}</span>
+<span class="diff-c"> </span>
+<span class="diff-c">       # Legacy symmetric HS256 key</span>
+<span class="diff-c">       API_JWT_SECRET: ${JWT_SECRET}</span>
+<span class="diff-h">diff --git a/docker/utils/generate-keys.sh b/docker/utils/generate-keys.sh</span>
+<span class="diff-h">index 23b0b1a4d3eeb..da1fc19218cf5 100644</span>
+<span class="diff-h">--- a/docker/utils/generate-keys.sh</span>
+<span class="diff-h">+++ b/docker/utils/generate-keys.sh</span>
+<span class="diff-h">@@ -61,6 +61,7 @@ anon_key=$(gen_token &quot;$anon_payload&quot;)</span>
+<span class="diff-c"> service_role_key=$(gen_token &quot;$service_role_payload&quot;)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> secret_key_base=$(gen_base64 48)</span>
+<span class="diff-a">+realtime_db_enc_key=$(gen_hex 8)</span>
+<span class="diff-c"> vault_enc_key=$(gen_hex 16)</span>
+<span class="diff-c"> pg_meta_crypto_key=$(gen_base64 24)</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -81,6 +82,7 @@ echo &quot;ANON_KEY=${anon_key}&quot;</span>
+<span class="diff-c"> echo &quot;SERVICE_ROLE_KEY=${service_role_key}&quot;</span>
+<span class="diff-c"> echo &quot;&quot;</span>
+<span class="diff-c"> echo &quot;SECRET_KEY_BASE=${secret_key_base}&quot;</span>
+<span class="diff-a">+echo &quot;REALTIME_DB_ENC_KEY=${realtime_db_enc_key}&quot;</span>
+<span class="diff-c"> echo &quot;VAULT_ENC_KEY=${vault_enc_key}&quot;</span>
+<span class="diff-c"> echo &quot;PG_META_CRYPTO_KEY=${pg_meta_crypto_key}&quot;</span>
+<span class="diff-c"> echo &quot;LOGFLARE_PUBLIC_ACCESS_TOKEN=${logflare_public_access_token}&quot;</span>
+<span class="diff-h">@@ -123,6 +125,7 @@ sed \</span>
+<span class="diff-c">     -e &quot;s|^ANON_KEY=.*$|ANON_KEY=${anon_key}|&quot; \</span>
+<span class="diff-c">     -e &quot;s|^SERVICE_ROLE_KEY=.*$|SERVICE_ROLE_KEY=${service_role_key}|&quot; \</span>
+<span class="diff-c">     -e &quot;s|^SECRET_KEY_BASE=.*$|SECRET_KEY_BASE=${secret_key_base}|&quot; \</span>
+<span class="diff-a">+    -e &quot;s|^REALTIME_DB_ENC_KEY=.*$|REALTIME_DB_ENC_KEY=${realtime_db_enc_key}|&quot; \</span>
+<span class="diff-c">     -e &quot;s|^VAULT_ENC_KEY=.*$|VAULT_ENC_KEY=${vaul</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/02ada3efe354f8e87c9e795473d132f735431f86" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/02ada3efe354f8e87c9e795473d132f735431f86</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-01</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">132cd36bb5e09ff288a5ba66b17e85254f9313c31cee75ba2d5641ae6c4a321b72befeb5c3c42a9dcd6f5f1888aaceaf09a6c824728d8b70b9664235319103e1</p>
+<p class="kicker">Committed 2026-05-18 00:54 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-6FH6D5TF-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-6FH6D5TF%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A04%3A26%2B00%3A00%22%2C%22description%22%3A%22In%20docker/docker-compose.yml%20the%20Realtime%20service%20sets%20DB_ENC_KEY%20to%20the%20literal%20string%20%27supabaserealtime%27%20rather%20than%20interpolating%20from%20.env%20like%20every%20adjacent%20secret.%20The%20variable%20is%20absent%20from%20.env.example%20and%20untouched%20by%20generate-keys.sh%2C%20so%20users%20who%20follow%20the%20documented%20secret-rotation%20guidance%20still%20ship%20the%20public%20default.%20Realtime%20uses%20this%20key%20to%20AES-encrypt%20tenant%20database%20credentials%20%28including%20the%20Postgres%20password%29%20stored%20in%20the%20_realtime%20schema.%20An%20attacker%20who%20can%20read%20those%20tables%20%E2%80%94%20via%20backup%20leak%2C%20read-only%20SQLi%2C%20or%20misconfigured%20role%20%E2%80%94%20can%20decrypt%20the%20credentials%20offline%20and%20escalate%20to%20full%20database%20control.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22docker/docker-compose.yml%3A314%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Obtain%20read%20access%20to%20_realtime.extensions%20/%20_realtime.tenants%20%28backup%20dump%2C%20SQLi%2C%20or%20over-privileged%20role%29%22%2C%222.%20Extract%20the%20AES-encrypted%20tenant%20database%20credential%20fields%22%2C%223.%20Decrypt%20them%20offline%20using%20the%20publicly-known%20key%20%27supabaserealtime%27%22%2C%224.%20Use%20the%20recovered%20Postgres%20superuser%20password%20to%20authenticate%20with%20full%20privileges%22%5D%2C%22technical_details%22%3A%22DB_ENC_KEY%20is%20assigned%20a%20fixed%20literal%20instead%20of%20a%20%24%7BVAR%7D%20reference%2C%20and%20no%20generation/override%20path%20exists%20in%20.env.example%20or%20generate-keys.sh.%20Because%20the%20key%20is%20public%20in%20the%20repository%2C%20the%20AES%20encryption%20applied%20to%20tenant%20credentials%20in%20the%20_realtime%20schema%20provides%20no%20confidentiality%20against%20anyone%20who%20can%20read%20the%20ciphertext.%22%2C%22title%22%3A%22Hardcoded%20Realtime%20tenant-credential%20encryption%20key%20with%20no%20override%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-6FH6D5TF&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:04:26+00:00&#34;,
+  &#34;description&#34;: &#34;In docker/docker-compose.yml the Realtime service sets DB_ENC_KEY to the literal string &#39;supabaserealtime&#39; rather than interpolating from .env like every adjacent secret. The variable is absent from .env.example and untouched by generate-keys.sh, so users who follow the documented secret-rotation guidance still ship the public default. Realtime uses this key to AES-encrypt tenant database credentials (including the Postgres password) stored in the _realtime schema. An attacker who can read those tables — via backup leak, read-only SQLi, or misconfigured role — can decrypt the credentials offline and escalate to full database control.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;docker/docker-compose.yml:314&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Obtain read access to _realtime.extensions / _realtime.tenants (backup dump, SQLi, or over-privileged role)&#34;,
+    &#34;2. Extract the AES-encrypted tenant database credential fields&#34;,
+    &#34;3. Decrypt them offline using the publicly-known key &#39;supabaserealtime&#39;&#34;,
+    &#34;4. Use the recovered Postgres superuser password to authenticate with full privileges&#34;
+  ],
+  &#34;technical_details&#34;: &#34;DB_ENC_KEY is assigned a fixed literal instead of a ${VAR} reference, and no generation/override path exists in .env.example or generate-keys.sh. Because the key is public in the repository, the AES encryption applied to tenant credentials in the _realtime schema provides no confidentiality against anyone who can read the ciphertext.&#34;,
+  &#34;title&#34;: &#34;Hardcoded Realtime tenant-credential encryption key with no override&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

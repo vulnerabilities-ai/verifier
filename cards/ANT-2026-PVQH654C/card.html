@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-PVQH654C · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-PVQH654C · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-PVQH654C: Heap-buffer-overflow in mitab_tabfile.cpp:97</h1>
+<p>During GDALVectorTranslate (ogr2ogr) output to the MapInfo TAB format, TABFile::WriteTABFile() calls EscapeString(), which allocates a 201-byte buffer via CPLMalloc (mitab_tabfile.cpp:60) and then writes past its end at mitab_tabfile.cpp:97. ASAN reports a WRITE of size 1 immediately after the allocated region. The overflow is reachable by converting a crafted vector input to TAB format, and results in heap metadata/adjacent-allocation corruption.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal<br>
+<strong>Location:</strong> <code>mitab_tabfile.cpp:97</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 1 at 0x7b003b2f2a89 ... 0 bytes after 201-byte region". The destination buffer for the escaped string is sized at allocation (line 60) without accounting for the full expansion performed by the escaping loop, so the write at line 97 lands one byte past the end of the heap allocation.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2244030142
+INFO: Loaded 1 modules   (1157944 inline 8-bit counters): 1157944 [0x60e6ecc00a60, 0x60e6ecd1b598), 
+INFO: Loaded 1 PC tables (1157944 PCs): 1157944 [0x60e6ecd1b598,0x60e6edec6918), 
+/out/gdal_vector_translate_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7b003b2f2a89 at pc 0x60e6e6c767d4 bp 0x7fff202d02d0 sp 0x7fff202d02c8
+WRITE of size 1 at 0x7b003b2f2a89 thread T0
+    #0 0x60e6e6c767d3 in EscapeString /src/gdal/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp:97:21
+    #1 0x60e6e6c767d3 in TABFile::WriteTABFile() /src/gdal/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp:1105:21
+    #2 0x60e6e6c7f2ee in TABFile::SyncToDisk() /src/gdal/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp:2929:9
+    #3 0x60e6e5d5031b in GDALDataset::FlushCache(bool) /src/gdal/gcore/gdaldataset.cpp:753:30
+    #4 0x60e6e618324b in GDALVectorTranslate /src/gdal/apps/ogr2ogr_lib.cpp:3841:16
+    #5 0x60e6e549f0e3 in LLVMFuzzerTestOneInput /src/gdal/./fuzzers/gdal_vector_translate_fuzzer.cpp:127:17
+    #6 0x60e6e533ad6d in fuzzer::Fuzzer::ExecuteCallback(unsigned char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerLoop.cpp:619:13
+    #7 0x60e6e5325af2 in fuzzer::RunOneTest(fuzzer::Fuzzer*, char const*, unsigned long) /src/llvm-project/compiler-rt/lib/fuzzer/FuzzerDriver.cpp:329:6
+    [... 20 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-PVQH654C.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-PVQH654C<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/autotest/ogr/ogr_mitab.py b/autotest/ogr/ogr_mitab.py</span>
+<span class="diff-h">index 3a097bd669b4..3c36e1c123a9 100755</span>
+<span class="diff-h">--- a/autotest/ogr/ogr_mitab.py</span>
+<span class="diff-h">+++ b/autotest/ogr/ogr_mitab.py</span>
+<span class="diff-h">@@ -2570,6 +2570,19 @@ def test_ogr_mitab_description(tmp_vsimem):</span>
+<span class="diff-c">     ds = None</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-a">+###############################################################################</span>
+<span class="diff-a">+# Check write/read description</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+def test_ogr_mitab_all_double_quotes(tmp_vsimem):</span>
+<span class="diff-a">+    filename = tmp_vsimem / &quot;test_description.tab&quot;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    ds = ogr.GetDriverByName(&quot;MapInfo File&quot;).CreateDataSource(filename)</span>
+<span class="diff-a">+    lyr = ds.CreateLayer(&quot;test_description&quot;, options=[&quot;DESCRIPTION=&quot; + (&#x27;&quot;&#x27; * 100)])</span>
+<span class="diff-a">+    lyr.CreateField(ogr.FieldDefn(&quot;test&quot;, ogr.OFTInteger))</span>
+<span class="diff-a">+    assert lyr.GetMetadataItem(&quot;DESCRIPTION&quot;) == (&#x27;&quot;&#x27; * 100)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> ###############################################################################</span>
+<span class="diff-c"> # Test writing and reading back unset/null date, time, datetime</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp b/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp</span>
+<span class="diff-h">index c9de0b1d23c2..de5f9da763bb 100644</span>
+<span class="diff-h">--- a/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp</span>
+<span class="diff-h">+++ b/ogr/ogrsf_frmts/mitab/mitab_tabfile.cpp</span>
+<span class="diff-h">@@ -60,7 +60,7 @@ static char *EscapeString(const char *pszInput,</span>
+<span class="diff-c">     char *pszOutput = static_cast&lt;char *&gt;(CPLMalloc(nLength * 2 + 1));</span>
+<span class="diff-c">     int iOut = 0;</span>
+<span class="diff-c">     int nDoubleQuotesCount = 0;</span>
+<span class="diff-d">-    for (int iIn = 0; iIn &lt; static_cast&lt;int&gt;(nLength + 1); ++iIn)</span>
+<span class="diff-a">+    for (int iIn = 0; iIn &lt; static_cast&lt;int&gt;(nLength); ++iIn)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         if (pszInput[iIn] == &#x27;&quot;&#x27;)</span>
+<span class="diff-c">         {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/96d6b7415c8d43f5f9cefef609052dc9c6ae084b" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/96d6b7415c8d43f5f9cefef609052dc9c6ae084b</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-11</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">d042a117f1a00a8a4ebaf00d45d45455aa20d39c00beef435243d6a566e6ad07bb050ca927b58f5a7623581229b6b5755c52ddc5ee70baff8826b91f6d5034c1</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:34 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-PVQH654C-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-PVQH654C%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A31%3A23%2B00%3A00%22%2C%22description%22%3A%22During%20GDALVectorTranslate%20%28ogr2ogr%29%20output%20to%20the%20MapInfo%20TAB%20format%2C%20TABFile%3A%3AWriteTABFile%28%29%20calls%20EscapeString%28%29%2C%20which%20allocates%20a%20201-byte%20buffer%20via%20CPLMalloc%20%28mitab_tabfile.cpp%3A60%29%20and%20then%20writes%20past%20its%20end%20at%20mitab_tabfile.cpp%3A97.%20ASAN%20reports%20a%20WRITE%20of%20size%201%20immediately%20after%20the%20allocated%20region.%20The%20overflow%20is%20reachable%20by%20converting%20a%20crafted%20vector%20input%20to%20TAB%20format%2C%20and%20results%20in%20heap%20metadata/adjacent-allocation%20corruption.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22mitab_tabfile.cpp%3A97%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%201%20at%200x7b003b2f2a89%20...%200%20bytes%20after%20201-byte%20region%5C%22.%20The%20destination%20buffer%20for%20the%20escaped%20string%20is%20sized%20at%20allocation%20%28line%2060%29%20without%20accounting%20for%20the%20full%20expansion%20performed%20by%20the%20escaping%20loop%2C%20so%20the%20write%20at%20line%2097%20lands%20one%20byte%20past%20the%20end%20of%20the%20heap%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20mitab_tabfile.cpp%3A97%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-PVQH654C&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:31:23+00:00&#34;,
+  &#34;description&#34;: &#34;During GDALVectorTranslate (ogr2ogr) output to the MapInfo TAB format, TABFile::WriteTABFile() calls EscapeString(), which allocates a 201-byte buffer via CPLMalloc (mitab_tabfile.cpp:60) and then writes past its end at mitab_tabfile.cpp:97. ASAN reports a WRITE of size 1 immediately after the allocated region. The overflow is reachable by converting a crafted vector input to TAB format, and results in heap metadata/adjacent-allocation corruption.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;mitab_tabfile.cpp:97&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 1 at 0x7b003b2f2a89 ... 0 bytes after 201-byte region\&#34;. The destination buffer for the escaped string is sized at allocation (line 60) without accounting for the full expansion performed by the escaping loop, so the write at line 97 lands one byte past the end of the heap allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in mitab_tabfile.cpp:97&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

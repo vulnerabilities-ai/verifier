@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-P7DSVPH6 · bytecodealliance/wasm-micro-runtime</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-P7DSVPH6 · bytecodealliance/wasm-micro-runtime</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://github.com/wasm-micro-runtime/wasm-micro-runtime/security/advisories/GHSA-wj3p-xhqm-pffc">GHSA-wj3p-xhqm-pffc</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-P7DSVPH6: Heap-buffer-overflow in posix.c:2253</h1>
+<p>In WAMR's sandboxed WASI layer, wasmtime_ssp_poll_oneoff allocates a 16-byte heap buffer at posix.c:2186 but later writes 8 bytes past its end at posix.c:2253 while emitting poll events. A 116-byte valid WebAssembly module that invokes the WASI poll_oneoff import deterministically triggers the overflow (3/3 identical ASAN reports in a clean container). The attacker controls the guest Wasm module and thus the poll_oneoff subscription arguments that drive the event count. The result is an out-of-bounds heap WRITE in the host runtime from guest-controlled sandboxed code.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> bytecodealliance/wasm-micro-runtime<br>
+<strong>Location:</strong> <code>posix.c:2253</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow, WRITE of size 8, 0 bytes to the right of a 16-byte region allocated at posix.c:2186. The output buffer sized at allocation time is too small for the number of events subsequently written at posix.c:2253, so the event-store loop runs off the end of the heap block.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a 116-byte valid WebAssembly module that deterministically triggers a heap-buffer-overflow in WAMR's WASI `poll_oneoff` implementation.
+
+All 3 runs in a fresh container produced identical ASAN reports:
+- Error: heap-buffer-overflow (WRITE of size 8)
+- Crash location: `wasmtime_ssp_poll_oneoff` at `posix.c:2253`
+- Root cause: A 16-byte heap allocation is made at `posix.c:2186`, but a write at `posix.c:2253` goes exactly 0 bytes past the end of that allocation (writing 8 bytes beyond the 16-byte buffer boundary)
+- Call chain: `main` -&gt; `wasm_application_execute_main` -&gt; `wasm_interp_call_func_bytecode` -&gt; `wasi_poll_oneoff` -&gt; `wasmtime_ssp_poll_oneoff` (crash)
+- Exit code: 1 in all runs
+- No OOM or timeout indicators
+
+The crash is a genuine memory safety bug in the WAMR project's libc-wasi sandboxed system primitives code, specifically in the poll_oneoff event handling where the output buffer is under-allocated relative to the number of events being written.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a small (≈116-byte) Wasm module that imports and invokes wasi_snapshot_preview1 poll_oneoff with subscription arguments that yield more output events than the host allocates space for</li>
+<li>Execute the module with iwasm / wasm_application_execute_main</li>
+<li>wasi_poll_oneoff calls wasmtime_ssp_poll_oneoff, which allocates a 16-byte buffer at posix.c:2186</li>
+<li>The event-write loop at posix.c:2253 stores 8 bytes past the end of that buffer, corrupting adjacent heap memory</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-P7DSVPH6.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-P7DSVPH6<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/core/iwasm/libraries/libc-uvwasi/libc_uvwasi_wrapper.c b/core/iwasm/libraries/libc-uvwasi/libc_uvwasi_wrapper.c</span>
+<span class="diff-h">index 35d091e78d..fad77406fe 100644</span>
+<span class="diff-h">--- a/core/iwasm/libraries/libc-uvwasi/libc_uvwasi_wrapper.c</span>
+<span class="diff-h">+++ b/core/iwasm/libraries/libc-uvwasi/libc_uvwasi_wrapper.c</span>
+<span class="diff-h">@@ -927,13 +927,16 @@ wasi_poll_oneoff(wasm_exec_env_t exec_env, const wasi_subscription_t *in,</span>
+<span class="diff-c">     wasm_module_inst_t module_inst = get_module_inst(exec_env);</span>
+<span class="diff-c">     uvwasi_t *uvwasi = get_wasi_ctx(module_inst);</span>
+<span class="diff-c">     uvwasi_size_t nevents;</span>
+<span class="diff-a">+    uint64 subscriptions_size =</span>
+<span class="diff-a">+        (uint64)nsubscriptions * sizeof(wasi_subscription_t);</span>
+<span class="diff-a">+    uint64 events_size = (uint64)nsubscriptions * sizeof(wasi_event_t);</span>
+<span class="diff-c">     wasi_errno_t err;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (!uvwasi)</span>
+<span class="diff-c">         return (wasi_errno_t)-1;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (!validate_native_addr((void *)in, (uint64)sizeof(wasi_subscription_t))</span>
+<span class="diff-d">-        || !validate_native_addr(out, (uint64)sizeof(wasi_event_t))</span>
+<span class="diff-a">+    if (!validate_native_addr((void *)in, subscriptions_size)</span>
+<span class="diff-a">+        || !validate_native_addr(out, events_size)</span>
+<span class="diff-c">         || !validate_native_addr(nevents_app, (uint64)sizeof(uint32)))</span>
+<span class="diff-c">         return (wasi_errno_t)-1;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c b/core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c</span>
+<span class="diff-h">index 5ab189e71d..7eebf12ef9 100644</span>
+<span class="diff-h">--- a/core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c</span>
+<span class="diff-h">+++ b/core/iwasm/libraries/libc-wasi/libc_wasi_wrapper.c</span>
+<span class="diff-h">@@ -1093,13 +1093,16 @@ wasi_poll_oneoff(wasm_exec_env_t exec_env, const wasi_subscription_t *in,</span>
+<span class="diff-c">     wasi_ctx_t wasi_ctx = get_wasi_ctx(module_inst);</span>
+<span class="diff-c">     struct fd_table *curfds = wasi_ctx_get_curfds(wasi_ctx);</span>
+<span class="diff-c">     size_t nevents = 0;</span>
+<span class="diff-a">+    uint64 subscriptions_size =</span>
+<span class="diff-a">+        (uint64)nsubscriptions * sizeof(wasi_subscription_t);</span>
+<span class="diff-a">+    uint64 events_size = (uint64)nsubscriptions * sizeof(wasi_event_t);</span>
+<span class="diff-c">     wasi_errno_t err;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     if (!wasi_ctx)</span>
+<span class="diff-c">         return (wasi_errno_t)-1;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    if (!validate_native_addr((void *)in, (uint64)sizeof(wasi_subscription_t))</span>
+<span class="diff-d">-        || !validate_native_addr(out, (uint64)sizeof(wasi_event_t))</span>
+<span class="diff-a">+    if (!validate_native_addr((void *)in, subscriptions_size)</span>
+<span class="diff-a">+        || !validate_native_addr(out, events_size)</span>
+<span class="diff-c">         || !validate_native_addr(nevents_app, (uint64)sizeof(uint32)))</span>
+<span class="diff-c">         return (wasi_errno_t)-1;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/build_wamr.sh b/tests/regression/ba-issues/build_wamr.sh</span>
+<span class="diff-h">index 9f2b3c716f..233f7bad8f 100755</span>
+<span class="diff-h">--- a/tests/regression/ba-issues/build_wamr.sh</span>
+<span class="diff-h">+++ b/tests/regression/ba-issues/build_wamr.sh</span>
+<span class="diff-h">@@ -66,4 +66,8 @@ build_iwasm &quot;-DWAMR_BUILD_BRANCH_HINTS=1&quot; &quot;default-branch-hints-enabled&quot;</span>
+<span class="diff-c"> # build default iwasm for testing tail call with fast-interp</span>
+<span class="diff-c"> build_iwasm &quot;-DWAMR_BUILD_REF_TYPES=1 -DWAMR_BUILD_FAST_INTERP=1 -DWAMR_BUILD_TAIL_CALL=1 -DWAMR_BUILD_LIBC_WASI=0&quot; &quot;default-tail-call-wasi-disabled&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+# build classic-interp iwasm with ASAN and hardware bounds checks disabled</span>
+<span class="diff-a">+# for poll_oneoff host memory safety regressions</span>
+<span class="diff-a">+build_iwasm &quot;-DWAMR_BUILD_REF_TYPES=1 -DWAMR_BUILD_FAST_INTERP=0 -DWAMR_BUILD_AOT=0 -DWAMR_BUILD_JIT=0 -DWAMR_BUILD_FAST_JIT=0 -DWAMR_BUILD_SIMD=0 -DWAMR_DISABLE_HW_BOUND_CHECK=1&quot; &quot;poll-oneoff-asan&quot;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> # TODO: add more version of iwasm, for example, sgx version</span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wasm b/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wasm</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..ec56c43f3d</span>
+<span class="diff-c">Binary files /dev/null and b/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wasm differ</span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wat b/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wat</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..2121e0b64e</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/tests/regression/ba-issues/issues/issue-980004/poll_oneoff_out_of_bounds_write.wat</span>
+<span class="diff-h">@@ -0,0 +1,38 @@</span>
+<span class="diff-a">+(module</span>
+<span class="diff-a">+  (import &quot;wasi_snapshot_preview1&quot; &quot;poll_oneoff&quot;</span>
+<span class="diff-a">+    (func $poll_oneoff (param i32 i32 i32 i32) (result i32)))</span>
+<span class="diff-a">+  (import &quot;wasi_snapshot_preview1&quot; &quot;proc_exit&quot;</span>
+<span class="diff-a">+    (func $proc_exit (param i32)))</span>
+<span class="diff-a">+  (memory (export &quot;memory&quot;) 1)</span>
+<span class="diff-a">+  (func (export &quot;_start&quot;)</span>
+<span class="diff-a">+    ;; Two absolute clock subscriptions ensure poll_oneoff writes two events.</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    i64.const 1</span>
+<span class="diff-a">+    i64.store</span>
+<span class="diff-a">+    i32.const 8</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    i32.store8</span>
+<span class="diff-a">+    i32.const 40</span>
+<span class="diff-a">+    i32.const 1</span>
+<span class="diff-a">+    i32.store16</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    i32.const 48</span>
+<span class="diff-a">+    i64.const 2</span>
+<span class="diff-a">+    i64.store</span>
+<span class="diff-a">+    i32.const 56</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    i32.store8</span>
+<span class="diff-a">+    i32.const 88</span>
+<span class="diff-a">+    i32.const 1</span>
+<span class="diff-a">+    i32.store16</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    ;; out points to exactly one wasi_event_t at the end of memory.</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    i32.const 65504</span>
+<span class="diff-a">+    i32.const 2</span>
+<span class="diff-a">+    i32.const 65500</span>
+<span class="diff-a">+    call $poll_oneoff</span>
+<span class="diff-a">+    drop</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    call $proc_exit))</span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wasm b/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wasm</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..30ebce2925</span>
+<span class="diff-c">Binary files /dev/null and b/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wasm differ</span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wat b/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wat</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..cce8e8b299</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/tests/regression/ba-issues/issues/issue-980005/poll_oneoff_out_of_bounds_read.wat</span>
+<span class="diff-h">@@ -0,0 +1,28 @@</span>
+<span class="diff-a">+(module</span>
+<span class="diff-a">+  (import &quot;wasi_snapshot_preview1&quot; &quot;poll_oneoff&quot;</span>
+<span class="diff-a">+    (func $poll_oneoff (param i32 i32 i32 i32) (result i32)))</span>
+<span class="diff-a">+  (import &quot;wasi_snapshot_preview1&quot; &quot;proc_exit&quot;</span>
+<span class="diff-a">+    (func $proc_exit (param i32)))</span>
+<span class="diff-a">+  (memory (export &quot;memory&quot;) 1)</span>
+<span class="diff-a">+  (func (export &quot;_start&quot;)</span>
+<span class="diff-a">+    ;; Place exactly one subscription at the end of memory.</span>
+<span class="diff-a">+    i32.const 65488</span>
+<span class="diff-a">+    i64.const 1</span>
+<span class="diff-a">+    i64.store</span>
+<span class="diff-a">+    i32.const 65496</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    i32.store8</span>
+<span class="diff-a">+    i32.const 65528</span>
+<span class="diff-a">+    i32.const 1</span>
+<span class="diff-a">+    i32.store16</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    ;; nsubscriptions=2 forces validation of the full subscription array.</span>
+<span class="diff-a">+    i32.const 65488</span>
+<span class="diff-a">+    i32.const 64</span>
+<span class="diff-a">+    i32.const 2</span>
+<span class="diff-a">+    i32.const 60</span>
+<span class="diff-a">+    call $poll_oneoff</span>
+<span class="diff-a">+    drop</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    i32.const 0</span>
+<span class="diff-a">+    call $proc_exit))</span>
+<span class="diff-h">diff --git a/tests/regression/ba-issues/running_config.json b/tests/regression/ba-issues/running_config.json</span>
+<span class="diff-h">index 9083af9014..ebde50babd 100644</span>
+<span class="diff-h">--- a/tests/regression/ba-issues/running_config.json</span>
+<span class="diff-h">+++ b/tests/regression/ba-issues/running_config.json</span>
+<span class="diff-h">@@ -1853,6 +1853,38 @@</span>
+<span class="diff-c">             }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         },</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            &quot;deprecated&quot;: false,</span>
+<span class="diff-a">+            &quot;ids&quot;: [</span>
+<span class="diff-a">+                980004</span>
+<span class="diff-a">+            ],</span>
+<span class="diff-a">+            &quot;runtime&quot;: &quot;iwasm-poll-oneoff-asan&quot;,</span>
+<span class="diff-a">+            &quot;file&quot;: &quot;poll_oneoff_out_of_bounds_write.wasm&quot;,</span>
+<span class="diff-a">+            &quot;mode&quot;: &quot;classic-interp&quot;,</span>
+<span class="diff-a">+            &quot;options&quot;: &quot;-f _start&quot;,</span>
+<span class="diff-a">+            &quot;argument&quot;: &quot;&quot;,</span>
+<span class="diff-a">+            &quot;expected return&quot;: {</span>
+<span class="diff-a">+                &quot;ret code&quot;: 1,</span>
+<span class="diff-a">+                &quot;stdout content&quot;: &quot;Exception: out of bounds memory access&quot;,</span>
+<span class="diff-a">+                &quot;description&quot;: &quot;poll_oneoff rejects an undersized event buffer for multi-subscription WASI calls&quot;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+        },</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            &quot;deprecated&quot;: false,</span>
+<span class="diff-a">+            &quot;ids&quot;: [</span>
+<span class="diff-a">+                980005</span>
+<span class="diff-a">+            ],</span>
+<span class="diff-a">+            &quot;runtime&quot;: &quot;iwasm-poll-oneoff-asan&quot;,</span>
+<span class="diff-a">+            &quot;file&quot;: &quot;poll_oneoff_out_of_bounds_read.wasm&quot;,</span>
+<span class="diff-a">+            &quot;mode&quot;: &quot;classic-interp&quot;,</span>
+<span class="diff-a">+            &quot;options&quot;: &quot;-f _start&quot;,</span>
+<span class="diff-a">+            &quot;argument&quot;: &quot;&quot;,</span>
+<span class="diff-a">+            &quot;expected return&quot;: {</span>
+<span class="diff-a">+                &quot;ret code&quot;: 1,</span>
+<span class="diff-a">+                &quot;stdout content&quot;: &quot;Exception: out of bounds memory access&quot;,</span>
+<span class="diff-a">+                &quot;description&quot;: &quot;poll_oneoff rejects an undersized subscription array for multi-subscription WASI calls&quot;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+        },</span>
+<span class="diff-c">         {</span>
+<span class="diff-c">             &quot;deprecated&quot;: false,</span>
+<span class="diff-c">             &quot;ids&quot;: [</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/bytecodealliance/wasm-micro-runtime/commit/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1" rel="noopener noreferrer">https://github.com/bytecodealliance/wasm-micro-runtime/commit/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-25</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">9680ba7f19079c28d92bf1d9291a85ad88dbecf9fadd1316805a0ed4783ceb902a261fe1af85a092280115e0fde1b6183c2ac7af27cc7aa23ebbbc23d0bd29ed</p>
+<p class="kicker">Committed 2026-05-07 10:18 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-P7DSVPH6-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-P7DSVPH6%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T20%3A43%3A47%2B00%3A00%22%2C%22description%22%3A%22In%20WAMR%27s%20sandboxed%20WASI%20layer%2C%20wasmtime_ssp_poll_oneoff%20allocates%20a%2016-byte%20heap%20buffer%20at%20posix.c%3A2186%20but%20later%20writes%208%20bytes%20past%20its%20end%20at%20posix.c%3A2253%20while%20emitting%20poll%20events.%20A%20116-byte%20valid%20WebAssembly%20module%20that%20invokes%20the%20WASI%20poll_oneoff%20import%20deterministically%20triggers%20the%20overflow%20%283/3%20identical%20ASAN%20reports%20in%20a%20clean%20container%29.%20The%20attacker%20controls%20the%20guest%20Wasm%20module%20and%20thus%20the%20poll_oneoff%20subscription%20arguments%20that%20drive%20the%20event%20count.%20The%20result%20is%20an%20out-of-bounds%20heap%20WRITE%20in%20the%20host%20runtime%20from%20guest-controlled%20sandboxed%20code.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22posix.c%3A2253%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wasm-micro-runtime%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20small%20%28%E2%89%88116-byte%29%20Wasm%20module%20that%20imports%20and%20invokes%20wasi_snapshot_preview1%20poll_oneoff%20with%20subscription%20arguments%20that%20yield%20more%20output%20events%20than%20the%20host%20allocates%20space%20for%22%2C%222.%20Execute%20the%20module%20with%20iwasm%20/%20wasm_application_execute_main%22%2C%223.%20wasi_poll_oneoff%20calls%20wasmtime_ssp_poll_oneoff%2C%20which%20allocates%20a%2016-byte%20buffer%20at%20posix.c%3A2186%22%2C%224.%20The%20event-write%20loop%20at%20posix.c%3A2253%20stores%208%20bytes%20past%20the%20end%20of%20that%20buffer%2C%20corrupting%20adjacent%20heap%20memory%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%2C%20WRITE%20of%20size%208%2C%200%20bytes%20to%20the%20right%20of%20a%2016-byte%20region%20allocated%20at%20posix.c%3A2186.%20The%20output%20buffer%20sized%20at%20allocation%20time%20is%20too%20small%20for%20the%20number%20of%20events%20subsequently%20written%20at%20posix.c%3A2253%2C%20so%20the%20event-store%20loop%20runs%20off%20the%20end%20of%20the%20heap%20block.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20posix.c%3A2253%22%2C%22vendor_severity%22%3A%22critical%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-P7DSVPH6&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T20:43:47+00:00&#34;,
+  &#34;description&#34;: &#34;In WAMR&#39;s sandboxed WASI layer, wasmtime_ssp_poll_oneoff allocates a 16-byte heap buffer at posix.c:2186 but later writes 8 bytes past its end at posix.c:2253 while emitting poll events. A 116-byte valid WebAssembly module that invokes the WASI poll_oneoff import deterministically triggers the overflow (3/3 identical ASAN reports in a clean container). The attacker controls the guest Wasm module and thus the poll_oneoff subscription arguments that drive the event count. The result is an out-of-bounds heap WRITE in the host runtime from guest-controlled sandboxed code.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;posix.c:2253&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wasm-micro-runtime&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a small (≈116-byte) Wasm module that imports and invokes wasi_snapshot_preview1 poll_oneoff with subscription arguments that yield more output events than the host allocates space for&#34;,
+    &#34;2. Execute the module with iwasm / wasm_application_execute_main&#34;,
+    &#34;3. wasi_poll_oneoff calls wasmtime_ssp_poll_oneoff, which allocates a 16-byte buffer at posix.c:2186&#34;,
+    &#34;4. The event-write loop at posix.c:2253 stores 8 bytes past the end of that buffer, corrupting adjacent heap memory&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow, WRITE of size 8, 0 bytes to the right of a 16-byte region allocated at posix.c:2186. The output buffer sized at allocation time is too small for the number of events subsequently written at posix.c:2253, so the event-store loop runs off the end of the heap block.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in posix.c:2253&#34;,
+  &#34;vendor_severity&#34;: &#34;critical&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

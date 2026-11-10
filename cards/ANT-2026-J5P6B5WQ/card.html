@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-J5P6B5WQ · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-J5P6B5WQ · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  session-flaw
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-J5P6B5WQ: Banned user obtains fresh sessions via identity linking</h1>
+<p>In internal/api/identity.go, linkIdentityToUser loads the target user from the flow state and, via handleProviderCallback in internal/api/external.go, unconditionally calls issueRefreshToken. Unlike the password, OTP, and token-refresh paths, this branch never checks user.IsBanned(). A user who has been banned but still holds a not-yet-expired access token can call GET /user/identities/authorize, complete the external OAuth round-trip, and receive a brand-new access/refresh token pair. The result is a full bypass of banned_until, with the attacker able to keep refreshing indefinitely.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/api/identity.go:121</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a missing authorization check: the identity-linking callback path trusts the LinkingTargetID from the flow state and proceeds straight to issueRefreshToken without evaluating user.IsBanned(). Because ban enforcement is implemented per-path rather than centrally at token issuance, this branch slips through and mints credentials for a user who should be locked out.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Admin sets banned_until on a misbehaving user.</li>
+<li>The user's existing access token remains valid for a few more minutes.</li>
+<li>User calls GET /user/identities/authorize?provider=google with that token and completes the Google OAuth flow.</li>
+<li>The callback reaches linkIdentityToUser, which then triggers issueRefreshToken.</li>
+<li>User receives a fresh refresh token and access token issued after the ban and can keep refreshing indefinitely.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Centralize the banned-user check so that every code path that issues tokens calls user.IsBanned() on the target user before minting credentials (e.g., enforce it inside issueRefreshToken or immediately before it in linkIdentityToUser/handleProviderCallback).</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-J5P6B5WQ.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-J5P6B5WQ<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/api/auth.go b/internal/api/auth.go</span>
+<span class="diff-h">index 07f2ec5d40..d063e1fe01 100644</span>
+<span class="diff-h">--- a/internal/api/auth.go</span>
+<span class="diff-h">+++ b/internal/api/auth.go</span>
+<span class="diff-h">@@ -32,7 +32,13 @@ func (a *API) requireAuthentication(w http.ResponseWriter, r *http.Request) (con</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		return ctx, err</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-d">-	return ctx, err</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	// Reject banned users who still hold an access token issued before the ban</span>
+<span class="diff-a">+	if user := getUser(ctx); user != nil &amp;&amp; user.IsBanned() {</span>
+<span class="diff-a">+		return ctx, apierrors.NewForbiddenError(apierrors.ErrorCodeUserBanned, &quot;User is banned&quot;)</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	return ctx, nil</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> func (a *API) requireNotAnonymous(w http.ResponseWriter, r *http.Request) (context.Context, error) {</span>
+<span class="diff-h">diff --git a/internal/api/auth_test.go b/internal/api/auth_test.go</span>
+<span class="diff-h">index 22e1e3b527..24eee3ca04 100644</span>
+<span class="diff-h">--- a/internal/api/auth_test.go</span>
+<span class="diff-h">+++ b/internal/api/auth_test.go</span>
+<span class="diff-h">@@ -6,6 +6,7 @@ import (</span>
+<span class="diff-c"> 	&quot;net/http&quot;</span>
+<span class="diff-c"> 	&quot;net/http/httptest&quot;</span>
+<span class="diff-c"> 	&quot;testing&quot;</span>
+<span class="diff-a">+	&quot;time&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	&quot;github.com/gofrs/uuid&quot;</span>
+<span class="diff-c"> 	jwt &quot;github.com/golang-jwt/jwt/v5&quot;</span>
+<span class="diff-h">@@ -87,6 +88,9 @@ func TestExtractBearerTokenCaseInsensitive(t *testing.T) {</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> func (ts *AuthTestSuite) TestParseJWTClaims() {</span>
+<span class="diff-a">+	originalJWT := ts.Config.JWT</span>
+<span class="diff-a">+	defer func() { ts.Config.JWT = originalJWT }()</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 	cases := []struct {</span>
+<span class="diff-c"> 		desc string</span>
+<span class="diff-c"> 		key  map[string]interface{}</span>
+<span class="diff-h">@@ -312,3 +316,54 @@ func (ts *AuthTestSuite) TestMaybeLoadUserOrSession() {</span>
+<span class="diff-c"> 		})</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+// TestRequireAuthenticationBannedUser verifies that a banned user holding a</span>
+<span class="diff-a">+// still-valid access token is rejected by requireAuthentication, while</span>
+<span class="diff-a">+// non-banned users and users whose ban has expired are allowed through.</span>
+<span class="diff-a">+func (ts *AuthTestSuite) TestRequireAuthenticationBannedUser() {</span>
+<span class="diff-a">+	u, err := models.FindUserByEmailAndAudience(ts.API.db, &quot;test@example.com&quot;, ts.Config.JWT.Aud)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	newAuthedRequest := func() *http.Request {</span>
+<span class="diff-a">+		claims := &amp;AccessTokenClaims{</span>
+<span class="diff-a">+			RegisteredClaims: jwt.RegisteredClaims{</span>
+<span class="diff-a">+				Subject: u.ID.String(),</span>
+<span class="diff-a">+			},</span>
+<span class="diff-a">+			Role: &quot;authenticated&quot;,</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		userJwt, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(ts.Config.JWT.Secret))</span>
+<span class="diff-a">+		require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		req := httptest.NewRequest(http.MethodGet, &quot;http://localhost&quot;, nil)</span>
+<span class="diff-a">+		req.Header.Set(&quot;Authorization&quot;, &quot;Bearer &quot;+userJwt)</span>
+<span class="diff-a">+		return req</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Run(&quot;Banned user is rejected&quot;, func() {</span>
+<span class="diff-a">+		require.NoError(ts.T(), u.Ban(ts.API.db, time.Hour))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		_, err := ts.API.requireAuthentication(httptest.NewRecorder(), newAuthedRequest())</span>
+<span class="diff-a">+		require.Error(ts.T(), err)</span>
+<span class="diff-a">+		require.Equal(ts.T(),</span>
+<span class="diff-a">+			apierrors.NewForbiddenError(apierrors.ErrorCodeUserBanned, &quot;User is banned&quot;).Error(),</span>
+<span class="diff-a">+			err.Error())</span>
+<span class="diff-a">+	})</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Run(&quot;Expired ban is allowed&quot;, func() {</span>
+<span class="diff-a">+		pastBan := time.Now().Add(-time.Hour)</span>
+<span class="diff-a">+		u.BannedUntil = &amp;pastBan</span>
+<span class="diff-a">+		require.NoError(ts.T(), ts.API.db.UpdateOnly(u, &quot;banned_until&quot;))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		ctx, err := ts.API.requireAuthentication(httptest.NewRecorder(), newAuthedRequest())</span>
+<span class="diff-a">+		require.NoError(ts.T(), err)</span>
+<span class="diff-a">+		require.NotNil(ts.T(), getUser(ctx))</span>
+<span class="diff-a">+	})</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	ts.Run(&quot;Non-banned user is allowed&quot;, func() {</span>
+<span class="diff-a">+		require.NoError(ts.T(), u.Ban(ts.API.db, 0))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		ctx, err := ts.API.requireAuthentication(httptest.NewRecorder(), newAuthedRequest())</span>
+<span class="diff-a">+		require.NoError(ts.T(), err)</span>
+<span class="diff-a">+		require.NotNil(ts.T(), getUser(ctx))</span>
+<span class="diff-a">+	})</span>
+<span class="diff-a">+}</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/b6878c2fa63f805dbd27436c36ba7ebbc2b7e44d" rel="noopener noreferrer">https://github.com/supabase/auth/commit/b6878c2fa63f805dbd27436c36ba7ebbc2b7e44d</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-28</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">f4ae8eb21fc31172735c8c898c358ea26c0f0a576cac3b7b3872f71c33f2b58ed58a024e48ed2af87fd78242e01d5d6da94bb98cae47ba20acd7e67971b13486</p>
+<p class="kicker">Committed 2026-05-18 01:02 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-J5P6B5WQ-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-J5P6B5WQ%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A00%3A13%2B00%3A00%22%2C%22description%22%3A%22In%20internal/api/identity.go%2C%20linkIdentityToUser%20loads%20the%20target%20user%20from%20the%20flow%20state%20and%2C%20via%20handleProviderCallback%20in%20internal/api/external.go%2C%20unconditionally%20calls%20issueRefreshToken.%20Unlike%20the%20password%2C%20OTP%2C%20and%20token-refresh%20paths%2C%20this%20branch%20never%20checks%20user.IsBanned%28%29.%20A%20user%20who%20has%20been%20banned%20but%20still%20holds%20a%20not-yet-expired%20access%20token%20can%20call%20GET%20/user/identities/authorize%2C%20complete%20the%20external%20OAuth%20round-trip%2C%20and%20receive%20a%20brand-new%20access/refresh%20token%20pair.%20The%20result%20is%20a%20full%20bypass%20of%20banned_until%2C%20with%20the%20attacker%20able%20to%20keep%20refreshing%20indefinitely.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/api/identity.go%3A121%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%221.%20Admin%20sets%20banned_until%20on%20a%20misbehaving%20user.%22%2C%222.%20The%20user%27s%20existing%20access%20token%20remains%20valid%20for%20a%20few%20more%20minutes.%22%2C%223.%20User%20calls%20GET%20/user/identities/authorize%3Fprovider%3Dgoogle%20with%20that%20token%20and%20completes%20the%20Google%20OAuth%20flow.%22%2C%224.%20The%20callback%20reaches%20linkIdentityToUser%2C%20which%20then%20triggers%20issueRefreshToken.%22%2C%225.%20User%20receives%20a%20fresh%20refresh%20token%20and%20access%20token%20issued%20after%20the%20ban%20and%20can%20keep%20refreshing%20indefinitely.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20missing%20authorization%20check%3A%20the%20identity-linking%20callback%20path%20trusts%20the%20LinkingTargetID%20from%20the%20flow%20state%20and%20proceeds%20straight%20to%20issueRefreshToken%20without%20evaluating%20user.IsBanned%28%29.%20Because%20ban%20enforcement%20is%20implemented%20per-path%20rather%20than%20centrally%20at%20token%20issuance%2C%20this%20branch%20slips%20through%20and%20mints%20credentials%20for%20a%20user%20who%20should%20be%20locked%20out.%22%2C%22title%22%3A%22Banned%20user%20obtains%20fresh%20sessions%20via%20identity%20linking%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-J5P6B5WQ&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:00:13+00:00&#34;,
+  &#34;description&#34;: &#34;In internal/api/identity.go, linkIdentityToUser loads the target user from the flow state and, via handleProviderCallback in internal/api/external.go, unconditionally calls issueRefreshToken. Unlike the password, OTP, and token-refresh paths, this branch never checks user.IsBanned(). A user who has been banned but still holds a not-yet-expired access token can call GET /user/identities/authorize, complete the external OAuth round-trip, and receive a brand-new access/refresh token pair. The result is a full bypass of banned_until, with the attacker able to keep refreshing indefinitely.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/api/identity.go:121&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Admin sets banned_until on a misbehaving user.&#34;,
+    &#34;2. The user&#39;s existing access token remains valid for a few more minutes.&#34;,
+    &#34;3. User calls GET /user/identities/authorize?provider=google with that token and completes the Google OAuth flow.&#34;,
+    &#34;4. The callback reaches linkIdentityToUser, which then triggers issueRefreshToken.&#34;,
+    &#34;5. User receives a fresh refresh token and access token issued after the ban and can keep refreshing indefinitely.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a missing authorization check: the identity-linking callback path trusts the LinkingTargetID from the flow state and proceeds straight to issueRefreshToken without evaluating user.IsBanned(). Because ban enforcement is implemented per-path rather than centrally at token issuance, this branch slips through and mints credentials for a user who should be locked out.&#34;,
+  &#34;title&#34;: &#34;Banned user obtains fresh sessions via identity linking&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

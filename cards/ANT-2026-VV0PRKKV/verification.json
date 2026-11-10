@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-VV0PRKKV",
+  "hash": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-VV0PRKKV/card.html",
+    "sha256": "88cabb4d6e3a872eb9972af04241701b6a9a3fb4ab5dbbdb7f99bf23d5700b18",
+    "fetched_utc": "2026-11-10T21:07:41Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-VV0PRKKV",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+    "printed_hash": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+    "canonical_rebuild_sha3_512": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:07:41Z",
+  "card_facts": {
+    "printed_hash": "1bab7d8c0711e693bd53c3eec2b556b1ba8709ea1e4f3b0719a15ee8eaa70c89eeec4797e90b5ab922b7b8935bd6636effceefe31a976be0d557537919daab7d",
+    "committed_printed": "2026-03-27",
+    "revealed_printed": "2026-05-21 23:00 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-27",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-03-27",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-03-27",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-04-08",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-05-21",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-27",
+      "report_date": "2026-03-27",
+      "acknowledged_date": "2026-03-27",
+      "patch_released_date": "2026-04-08",
+      "reveal_date": "2026-05-21"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "medium",
+      "maintainer": "medium"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/wolfSSL/wolfssl/commit/d278da09dfa60237f246236f2c8acc5d11c5915a"
+      ],
+      "advisory": [],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-5447"
+      ],
+      "ghsa": [
+        "https://github.com/advisories/GHSA-mx4j-fjqx-f8qj"
+      ]
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

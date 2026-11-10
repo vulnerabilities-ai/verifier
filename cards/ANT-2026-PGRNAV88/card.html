@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-PGRNAV88 · apache/spark</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-PGRNAV88 · apache/spark</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  deserialization
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-PGRNAV88: spark rce</h1>
+<p>UserDefinedType.fromJson() in python/pyspark/sql/types.py:2002 passes bytes taken from Parquet file metadata directly to cloudpickle.loads() with no validation. An attacker who can supply a crafted Parquet file to a PySpark consumer achieves arbitrary code execution in the reading process. No explicit .schema call is required — DataFrame.<strong>repr</strong> triggers the path automatically, so simply loading and displaying the file in the PySpark REPL or a Jupyter notebook is sufficient. This is the same class as CVE-2025-30065 (CVSS 10.0) but more direct, as it grants unrestricted pickle execution without needing any gadget chain.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> apache/spark<br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is an unguarded call to cloudpickle.loads() on bytes sourced from untrusted Parquet metadata inside UserDefinedType.fromJson(). Because pickle deserialization is equivalent to code execution, any attacker who controls the Parquet file controls what runs in the PySpark process.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-PGRNAV88.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-PGRNAV88<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-22</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-25</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-02-25</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">df1df10cd5da6ed1bcf3f42888538eb4e2c779a9380d2112eb5817e07456599f2a1690af8b658b2998df4aeef6390c161d3e990141b48a8ce0b0d8b62036dbcd</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-05-28 09:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-PGRNAV88-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-PGRNAV88%22%2C%22bug_class%22%3Anull%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A37%2B00%3A00%22%2C%22description%22%3A%22UserDefinedType.fromJson%28%29%20in%20python/pyspark/sql/types.py%3A2002%20passes%20bytes%20taken%20from%20Parquet%20file%20metadata%20directly%20to%20cloudpickle.loads%28%29%20with%20no%20validation.%20An%20attacker%20who%20can%20supply%20a%20crafted%20Parquet%20file%20to%20a%20PySpark%20consumer%20achieves%20arbitrary%20code%20execution%20in%20the%20reading%20process.%20No%20explicit%20.schema%20call%20is%20required%20%E2%80%94%20DataFrame.__repr__%20triggers%20the%20path%20automatically%2C%20so%20simply%20loading%20and%20displaying%20the%20file%20in%20the%20PySpark%20REPL%20or%20a%20Jupyter%20notebook%20is%20sufficient.%20This%20is%20the%20same%20class%20as%20CVE-2025-30065%20%28CVSS%2010.0%29%20but%20more%20direct%2C%20as%20it%20grants%20unrestricted%20pickle%20execution%20without%20needing%20any%20gadget%20chain.%22%2C%22discovered_at%22%3A%222026-02-22T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22Spark%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22The%20root%20cause%20is%20an%20unguarded%20call%20to%20cloudpickle.loads%28%29%20on%20bytes%20sourced%20from%20untrusted%20Parquet%20metadata%20inside%20UserDefinedType.fromJson%28%29.%20Because%20pickle%20deserialization%20is%20equivalent%20to%20code%20execution%2C%20any%20attacker%20who%20controls%20the%20Parquet%20file%20controls%20what%20runs%20in%20the%20PySpark%20process.%22%2C%22title%22%3A%22spark%20rce%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-PGRNAV88&#34;,
+  &#34;bug_class&#34;: null,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:37+00:00&#34;,
+  &#34;description&#34;: &#34;UserDefinedType.fromJson() in python/pyspark/sql/types.py:2002 passes bytes taken from Parquet file metadata directly to cloudpickle.loads() with no validation. An attacker who can supply a crafted Parquet file to a PySpark consumer achieves arbitrary code execution in the reading process. No explicit .schema call is required — DataFrame.__repr__ triggers the path automatically, so simply loading and displaying the file in the PySpark REPL or a Jupyter notebook is sufficient. This is the same class as CVE-2025-30065 (CVSS 10.0) but more direct, as it grants unrestricted pickle execution without needing any gadget chain.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-02-22T00:00:00+00:00&#34;,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;Spark&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;The root cause is an unguarded call to cloudpickle.loads() on bytes sourced from untrusted Parquet metadata inside UserDefinedType.fromJson(). Because pickle deserialization is equivalent to code execution, any attacker who controls the Parquet file controls what runs in the PySpark process.&#34;,
+  &#34;title&#34;: &#34;spark rce&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

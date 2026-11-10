@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-P23DVQM2 · wolfssl/wolfssl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-P23DVQM2 · wolfssl/wolfssl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  authenticity-not-verified
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-5500">CVE-2026-5500</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-m77r-vqw2-hffx">GHSA-m77r-vqw2-hffx</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-P23DVQM2: wolfSSL PKCS#7 AuthEnvelopedData decoder accepts truncated AES-GCM authentication tags</h1>
+<p>wc_PKCS7_DecodeAuthEnvelopedData() in wolfcrypt/src/pkcs7.c took the AES-GCM authentication tag length directly from the mac OCTET STRING of the incoming CMS AuthEnvelopedData message, applied only an upper-bound check, and never compared it with the message's aes-ICVlen parameter; the underlying wc_AesGcmDecrypt() in turn accepted tags as short as one byte even though the encrypt path enforces WOLFSSL_MIN_AUTH_TAG_SZ. An attacker able to modify a message in transit could alter the encrypted content and truncate the mac field from 16 bytes to 1 byte, reducing the integrity check from a 2^-128 to a 2^-8 per-attempt forgery probability. The issue is tracked as CVE-2026-5500 / GHSA-m77r-vqw2-hffx and was fixed in commit a88dd07c7 (wolfSSL PR #10102), included in wolfSSL 5.9.1.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wolfssl/wolfssl<br>
+<strong>Location:</strong> <code>wolfcrypt/src/pkcs7.c:wc_PKCS7_DecodeAuthEnvelopedData (with wolfcrypt/src/aes.c:wc_AesGcmDecrypt)</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p><strong>Root cause.</strong> In <code>wc_PKCS7_DecodeAuthEnvelopedData()</code> (<code>wolfcrypt/src/pkcs7.c</code>), the length of the <code>mac</code> OCTET STRING parsed from the attacker-supplied DER is stored in <code>authTagSz</code> and checked only against the 16-byte upper bound of the local tag buffer before being passed through <code>wc_PKCS7_DecryptContent()</code> to <code>wc_AesGcmDecrypt()</code>. The RFC 5084 <code>aes-ICVlen</code> value from the content-encryption AlgorithmIdentifier is parsed into <code>macSz</code> but never cross-checked against <code>authTagSz</code>, and neither length is covered by the GCM additional authenticated data (only the encoded authenticated attributes are). Separately, in <code>wolfcrypt/src/aes.c</code>, <code>wc_AesGcmDecrypt()</code> rejected only <code>authTagSz == 0</code> or <code>authTagSz &gt; WC_AES_BLOCK_SIZE</code>, whereas the encrypt side enforces <code>WOLFSSL_MIN_AUTH_TAG_SZ</code> (12 by default). The combination made a one-byte tag comparison reachable through the CMS AuthEnvelopedData decoder.</p>
+<p><strong>Reach and impact.</strong> The path requires a build with PKCS#7 and AES-GCM support and an application that calls <code>wc_PKCS7_DecodeAuthEnvelopedData()</code> on untrusted input using AES-128/192/256-GCM content encryption. A man-in-the-middle who captures a legitimate AuthEnvelopedData message can modify the ciphertext, rewrite the <code>mac</code> field to a single byte, and enumerate that byte in at most 256 submissions; the default software AES-GCM path then compares only the one byte and the recipient accepts the tampered content as authentic. The impact is loss of integrity and authenticity of the decrypted content; the issue does not provide key or plaintext recovery. The GitHub advisory rates it High (CVSS 3.1 5.9, <code>AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N</code>; CVSS 4.0 8.7; CWE-20).</p>
+<p><strong>Fix.</strong> Commit <code>a88dd07c70e9415c3daa64d478f9a45bd65f9e5d</code> ("pkcs7,aes: reject truncated GCM auth tags", merged via wolfSSL PR #10102 and shipped in wolfSSL 5.9.1) validates that the parsed <code>macSz</code> is in 1..16, requires <code>authTagSz</code> to equal <code>macSz</code>, rejects GCM tags shorter than <code>WOLFSSL_MIN_AUTH_TAG_SZ</code> in the PKCS#7 decoder, enforces the same minimum in <code>wc_AesGcmDecrypt()</code>, and adds a regression test that truncates the final MAC OCTET STRING from 16 bytes to 1 and expects decoding to fail:</p>
+<pre tabindex="0"><code class="language-c">authTagSz = (word32)length;
+if (ret == 0 &amp;&amp; authTagSz != (word32)macSz) {
+    WOLFSSL_MSG(&quot;AuthEnvelopedData authTag size mismatch&quot;);
+    ret = ASN_PARSE_E;
+}
+if (ret == 0 &amp;&amp;
+        (encOID == AES128GCMb || encOID == AES192GCMb ||
+         encOID == AES256GCMb) &amp;&amp;
+        authTagSz &lt; WOLFSSL_MIN_AUTH_TAG_SZ) {
+    WOLFSSL_MSG(&quot;AuthEnvelopedData GCM authTag too small&quot;);
+    ret = ASN_PARSE_E;
+}
+</code></pre>
+<p>Identifiers: CVE-2026-5500, GHSA-m77r-vqw2-hffx.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-P23DVQM2.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-P23DVQM2<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/wolfcrypt/src/aes.c b/wolfcrypt/src/aes.c</span>
+<span class="diff-h">index a3b75dbb34b..41b01031c41 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/aes.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/aes.c</span>
+<span class="diff-h">@@ -10217,8 +10217,9 @@ int  wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,</span>
+<span class="diff-c">     /* If the sz is non-zero, both in and out must be set. If sz is 0,</span>
+<span class="diff-c">      * in and out are don&#x27;t cares, as this is is the GMAC case. */</span>
+<span class="diff-c">     if (aes == NULL || iv == NULL || (sz != 0 &amp;&amp; (in == NULL || out == NULL)) ||</span>
+<span class="diff-d">-        authTag == NULL || authTagSz &gt; WC_AES_BLOCK_SIZE || authTagSz == 0 ||</span>
+<span class="diff-d">-        ivSz == 0 || ((authInSz &gt; 0) &amp;&amp; (authIn == NULL)))</span>
+<span class="diff-a">+        authTag == NULL || authTagSz &gt; WC_AES_BLOCK_SIZE ||</span>
+<span class="diff-a">+        authTagSz &lt; WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0 ||</span>
+<span class="diff-a">+        ((authInSz &gt; 0) &amp;&amp; (authIn == NULL)))</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">         return BAD_FUNC_ARG;</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">@@ -10781,8 +10782,8 @@ int wc_AesGcmDecrypt(Aes* aes, byte* out, const byte* in, word32 sz,</span>
+<span class="diff-c">     /* If the sz is non-zero, both in and out must be set. If sz is 0,</span>
+<span class="diff-c">      * in and out are don&#x27;t cares, as this is is the GMAC case. */</span>
+<span class="diff-c">     if (aes == NULL || iv == NULL || (sz != 0 &amp;&amp; (in == NULL || out == NULL)) ||</span>
+<span class="diff-d">-        authTag == NULL || authTagSz &gt; WC_AES_BLOCK_SIZE || authTagSz == 0 ||</span>
+<span class="diff-d">-        ivSz == 0) {</span>
+<span class="diff-a">+        authTag == NULL || authTagSz &gt; WC_AES_BLOCK_SIZE ||</span>
+<span class="diff-a">+        authTagSz &lt; WOLFSSL_MIN_AUTH_TAG_SZ || ivSz == 0) {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         return BAD_FUNC_ARG;</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">@@ -12473,7 +12474,7 @@ int wc_AesGcmEncryptFinal(Aes* aes, byte* authTag, word32 authTagSz)</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     /* Check validity of parameters. */</span>
+<span class="diff-c">     if ((aes == NULL) || (authTag == NULL) || (authTagSz &gt; WC_AES_BLOCK_SIZE) ||</span>
+<span class="diff-d">-            (authTagSz == 0)) {</span>
+<span class="diff-a">+            (authTagSz &lt; WOLFSSL_MIN_AUTH_TAG_SZ)) {</span>
+<span class="diff-c">         ret = BAD_FUNC_ARG;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/wolfcrypt/src/pkcs7.c b/wolfcrypt/src/pkcs7.c</span>
+<span class="diff-h">index 9efec15ec7f..174c04d632c 100644</span>
+<span class="diff-h">--- a/wolfcrypt/src/pkcs7.c</span>
+<span class="diff-h">+++ b/wolfcrypt/src/pkcs7.c</span>
+<span class="diff-h">@@ -140,6 +140,7 @@ struct PKCS7State {</span>
+<span class="diff-c">     word32 nonceSz;  /* size of nonce stored */</span>
+<span class="diff-c">     word32 aadSz;    /* size of additional AEAD data */</span>
+<span class="diff-c">     word32 tagSz;    /* size of tag for AEAD */</span>
+<span class="diff-a">+    word32 icvSz;    /* expected ICV/MAC size from AlgoID parameter */</span>
+<span class="diff-c">     word32 contentSz;</span>
+<span class="diff-c">     word32 currContIdx;   /* index of current content */</span>
+<span class="diff-c">     word32 currContSz;    /* size of current content */</span>
+<span class="diff-h">@@ -14235,6 +14236,10 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,</span>
+<span class="diff-c">             if (ret == 0 &amp;&amp; GetMyVersion(pkiMsg, &amp;idx, &amp;macSz, pkiMsgSz) &lt; 0) {</span>
+<span class="diff-c">                 ret = ASN_PARSE_E;</span>
+<span class="diff-c">             }</span>
+<span class="diff-a">+            if (ret == 0 &amp;&amp; (macSz &lt;= 0 || macSz &gt; WC_AES_BLOCK_SIZE)) {</span>
+<span class="diff-a">+                WOLFSSL_MSG(&quot;AuthEnvelopedData invalid MAC length&quot;);</span>
+<span class="diff-a">+                ret = ASN_PARSE_E;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">             if (ret == 0) {</span>
+<span class="diff-c">                 explicitOctet = 0;</span>
+<span class="diff-h">@@ -14280,7 +14285,8 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,</span>
+<span class="diff-c">                 break;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            /* store nonce for later */</span>
+<span class="diff-a">+            /* store nonce and macSz for later */</span>
+<span class="diff-a">+            pkcs7-&gt;stream-&gt;icvSz = (word32)macSz;</span>
+<span class="diff-c">             if (nonceSz &gt; 0) {</span>
+<span class="diff-c">                 pkcs7-&gt;stream-&gt;nonceSz = (word32)nonceSz;</span>
+<span class="diff-c">                 pkcs7-&gt;stream-&gt;nonce = (byte*)XMALLOC((word32)nonceSz,</span>
+<span class="diff-h">@@ -14471,6 +14477,7 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,</span>
+<span class="diff-c">                 encodedAttribSz = pkcs7-&gt;stream-&gt;aadSz;</span>
+<span class="diff-c">                 encodedAttribs  = pkcs7-&gt;stream-&gt;aad;</span>
+<span class="diff-c">             }</span>
+<span class="diff-a">+            macSz = (int)pkcs7-&gt;stream-&gt;icvSz;</span>
+<span class="diff-c">         #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -14487,6 +14494,17 @@ int wc_PKCS7_DecodeAuthEnvelopedData(wc_PKCS7* pkcs7, byte* in,</span>
+<span class="diff-c">                 ret = ASN_PARSE_E;</span>
+<span class="diff-c">             }</span>
+<span class="diff-c">             authTagSz = (word32)length;</span>
+<span class="diff-a">+            if (ret == 0 &amp;&amp; authTagSz != (word32)macSz) {</span>
+<span class="diff-a">+                WOLFSSL_MSG(&quot;AuthEnvelopedData authTag size mismatch&quot;);</span>
+<span class="diff-a">+                ret = ASN_PARSE_E;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+            if (ret == 0 &amp;&amp;</span>
+<span class="diff-a">+                    (encOID == AES128GCMb || encOID == AES192GCMb ||</span>
+<span class="diff-a">+                     encOID == AES256GCMb) &amp;&amp;</span>
+<span class="diff-a">+                    authTagSz &lt; WOLFSSL_MIN_AUTH_TAG_SZ) {</span>
+<span class="diff-a">+                WOLFSSL_MSG(&quot;AuthEnvelopedData GCM authTag too small&quot;);</span>
+<span class="diff-a">+                ret = ASN_PARSE_E;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         #ifndef NO_PKCS7_STREAM</span>
+<span class="diff-c">             /* there might not be enough data for the auth tag too */</span>
+<span class="diff-h">diff --git a/wolfcrypt/test/test.c b/wolfcrypt/test/test.c</span>
+<span class="diff-h">index 755aa94358e..8077342566b 100644</span>
+<span class="diff-h">--- a/wolfcrypt/test/test.c</span>
+<span class="diff-h">+++ b/wolfcrypt/test/test.c</span>
+<span class="diff-h">@@ -57721,6 +57721,9 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer</span>
+<span class="diff-c">     wc_test_ret_t ret = 0;</span>
+<span class="diff-c">     int testSz = 0, i;</span>
+<span class="diff-c">     int envelopedSz, decodedSz;</span>
+<span class="diff-a">+#ifdef HAVE_AESGCM</span>
+<span class="diff-a">+    int tagTruncationChecked = 0;</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     byte   *enveloped = NULL;</span>
+<span class="diff-c">     byte   *decoded = NULL;</span>
+<span class="diff-h">@@ -58232,6 +58235,45 @@ static wc_test_ret_t pkcs7authenveloped_run_vectors(byte* rsaCert, word32 rsaCer</span>
+<span class="diff-c">             ERROR_OUT(WC_TEST_RET_ENC_NC, out);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+#ifdef HAVE_AESGCM</span>
+<span class="diff-a">+        if (tagTruncationChecked == 0 &amp;&amp;</span>
+<span class="diff-a">+                (testVectors[i].encryptOID == AES128GCMb ||</span>
+<span class="diff-a">+                 testVectors[i].encryptOID == AES192GCMb ||</span>
+<span class="diff-a">+                 testVectors[i].encryptOID == AES256GCMb) &amp;&amp;</span>
+<span class="diff-a">+                testVectors[i].authAttribsSz == 0 &amp;&amp;</span>
+<span class="diff-a">+                testVectors[i].unauthAttribsSz == 0 &amp;&amp;</span>
+<span class="diff-a">+                envelopedSz &gt; (WC_AES_BLOCK_SIZE + 2)) {</span>
+<span class="diff-a">+            int macIdx = envelopedSz - (WC_AES_BLOCK_SIZE + 2);</span>
+<span class="diff-a">+            byte* tampered = NULL;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+            /* For plain DER output without unauthenticated attributes, the</span>
+<span class="diff-a">+             * MAC OCTET STRING is the final field. */</span>
+<span class="diff-a">+            if (enveloped[macIdx] == ASN_OCTET_STRING &amp;&amp;</span>
+<span class="diff-a">+                    enveloped[macIdx + 1] == WC_AES_BLOCK_SIZE) {</span>
+<span class="diff-a">+                tampered = (byte*)XMALLOC((word32)envelopedSz, HEAP_HINT,</span>
+<span class="diff-a">+                                          DYNAMIC_TYPE_TMP_BUFFER);</span>
+<span class="diff-a">+                if (tampered == NULL) {</span>
+<span class="diff-a">+                    wc_PKCS7_Free(pkcs7);</span>
+<span class="diff-a">+                    ERROR_OUT(WC_TEST_RET_ENC_ERRNO, out);</span>
+<span class="diff-a">+                }</span>
+<span class="diff-a">+                XMEMCPY(tampered, enveloped, (word32)envelopedSz);</span>
+<span class="diff-a">+                tampered[macIdx + 1] = 1;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+                decodedSz = wc_PKCS7_DecodeAuthEnvelopedData(pkcs7, tampered,</span>
+<span class="diff-a">+                        (word32)envelopedSz, decoded, PKCS7_BUF_SIZE);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+                XFREE(tampered, HEAP_HINT, DYNAMIC_TYPE_TMP_BUFFER);</span>
+<span class="diff-a">+                tampered = NULL;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+                if (decodedSz &gt; 0) {</span>
+<span class="diff-a">+                    wc_PKCS7_Free(pkcs7);</span>
+<span class="diff-a">+                    ERROR_OUT(WC_TEST_RET_ENC_NC, out);</span>
+<span class="diff-a">+                }</span>
+<span class="diff-a">+                tagTruncationChecked = 1;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> #ifdef PKCS7_OUTPUT_TEST_BUNDLES</span>
+<span class="diff-c">         /* output pkcs7 envelopedData for external testing */</span>
+<span class="diff-c">         pkcs7File = XFOPEN(testVectors[i].outFileName, &quot;wb&quot;);</span>
+<span class="diff-h">diff --git a/wolfssl/wolfcrypt/settings.h b/wolfssl/wolfcrypt/settings.h</span>
+<span class="diff-h">index a0c79c5e846..4929b61cb43 100644</span>
+<span class="diff-h">--- a/wolfssl/wolfcrypt/settings.h</span>
+<span class="diff-h">+++ b/wolfssl/wolfcrypt/settings.h</span>
+<span class="diff-h">@@ -3429,6 +3429,8 @@ extern void uITRON4_free(void *p) ;</span>
+<span class="diff-c"> /* Default AES minimum auth tag sz, allow user to override */</span>
+<span class="diff-c"> #ifndef WOLFSSL_MIN_AUTH_TAG_SZ</span>
+<span class="diff-c">     #define WOLFSSL_MIN_AUTH_TAG_SZ 12</span>
+<span class="diff-a">+#elif WOLFSSL_MIN_AUTH_TAG_SZ &lt; 1</span>
+<span class="diff-a">+    #error WOLFSSL_MIN_AUTH_TAG_SZ must be at least 1</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wolfSSL/wolfssl/commit/a88dd07c7" rel="noopener noreferrer">https://github.com/wolfSSL/wolfssl/commit/a88dd07c7</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-29</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">2c8aa01adff247bee658ef6ef3ae642a97192eb85e456ea259eb203b183b4eed7b40c8a991be73dc4ab9dd6829d840aae1799e93cdad5de9615a26a38614f46a</p>
+<p class="kicker">Committed 2026-04-05 23:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-P23DVQM2-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-P23DVQM2%22%2C%22bug_class%22%3A%22crypto-failure%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A42%3A35%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wolfSSL%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22cms%20authenvelopeddata%20aead%20forgery%20via%20gcm%20tag%20truncati%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-P23DVQM2&#34;,
+  &#34;bug_class&#34;: &#34;crypto-failure&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:42:35+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wolfSSL&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;cms authenvelopeddata aead forgery via gcm tag truncati&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

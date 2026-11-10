@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-S8PHCV74 · cloudfoundry/uaa</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-S8PHCV74 · cloudfoundry/uaa</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-S8PHCV74: DenyAccessToUaaAdvice case-sensitive check bypassed on MySQL: zones.write overwrites system zone</h1>
+<p>DenyAccessToUaaAdvice.checkIdentityZoneId() and GeneralIdentityZoneValidator block modification of the system zone by comparing the incoming ID to the literal string "uaa" with case-sensitive String.equals(). On MySQL with the default utf8mb4_0900_ai_ci collation, a WHERE id='UAA' query still resolves to the system-zone row. A caller holding only zones.write — a tenant-management authority explicitly fenced off from the system zone — can PUT /identity-zones/UAA with an uppercase id in both the path and body, pass the advice check, and overwrite the system zone's tokenPolicy with attacker-controlled JWT signing keys. The attacker can then forge RS256 tokens with uaa.admin scope and take over the platform.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> cloudfoundry/uaa<br>
+<strong>Location:</strong> <code>server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java:15</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The guard uses IdentityZone.getUaaZoneId().equals(identityZoneId), a case-sensitive comparison, so "UAA" is not blocked. The persistence layer on MySQL is case-insensitive by default, so the update lands on the real 'uaa' row. The AOP wiring at IdentityZoneAopConfig.java:43-46 checks both the path param and body id, so supplying uppercase in both defeats every check.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Obtain a token for a client with authorities zones.read, zones.write, uaa.resource, scim.zones (no uaa.admin).</li>
+<li>Send PUT /identity-zones/UAA with body id "UAA" and a config.tokenPolicy containing an attacker-controlled activeKeyId and RSA signing key; receive HTTP 200.</li>
+<li>Confirm via GET /token_keys that the attacker key is now the active system signer (takes effect immediately, no restart).</li>
+<li>Forge an RS256 JWT with kid=attacker-key and scope [uaa.admin], signed with the attacker's private key.</li>
+<li>Call privileged endpoints (e.g. GET /Users) with the forged token; receive HTTP 200.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-S8PHCV74.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-S8PHCV74<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Independent triage by an external party.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-medium">medium</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java b/server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java</span>
+<span class="diff-h">index a24f11ef1df..68b038b48a8 100644</span>
+<span class="diff-h">--- a/server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java</span>
+<span class="diff-h">+++ b/server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java</span>
+<span class="diff-h">@@ -7,13 +7,13 @@</span>
+<span class="diff-c"> public class DenyAccessToUaaAdvice {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     public void checkIdentityZone(IdentityZone identityZone) {</span>
+<span class="diff-d">-        if (identityZone != null &amp;&amp; identityZone.isUaa()) {</span>
+<span class="diff-a">+        if (identityZone != null &amp;&amp; IdentityZone.getUaaZoneId().equalsIgnoreCase(identityZone.getId())) {</span>
+<span class="diff-c">             throw new AccessDeniedException(&quot;Access to UAA is not allowed.&quot;);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     public void checkIdentityZoneId(String identityZoneId) {</span>
+<span class="diff-d">-        if (IdentityZone.getUaaZoneId().equals(identityZoneId)) {</span>
+<span class="diff-a">+        if (IdentityZone.getUaaZoneId().equalsIgnoreCase(identityZoneId)) {</span>
+<span class="diff-c">             throw new AccessDeniedException(&quot;Access to UAA is not allowed.&quot;);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">diff --git a/server/src/main/java/org/cloudfoundry/identity/uaa/zone/GeneralIdentityZoneValidator.java b/server/src/main/java/org/cloudfoundry/identity/uaa/zone/GeneralIdentityZoneValidator.java</span>
+<span class="diff-h">index 0014b48f287..6ecdf879e64 100644</span>
+<span class="diff-h">--- a/server/src/main/java/org/cloudfoundry/identity/uaa/zone/GeneralIdentityZoneValidator.java</span>
+<span class="diff-h">+++ b/server/src/main/java/org/cloudfoundry/identity/uaa/zone/GeneralIdentityZoneValidator.java</span>
+<span class="diff-h">@@ -15,7 +15,7 @@ public GeneralIdentityZoneValidator(final IdentityZoneConfigurationValidator con</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     @Override</span>
+<span class="diff-c">     public IdentityZone validate(IdentityZone identityZone, Mode mode) throws InvalidIdentityZoneDetailsException {</span>
+<span class="diff-d">-        if (IdentityZoneHolder.getUaaZone().getId().equals(identityZone.getId()) &amp;&amp; !identityZone.isActive()) {</span>
+<span class="diff-a">+        if (IdentityZoneHolder.getUaaZone().getId().equalsIgnoreCase(identityZone.getId()) &amp;&amp; !identityZone.isActive()) {</span>
+<span class="diff-c">             throw new InvalidIdentityZoneDetailsException(&quot;The default zone cannot be set inactive.&quot;, null);</span>
+<span class="diff-c">         }</span>
+<span class="diff-c">         if (DEFAULT_ZONE_SUBDOMAIN_PATH.equalsIgnoreCase(identityZone.getSubdomain())) {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/cloudfoundry/uaa/commit/65118219a21b39b6ed561712f83d460bea3a15f3" rel="noopener noreferrer">https://github.com/cloudfoundry/uaa/commit/65118219a21b39b6ed561712f83d460bea3a15f3</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-09</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">52b0e75e358db4af90813b97fd908de26fdf9b48c4dc4e36e22b2a82ec68fadae72dc72982cb8b3580ccdf5a692ce110ea8f4bfc308964f0394f0e983f0d77e9</p>
+<p class="kicker">Committed 2026-05-08 16:46 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-S8PHCV74-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-S8PHCV74%22%2C%22bug_class%22%3A%22auth_bypass%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-09T18%3A20%3A44%2B00%3A00%22%2C%22description%22%3A%22DenyAccessToUaaAdvice.checkIdentityZoneId%28%29%20and%20GeneralIdentityZoneValidator%20block%20modification%20of%20the%20system%20zone%20by%20comparing%20the%20incoming%20ID%20to%20the%20literal%20string%20%5C%22uaa%5C%22%20with%20case-sensitive%20String.equals%28%29.%20On%20MySQL%20with%20the%20default%20utf8mb4_0900_ai_ci%20collation%2C%20a%20WHERE%20id%3D%27UAA%27%20query%20still%20resolves%20to%20the%20system-zone%20row.%20A%20caller%20holding%20only%20zones.write%20%E2%80%94%20a%20tenant-management%20authority%20explicitly%20fenced%20off%20from%20the%20system%20zone%20%E2%80%94%20can%20PUT%20/identity-zones/UAA%20with%20an%20uppercase%20id%20in%20both%20the%20path%20and%20body%2C%20pass%20the%20advice%20check%2C%20and%20overwrite%20the%20system%20zone%27s%20tokenPolicy%20with%20attacker-controlled%20JWT%20signing%20keys.%20The%20attacker%20can%20then%20forge%20RS256%20tokens%20with%20uaa.admin%20scope%20and%20take%20over%20the%20platform.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java%3A15%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22cloudfoundry/uaa%22%2C%22reproduction%22%3A%5B%221.%20Obtain%20a%20token%20for%20a%20client%20with%20authorities%20zones.read%2C%20zones.write%2C%20uaa.resource%2C%20scim.zones%20%28no%20uaa.admin%29.%22%2C%222.%20Send%20PUT%20/identity-zones/UAA%20with%20body%20id%20%5C%22UAA%5C%22%20and%20a%20config.tokenPolicy%20containing%20an%20attacker-controlled%20activeKeyId%20and%20RSA%20signing%20key%3B%20receive%20HTTP%20200.%22%2C%223.%20Confirm%20via%20GET%20/token_keys%20that%20the%20attacker%20key%20is%20now%20the%20active%20system%20signer%20%28takes%20effect%20immediately%2C%20no%20restart%29.%22%2C%224.%20Forge%20an%20RS256%20JWT%20with%20kid%3Dattacker-key%20and%20scope%20%5Buaa.admin%5D%2C%20signed%20with%20the%20attacker%27s%20private%20key.%22%2C%225.%20Call%20privileged%20endpoints%20%28e.g.%20GET%20/Users%29%20with%20the%20forged%20token%3B%20receive%20HTTP%20200.%22%5D%2C%22technical_details%22%3A%22The%20guard%20uses%20IdentityZone.getUaaZoneId%28%29.equals%28identityZoneId%29%2C%20a%20case-sensitive%20comparison%2C%20so%20%5C%22UAA%5C%22%20is%20not%20blocked.%20The%20persistence%20layer%20on%20MySQL%20is%20case-insensitive%20by%20default%2C%20so%20the%20update%20lands%20on%20the%20real%20%27uaa%27%20row.%20The%20AOP%20wiring%20at%20IdentityZoneAopConfig.java%3A43-46%20checks%20both%20the%20path%20param%20and%20body%20id%2C%20so%20supplying%20uppercase%20in%20both%20defeats%20every%20check.%22%2C%22title%22%3A%22DenyAccessToUaaAdvice%20case-sensitive%20check%20bypassed%20on%20MySQL%3A%20zones.write%20overwrites%20system%20zone%22%2C%22vendor_severity%22%3A%22medium%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-S8PHCV74&#34;,
+  &#34;bug_class&#34;: &#34;auth_bypass&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-09T18:20:44+00:00&#34;,
+  &#34;description&#34;: &#34;DenyAccessToUaaAdvice.checkIdentityZoneId() and GeneralIdentityZoneValidator block modification of the system zone by comparing the incoming ID to the literal string \&#34;uaa\&#34; with case-sensitive String.equals(). On MySQL with the default utf8mb4_0900_ai_ci collation, a WHERE id=&#39;UAA&#39; query still resolves to the system-zone row. A caller holding only zones.write — a tenant-management authority explicitly fenced off from the system zone — can PUT /identity-zones/UAA with an uppercase id in both the path and body, pass the advice check, and overwrite the system zone&#39;s tokenPolicy with attacker-controlled JWT signing keys. The attacker can then forge RS256 tokens with uaa.admin scope and take over the platform.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;server/src/main/java/org/cloudfoundry/identity/uaa/zone/DenyAccessToUaaAdvice.java:15&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;cloudfoundry/uaa&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Obtain a token for a client with authorities zones.read, zones.write, uaa.resource, scim.zones (no uaa.admin).&#34;,
+    &#34;2. Send PUT /identity-zones/UAA with body id \&#34;UAA\&#34; and a config.tokenPolicy containing an attacker-controlled activeKeyId and RSA signing key; receive HTTP 200.&#34;,
+    &#34;3. Confirm via GET /token_keys that the attacker key is now the active system signer (takes effect immediately, no restart).&#34;,
+    &#34;4. Forge an RS256 JWT with kid=attacker-key and scope [uaa.admin], signed with the attacker&#39;s private key.&#34;,
+    &#34;5. Call privileged endpoints (e.g. GET /Users) with the forged token; receive HTTP 200.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The guard uses IdentityZone.getUaaZoneId().equals(identityZoneId), a case-sensitive comparison, so \&#34;UAA\&#34; is not blocked. The persistence layer on MySQL is case-insensitive by default, so the update lands on the real &#39;uaa&#39; row. The AOP wiring at IdentityZoneAopConfig.java:43-46 checks both the path param and body id, so supplying uppercase in both defeats every check.&#34;,
+  &#34;title&#34;: &#34;DenyAccessToUaaAdvice case-sensitive check bypassed on MySQL: zones.write overwrites system zone&#34;,
+  &#34;vendor_severity&#34;: &#34;medium&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

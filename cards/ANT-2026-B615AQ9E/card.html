@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-B615AQ9E · exim/exim</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-B615AQ9E · exim/exim</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-40685">CVE-2026-40685</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-B615AQ9E: Exim dewrap() Off-By-One OOB Read → Code Execution</h1>
+<p>The dewrap() function in expand.c (lines 2399-2423) mishandles input where a backslash is immediately followed by the null terminator. The pointer p is incremented twice — once for the backslash and once for the assumed escaped character — advancing it past the end of the string into adjacent heap memory. An attacker who controls the input string can place a trailing backslash to trigger the overread. A demonstrated three-stage exploit (heap spray → malformed JSON → extract json trigger) leaks adjacent heap contents.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> exim/exim<br>
+<strong>Location:</strong> <code>expand.c:2399</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The escape-handling path unconditionally performs p++ for the backslash and p++ again for the escaped character without first checking whether the character after the backslash is '\0'. When the backslash is the final byte of the buffer, the second increment moves p one byte past the null terminator, and subsequent processing reads out-of-bounds heap memory.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Spray the heap so attacker-chosen or sensitive data lies adjacent to the input buffer</li>
+<li>Submit malformed JSON whose string content ends with a lone backslash before the null terminator</li>
+<li>Invoke the extract json trigger, causing dewrap() to read past the null and return out-of-bounds bytes</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-B615AQ9E.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-B615AQ9E<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-24</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">63eb8de51e73fbb8f1fc13cc19411badec1ea1d06bc18de4b32e6b64d018c1cb0057c933b8b5f2cc66541e6632a67f6898dbd2a27c45c4da35e8337751cd4e31</p>
+<p class="kicker">Committed 2026-05-08 07:09 UTC</p>
+<p class="kicker">Revealed 2026-08-17 21:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-B615AQ9E-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-B615AQ9E%22%2C%22bug_class%22%3A%22off-by-one%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-30T01%3A10%3A19%2B00%3A00%22%2C%22description%22%3A%22The%20dewrap%28%29%20function%20in%20expand.c%20%28lines%202399-2423%29%20mishandles%20input%20where%20a%20backslash%20is%20immediately%20followed%20by%20the%20null%20terminator.%20The%20pointer%20p%20is%20incremented%20twice%20%E2%80%94%20once%20for%20the%20backslash%20and%20once%20for%20the%20assumed%20escaped%20character%20%E2%80%94%20advancing%20it%20past%20the%20end%20of%20the%20string%20into%20adjacent%20heap%20memory.%20An%20attacker%20who%20controls%20the%20input%20string%20can%20place%20a%20trailing%20backslash%20to%20trigger%20the%20overread.%20A%20demonstrated%20three-stage%20exploit%20%28heap%20spray%20%E2%86%92%20malformed%20JSON%20%E2%86%92%20extract%20json%20trigger%29%20leaks%20adjacent%20heap%20contents.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22expand.c%3A2399%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22exim%22%2C%22reproduction%22%3A%5B%221.%20Spray%20the%20heap%20so%20attacker-chosen%20or%20sensitive%20data%20lies%20adjacent%20to%20the%20input%20buffer%22%2C%222.%20Submit%20malformed%20JSON%20whose%20string%20content%20ends%20with%20a%20lone%20backslash%20before%20the%20null%20terminator%22%2C%223.%20Invoke%20the%20extract%20json%20trigger%2C%20causing%20dewrap%28%29%20to%20read%20past%20the%20null%20and%20return%20out-of-bounds%20bytes%22%5D%2C%22technical_details%22%3A%22The%20escape-handling%20path%20unconditionally%20performs%20p%2B%2B%20for%20the%20backslash%20and%20p%2B%2B%20again%20for%20the%20escaped%20character%20without%20first%20checking%20whether%20the%20character%20after%20the%20backslash%20is%20%27%5C%5C0%27.%20When%20the%20backslash%20is%20the%20final%20byte%20of%20the%20buffer%2C%20the%20second%20increment%20moves%20p%20one%20byte%20past%20the%20null%20terminator%2C%20and%20subsequent%20processing%20reads%20out-of-bounds%20heap%20memory.%22%2C%22title%22%3A%22Exim%20dewrap%28%29%20Off-By-One%20OOB%20Read%20%E2%86%92%20Code%20Execution%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-B615AQ9E&#34;,
+  &#34;bug_class&#34;: &#34;off-by-one&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-30T01:10:19+00:00&#34;,
+  &#34;description&#34;: &#34;The dewrap() function in expand.c (lines 2399-2423) mishandles input where a backslash is immediately followed by the null terminator. The pointer p is incremented twice — once for the backslash and once for the assumed escaped character — advancing it past the end of the string into adjacent heap memory. An attacker who controls the input string can place a trailing backslash to trigger the overread. A demonstrated three-stage exploit (heap spray → malformed JSON → extract json trigger) leaks adjacent heap contents.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;expand.c:2399&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;exim&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Spray the heap so attacker-chosen or sensitive data lies adjacent to the input buffer&#34;,
+    &#34;2. Submit malformed JSON whose string content ends with a lone backslash before the null terminator&#34;,
+    &#34;3. Invoke the extract json trigger, causing dewrap() to read past the null and return out-of-bounds bytes&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The escape-handling path unconditionally performs p++ for the backslash and p++ again for the escaped character without first checking whether the character after the backslash is &#39;\\0&#39;. When the backslash is the final byte of the buffer, the second increment moves p one byte past the null terminator, and subsequent processing reads out-of-bounds heap memory.&#34;,
+  &#34;title&#34;: &#34;Exim dewrap() Off-By-One OOB Read → Code Execution&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

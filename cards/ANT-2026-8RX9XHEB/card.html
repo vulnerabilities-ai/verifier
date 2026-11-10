@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-8RX9XHEB · php/php-src</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-8RX9XHEB · php/php-src</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-8RX9XHEB: Heap out-of-bounds write in font loader via stride miscalculation</h1>
+<p>In PHP_FUNCTION(imageloadfont) at ext/gd/gd.c:543, the loop that reads the font header passes <code>&amp;font[b]</code> as the destination buffer, where <code>font</code> is a typed gdFontPtr rather than a char*. Pointer arithmetic therefore scales the offset by sizeof(gdFont) (~24 bytes) instead of 1. If the first php_stream_read() returns fewer than hdr_size bytes, <code>b</code> is set to that byte count and the next iteration writes to <code>(char*)font + b*24</code>, well beyond the single-struct allocation. An attacker who can influence the font stream — via an uploaded file, a URL wrapper, or any transport that produces a short read — controls the bytes written at this predictable out-of-bounds heap offset, corrupting adjacent zend_mm metadata or live objects and enabling a heap-grooming path to code execution.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> php/php-src<br>
+<strong>Commit:</strong> <code>6fde202488f751db</code><br>
+<strong>Location:</strong> <code>ext/gd/gd.c:543</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is incorrect pointer arithmetic: <code>&amp;font[b]</code> indexes a gdFontPtr, so each unit of <code>b</code> advances sizeof(gdFont) bytes rather than one byte. After a partial read of n bytes, the resumed read targets <code>(char*)font + n*sizeof(gdFont)</code> instead of <code>(char*)font + n</code>, landing outside the ~24-byte header buffer and writing attacker-supplied data onto neighboring heap memory.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Identify an endpoint that passes user-controlled data to imageloadfont() (e.g., theme/font upload or remote font URL).</li>
+<li>Serve or upload a font stream engineered so the initial php_stream_read() returns n &lt; hdr_size bytes.</li>
+<li>On the next loop iteration, PHP writes attacker-chosen bytes to <code>(char*)font + n*sizeof(gdFont)</code>.</li>
+<li>Groom the heap so the OOB write lands on zend_mm chunk metadata or a live object.</li>
+<li>Leverage the corrupted metadata/object to achieve arbitrary code execution.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Cast the destination to a byte pointer before indexing (e.g., use <code>((char*)font) + b</code>) so partial reads resume at the correct byte offset within the allocated header buffer.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-8RX9XHEB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-8RX9XHEB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ext/gd/gd.c b/ext/gd/gd.c</span>
+<span class="diff-h">index 16e871f6bc30..311900ba7bb3 100644</span>
+<span class="diff-h">--- a/ext/gd/gd.c</span>
+<span class="diff-h">+++ b/ext/gd/gd.c</span>
+<span class="diff-h">@@ -556,7 +556,7 @@ PHP_FUNCTION(imageloadfont)</span>
+<span class="diff-c"> 	 */</span>
+<span class="diff-c"> 	font = (gdFontPtr) emalloc(sizeof(gdFont));</span>
+<span class="diff-c"> 	b = 0;</span>
+<span class="diff-d">-	while (b &lt; hdr_size &amp;&amp; (n = php_stream_read(stream, (char*)&amp;font[b], hdr_size - b)) &gt; 0) {</span>
+<span class="diff-a">+	while (b &lt; hdr_size &amp;&amp; (n = php_stream_read(stream, (char *) font + b, hdr_size - b)) &gt; 0) {</span>
+<span class="diff-c"> 		b += n;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/ext/gd/tests/imageloadfont_short_read.phpt b/ext/gd/tests/imageloadfont_short_read.phpt</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000000..5a7f6a14c9bb</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/ext/gd/tests/imageloadfont_short_read.phpt</span>
+<span class="diff-h">@@ -0,0 +1,65 @@</span>
+<span class="diff-a">+--TEST--</span>
+<span class="diff-a">+imageloadfont(): header read must stay in bounds on short reads</span>
+<span class="diff-a">+--EXTENSIONS--</span>
+<span class="diff-a">+gd</span>
+<span class="diff-a">+--FILE--</span>
+<span class="diff-a">+&lt;?php</span>
+<span class="diff-a">+/* A user-space wrapper returns one byte per read, so php_stream_read() hands</span>
+<span class="diff-a">+ * imageloadfont()&#x27;s header loop a short read on every iteration. The header</span>
+<span class="diff-a">+ * (4 ints) plus a single 1x1 glyph byte form a valid font, which only loads</span>
+<span class="diff-a">+ * when each short read lands at the correct byte offset. */</span>
+<span class="diff-a">+class drip</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+    public $context;</span>
+<span class="diff-a">+    private string $data;</span>
+<span class="diff-a">+    private int $pos = 0;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_open($path, $mode, $options, &amp;$opened): bool</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        $this-&gt;data = pack(&#x27;V4&#x27;, 1, 32, 1, 1) . &quot;\x00&quot;;</span>
+<span class="diff-a">+        return true;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_read($count): string</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        return $this-&gt;pos &lt; strlen($this-&gt;data) ? $this-&gt;data[$this-&gt;pos++] : &#x27;&#x27;;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_eof(): bool</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        return $this-&gt;pos &gt;= strlen($this-&gt;data);</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_stat()</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        return [];</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_tell(): int</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        return $this-&gt;pos;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_seek($offset, $whence): bool</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        if ($whence === SEEK_CUR) {</span>
+<span class="diff-a">+            $this-&gt;pos += $offset;</span>
+<span class="diff-a">+        } elseif ($whence === SEEK_END) {</span>
+<span class="diff-a">+            $this-&gt;pos = strlen($this-&gt;data) + $offset;</span>
+<span class="diff-a">+        } else {</span>
+<span class="diff-a">+            $this-&gt;pos = $offset;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+        return true;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    public function stream_set_option($option, $arg1, $arg2): bool</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        return false;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+stream_wrapper_register(&#x27;drip&#x27;, drip::class);</span>
+<span class="diff-a">+var_dump(imageloadfont(&#x27;drip://font&#x27;) instanceof GdFont);</span>
+<span class="diff-a">+?&gt;</span>
+<span class="diff-a">+--EXPECT--</span>
+<span class="diff-a">+bool(true)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/php/php-src/commit/df1250dc64f53db849503618d2f911645cd43e3a" rel="noopener noreferrer">https://github.com/php/php-src/commit/df1250dc64f53db849503618d2f911645cd43e3a</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-22</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-30</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">cfbc1e189048a909c8f808cc01386cbb0f8b7acc4d4417b38cbcaafe3dac1a1db24f6ebc9459365ce1dd0a5b48a49f29702304fb7ca466f7f2d423d609cec8d5</p>
+<p class="kicker">Committed 2026-05-08 16:19 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-8RX9XHEB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-8RX9XHEB%22%2C%22bug_class%22%3A%22Memory%20Corruption%20/%20Out-of-Bounds%20Write%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%226fde202488f751db%22%2C%22created_at%22%3A%222026-04-24T21%3A28%3A32%2B00%3A00%22%2C%22description%22%3A%22In%20PHP_FUNCTION%28imageloadfont%29%20at%20ext/gd/gd.c%3A543%2C%20the%20loop%20that%20reads%20the%20font%20header%20passes%20%60%26font%5Bb%5D%60%20as%20the%20destination%20buffer%2C%20where%20%60font%60%20is%20a%20typed%20gdFontPtr%20rather%20than%20a%20char%2A.%20Pointer%20arithmetic%20therefore%20scales%20the%20offset%20by%20sizeof%28gdFont%29%20%28~24%20bytes%29%20instead%20of%201.%20If%20the%20first%20php_stream_read%28%29%20returns%20fewer%20than%20hdr_size%20bytes%2C%20%60b%60%20is%20set%20to%20that%20byte%20count%20and%20the%20next%20iteration%20writes%20to%20%60%28char%2A%29font%20%2B%20b%2A24%60%2C%20well%20beyond%20the%20single-struct%20allocation.%20An%20attacker%20who%20can%20influence%20the%20font%20stream%20%E2%80%94%20via%20an%20uploaded%20file%2C%20a%20URL%20wrapper%2C%20or%20any%20transport%20that%20produces%20a%20short%20read%20%E2%80%94%20controls%20the%20bytes%20written%20at%20this%20predictable%20out-of-bounds%20heap%20offset%2C%20corrupting%20adjacent%20zend_mm%20metadata%20or%20live%20objects%20and%20enabling%20a%20heap-grooming%20path%20to%20code%20execution.%22%2C%22discovered_at%22%3A%222026-04-22T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22ext/gd/gd.c%3A543%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22php/php-src%22%2C%22reproduction%22%3A%5B%221.%20Identify%20an%20endpoint%20that%20passes%20user-controlled%20data%20to%20imageloadfont%28%29%20%28e.g.%2C%20theme/font%20upload%20or%20remote%20font%20URL%29.%22%2C%222.%20Serve%20or%20upload%20a%20font%20stream%20engineered%20so%20the%20initial%20php_stream_read%28%29%20returns%20n%20%3C%20hdr_size%20bytes.%22%2C%223.%20On%20the%20next%20loop%20iteration%2C%20PHP%20writes%20attacker-chosen%20bytes%20to%20%60%28char%2A%29font%20%2B%20n%2Asizeof%28gdFont%29%60.%22%2C%224.%20Groom%20the%20heap%20so%20the%20OOB%20write%20lands%20on%20zend_mm%20chunk%20metadata%20or%20a%20live%20object.%22%2C%225.%20Leverage%20the%20corrupted%20metadata/object%20to%20achieve%20arbitrary%20code%20execution.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20incorrect%20pointer%20arithmetic%3A%20%60%26font%5Bb%5D%60%20indexes%20a%20gdFontPtr%2C%20so%20each%20unit%20of%20%60b%60%20advances%20sizeof%28gdFont%29%20bytes%20rather%20than%20one%20byte.%20After%20a%20partial%20read%20of%20n%20bytes%2C%20the%20resumed%20read%20targets%20%60%28char%2A%29font%20%2B%20n%2Asizeof%28gdFont%29%60%20instead%20of%20%60%28char%2A%29font%20%2B%20n%60%2C%20landing%20outside%20the%20~24-byte%20header%20buffer%20and%20writing%20attacker-supplied%20data%20onto%20neighboring%20heap%20memory.%22%2C%22title%22%3A%22Heap%20out-of-bounds%20write%20in%20font%20loader%20via%20stride%20miscalculation%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-8RX9XHEB&#34;,
+  &#34;bug_class&#34;: &#34;Memory Corruption / Out-of-Bounds Write&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;6fde202488f751db&#34;,
+  &#34;created_at&#34;: &#34;2026-04-24T21:28:32+00:00&#34;,
+  &#34;description&#34;: &#34;In PHP_FUNCTION(imageloadfont) at ext/gd/gd.c:543, the loop that reads the font header passes `&amp;font[b]` as the destination buffer, where `font` is a typed gdFontPtr rather than a char*. Pointer arithmetic therefore scales the offset by sizeof(gdFont) (~24 bytes) instead of 1. If the first php_stream_read() returns fewer than hdr_size bytes, `b` is set to that byte count and the next iteration writes to `(char*)font + b*24`, well beyond the single-struct allocation. An attacker who can influence the font stream — via an uploaded file, a URL wrapper, or any transport that produces a short read — controls the bytes written at this predictable out-of-bounds heap offset, corrupting adjacent zend_mm metadata or live objects and enabling a heap-grooming path to code execution.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-22T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;ext/gd/gd.c:543&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;php/php-src&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Identify an endpoint that passes user-controlled data to imageloadfont() (e.g., theme/font upload or remote font URL).&#34;,
+    &#34;2. Serve or upload a font stream engineered so the initial php_stream_read() returns n &lt; hdr_size bytes.&#34;,
+    &#34;3. On the next loop iteration, PHP writes attacker-chosen bytes to `(char*)font + n*sizeof(gdFont)`.&#34;,
+    &#34;4. Groom the heap so the OOB write lands on zend_mm chunk metadata or a live object.&#34;,
+    &#34;5. Leverage the corrupted metadata/object to achieve arbitrary code execution.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is incorrect pointer arithmetic: `&amp;font[b]` indexes a gdFontPtr, so each unit of `b` advances sizeof(gdFont) bytes rather than one byte. After a partial read of n bytes, the resumed read targets `(char*)font + n*sizeof(gdFont)` instead of `(char*)font + n`, landing outside the ~24-byte header buffer and writing attacker-supplied data onto neighboring heap memory.&#34;,
+  &#34;title&#34;: &#34;Heap out-of-bounds write in font loader via stride miscalculation&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

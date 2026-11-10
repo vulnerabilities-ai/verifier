@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-REDYDMAE",
+  "hash": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-REDYDMAE/card.html",
+    "sha256": "ef5a582aca3e3a1e6fa2c1cc13abd2e0877d82e2e3fbeb92ec9cb16d1858de13",
+    "fetched_utc": "2026-11-10T21:07:14Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-REDYDMAE",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+    "printed_hash": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+    "canonical_rebuild_sha3_512": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:07:14Z",
+  "card_facts": {
+    "printed_hash": "eee969c5af0ed7459b1785ef07a4d522782ddf10821f03a6515b47586c9d3369bb3fa34dbdb84a165ff71a303e7a47b22386c6369e6e72b990cb54174b4672c9",
+    "committed_printed": "2026-05-18 00:55 UTC",
+    "revealed_printed": "2026-08-18 14:11 UTC",
+    "timeline": [
+      {
+        "date": "2026-05-10",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-15",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-15",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-21",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-08-18",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-05-10",
+      "report_date": "2026-05-15",
+      "acknowledged_date": "2026-05-15",
+      "patch_released_date": "2026-05-21",
+      "reveal_date": "2026-08-18"
+    },
+    "severities": {
+      "model": "medium",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/supabase/supabase/commit/1097fcaa2f4e7954f7636eb8bbdc04c8060affc0"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-BBV63KVS · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-BBV63KVS · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-BBV63KVS: Heap-buffer-overflow READ in FFmpeg APV decoder via malformed APV input</h1>
+<p>A heap-buffer-overflow read occurs in FFmpeg's APV (AV_CODEC_ID_APV) decoder when processing fuzzer-generated input.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Location:</strong> <code>libavcodec/apv_decode.c:apv_decode_tile_component</code>  </p>
+<h2>Technical Details</h2>
+<p><strong>Crash signature:</strong> <code>ASAN heap-buffer-overflow READ</code></p>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-BBV63KVS.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-BBV63KVS<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavcodec/apv_decode.c b/libavcodec/apv_decode.c</span>
+<span class="diff-h">index c0615ab4105f0..c44d5d21ad699 100644</span>
+<span class="diff-h">--- a/libavcodec/apv_decode.c</span>
+<span class="diff-h">+++ b/libavcodec/apv_decode.c</span>
+<span class="diff-h">@@ -214,14 +214,13 @@ static int apv_decode_tile_component(AVCodecContext *avctx, void *data,</span>
+<span class="diff-c"> {</span>
+<span class="diff-c">     APVRawFrame                      *input = data;</span>
+<span class="diff-c">     APVDecodeContext                   *apv = avctx-&gt;priv_data;</span>
+<span class="diff-d">-    const CodedBitstreamAPVContext *apv_cbc = apv-&gt;cbc-&gt;priv_data;</span>
+<span class="diff-c">     const APVDerivedTileInfo     *tile_info = &amp;apv-&gt;tile_info;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    int tile_index = job / apv_cbc-&gt;num_comp;</span>
+<span class="diff-d">-    int comp_index = job % apv_cbc-&gt;num_comp;</span>
+<span class="diff-d">-</span>
+<span class="diff-c">     const AVPixFmtDescriptor *pix_fmt_desc =</span>
+<span class="diff-c">         av_pix_fmt_desc_get(apv-&gt;pix_fmt);</span>
+<span class="diff-a">+    int nb_components = pix_fmt_desc-&gt;nb_components;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+    int tile_index = job / nb_components;</span>
+<span class="diff-a">+    int comp_index = job % nb_components;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     int sub_w_shift = comp_index == 0 ? 0 : pix_fmt_desc-&gt;log2_chroma_w;</span>
+<span class="diff-c">     int sub_h_shift = comp_index == 0 ? 0 : pix_fmt_desc-&gt;log2_chroma_h;</span>
+<span class="diff-h">@@ -272,7 +271,7 @@ static int apv_decode_tile_component(AVCodecContext *avctx, void *data,</span>
+<span class="diff-c">         int qp = tile-&gt;tile_header.tile_qp[comp_index];</span>
+<span class="diff-c">         int level_scale = apv_level_scale[qp % 6];</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-        bit_depth = apv_cbc-&gt;bit_depth;</span>
+<span class="diff-a">+        bit_depth = input-&gt;frame_header.frame_info.bit_depth_minus8 + 8;</span>
+<span class="diff-c">         qp_shift  = qp / 6;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">         for (int y = 0; y &lt; 8; y++) {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/7a2424eb43e6bc04b5ba6a280fe3a05f8fd539b7" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/7a2424eb43e6bc04b5ba6a280fe3a05f8fd539b7</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-17</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">39285852ddac9e26a958231f1bfa5994d97fd0cb818634e126bc0538215483bf0dbd8f59cae1f073f42eb5bb0eeb69f53078e4986a421e3169269e6262ba5cd3</p>
+<p class="kicker">Committed 2026-05-28 15:01 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:05 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-BBV63KVS-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-BBV63KVS%22%2C%22bug_class%22%3A%22heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-27T01%3A53%3A08%2B00%3A00%22%2C%22description%22%3A%22A%20heap-buffer-overflow%20read%20occurs%20in%20FFmpeg%27s%20APV%20%28AV_CODEC_ID_APV%29%20decoder%20when%20processing%20fuzzer-generated%20input.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Heap-buffer-overflow%20READ%20in%20FFmpeg%20APV%20decoder%20via%20malformed%20APV%20input%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-BBV63KVS&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-27T01:53:08+00:00&#34;,
+  &#34;description&#34;: &#34;A heap-buffer-overflow read occurs in FFmpeg&#39;s APV (AV_CODEC_ID_APV) decoder when processing fuzzer-generated input.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Heap-buffer-overflow READ in FFmpeg APV decoder via malformed APV input&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

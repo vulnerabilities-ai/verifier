@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GY2SF1XW · grok</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GY2SF1XW · grok</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GY2SF1XW: Heap-buffer-overflow in FileFormatMJ2Decompress.cpp:593</h1>
+<p>During MJ2 header parsing, read_stts() populates a std::vector based on the stts box entry count (tts_decompact, line 480). Later, read_stco() iterates over stco chunk offset entries and writes into that same vector (stco_decompact, line 593). No check enforces that the stco entry count is bounded by the number of samples already allocated from stts. A crafted MJ2 file with more stco entries than stts samples causes a 4-byte out-of-bounds heap write with attacker-controlled offset values. Any application using Grok to decode untrusted MJ2 files is affected.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> grok<br>
+<strong>Location:</strong> <code>FileFormatMJ2Decompress.cpp:593</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: WRITE of size 4 at 0x6c7124fe02a0, located 4 bytes after a 12-byte heap region. The 12-byte region holds a single mj2_sample element allocated by vector::push_back in tts_decompact. stco_decompact then indexes past the vector's end — it trusts the stco box's own entry count rather than the actual size of the sample vector it is writing into, producing an OOB write into heap redzone/adjacent allocation.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 1531295879
+INFO: Loaded 1 modules   (62708 inline 8-bit counters): 62708 [0x55f34f9a0840, 0x55f34f9afd34), 
+INFO: Loaded 1 PC tables (62708 PCs): 62708 [0x55f34f9afd38,0x55f34faa4c78), 
+/out/grk_decompress_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x6c7124fe02a0 at pc 0x55f34f15ada6 bp 0x7ffc7cec8950 sp 0x7ffc7cec8948
+WRITE of size 4 at 0x6c7124fe02a0 thread T0
+    #0 0x55f34f15ada5 in stco_decompact /src/grok/src/lib/core/fileformat/decompress/FileFormatMJ2Decompress.cpp:593:43
+    #1 0x55f34f15ada5 in grk::FileFormatMJ2Decompress::read_stco(unsigned char*, unsigned int) /src/grok/src/lib/core/fileformat/decompress/FileFormatMJ2Decompress.cpp:616:3
+    #2 0x55f34f3919cf in operator() /usr/local/bin/../include/c++/v1/__functional/function.h:274:12
+    #3 0x55f34f3919cf in operator() /usr/local/bin/../include/c++/v1/__functional/function.h:772:10
+    #4 0x55f34f3919cf in grk::FileFormatJP2Family::readHeaderProcedure() /src/grok/src/lib/core/fileformat/FileFormatJP2Family.cpp:367:15
+    #5 0x55f34f38ff94 in grk::FileFormatJP2Family::readHeader(_grk_header_info*, grk::GrkImage*) /src/grok/src/lib/core/fileformat/FileFormatJP2Family.cpp:117:9
+    #6 0x55f34f15afd4 in grk::FileFormatMJ2Decompress::readHeader(_grk_header_info*) /src/grok/src/lib/core/fileformat/decompress/FileFormatMJ2Decompress.cpp:640:34
+    #7 0x55f34f0a3f6e in LLVMFuzzerTestOneInput /src/grok/./tests/fuzzers/grk_decompress_fuzzer.cpp:51:7
+    [... 29 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an MJ2 container with an stts box declaring a small sample count (e.g., 1 sample → 12-byte vector)</li>
+<li>Include a subsequent stco box declaring a larger chunk offset count</li>
+<li>Deliver file to victim; Grok's readHeader parses stts first (allocates small vector), then stco</li>
+<li>stco_decompact writes attacker-controlled 32-bit offset values past the end of the sample vector</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GY2SF1XW.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GY2SF1XW<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-06</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-11</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">9724c7cfaf8b05bf517732e8d02a0166a2bb18e06f9a955c626aa0048c550b41f66800681544d5026a1f1bb45bf6c492499566d9a90eb5cdd9989b8a8bf3edca</p>
+<p class="kicker">Committed 2026-06-06 07:20 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:17 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GY2SF1XW-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GY2SF1XW%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A29%3A25%2B00%3A00%22%2C%22description%22%3A%22During%20MJ2%20header%20parsing%2C%20read_stts%28%29%20populates%20a%20std%3A%3Avector%3Cmj2_sample%3E%20based%20on%20the%20stts%20box%20entry%20count%20%28tts_decompact%2C%20line%20480%29.%20Later%2C%20read_stco%28%29%20iterates%20over%20stco%20chunk%20offset%20entries%20and%20writes%20into%20that%20same%20vector%20%28stco_decompact%2C%20line%20593%29.%20No%20check%20enforces%20that%20the%20stco%20entry%20count%20is%20bounded%20by%20the%20number%20of%20samples%20already%20allocated%20from%20stts.%20A%20crafted%20MJ2%20file%20with%20more%20stco%20entries%20than%20stts%20samples%20causes%20a%204-byte%20out-of-bounds%20heap%20write%20with%20attacker-controlled%20offset%20values.%20Any%20application%20using%20Grok%20to%20decode%20untrusted%20MJ2%20files%20is%20affected.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22FileFormatMJ2Decompress.cpp%3A593%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22grok%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20MJ2%20container%20with%20an%20stts%20box%20declaring%20a%20small%20sample%20count%20%28e.g.%2C%201%20sample%20%E2%86%92%2012-byte%20vector%29%22%2C%222.%20Include%20a%20subsequent%20stco%20box%20declaring%20a%20larger%20chunk%20offset%20count%22%2C%223.%20Deliver%20file%20to%20victim%3B%20Grok%27s%20readHeader%20parses%20stts%20first%20%28allocates%20small%20vector%29%2C%20then%20stco%22%2C%224.%20stco_decompact%20writes%20attacker-controlled%2032-bit%20offset%20values%20past%20the%20end%20of%20the%20sample%20vector%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20WRITE%20of%20size%204%20at%200x6c7124fe02a0%2C%20located%204%20bytes%20after%20a%2012-byte%20heap%20region.%20The%2012-byte%20region%20holds%20a%20single%20mj2_sample%20element%20allocated%20by%20vector%3A%3Apush_back%20in%20tts_decompact.%20stco_decompact%20then%20indexes%20past%20the%20vector%27s%20end%20%E2%80%94%20it%20trusts%20the%20stco%20box%27s%20own%20entry%20count%20rather%20than%20the%20actual%20size%20of%20the%20sample%20vector%20it%20is%20writing%20into%2C%20producing%20an%20OOB%20write%20into%20heap%20redzone/adjacent%20allocation.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20FileFormatMJ2Decompress.cpp%3A593%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GY2SF1XW&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:29:25+00:00&#34;,
+  &#34;description&#34;: &#34;During MJ2 header parsing, read_stts() populates a std::vector&lt;mj2_sample&gt; based on the stts box entry count (tts_decompact, line 480). Later, read_stco() iterates over stco chunk offset entries and writes into that same vector (stco_decompact, line 593). No check enforces that the stco entry count is bounded by the number of samples already allocated from stts. A crafted MJ2 file with more stco entries than stts samples causes a 4-byte out-of-bounds heap write with attacker-controlled offset values. Any application using Grok to decode untrusted MJ2 files is affected.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;FileFormatMJ2Decompress.cpp:593&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;grok&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an MJ2 container with an stts box declaring a small sample count (e.g., 1 sample → 12-byte vector)&#34;,
+    &#34;2. Include a subsequent stco box declaring a larger chunk offset count&#34;,
+    &#34;3. Deliver file to victim; Grok&#39;s readHeader parses stts first (allocates small vector), then stco&#34;,
+    &#34;4. stco_decompact writes attacker-controlled 32-bit offset values past the end of the sample vector&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: WRITE of size 4 at 0x6c7124fe02a0, located 4 bytes after a 12-byte heap region. The 12-byte region holds a single mj2_sample element allocated by vector::push_back in tts_decompact. stco_decompact then indexes past the vector&#39;s end — it trusts the stco box&#39;s own entry count rather than the actual size of the sample vector it is writing into, producing an OOB write into heap redzone/adjacent allocation.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in FileFormatMJ2Decompress.cpp:593&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

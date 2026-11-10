@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-K3APEMB5 · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-K3APEMB5 · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  other
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-K3APEMB5: Heap-buffer-overflow in gdal</h1>
+<p>The libFuzzer harness mrf_fuzzer was executed against a single reproducer (/tmp/poc) and exited with status 1, but the log contains no AddressSanitizer/UBSan diagnostic, no crashing function, and no stack frames. Without a sanitizer tag or backtrace, the crash type, access shape (READ/WRITE, size), and source location cannot be determined from this output alone.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal  </p>
+<h2>Technical Details</h2>
+<p>Fuzz target mrf_fuzzer terminated with EXIT_CODE:1 on the provided PoC; no sanitizer (ASAN/UBSan) report or stack trace was emitted.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2887737378
+INFO: Loaded 1 modules   (1021859 inline 8-bit counters): 1021859 [0x638c0623a440, 0x638c06333be3), 
+INFO: Loaded 1 PC tables (1021859 PCs): 1021859 [0x638c06333be8,0x638c072cb618), 
+/out/mrf_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-K3APEMB5.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-K3APEMB5<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/frmts/mrf/mrf_band.cpp b/frmts/mrf/mrf_band.cpp</span>
+<span class="diff-h">index d4f71a7cd041..21e6dad1b6ba 100644</span>
+<span class="diff-h">--- a/frmts/mrf/mrf_band.cpp</span>
+<span class="diff-h">+++ b/frmts/mrf/mrf_band.cpp</span>
+<span class="diff-h">@@ -898,7 +898,16 @@ CPLErr MRFRasterBand::FetchClonedBlock(int xblk, int yblk, void *buffer)</span>
+<span class="diff-c">     MRFDataset *poSrc = static_cast&lt;MRFDataset *&gt;(poMRFDS-&gt;GetSrcDS());</span>
+<span class="diff-c">     if (nullptr == poSrc)</span>
+<span class="diff-c">     {</span>
+<span class="diff-d">-        CPLError(CE_Failure, CPLE_AppDefined, &quot;MRF: Can&#x27;t open source file %s&quot;,</span>
+<span class="diff-a">+        CPLError(CE_Failure, CPLE_AppDefined, &quot;MRF: Can&#x27;t open source %s&quot;,</span>
+<span class="diff-a">+                 poMRFDS-&gt;source.c_str());</span>
+<span class="diff-a">+        return CE_Failure;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+    // Check that the source is an MRF</span>
+<span class="diff-a">+    auto srcDriver = poSrc-&gt;GetDriver();</span>
+<span class="diff-a">+    if (srcDriver == nullptr || !EQUAL(srcDriver-&gt;GetDescription(), &quot;MRF&quot;))</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        CPLError(CE_Failure, CPLE_AppDefined,</span>
+<span class="diff-a">+                 &quot;MRF: Cloned source %s is not an MRF&quot;,</span>
+<span class="diff-c">                  poMRFDS-&gt;source.c_str());</span>
+<span class="diff-c">         return CE_Failure;</span>
+<span class="diff-c">     }</span>
+<span class="diff-h">@@ -908,11 +917,35 @@ CPLErr MRFRasterBand::FetchClonedBlock(int xblk, int yblk, void *buffer)</span>
+<span class="diff-c">         // Can&#x27;t store, so just fetch from source, which is an MRF with</span>
+<span class="diff-c">         // identical structure</span>
+<span class="diff-c">         MRFRasterBand *b =</span>
+<span class="diff-d">-            static_cast&lt;MRFRasterBand *&gt;(poSrc-&gt;GetRasterBand(nBand));</span>
+<span class="diff-a">+            reinterpret_cast&lt;MRFRasterBand *&gt;(poSrc-&gt;GetRasterBand(nBand));</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        // Check the datatype and structure of the bands</span>
+<span class="diff-a">+        // This is a sanity check, the source is lazy opened</span>
+<span class="diff-a">+        if (b == nullptr || poSrc-&gt;GetRasterCount() != poMRFDS-&gt;nBands ||</span>
+<span class="diff-a">+            poSrc-&gt;GetRasterXSize() != poMRFDS-&gt;full.size.x ||</span>
+<span class="diff-a">+            poSrc-&gt;GetRasterYSize() != poMRFDS-&gt;full.size.y)</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            CPLError(CE_Failure, CPLE_AppDefined,</span>
+<span class="diff-a">+                     &quot;MRF: Cloned source %s doesn&#x27;t have the same structure&quot;,</span>
+<span class="diff-a">+                     poMRFDS-&gt;source.c_str());</span>
+<span class="diff-a">+            return CE_Failure;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        // Switch to overview if needed</span>
+<span class="diff-c">         if (b-&gt;GetOverviewCount() &amp;&amp; m_l)</span>
+<span class="diff-c">             b = static_cast&lt;MRFRasterBand *&gt;(b-&gt;GetOverview(m_l - 1));</span>
+<span class="diff-c">         if (b == nullptr)</span>
+<span class="diff-c">             return CE_Failure;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+        // One last check, blocksize and type matches</span>
+<span class="diff-a">+        int bsx, bsy;</span>
+<span class="diff-a">+        b-&gt;GetBlockSize(&amp;bsx, &amp;bsy);</span>
+<span class="diff-a">+        if (bsx != img.pagesize.x || bsy != img.pagesize.y ||</span>
+<span class="diff-a">+            b-&gt;GetRasterDataType() != eDataType)</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            return CE_Failure;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">         return b-&gt;IReadBlock(xblk, yblk, buffer);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/frmts/mrf/mrf_util.cpp b/frmts/mrf/mrf_util.cpp</span>
+<span class="diff-h">index b2b7b2bcd5a4..75cc83618b4a 100644</span>
+<span class="diff-h">--- a/frmts/mrf/mrf_util.cpp</span>
+<span class="diff-h">+++ b/frmts/mrf/mrf_util.cpp</span>
+<span class="diff-h">@@ -679,6 +679,10 @@ void GDALRegister_MRF()</span>
+<span class="diff-c">         &quot;optimization\n&quot;</span>
+<span class="diff-c"> #if defined(BRUNSLI)</span>
+<span class="diff-c">         &quot;       JFIF - boolean, for JPEG, disable brunsli encoding\n&quot;</span>
+<span class="diff-a">+#endif</span>
+<span class="diff-a">+#if defined(QB3_SUPPORT)</span>
+<span class="diff-a">+        &quot;       QB3_BAND_MAP - space separted list of band indices for &quot;</span>
+<span class="diff-a">+        &quot;band to band decorrelation\n&quot;</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c">         &quot;&#x27;/&gt;&quot;</span>
+<span class="diff-c">         &quot;&lt;/CreationOptionList&gt;\n&quot;);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/e2b913be67cda104a84aa1f9449cd9479707f4d0" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/e2b913be67cda104a84aa1f9449cd9479707f4d0</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-29</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">7d3067339b8ed530b7bd76b9cabeae8e1570bc0e7f51294169a287f0f5686654291c6668fb791dd4748cf626bb3a2d0d0f79476c256da73a6ef7f07446d06d9c</p>
+<p class="kicker">Committed 2026-05-07 10:17 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:46 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-K3APEMB5-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-K3APEMB5%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A28%3A27%2B00%3A00%22%2C%22description%22%3A%22The%20libFuzzer%20harness%20mrf_fuzzer%20was%20executed%20against%20a%20single%20reproducer%20%28/tmp/poc%29%20and%20exited%20with%20status%201%2C%20but%20the%20log%20contains%20no%20AddressSanitizer/UBSan%20diagnostic%2C%20no%20crashing%20function%2C%20and%20no%20stack%20frames.%20Without%20a%20sanitizer%20tag%20or%20backtrace%2C%20the%20crash%20type%2C%20access%20shape%20%28READ/WRITE%2C%20size%29%2C%20and%20source%20location%20cannot%20be%20determined%20from%20this%20output%20alone.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Heap-buffer-overflow%20in%20gdal%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-K3APEMB5&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:28:27+00:00&#34;,
+  &#34;description&#34;: &#34;The libFuzzer harness mrf_fuzzer was executed against a single reproducer (/tmp/poc) and exited with status 1, but the log contains no AddressSanitizer/UBSan diagnostic, no crashing function, and no stack frames. Without a sanitizer tag or backtrace, the crash type, access shape (READ/WRITE, size), and source location cannot be determined from this output alone.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in gdal&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

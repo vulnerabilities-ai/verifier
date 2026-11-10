@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-EWM7B5QP",
+  "hash": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-EWM7B5QP/card.html",
+    "sha256": "9f745a603176f1ace8f59280f41963a5455d26787d659e3c2f289016392d5528",
+    "fetched_utc": "2026-11-10T21:05:58Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-EWM7B5QP",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+    "printed_hash": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+    "canonical_rebuild_sha3_512": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:05:58Z",
+  "card_facts": {
+    "printed_hash": "f25c65dd628714bf5562cceab720fa2203283e59ed7dc2a2fab688cd384d115cd836aec627592b44f04f857ec74f30f100c9f635db36190c6d9a2f6574c3b999",
+    "committed_printed": "2026-07-22 07:29 UTC",
+    "revealed_printed": "2026-09-28 21:59 UTC",
+    "timeline": [
+      {
+        "date": "2026-04-02",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-07-06",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-07-22",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-07-22",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-09-28",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-04-02",
+      "patch_released_date": "2026-07-06",
+      "report_date": "2026-07-22",
+      "acknowledged_date": "2026-07-22",
+      "reveal_date": "2026-09-28"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/FreeRDP/FreeRDP/commit/0ed1f95d36913581cf31124f94eb5843d4263eae"
+      ],
+      "advisory": [],
+      "nvd": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2026-63633"
+      ],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

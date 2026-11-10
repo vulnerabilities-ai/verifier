@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-KP4YD2Z6 · php/php-src</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-KP4YD2Z6 · php/php-src</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-KP4YD2Z6: DBA flatfile length parsing triggers heap buffer overflow</h1>
+<p>In ext/dba/libflatfile/flatfile.c, the flatfile_delete(), flatfile_findkey(), flatfile_firstkey() and flatfile_nextkey() routines read a record-length line with php_stream_gets() and convert it with atoi() into a size_t. A length line of "-1\n" yields SIZE_MAX, which passes the <code>num &gt;= buf_size</code> check but wraps to 1023 in <code>num + FLATFILE_BLOCK_SIZE</code>, so buf is erealloc'd to ~1 KB while php_stream_read() is asked for SIZE_MAX bytes. The buffered stream path then memcpy's the entire attacker-controlled stream read-buffer into the 1 KB chunk, overflowing it by kilobytes and corrupting adjacent Zend heap metadata for potential code execution.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> php/php-src<br>
+<strong>Commit:</strong> <code>63f304dc37e0fe6c</code><br>
+<strong>Location:</strong> <code>ext/dba/libflatfile/flatfile.c:113</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>atoi() on an attacker-supplied length line can return a negative int, which when assigned to size_t <code>num</code> becomes SIZE_MAX; the subsequent <code>buf_size = num + FLATFILE_BLOCK_SIZE</code> integer-wraps to 1023, so <code>erealloc(buf, buf_size)</code> produces a ~1 KB allocation while <code>php_stream_read(dba-&gt;fp, buf, num)</code> requests SIZE_MAX bytes. The buffered read implementation drains its whole read-buffer via memcpy into buf, writing well past the end of the heap chunk.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a flatfile whose first record-length line is "-1\n" followed by several KB of payload bytes</li>
+<li>Cause the target application to dba_open() this file with the 'flatfile' handler (e.g. via an upload directory or a cache/index file written by a less-trusted component)</li>
+<li>Trigger dba_fetch()/dba_exists()/dba_firstkey(), which calls flatfile_findkey()/flatfile_firstkey()</li>
+<li>atoi("-1") → SIZE_MAX in size_t; buf is erealloc'd to 1023 bytes while php_stream_read requests SIZE_MAX</li>
+<li>Stream read-buffer is memcpy'd past the end of buf, corrupting adjacent Zend heap metadata</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Parse record lengths as unsigned with explicit range validation — reject negative or implausibly large values before using them to size allocations or stream reads.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-KP4YD2Z6.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-KP4YD2Z6<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ext/dba/libflatfile/flatfile.c b/ext/dba/libflatfile/flatfile.c</span>
+<span class="diff-h">index bd76ecfdd0ae..a68fed7e38c4 100644</span>
+<span class="diff-h">--- a/ext/dba/libflatfile/flatfile.c</span>
+<span class="diff-h">+++ b/ext/dba/libflatfile/flatfile.c</span>
+<span class="diff-h">@@ -37,6 +37,18 @@</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #define FLATFILE_BLOCK_SIZE 1024</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/* Parse the length prefix in `buf` into `num` and grow `buf` to hold it.</span>
+<span class="diff-a">+ * atoi() narrows a malformed (e.g. negative) length to a huge size_t whose</span>
+<span class="diff-a">+ * `+ FLATFILE_BLOCK_SIZE` would overflow erealloc(); the macro yields true in</span>
+<span class="diff-a">+ * that case so the caller stops reading and the read stays within `buf_size`. */</span>
+<span class="diff-a">+#define FLATFILE_GROW_BUF(num, buf, buf_size) ( \</span>
+<span class="diff-a">+	(num) = atoi(buf), \</span>
+<span class="diff-a">+	(num) &gt;= (buf_size) &amp;&amp; ( \</span>
+<span class="diff-a">+		(num) &gt; SIZE_MAX - FLATFILE_BLOCK_SIZE \</span>
+<span class="diff-a">+		|| ((buf) = erealloc((buf), (buf_size) = (num) + FLATFILE_BLOCK_SIZE), 0) \</span>
+<span class="diff-a">+	) \</span>
+<span class="diff-a">+)</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /*</span>
+<span class="diff-c">  * ret = -1 means that database was opened for read-only</span>
+<span class="diff-c">  * ret = 0  success</span>
+<span class="diff-h">@@ -112,10 +124,8 @@ int flatfile_delete(flatfile *dba, datum key_datum) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		pos = php_stream_tell(dba-&gt;fp);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -135,10 +145,8 @@ int flatfile_delete(flatfile *dba, datum key_datum) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		/* read in the value */</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-h">@@ -162,10 +170,8 @@ int flatfile_findkey(flatfile *dba, datum key_datum) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -178,10 +184,8 @@ int flatfile_findkey(flatfile *dba, datum key_datum) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-h">@@ -202,10 +206,8 @@ datum flatfile_firstkey(flatfile *dba) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -218,10 +220,8 @@ datum flatfile_firstkey(flatfile *dba) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-h">@@ -244,20 +244,16 @@ datum flatfile_nextkey(flatfile *dba) {</span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		if (!php_stream_gets(dba-&gt;fp, buf, 15)) {</span>
+<span class="diff-c"> 			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		num = atoi(buf);</span>
+<span class="diff-d">-		if (num &gt;= buf_size) {</span>
+<span class="diff-d">-			buf_size = num + FLATFILE_BLOCK_SIZE;</span>
+<span class="diff-d">-			buf = erealloc(buf, buf_size);</span>
+<span class="diff-a">+		if (FLATFILE_GROW_BUF(num, buf, buf_size)) {</span>
+<span class="diff-a">+			break;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 		num = php_stream_read(dba-&gt;fp, buf, num);</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/ext/dba/tests/dba_flatfile_oob.phpt b/ext/dba/tests/dba_flatfile_oob.phpt</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000000..3328e1dcba90</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/ext/dba/tests/dba_flatfile_oob.phpt</span>
+<span class="diff-h">@@ -0,0 +1,31 @@</span>
+<span class="diff-a">+--TEST--</span>
+<span class="diff-a">+DBA FlatFile handler bounds with a malformed (negative) length field</span>
+<span class="diff-a">+--EXTENSIONS--</span>
+<span class="diff-a">+dba</span>
+<span class="diff-a">+--SKIPIF--</span>
+<span class="diff-a">+&lt;?php</span>
+<span class="diff-a">+require_once __DIR__ . &#x27;/setup/setup_dba_tests.inc&#x27;;</span>
+<span class="diff-a">+check_skip(&#x27;flatfile&#x27;);</span>
+<span class="diff-a">+?&gt;</span>
+<span class="diff-a">+--FILE--</span>
+<span class="diff-a">+&lt;?php</span>
+<span class="diff-a">+$db_file = __DIR__ . &#x27;/dba_flatfile_oob.db&#x27;;</span>
+<span class="diff-a">+// A negative length narrows to a huge size_t and previously overran the read buffer.</span>
+<span class="diff-a">+file_put_contents($db_file, &quot;-1\n&quot; . str_repeat(&#x27;A&#x27;, 200000));</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+$db = dba_open($db_file, &#x27;r&#x27;, &#x27;flatfile&#x27;);</span>
+<span class="diff-a">+var_dump(dba_firstkey($db));</span>
+<span class="diff-a">+var_dump(dba_exists(&quot;AAAA&quot;, $db));</span>
+<span class="diff-a">+var_dump(dba_fetch(&quot;AAAA&quot;, $db));</span>
+<span class="diff-a">+dba_close($db);</span>
+<span class="diff-a">+echo &quot;done\n&quot;;</span>
+<span class="diff-a">+?&gt;</span>
+<span class="diff-a">+--CLEAN--</span>
+<span class="diff-a">+&lt;?php</span>
+<span class="diff-a">+@unlink(__DIR__ . &#x27;/dba_flatfile_oob.db&#x27;);</span>
+<span class="diff-a">+?&gt;</span>
+<span class="diff-a">+--EXPECT--</span>
+<span class="diff-a">+bool(false)</span>
+<span class="diff-a">+bool(false)</span>
+<span class="diff-a">+bool(false)</span>
+<span class="diff-a">+done</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/php/php-src/commit/a9c7dfefbdcab6b6d2a5c5692f5dcfb5676814ae" rel="noopener noreferrer">https://github.com/php/php-src/commit/a9c7dfefbdcab6b6d2a5c5692f5dcfb5676814ae</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-22</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-02</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">8c92fb5c1e0fd2ac6e9dd30b3e1a44735f9152e0fc6c835e00ba4d985a2dae970f65ec54a03e368841019b7d1b5a3a43e13018a6938c14cfcc1d0852548a9036</p>
+<p class="kicker">Committed 2026-05-08 16:19 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-KP4YD2Z6-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-KP4YD2Z6%22%2C%22bug_class%22%3A%22Memory%20Corruption%20/%20Heap%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%2263f304dc37e0fe6c%22%2C%22created_at%22%3A%222026-04-24T21%3A28%3A30%2B00%3A00%22%2C%22description%22%3A%22In%20ext/dba/libflatfile/flatfile.c%2C%20the%20flatfile_delete%28%29%2C%20flatfile_findkey%28%29%2C%20flatfile_firstkey%28%29%20and%20flatfile_nextkey%28%29%20routines%20read%20a%20record-length%20line%20with%20php_stream_gets%28%29%20and%20convert%20it%20with%20atoi%28%29%20into%20a%20size_t.%20A%20length%20line%20of%20%5C%22-1%5C%5Cn%5C%22%20yields%20SIZE_MAX%2C%20which%20passes%20the%20%60num%20%3E%3D%20buf_size%60%20check%20but%20wraps%20to%201023%20in%20%60num%20%2B%20FLATFILE_BLOCK_SIZE%60%2C%20so%20buf%20is%20erealloc%27d%20to%20~1%20KB%20while%20php_stream_read%28%29%20is%20asked%20for%20SIZE_MAX%20bytes.%20The%20buffered%20stream%20path%20then%20memcpy%27s%20the%20entire%20attacker-controlled%20stream%20read-buffer%20into%20the%201%20KB%20chunk%2C%20overflowing%20it%20by%20kilobytes%20and%20corrupting%20adjacent%20Zend%20heap%20metadata%20for%20potential%20code%20execution.%22%2C%22discovered_at%22%3A%222026-04-22T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22ext/dba/libflatfile/flatfile.c%3A113%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22php/php-src%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20flatfile%20whose%20first%20record-length%20line%20is%20%5C%22-1%5C%5Cn%5C%22%20followed%20by%20several%20KB%20of%20payload%20bytes%22%2C%222.%20Cause%20the%20target%20application%20to%20dba_open%28%29%20this%20file%20with%20the%20%27flatfile%27%20handler%20%28e.g.%20via%20an%20upload%20directory%20or%20a%20cache/index%20file%20written%20by%20a%20less-trusted%20component%29%22%2C%223.%20Trigger%20dba_fetch%28%29/dba_exists%28%29/dba_firstkey%28%29%2C%20which%20calls%20flatfile_findkey%28%29/flatfile_firstkey%28%29%22%2C%224.%20atoi%28%5C%22-1%5C%22%29%20%E2%86%92%20SIZE_MAX%20in%20size_t%3B%20buf%20is%20erealloc%27d%20to%201023%20bytes%20while%20php_stream_read%20requests%20SIZE_MAX%22%2C%225.%20Stream%20read-buffer%20is%20memcpy%27d%20past%20the%20end%20of%20buf%2C%20corrupting%20adjacent%20Zend%20heap%20metadata%22%5D%2C%22technical_details%22%3A%22atoi%28%29%20on%20an%20attacker-supplied%20length%20line%20can%20return%20a%20negative%20int%2C%20which%20when%20assigned%20to%20size_t%20%60num%60%20becomes%20SIZE_MAX%3B%20the%20subsequent%20%60buf_size%20%3D%20num%20%2B%20FLATFILE_BLOCK_SIZE%60%20integer-wraps%20to%201023%2C%20so%20%60erealloc%28buf%2C%20buf_size%29%60%20produces%20a%20~1%20KB%20allocation%20while%20%60php_stream_read%28dba-%3Efp%2C%20buf%2C%20num%29%60%20requests%20SIZE_MAX%20bytes.%20The%20buffered%20read%20implementation%20drains%20its%20whole%20read-buffer%20via%20memcpy%20into%20buf%2C%20writing%20well%20past%20the%20end%20of%20the%20heap%20chunk.%22%2C%22title%22%3A%22DBA%20flatfile%20length%20parsing%20triggers%20heap%20buffer%20overflow%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-KP4YD2Z6&#34;,
+  &#34;bug_class&#34;: &#34;Memory Corruption / Heap Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;63f304dc37e0fe6c&#34;,
+  &#34;created_at&#34;: &#34;2026-04-24T21:28:30+00:00&#34;,
+  &#34;description&#34;: &#34;In ext/dba/libflatfile/flatfile.c, the flatfile_delete(), flatfile_findkey(), flatfile_firstkey() and flatfile_nextkey() routines read a record-length line with php_stream_gets() and convert it with atoi() into a size_t. A length line of \&#34;-1\\n\&#34; yields SIZE_MAX, which passes the `num &gt;= buf_size` check but wraps to 1023 in `num + FLATFILE_BLOCK_SIZE`, so buf is erealloc&#39;d to ~1 KB while php_stream_read() is asked for SIZE_MAX bytes. The buffered stream path then memcpy&#39;s the entire attacker-controlled stream read-buffer into the 1 KB chunk, overflowing it by kilobytes and corrupting adjacent Zend heap metadata for potential code execution.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-22T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;ext/dba/libflatfile/flatfile.c:113&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;php/php-src&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a flatfile whose first record-length line is \&#34;-1\\n\&#34; followed by several KB of payload bytes&#34;,
+    &#34;2. Cause the target application to dba_open() this file with the &#39;flatfile&#39; handler (e.g. via an upload directory or a cache/index file written by a less-trusted component)&#34;,
+    &#34;3. Trigger dba_fetch()/dba_exists()/dba_firstkey(), which calls flatfile_findkey()/flatfile_firstkey()&#34;,
+    &#34;4. atoi(\&#34;-1\&#34;) → SIZE_MAX in size_t; buf is erealloc&#39;d to 1023 bytes while php_stream_read requests SIZE_MAX&#34;,
+    &#34;5. Stream read-buffer is memcpy&#39;d past the end of buf, corrupting adjacent Zend heap metadata&#34;
+  ],
+  &#34;technical_details&#34;: &#34;atoi() on an attacker-supplied length line can return a negative int, which when assigned to size_t `num` becomes SIZE_MAX; the subsequent `buf_size = num + FLATFILE_BLOCK_SIZE` integer-wraps to 1023, so `erealloc(buf, buf_size)` produces a ~1 KB allocation while `php_stream_read(dba-&gt;fp, buf, num)` requests SIZE_MAX bytes. The buffered read implementation drains its whole read-buffer via memcpy into buf, writing well past the end of the heap chunk.&#34;,
+  &#34;title&#34;: &#34;DBA flatfile length parsing triggers heap buffer overflow&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

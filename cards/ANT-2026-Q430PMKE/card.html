@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-Q430PMKE · sctp/lksctp-tools</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-Q430PMKE · sctp/lksctp-tools</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-Q430PMKE: Heap-buffer-overflow in sendmsg.c:169</h1>
+<p>A compiled PoC binary deterministically triggers a heap-buffer-overflow in the lksctp-tools userspace library. The fault occurs inside sctp_sendv (src/lib/sendmsg.c:169), where the code performs a 2-byte read immediately past the end of a 16-byte heap buffer. The overflow reproduced identically across 3 independent runs in a fresh linux-sctp:latest container and is confirmed to be in project code rather than a dependency. No details on attacker-controlled inputs or downstream impact were provided.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> sctp/lksctp-tools<br>
+<strong>Location:</strong> <code>sendmsg.c:169</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow, READ of size 2, 0 bytes to the right of a 16-byte heap region, at sctp_sendv (sendmsg.c:169). The library reads a 2-byte value starting exactly at the end boundary of a 16-byte allocation, indicating a missing or incorrect length/bounds check on a caller-supplied structure before it is dereferenced.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a compiled ELF binary (21,520 bytes) that triggers a deterministic heap-buffer-overflow in the lksctp-tools project.
+
+All 3 reproduction runs in a fresh `linux-sctp:latest` container produced identical ASAN reports:
+- Error type: heap-buffer-overflow (READ of size 2)
+- Crash location: `sctp_sendv` in `/workspace/lksctp-tools/src/lib/sendmsg.c:169`
+- The overflow reads 0 bytes past the right end of a 16-byte heap allocation
+- Exit code: 1 (all runs)
+
+The crash is:
+- Deterministic (3/3 runs)
+- In project code (lksctp-tools `sctp_sendv`)
+- Not OOM or timeout
+- A genuine heap-buffer-overflow memory safety bug
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-Q430PMKE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-Q430PMKE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-wont_fix">will not fix</span></dd><dt>Severity</dt><dd class="sev-low">low</dd></dl>
+<p class="section-intro">The reviewing firm confirmed this is a real issue. The maintainer indicated it would not be addressed.</p>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-01</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-01</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-30</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c54cecb1ce6825a31fc73c698315249bad576626c38b1218a5997c02b0bb0d6b6c0872d8fa1cc5ee818bd0da0eb406578dcfeb118099d7cce3af010babbed563</p>
+<p class="kicker">Committed 2026-03-01</p>
+<p class="kicker">Revealed 2026-05-30 00:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-Q430PMKE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-Q430PMKE%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A44%3A54%2B00%3A00%22%2C%22description%22%3A%22A%20compiled%20PoC%20binary%20deterministically%20triggers%20a%20heap-buffer-overflow%20in%20the%20lksctp-tools%20userspace%20library.%20The%20fault%20occurs%20inside%20sctp_sendv%20%28src/lib/sendmsg.c%3A169%29%2C%20where%20the%20code%20performs%20a%202-byte%20read%20immediately%20past%20the%20end%20of%20a%2016-byte%20heap%20buffer.%20The%20overflow%20reproduced%20identically%20across%203%20independent%20runs%20in%20a%20fresh%20linux-sctp%3Alatest%20container%20and%20is%20confirmed%20to%20be%20in%20project%20code%20rather%20than%20a%20dependency.%20No%20details%20on%20attacker-controlled%20inputs%20or%20downstream%20impact%20were%20provided.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22sendmsg.c%3A169%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22linux-sctp%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%2C%20READ%20of%20size%202%2C%200%20bytes%20to%20the%20right%20of%20a%2016-byte%20heap%20region%2C%20at%20sctp_sendv%20%28sendmsg.c%3A169%29.%20The%20library%20reads%20a%202-byte%20value%20starting%20exactly%20at%20the%20end%20boundary%20of%20a%2016-byte%20allocation%2C%20indicating%20a%20missing%20or%20incorrect%20length/bounds%20check%20on%20a%20caller-supplied%20structure%20before%20it%20is%20dereferenced.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20sendmsg.c%3A169%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-Q430PMKE&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:44:54+00:00&#34;,
+  &#34;description&#34;: &#34;A compiled PoC binary deterministically triggers a heap-buffer-overflow in the lksctp-tools userspace library. The fault occurs inside sctp_sendv (src/lib/sendmsg.c:169), where the code performs a 2-byte read immediately past the end of a 16-byte heap buffer. The overflow reproduced identically across 3 independent runs in a fresh linux-sctp:latest container and is confirmed to be in project code rather than a dependency. No details on attacker-controlled inputs or downstream impact were provided.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;sendmsg.c:169&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;linux-sctp&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow, READ of size 2, 0 bytes to the right of a 16-byte heap region, at sctp_sendv (sendmsg.c:169). The library reads a 2-byte value starting exactly at the end boundary of a 16-byte allocation, indicating a missing or incorrect length/bounds check on a caller-supplied structure before it is dereferenced.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in sendmsg.c:169&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

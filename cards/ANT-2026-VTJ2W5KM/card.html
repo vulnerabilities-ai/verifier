@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-VTJ2W5KM · graphicsmagick/graphicsmagick</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-VTJ2W5KM · graphicsmagick/graphicsmagick</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-VTJ2W5KM: Heap-buffer-overflow in pcx.c:1186</h1>
+<p>A 1034-byte crafted MIFF image, when converted to PCX format with GraphicsMagick, deterministically triggers a heap-buffer-overflow in WritePCXImage (coders/pcx.c:1186). An 880-byte buffer allocated via _MagickReallocateResourceLimitedMemoryLoc at pcx.c:1179 is written one byte past its end. The crash reproduced identically across 3 runs in a fresh container, reached via the standard convert command path (ConvertImageCommand -&gt; WriteImages -&gt; WriteImage -&gt; WritePCXImage). This is a genuine, reproducible memory-safety bug in the PCX output coder.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> graphicsmagick/graphicsmagick<br>
+<strong>Location:</strong> <code>pcx.c:1186</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 1, 0 bytes to the right of an 880-byte region. The buffer is allocated at coders/pcx.c:1179 via _MagickReallocateResourceLimitedMemoryLoc, and the write at pcx.c:1186 overruns it by exactly one byte — the allocation size computation under-counts the bytes the writer will emit for this input.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC (1034-byte MIFF image) triggers a deterministic heap-buffer-overflow (WRITE) in GraphicsMagick's PCX writer when converting to PCX format. All 3 runs in a fresh container crashed identically:
+
+- Error: AddressSanitizer: heap-buffer-overflow on WRITE of size 1
+- Location: `WritePCXImage` at `coders/pcx.c:1186`
+- Root cause: An 880-byte heap buffer (allocated via `_MagickReallocateResourceLimitedMemoryLoc` at `coders/pcx.c:1179`) is written 1 byte past its end (0 bytes to the right of the 880-byte region)
+- Exit code: 1 (all 3 runs)
+- Full call chain through project code: `WritePCXImage` -&gt; `WriteImage` -&gt; `WriteImages` -&gt; `ConvertImageCommand` -&gt; `MagickCommand` -&gt; `GMCommandSingle` -&gt; `GMCommand` -&gt; `main`
+
+This is a genuine, reproducible memory safety vulnerability in GraphicsMagick's PCX output coder.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a ~1KB MIFF image that exercises the vulnerable sizing path in the PCX writer</li>
+<li>Cause the target to run <code>gm convert poc.miff out.pcx</code> (or equivalent API call)</li>
+<li>WritePCXImage writes 1 byte past the 880-byte heap buffer at pcx.c:1186</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-VTJ2W5KM.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-VTJ2W5KM<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">afbc0b83b9a368c629db36e2a0569437545406a68003921577e5e367eb5cf341d59d9e62c28f5c43e1bfa8db3d60f3bad8ea9ee77f8b81fa44a28df4183f1dd3</p>
+<p class="kicker">Committed 2026-05-31 07:18 UTC</p>
+<p class="kicker">Revealed 2026-08-18 10:03 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-VTJ2W5KM-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-VTJ2W5KM%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A45%3A40%2B00%3A00%22%2C%22description%22%3A%22A%201034-byte%20crafted%20MIFF%20image%2C%20when%20converted%20to%20PCX%20format%20with%20GraphicsMagick%2C%20deterministically%20triggers%20a%20heap-buffer-overflow%20in%20WritePCXImage%20%28coders/pcx.c%3A1186%29.%20An%20880-byte%20buffer%20allocated%20via%20_MagickReallocateResourceLimitedMemoryLoc%20at%20pcx.c%3A1179%20is%20written%20one%20byte%20past%20its%20end.%20The%20crash%20reproduced%20identically%20across%203%20runs%20in%20a%20fresh%20container%2C%20reached%20via%20the%20standard%20convert%20command%20path%20%28ConvertImageCommand%20-%3E%20WriteImages%20-%3E%20WriteImage%20-%3E%20WritePCXImage%29.%20This%20is%20a%20genuine%2C%20reproducible%20memory-safety%20bug%20in%20the%20PCX%20output%20coder.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22pcx.c%3A1186%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22graphicsmagick%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20~1KB%20MIFF%20image%20that%20exercises%20the%20vulnerable%20sizing%20path%20in%20the%20PCX%20writer%22%2C%222.%20Cause%20the%20target%20to%20run%20%60gm%20convert%20poc.miff%20out.pcx%60%20%28or%20equivalent%20API%20call%29%22%2C%223.%20WritePCXImage%20writes%201%20byte%20past%20the%20880-byte%20heap%20buffer%20at%20pcx.c%3A1186%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%20WRITE%20of%20size%201%2C%200%20bytes%20to%20the%20right%20of%20an%20880-byte%20region.%20The%20buffer%20is%20allocated%20at%20coders/pcx.c%3A1179%20via%20_MagickReallocateResourceLimitedMemoryLoc%2C%20and%20the%20write%20at%20pcx.c%3A1186%20overruns%20it%20by%20exactly%20one%20byte%20%E2%80%94%20the%20allocation%20size%20computation%20under-counts%20the%20bytes%20the%20writer%20will%20emit%20for%20this%20input.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20pcx.c%3A1186%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-VTJ2W5KM&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:45:40+00:00&#34;,
+  &#34;description&#34;: &#34;A 1034-byte crafted MIFF image, when converted to PCX format with GraphicsMagick, deterministically triggers a heap-buffer-overflow in WritePCXImage (coders/pcx.c:1186). An 880-byte buffer allocated via _MagickReallocateResourceLimitedMemoryLoc at pcx.c:1179 is written one byte past its end. The crash reproduced identically across 3 runs in a fresh container, reached via the standard convert command path (ConvertImageCommand -&gt; WriteImages -&gt; WriteImage -&gt; WritePCXImage). This is a genuine, reproducible memory-safety bug in the PCX output coder.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;pcx.c:1186&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;graphicsmagick&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a ~1KB MIFF image that exercises the vulnerable sizing path in the PCX writer&#34;,
+    &#34;2. Cause the target to run `gm convert poc.miff out.pcx` (or equivalent API call)&#34;,
+    &#34;3. WritePCXImage writes 1 byte past the 880-byte heap buffer at pcx.c:1186&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow WRITE of size 1, 0 bytes to the right of an 880-byte region. The buffer is allocated at coders/pcx.c:1179 via _MagickReallocateResourceLimitedMemoryLoc, and the write at pcx.c:1186 overruns it by exactly one byte — the allocation size computation under-counts the bytes the writer will emit for this input.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in pcx.c:1186&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

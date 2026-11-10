@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-F5JK7RDG · supabase/postgres</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-F5JK7RDG · supabase/postgres</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  exposed-secret
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-F5JK7RDG: Cloud image provisioned with default root password and SSH password auth</h1>
+<p>The cloud-init user-data baked into the QEMU/Nix image build (referenced by qemu-arm64-nix.pkr.hcl:96 as ssh_password = "ubuntu") assigns the crypt hash of the plaintext 'ubuntu' to both the root and ubuntu accounts, sets lock_passwd: false, and enables ssh_pwauth: True. No subsequent provisioner re-locks these accounts or disables password authentication before the image is captured. Any instance booted from this artifact on a network-reachable host can be logged into as root over SSH with a known password. This yields full control of the database, all tenant data, and a foothold for lateral movement.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/postgres<br>
+<strong>Location:</strong> <code>user-data-cloudimg:3</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that build-time convenience credentials are baked into the shipped artifact: cloud-init sets a known password hash for root/ubuntu with lock_passwd: false and ssh_pwauth: True, and the Packer pipeline never revokes them in a cleanup step, so the captured image ships with remotely usable default root credentials.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Operator or CI launches the QEMU-built supabase/postgres image on a host with port 22 reachable</li>
+<li>Attacker runs <code>ssh root@&lt;ip&gt;</code> and enters password 'ubuntu'</li>
+<li>Attacker receives an interactive root shell</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Never ship build artifacts with password authentication or known credentials: lock all local accounts and set ssh_pwauth: false before image capture, and have Packer authenticate via an ephemeral SSH key that a final cleanup provisioner removes.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-F5JK7RDG.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-F5JK7RDG<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ebssurrogate/scripts/qemu-bootstrap-nix.sh b/ebssurrogate/scripts/qemu-bootstrap-nix.sh</span>
+<span class="diff-h">index 43e1d98fa7..a76186bf75 100755</span>
+<span class="diff-h">--- a/ebssurrogate/scripts/qemu-bootstrap-nix.sh</span>
+<span class="diff-h">+++ b/ebssurrogate/scripts/qemu-bootstrap-nix.sh</span>
+<span class="diff-h">@@ -156,6 +156,19 @@ function clean_system {</span>
+<span class="diff-c"> 	rm -rf /root/.vpython*</span>
+<span class="diff-c"> 	rm -rf /root/go</span>
+<span class="diff-c"> 	rm -rf /mnt/usr/share/doc</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	# remove passwords in user-data-cloudimg.img (required for Packer login)</span>
+<span class="diff-a">+	usermod -p &#x27;*&#x27; ubuntu</span>
+<span class="diff-a">+	usermod -p &#x27;*&#x27; root</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  # Ensure that PasswordAuthentication is off</span>
+<span class="diff-a">+  # From chroot-boostrap-nix.sh</span>
+<span class="diff-a">+  sed -i -E \</span>
+<span class="diff-a">+    -e &#x27;s/^#?\s*PasswordAuthentication\s+(yes|no)\s*$/PasswordAuthentication no/g&#x27; \</span>
+<span class="diff-a">+    -e &#x27;s/^#?\s*ChallengeResponseAuthentication\s+(yes|no)\s*$/ChallengeResponseAuthentication no/g&#x27; \</span>
+<span class="diff-a">+    /etc/ssh/sshd_config</span>
+<span class="diff-a">+  grep -qE &quot;^PasswordAuthentication\s+no&quot; /etc/ssh/sshd_config \</span>
+<span class="diff-a">+    || { echo &quot;ERROR: PasswordAuthentication is not disabled in sshd_config&quot;; exit 1; }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> install_nix</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/postgres/commit/74aba22f77cd8e5e4d602322d60f80c80e1148de" rel="noopener noreferrer">https://github.com/supabase/postgres/commit/74aba22f77cd8e5e4d602322d60f80c80e1148de</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-22</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">861fe6a5f12448f1d6b3d383fca63fa1b09534ff1948cf90875e00435270a00207dd16f09f207ec9126d70629eaf2a3b8b5463da98d2274c97dd07f9ee2515c6</p>
+<p class="kicker">Committed 2026-05-18 00:58 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-F5JK7RDG-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-F5JK7RDG%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A02%3A33%2B00%3A00%22%2C%22description%22%3A%22The%20cloud-init%20user-data%20baked%20into%20the%20QEMU/Nix%20image%20build%20%28referenced%20by%20qemu-arm64-nix.pkr.hcl%3A96%20as%20ssh_password%20%3D%20%5C%22ubuntu%5C%22%29%20assigns%20the%20crypt%20hash%20of%20the%20plaintext%20%27ubuntu%27%20to%20both%20the%20root%20and%20ubuntu%20accounts%2C%20sets%20lock_passwd%3A%20false%2C%20and%20enables%20ssh_pwauth%3A%20True.%20No%20subsequent%20provisioner%20re-locks%20these%20accounts%20or%20disables%20password%20authentication%20before%20the%20image%20is%20captured.%20Any%20instance%20booted%20from%20this%20artifact%20on%20a%20network-reachable%20host%20can%20be%20logged%20into%20as%20root%20over%20SSH%20with%20a%20known%20password.%20This%20yields%20full%20control%20of%20the%20database%2C%20all%20tenant%20data%2C%20and%20a%20foothold%20for%20lateral%20movement.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22user-data-cloudimg%3A3%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/postgres%22%2C%22reproduction%22%3A%5B%221.%20Operator%20or%20CI%20launches%20the%20QEMU-built%20supabase/postgres%20image%20on%20a%20host%20with%20port%2022%20reachable%22%2C%222.%20Attacker%20runs%20%60ssh%20root%40%3Cip%3E%60%20and%20enters%20password%20%27ubuntu%27%22%2C%223.%20Attacker%20receives%20an%20interactive%20root%20shell%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20build-time%20convenience%20credentials%20are%20baked%20into%20the%20shipped%20artifact%3A%20cloud-init%20sets%20a%20known%20password%20hash%20for%20root/ubuntu%20with%20lock_passwd%3A%20false%20and%20ssh_pwauth%3A%20True%2C%20and%20the%20Packer%20pipeline%20never%20revokes%20them%20in%20a%20cleanup%20step%2C%20so%20the%20captured%20image%20ships%20with%20remotely%20usable%20default%20root%20credentials.%22%2C%22title%22%3A%22Cloud%20image%20provisioned%20with%20default%20root%20password%20and%20SSH%20password%20auth%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-F5JK7RDG&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:02:33+00:00&#34;,
+  &#34;description&#34;: &#34;The cloud-init user-data baked into the QEMU/Nix image build (referenced by qemu-arm64-nix.pkr.hcl:96 as ssh_password = \&#34;ubuntu\&#34;) assigns the crypt hash of the plaintext &#39;ubuntu&#39; to both the root and ubuntu accounts, sets lock_passwd: false, and enables ssh_pwauth: True. No subsequent provisioner re-locks these accounts or disables password authentication before the image is captured. Any instance booted from this artifact on a network-reachable host can be logged into as root over SSH with a known password. This yields full control of the database, all tenant data, and a foothold for lateral movement.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;user-data-cloudimg:3&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/postgres&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Operator or CI launches the QEMU-built supabase/postgres image on a host with port 22 reachable&#34;,
+    &#34;2. Attacker runs `ssh root@&lt;ip&gt;` and enters password &#39;ubuntu&#39;&#34;,
+    &#34;3. Attacker receives an interactive root shell&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is that build-time convenience credentials are baked into the shipped artifact: cloud-init sets a known password hash for root/ubuntu with lock_passwd: false and ssh_pwauth: True, and the Packer pipeline never revokes them in a cleanup step, so the captured image ships with remotely usable default root credentials.&#34;,
+  &#34;title&#34;: &#34;Cloud image provisioned with default root password and SSH password auth&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

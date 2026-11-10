@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-2NNMB24E · openssh/openssh-portable</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-2NNMB24E · openssh/openssh-portable</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  unbounded-recursion
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-2NNMB24E: stack-overflow in openssh</h1>
+<p>OpenSSH's match_pattern() in match.c performs unbounded recursion when handling wildcard patterns. The function is reachable from ssh-keygen -Y find-principals via sshsig_find_principals -&gt; check_allowed_keys_line -&gt; cert_filter_principals, where it matches certificate principals (from the attacker-supplied signature) against principal patterns (from the attacker-supplied allowed_signers file). By supplying a certificate with a ~400,000-character principal and an allowed_signers entry containing ~200,000 repetitions of '*?', an attacker triggers hundreds of thousands of recursive calls and exhausts the stack. The result is a deterministic crash (DoS) of ssh-keygen.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> openssh/openssh-portable<br>
+<strong>Commit:</strong> <code>9a50a84f55acd8b7</code><br>
+<strong>Location:</strong> <code>match.c:92</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: 'stack-overflow on address 0x7ffe2411fff8 ... in match_pattern /workspace/repo/match.c:92'. Each '<em>' in the pattern causes match_pattern() to recurse while scanning the remaining string; a pattern of the form '</em>?<em>?</em>?...' forces one new recursion level per '*?' pair with no depth cap. When the string is long enough to keep each recursive scan alive, recursion depth is bounded only by pattern length, leading to stack exhaustion.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>Triggering stack overflow in ssh-keygen...
+AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==54883==ERROR: AddressSanitizer: stack-overflow on address 0x7ffe2411fff8 (pc 0x609d1c707ec3 bp 0x7ffe24120020 sp 0x7ffe24120000 T0)
+    #0 0x609d1c707ec3 in match_pattern /workspace/repo/match.c:92
+    #1 0x609d1c707ec7 in match_pattern /workspace/repo/match.c:92
+    #2 0x609d1c707ec7 in match_pattern /workspace/repo/match.c:92
+    #3 0x609d1c707ec7 in match_pattern /workspace/repo/match.c:92
+    ...
+    #247 0x609d1c707ec7 in match_pattern /workspace/repo/match.c:92
+    #248 0x609d1c707ec7 in match_pattern /workspace/repo/match.c:92
+
+SUMMARY: AddressSanitizer: stack-overflow /workspace/repo/match.c:92 in match_pattern
+==54883==ABORTING
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Generate a CA key and a user key</li>
+<li>Issue a user certificate whose principal is a ~400,000-character string</li>
+<li>Sign arbitrary data with the certificate so the cert is embedded in the .sig</li>
+<li>Create an allowed_signers line of the form '&lt;"*?" x 200000&gt; cert-authority '</li>
+<li>Run ssh-keygen -Y find-principals -s data.sig -f allowed_signers, which calls cert_filter_principals -&gt; match_pattern and recurses until the stack is exhausted</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-2NNMB24E.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-2NNMB24E<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-low">low</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/match.c b/match.c</span>
+<span class="diff-h">index 3ef5369310c6..b8f350df17e3 100644</span>
+<span class="diff-h">--- a/match.c</span>
+<span class="diff-h">+++ b/match.c</span>
+<span class="diff-h">@@ -1,4 +1,4 @@</span>
+<span class="diff-d">-/* $OpenBSD: match.c,v 1.45 2024/09/06 02:30:44 djm Exp $ */</span>
+<span class="diff-a">+/* $OpenBSD: match.c,v 1.46 2026/05/31 04:19:16 djm Exp $ */</span>
+<span class="diff-c"> /*</span>
+<span class="diff-c">  * Author: Tatu Ylonen &lt;ylo@cs.hut.fi&gt;</span>
+<span class="diff-c">  * Copyright (c) 1995 Tatu Ylonen &lt;ylo@cs.hut.fi&gt;, Espoo, Finland</span>
+<span class="diff-h">@@ -13,6 +13,7 @@</span>
+<span class="diff-c">  */</span>
+<span class="diff-c"> /*</span>
+<span class="diff-c">  * Copyright (c) 2000 Markus Friedl.  All rights reserved.</span>
+<span class="diff-a">+ * Copyright (c) 2026 Damien Miller.  All rights reserved.</span>
+<span class="diff-c">  *</span>
+<span class="diff-c">  * Redistribution and use in source and binary forms, with or without</span>
+<span class="diff-c">  * modification, are permitted provided that the following conditions</span>
+<span class="diff-h">@@ -49,67 +50,105 @@</span>
+<span class="diff-c"> #include &quot;match.h&quot;</span>
+<span class="diff-c"> #include &quot;misc.h&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/*</span>
+<span class="diff-a">+ * Computes the epsilon closure of an NFA set.</span>
+<span class="diff-a">+ * In our wildcard grammar, epsilon transitions only exist for &#x27;*&#x27; wildcards,</span>
+<span class="diff-a">+ * allowing us to transition from state i to i+1 without consuming input.</span>
+<span class="diff-a">+ *</span>
+<span class="diff-a">+ * This function modifies &#x27;states&#x27; in place.</span>
+<span class="diff-a">+ */</span>
+<span class="diff-a">+static void</span>
+<span class="diff-a">+epsilon_closure(char *states, const char *pattern, size_t M)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	size_t i;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	/* only need a forward pass as there are no back jumps in our grammar */</span>
+<span class="diff-a">+	for (i = 0; i &lt; M; i++) {</span>
+<span class="diff-a">+		if (!states[i] || pattern[i] != &#x27;*&#x27;)</span>
+<span class="diff-a">+			continue;</span>
+<span class="diff-a">+		/*</span>
+<span class="diff-a">+		 * State i is active, and pattern[i] is &#x27;*&#x27;, so we can</span>
+<span class="diff-a">+		 * epsilon-transition to i+1.</span>
+<span class="diff-a">+		 */</span>
+<span class="diff-a">+		states[i + 1] = 1;</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /*</span>
+<span class="diff-c">  * Returns true if the given string matches the pattern (which may contain ?</span>
+<span class="diff-d">- * and * as wildcards), and zero if it does not match.</span>
+<span class="diff-a">+ * and * as wildcards), and zero if it does not match. Uses an NFA internally.</span>
+<span class="diff-c">  */</span>
+<span class="diff-c"> int</span>
+<span class="diff-c"> match_pattern(const char *s, const char *pattern)</span>
+<span class="diff-c"> {</span>
+<span class="diff-d">-	for (;;) {</span>
+<span class="diff-d">-		/* If at end of pattern, accept if also at end of string. */</span>
+<span class="diff-d">-		if (!*pattern)</span>
+<span class="diff-d">-			return !*s;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-		if (*pattern == &#x27;*&#x27;) {</span>
+<span class="diff-d">-			/* Skip this and any consecutive asterisks. */</span>
+<span class="diff-d">-			while (*pattern == &#x27;*&#x27;)</span>
+<span class="diff-d">-				pattern++;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-			/* If at end of pattern, accept immediately. */</span>
+<span class="diff-d">-			if (!*pattern)</span>
+<span class="diff-d">-				return 1;</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-			/* If next character in pattern is known, optimize. */</span>
+<span class="diff-d">-			if (*pattern != &#x27;?&#x27; &amp;&amp; *pattern != &#x27;*&#x27;) {</span>
+<span class="diff-a">+	size_t M;</span>
+<span class="diff-a">+	size_t i;</span>
+<span class="diff-a">+	char *states, *next_states, *tmp;</span>
+<span class="diff-a">+	int active, matched = 0;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	/* trivial case: empty pattern vs empty input */</span>
+<span class="diff-a">+	if ((M = strlen(pattern)) == 0)</span>
+<span class="diff-a">+		return *s == &#x27;\0&#x27;;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	/* A state for each pattern character, plus one final accepting state */</span>
+<span class="diff-a">+	states = xcalloc(M + 1, sizeof(*states));</span>
+<span class="diff-a">+	next_states = xcalloc(M + 1, sizeof(*next_states));</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	/* Initial state: state 0 is active */</span>
+<span class="diff-a">+	states[0] = 1;</span>
+<span class="diff-a">+	/* Other states might be reachable now if the pattern starts with &#x27;*&#x27; */</span>
+<span class="diff-a">+	epsilon_closure(states, pattern, M);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	for (; *s; s++) {</span>
+<span class="diff-a">+		memset(next_states, 0, M + 1);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		/* Calculate the reachable next states given the input char */</span>
+<span class="diff-a">+		for (i = 0; i &lt; M; i++) {</span>
+<span class="diff-a">+			if (!states[i])</span>
+<span class="diff-a">+				continue;</span>
+<span class="diff-a">+			if (pattern[i] == &#x27;*&#x27;) {</span>
+<span class="diff-a">+				/*</span>
+<span class="diff-a">+				 * &#x27;*&#x27; matches any character, so we can</span>
+<span class="diff-a">+				 * stay in state i</span>
+<span class="diff-a">+				 */</span>
+<span class="diff-a">+				next_states[i] = 1;</span>
+<span class="diff-a">+			} else if (pattern[i] == &#x27;?&#x27; || pattern[i] == *s) {</span>
+<span class="diff-c"> 				/*</span>
+<span class="diff-d">-				 * Look instances of the next character in</span>
+<span class="diff-d">-				 * pattern, and try to match starting from</span>
+<span class="diff-d">-				 * those.</span>
+<span class="diff-a">+				 * &#x27;?&#x27; matches any character, or we have</span>
+<span class="diff-a">+				 * a literal match.</span>
+<span class="diff-c"> 				 */</span>
+<span class="diff-d">-				for (; *s; s++)</span>
+<span class="diff-d">-					if (*s == *pattern &amp;&amp;</span>
+<span class="diff-d">-					    match_pattern(s + 1, pattern + 1))</span>
+<span class="diff-d">-						return 1;</span>
+<span class="diff-d">-				/* Failed. */</span>
+<span class="diff-d">-				return 0;</span>
+<span class="diff-a">+				next_states[i + 1] = 1;</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-d">-			/*</span>
+<span class="diff-d">-			 * Move ahead one character at a time and try to</span>
+<span class="diff-d">-			 * match at each position.</span>
+<span class="diff-d">-			 */</span>
+<span class="diff-d">-			for (; *s; s++)</span>
+<span class="diff-d">-				if (match_pattern(s, pattern))</span>
+<span class="diff-d">-					return 1;</span>
+<span class="diff-d">-			/* Failed. */</span>
+<span class="diff-d">-			return 0;</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-d">-		/*</span>
+<span class="diff-d">-		 * There must be at least one more character in the string.</span>
+<span class="diff-d">-		 * If we are at the end, fail.</span>
+<span class="diff-d">-		 */</span>
+<span class="diff-d">-		if (!*s)</span>
+<span class="diff-d">-			return 0;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		/* Check if the next character of the string is acceptable. */</span>
+<span class="diff-d">-		if (*pattern != &#x27;?&#x27; &amp;&amp; *pattern != *s)</span>
+<span class="diff-d">-			return 0;</span>
+<span class="diff-a">+		/* Expand the reachable next states with epsilon transitions */</span>
+<span class="diff-a">+		epsilon_closure(next_states, pattern, M);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		/* Move to the next character, both in string and in pattern. */</span>
+<span class="diff-d">-		s++;</span>
+<span class="diff-d">-		pattern++;</span>
+<span class="diff-a">+		/* Swap states and next_states */</span>
+<span class="diff-a">+		tmp = states;</span>
+<span class="diff-a">+		states = next_states;</span>
+<span class="diff-a">+		next_states = tmp;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		/* Check if we have any active pattern states left */</span>
+<span class="diff-a">+		active = 0;</span>
+<span class="diff-a">+		for (i = 0; i &lt;= M; i++) {</span>
+<span class="diff-a">+			if (states[i]) {</span>
+<span class="diff-a">+				active = 1;</span>
+<span class="diff-a">+				break;</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		if (!active)</span>
+<span class="diff-a">+			goto out; /* No active states, fail early */</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-d">-	/* NOTREACHED */</span>
+<span class="diff-a">+	/*</span>
+<span class="diff-a">+	 * We matched only if we ended up in the final, accepting state</span>
+<span class="diff-a">+	 * after consuming all the input.</span>
+<span class="diff-a">+	 */</span>
+<span class="diff-a">+	matched = states[M];</span>
+<span class="diff-a">+ out:</span>
+<span class="diff-a">+	free(states);</span>
+<span class="diff-a">+	free(next_states);</span>
+<span class="diff-a">+	return matched;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> /*</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/openssh/openssh-portable/commit/9d4c0b31f172782def72ccc2fb2dc217d3135e6f" rel="noopener noreferrer">https://github.com/openssh/openssh-portable/commit/9d4c0b31f172782def72ccc2fb2dc217d3135e6f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">116fe51575ccb94d0c8f867a6c2fb617cbf0868bf647baff3ededc9b33b4c0e70698bdbb2d3473a09adbdd86a07545056db8706786efe6e440b53b8cc7ff080e</p>
+<p class="kicker">Committed 2026-05-08 07:10 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-2NNMB24E-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-2NNMB24E%22%2C%22bug_class%22%3A%22stack-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3A%229a50a84f55acd8b7%22%2C%22created_at%22%3A%222026-03-27T02%3A10%3A14%2B00%3A00%22%2C%22description%22%3A%22OpenSSH%27s%20match_pattern%28%29%20in%20match.c%20performs%20unbounded%20recursion%20when%20handling%20wildcard%20patterns.%20The%20function%20is%20reachable%20from%20ssh-keygen%20-Y%20find-principals%20via%20sshsig_find_principals%20-%3E%20check_allowed_keys_line%20-%3E%20cert_filter_principals%2C%20where%20it%20matches%20certificate%20principals%20%28from%20the%20attacker-supplied%20signature%29%20against%20principal%20patterns%20%28from%20the%20attacker-supplied%20allowed_signers%20file%29.%20By%20supplying%20a%20certificate%20with%20a%20~400%2C000-character%20principal%20and%20an%20allowed_signers%20entry%20containing%20~200%2C000%20repetitions%20of%20%27%2A%3F%27%2C%20an%20attacker%20triggers%20hundreds%20of%20thousands%20of%20recursive%20calls%20and%20exhausts%20the%20stack.%20The%20result%20is%20a%20deterministic%20crash%20%28DoS%29%20of%20ssh-keygen.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22match.c%3A92%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22openssh%22%2C%22reproduction%22%3A%5B%221.%20Generate%20a%20CA%20key%20and%20a%20user%20key%22%2C%222.%20Issue%20a%20user%20certificate%20whose%20principal%20is%20a%20~400%2C000-character%20string%22%2C%223.%20Sign%20arbitrary%20data%20with%20the%20certificate%20so%20the%20cert%20is%20embedded%20in%20the%20.sig%22%2C%224.%20Create%20an%20allowed_signers%20line%20of%20the%20form%20%27%3C%5C%22%2A%3F%5C%22%20x%20200000%3E%20cert-authority%20%3CCA%20pubkey%3E%27%22%2C%225.%20Run%20ssh-keygen%20-Y%20find-principals%20-s%20data.sig%20-f%20allowed_signers%2C%20which%20calls%20cert_filter_principals%20-%3E%20match_pattern%20and%20recurses%20until%20the%20stack%20is%20exhausted%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%27stack-overflow%20on%20address%200x7ffe2411fff8%20...%20in%20match_pattern%20/workspace/repo/match.c%3A92%27.%20Each%20%27%2A%27%20in%20the%20pattern%20causes%20match_pattern%28%29%20to%20recurse%20while%20scanning%20the%20remaining%20string%3B%20a%20pattern%20of%20the%20form%20%27%2A%3F%2A%3F%2A%3F...%27%20forces%20one%20new%20recursion%20level%20per%20%27%2A%3F%27%20pair%20with%20no%20depth%20cap.%20When%20the%20string%20is%20long%20enough%20to%20keep%20each%20recursive%20scan%20alive%2C%20recursion%20depth%20is%20bounded%20only%20by%20pattern%20length%2C%20leading%20to%20stack%20exhaustion.%22%2C%22title%22%3A%22stack-overflow%20in%20openssh%22%2C%22vendor_severity%22%3A%22low%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-2NNMB24E&#34;,
+  &#34;bug_class&#34;: &#34;stack-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: &#34;9a50a84f55acd8b7&#34;,
+  &#34;created_at&#34;: &#34;2026-03-27T02:10:14+00:00&#34;,
+  &#34;description&#34;: &#34;OpenSSH&#39;s match_pattern() in match.c performs unbounded recursion when handling wildcard patterns. The function is reachable from ssh-keygen -Y find-principals via sshsig_find_principals -&gt; check_allowed_keys_line -&gt; cert_filter_principals, where it matches certificate principals (from the attacker-supplied signature) against principal patterns (from the attacker-supplied allowed_signers file). By supplying a certificate with a ~400,000-character principal and an allowed_signers entry containing ~200,000 repetitions of &#39;*?&#39;, an attacker triggers hundreds of thousands of recursive calls and exhausts the stack. The result is a deterministic crash (DoS) of ssh-keygen.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;match.c:92&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;openssh&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Generate a CA key and a user key&#34;,
+    &#34;2. Issue a user certificate whose principal is a ~400,000-character string&#34;,
+    &#34;3. Sign arbitrary data with the certificate so the cert is embedded in the .sig&#34;,
+    &#34;4. Create an allowed_signers line of the form &#39;&lt;\&#34;*?\&#34; x 200000&gt; cert-authority &lt;CA pubkey&gt;&#39;&#34;,
+    &#34;5. Run ssh-keygen -Y find-principals -s data.sig -f allowed_signers, which calls cert_filter_principals -&gt; match_pattern and recurses until the stack is exhausted&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: &#39;stack-overflow on address 0x7ffe2411fff8 ... in match_pattern /workspace/repo/match.c:92&#39;. Each &#39;*&#39; in the pattern causes match_pattern() to recurse while scanning the remaining string; a pattern of the form &#39;*?*?*?...&#39; forces one new recursion level per &#39;*?&#39; pair with no depth cap. When the string is long enough to keep each recursive scan alive, recursion depth is bounded only by pattern length, leading to stack exhaustion.&#34;,
+  &#34;title&#34;: &#34;stack-overflow in openssh&#34;,
+  &#34;vendor_severity&#34;: &#34;low&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

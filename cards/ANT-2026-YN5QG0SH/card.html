@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-YN5QG0SH · libreoffice/core</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-YN5QG0SH · libreoffice/core</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-8358">CVE-2026-8358</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-YN5QG0SH: Heap-buffer-overflow in libreoffice</h1>
+<p>The fods2xlsfuzzer libFuzzer harness terminated with EXIT_CODE:1 when executing the supplied PoC input. No AddressSanitizer, UBSan, or other sanitizer report was printed, so the crash type, faulting function, and memory-access shape cannot be determined from this log alone. The harness name indicates the input is likely a crafted FODS (Flat ODF Spreadsheet) document processed through a FODS-to-XLS conversion code path.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libreoffice/core  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size N at offset 64 bytes past a 168-byte heap region. The root cause is a type confusion: the change-tracking import path assumes an action referenced as a 'previous content' is a ScChangeActionContent, but id collisions in the XML allow a smaller ScChangeActionIns object to occupy that slot. The subsequent static_cast and field store in SetPrevContent land outside the allocated object.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: found LLVMFuzzerCustomMutator (0x64e5afcdb8d0). Disabling -len_control by default.
+INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 4243907513
+INFO: Loaded 1 modules   (2649413 inline 8-bit counters): 2649413 [0x64e5c1298538, 0x64e5c151f27d), 
+INFO: Loaded 1 PC tables (2649413 PCs): 2649413 [0x64e5c151f280,0x64e5c3d8c6d0), 
+/out/fods2xlsfuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-YN5QG0SH.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-YN5QG0SH<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-15</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">75d28320b6e877540eeae0b627595ba3b0ba9bb31397195518cc558cd1b0e0a4a446d9fea90f82d5a3e19ebe5023e6a5a04d9a85eb1a0def4d2e9fceb2cab9e0</p>
+<p class="kicker">Committed 2026-05-07 10:18 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:29 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-YN5QG0SH-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-YN5QG0SH%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A46%3A34%2B00%3A00%22%2C%22description%22%3A%22The%20fods2xlsfuzzer%20libFuzzer%20harness%20terminated%20with%20EXIT_CODE%3A1%20when%20executing%20the%20supplied%20PoC%20input.%20No%20AddressSanitizer%2C%20UBSan%2C%20or%20other%20sanitizer%20report%20was%20printed%2C%20so%20the%20crash%20type%2C%20faulting%20function%2C%20and%20memory-access%20shape%20cannot%20be%20determined%20from%20this%20log%20alone.%20The%20harness%20name%20indicates%20the%20input%20is%20likely%20a%20crafted%20FODS%20%28Flat%20ODF%20Spreadsheet%29%20document%20processed%20through%20a%20FODS-to-XLS%20conversion%20code%20path.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libreoffice%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Heap-buffer-overflow%20in%20libreoffice%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-YN5QG0SH&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:46:34+00:00&#34;,
+  &#34;description&#34;: &#34;The fods2xlsfuzzer libFuzzer harness terminated with EXIT_CODE:1 when executing the supplied PoC input. No AddressSanitizer, UBSan, or other sanitizer report was printed, so the crash type, faulting function, and memory-access shape cannot be determined from this log alone. The harness name indicates the input is likely a crafted FODS (Flat ODF Spreadsheet) document processed through a FODS-to-XLS conversion code path.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libreoffice&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in libreoffice&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

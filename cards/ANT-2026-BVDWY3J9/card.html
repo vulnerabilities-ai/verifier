@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-BVDWY3J9 · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-BVDWY3J9 · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  open-redirect
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-BVDWY3J9: Redirect allow-list ignores URL scheme and port</h1>
+<p>In supabase/auth, IsRedirectURLValid (internal/utilities/request.go:104) short-circuits to allow a redirect when base.Hostname() == refurl.Hostname() for SITE_URL, without checking scheme or port, and before consulting the glob allow-list. If SITE_URL is https://app.example.com, targets like http://app.example.com, evilapp://app.example.com, or https://app.example.com:8443 are accepted. The /authorize, /verify, /callback and related flows then redirect with the access token in the URL fragment. An attacker who controls a handler for an alternate scheme or port on that hostname can capture the victim's session tokens.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/utilities/request.go:104</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a same-origin check implemented as a hostname-only string comparison: base.Hostname() == refurl.Hostname() returns true and bypasses the explicit allow-list entirely. Because scheme and port are omitted from the comparison, any URI whose host label matches SITE_URL's host is treated as a trusted redirect target, violating the same-origin assumption the allow-list is meant to enforce.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Determine the deployment's SITE_URL hostname (e.g. app.example.com)</li>
+<li>Obtain control of a same-hostname endpoint on a different scheme/port (e.g. register evilapp:// on the victim's mobile OS, or bind app.example.com:8443 in a shared environment)</li>
+<li>Craft a supabase/auth link (/authorize, /verify, etc.) with redirect_to set to that alternate-scheme/port URI</li>
+<li>Deliver the link to the victim and have them complete the flow</li>
+<li>Receive the redirect containing #access_token=... at the attacker-controlled handler and use it to hijack the session</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Only treat a redirect as same-origin when scheme, host, and port all match SITE_URL; otherwise fall through to the explicit glob allow-list.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-BVDWY3J9.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-BVDWY3J9<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/api/oauthserver/authorize_test.go b/internal/api/oauthserver/authorize_test.go</span>
+<span class="diff-h">index 13d82c803b..b4df5ac2e3 100644</span>
+<span class="diff-h">--- a/internal/api/oauthserver/authorize_test.go</span>
+<span class="diff-h">+++ b/internal/api/oauthserver/authorize_test.go</span>
+<span class="diff-h">@@ -148,13 +148,15 @@ func TestValidateRequestOriginEdgeCases(t *testing.T) {</span>
+<span class="diff-c"> 	tokenService := tokens.NewService(globalConfig, hooksMgr)</span>
+<span class="diff-c"> 	server := NewServer(globalConfig, conn, tokenService)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	t.Run(&quot;Origin with different port should be allowed (hostname matching)&quot;, func(t *testing.T) {</span>
+<span class="diff-a">+	t.Run(&quot;Origin with different port on non-localhost should be rejected&quot;, func(t *testing.T) {</span>
+<span class="diff-c"> 		req := httptest.NewRequest(http.MethodGet, &quot;/test&quot;, nil)</span>
+<span class="diff-c"> 		req.Header.Set(&quot;Origin&quot;, &quot;https://example.com:8080&quot;)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		// Should pass because hostname matches (IsRedirectURLValid allows different ports)</span>
+<span class="diff-a">+		// Must be rejected: port mismatch on a non-loopback host.</span>
+<span class="diff-a">+		// RFC 8252 Section 7.3 variable-port exception only applies to localhost.</span>
+<span class="diff-c"> 		err := server.validateRequestOrigin(req)</span>
+<span class="diff-d">-		assert.NoError(t, err)</span>
+<span class="diff-a">+		assert.Error(t, err)</span>
+<span class="diff-a">+		assert.Contains(t, err.Error(), &quot;unauthorized request origin&quot;)</span>
+<span class="diff-c"> 	})</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	t.Run(&quot;Case sensitivity in Origin header&quot;, func(t *testing.T) {</span>
+<span class="diff-h">diff --git a/internal/utilities/request.go b/internal/utilities/request.go</span>
+<span class="diff-h">index bd38c73819..f9988745ea 100644</span>
+<span class="diff-h">--- a/internal/utilities/request.go</span>
+<span class="diff-h">+++ b/internal/utilities/request.go</span>
+<span class="diff-h">@@ -98,15 +98,18 @@ func IsRedirectURLValid(config *conf.GlobalConfiguration, redirectURL string) bo</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	base, berr := url.Parse(config.SiteURL)</span>
+<span class="diff-c"> 	refurl, rerr := url.Parse(redirectURL)</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-	// As long as the referrer came from the site, we will redirect back there</span>
+<span class="diff-d">-	if berr == nil &amp;&amp; rerr == nil &amp;&amp; base.Hostname() == refurl.Hostname() {</span>
+<span class="diff-d">-		return true</span>
+<span class="diff-a">+	if berr != nil || rerr != nil {</span>
+<span class="diff-a">+		// either URL is for some reason invalid</span>
+<span class="diff-a">+		return false</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	if rerr != nil {</span>
+<span class="diff-d">-		// redirect URL is for some reason invalid</span>
+<span class="diff-d">-		return false</span>
+<span class="diff-a">+	// Allow redirects back to the site: scheme, host and port must match. The port</span>
+<span class="diff-a">+	// check is skipped for loopback addresses, since per RFC 8252 Section 7.3 native</span>
+<span class="diff-a">+	// apps must be allowed to use variable port numbers.</span>
+<span class="diff-a">+	if base.Hostname() == refurl.Hostname() &amp;&amp;</span>
+<span class="diff-a">+		base.Scheme == refurl.Scheme &amp;&amp;</span>
+<span class="diff-a">+		(base.Port() == refurl.Port() || isLocalhost(refurl.Hostname())) {</span>
+<span class="diff-a">+		return true</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	scheme := strings.TrimSuffix(strings.ToLower(refurl.Scheme), &quot;:&quot;)</span>
+<span class="diff-h">diff --git a/internal/utilities/request_test.go b/internal/utilities/request_test.go</span>
+<span class="diff-h">index 91ae97fac6..b7b825fbbf 100644</span>
+<span class="diff-h">--- a/internal/utilities/request_test.go</span>
+<span class="diff-h">+++ b/internal/utilities/request_test.go</span>
+<span class="diff-h">@@ -10,6 +10,100 @@ import (</span>
+<span class="diff-c"> 	&quot;github.com/supabase/auth/internal/sbff&quot;</span>
+<span class="diff-c"> )</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+func TestIsRedirectURLValidSameOrigin(t *tst.T) {</span>
+<span class="diff-a">+	cases := []struct {</span>
+<span class="diff-a">+		desc        string</span>
+<span class="diff-a">+		siteURL     string</span>
+<span class="diff-a">+		redirectURL string</span>
+<span class="diff-a">+		want        bool</span>
+<span class="diff-a">+	}{</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;exact match&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com/path&quot;,</span>
+<span class="diff-a">+			want:        true,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;scheme downgrade https→http rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://example.com/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;scheme upgrade http→https rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;http://example.com&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;different port rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com:8443/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;explicit port matches SiteURL explicit port&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com:9000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com:9000/path&quot;,</span>
+<span class="diff-a">+			want:        true,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;no port vs explicit port rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com:9000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;different explicit ports rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com:9000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com:9001/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		// RFC 8252 Section 7.3: variable ports must be allowed for localhost</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;localhost with different port allowed (RFC 8252 Section 7.3)&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;http://localhost:3000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://localhost:8080/callback&quot;,</span>
+<span class="diff-a">+			want:        true,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;127.0.0.1 with different port allowed (RFC 8252 Section 7.3)&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;http://127.0.0.1:3000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://127.0.0.1:8080/callback&quot;,</span>
+<span class="diff-a">+			want:        true,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;localhost without port in redirect allowed (RFC 8252 Section 7.3)&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;http://localhost:3000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://localhost/callback&quot;,</span>
+<span class="diff-a">+			want:        true,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;localhost scheme downgrade still rejected despite RFC 8252&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://localhost:3000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://localhost:8080/callback&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;non-localhost variable port still rejected&quot;,</span>
+<span class="diff-a">+			siteURL:     &quot;https://example.com:9000&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com:9001/path&quot;,</span>
+<span class="diff-a">+			want:        false,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	for _, c := range cases {</span>
+<span class="diff-a">+		t.Run(c.desc, func(t *tst.T) {</span>
+<span class="diff-a">+			config := conf.GlobalConfiguration{</span>
+<span class="diff-a">+				SiteURL: c.siteURL,</span>
+<span class="diff-a">+				JWT:     conf.JWTConfiguration{Secret: &quot;testsecret&quot;},</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+			require.NoError(t, config.ApplyDefaults())</span>
+<span class="diff-a">+			require.Equal(t, c.want, IsRedirectURLValid(&amp;config, c.redirectURL))</span>
+<span class="diff-a">+		})</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func TestGetIPAddressWithSBFF(t *tst.T) {</span>
+<span class="diff-c"> 	testCases := []struct {</span>
+<span class="diff-c"> 		name       string</span>
+<span class="diff-h">@@ -217,6 +311,21 @@ func TestGetReferrer(t *tst.T) {</span>
+<span class="diff-c"> 			redirectURL: &quot;http://[0:0:0:0:0:0:0:1]:12345/path&quot;,</span>
+<span class="diff-c"> 			expected:    &quot;http://[0:0:0:0:0:0:0:1]:12345/path&quot;,</span>
+<span class="diff-c"> 		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;same origin allowed&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com/dashboard&quot;,</span>
+<span class="diff-a">+			expected:    &quot;https://example.com/dashboard&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;same hostname but http scheme rejected (scheme downgrade)&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;http://example.com/dashboard&quot;,</span>
+<span class="diff-a">+			expected:    config.SiteURL,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			desc:        &quot;same hostname and scheme but explicit non-default port rejected&quot;,</span>
+<span class="diff-a">+			redirectURL: &quot;https://example.com:8443/dashboard&quot;,</span>
+<span class="diff-a">+			expected:    config.SiteURL,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	for _, c := range cases {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/26adce254d2119a59e72454364a079d88b43a00f" rel="noopener noreferrer">https://github.com/supabase/auth/commit/26adce254d2119a59e72454364a079d88b43a00f</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-01</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">2951c8f71d48a5d735c0f9c0eff8637af8f27d50c0a9178e3078ed8d31db2643694b2804836ea3b5e6a60e82ba4dd5b9873053ec12b43b365f695fe2848f9f5a</p>
+<p class="kicker">Committed 2026-05-18 01:00 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-BVDWY3J9-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-BVDWY3J9%22%2C%22bug_class%22%3A%22open-redirect%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A01%3A17%2B00%3A00%22%2C%22description%22%3A%22In%20supabase/auth%2C%20IsRedirectURLValid%20%28internal/utilities/request.go%3A104%29%20short-circuits%20to%20allow%20a%20redirect%20when%20base.Hostname%28%29%20%3D%3D%20refurl.Hostname%28%29%20for%20SITE_URL%2C%20without%20checking%20scheme%20or%20port%2C%20and%20before%20consulting%20the%20glob%20allow-list.%20If%20SITE_URL%20is%20https%3A//app.example.com%2C%20targets%20like%20http%3A//app.example.com%2C%20evilapp%3A//app.example.com%2C%20or%20https%3A//app.example.com%3A8443%20are%20accepted.%20The%20/authorize%2C%20/verify%2C%20/callback%20and%20related%20flows%20then%20redirect%20with%20the%20access%20token%20in%20the%20URL%20fragment.%20An%20attacker%20who%20controls%20a%20handler%20for%20an%20alternate%20scheme%20or%20port%20on%20that%20hostname%20can%20capture%20the%20victim%27s%20session%20tokens.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/utilities/request.go%3A104%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%22Determine%20the%20deployment%27s%20SITE_URL%20hostname%20%28e.g.%20app.example.com%29%22%2C%22Obtain%20control%20of%20a%20same-hostname%20endpoint%20on%20a%20different%20scheme/port%20%28e.g.%20register%20evilapp%3A//%20on%20the%20victim%27s%20mobile%20OS%2C%20or%20bind%20app.example.com%3A8443%20in%20a%20shared%20environment%29%22%2C%22Craft%20a%20supabase/auth%20link%20%28/authorize%2C%20/verify%2C%20etc.%29%20with%20redirect_to%20set%20to%20that%20alternate-scheme/port%20URI%22%2C%22Deliver%20the%20link%20to%20the%20victim%20and%20have%20them%20complete%20the%20flow%22%2C%22Receive%20the%20redirect%20containing%20%23access_token%3D...%20at%20the%20attacker-controlled%20handler%20and%20use%20it%20to%20hijack%20the%20session%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20same-origin%20check%20implemented%20as%20a%20hostname-only%20string%20comparison%3A%20base.Hostname%28%29%20%3D%3D%20refurl.Hostname%28%29%20returns%20true%20and%20bypasses%20the%20explicit%20allow-list%20entirely.%20Because%20scheme%20and%20port%20are%20omitted%20from%20the%20comparison%2C%20any%20URI%20whose%20host%20label%20matches%20SITE_URL%27s%20host%20is%20treated%20as%20a%20trusted%20redirect%20target%2C%20violating%20the%20same-origin%20assumption%20the%20allow-list%20is%20meant%20to%20enforce.%22%2C%22title%22%3A%22Redirect%20allow-list%20ignores%20URL%20scheme%20and%20port%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-BVDWY3J9&#34;,
+  &#34;bug_class&#34;: &#34;open-redirect&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:01:17+00:00&#34;,
+  &#34;description&#34;: &#34;In supabase/auth, IsRedirectURLValid (internal/utilities/request.go:104) short-circuits to allow a redirect when base.Hostname() == refurl.Hostname() for SITE_URL, without checking scheme or port, and before consulting the glob allow-list. If SITE_URL is https://app.example.com, targets like http://app.example.com, evilapp://app.example.com, or https://app.example.com:8443 are accepted. The /authorize, /verify, /callback and related flows then redirect with the access token in the URL fragment. An attacker who controls a handler for an alternate scheme or port on that hostname can capture the victim&#39;s session tokens.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/utilities/request.go:104&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Determine the deployment&#39;s SITE_URL hostname (e.g. app.example.com)&#34;,
+    &#34;Obtain control of a same-hostname endpoint on a different scheme/port (e.g. register evilapp:// on the victim&#39;s mobile OS, or bind app.example.com:8443 in a shared environment)&#34;,
+    &#34;Craft a supabase/auth link (/authorize, /verify, etc.) with redirect_to set to that alternate-scheme/port URI&#34;,
+    &#34;Deliver the link to the victim and have them complete the flow&#34;,
+    &#34;Receive the redirect containing #access_token=... at the attacker-controlled handler and use it to hijack the session&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a same-origin check implemented as a hostname-only string comparison: base.Hostname() == refurl.Hostname() returns true and bypasses the explicit allow-list entirely. Because scheme and port are omitted from the comparison, any URI whose host label matches SITE_URL&#39;s host is treated as a trusted redirect target, violating the same-origin assumption the allow-list is meant to enforce.&#34;,
+  &#34;title&#34;: &#34;Redirect allow-list ignores URL scheme and port&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

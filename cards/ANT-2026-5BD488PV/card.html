@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-5BD488PV · graphicsmagick/graphicsmagick</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-5BD488PV · graphicsmagick/graphicsmagick</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-5BD488PV: Stack-buffer-overflow in locale.c:257</h1>
+<p>GraphicsMagick's LOCALE coder parses XML configuration files in ReadConfigureFile() (coders/locale.c). When handling a  element, the value of the name attribute is copied into a fixed-size 2053-byte stack buffer <code>message</code> (frame offsets [4480, 6533)) without a length check. A crafted 2081-byte XML file containing a  attribute of ~2053 characters overflows this buffer at line 257, producing a deterministic ASAN stack-buffer-overflow write. The overflow is reached from <code>gm convert</code> via ReadImage -&gt; ReadLOCALEImage -&gt; ReadConfigureFile, so any workflow that processes attacker-supplied files with the LOCALE coder is affected.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> graphicsmagick/graphicsmagick<br>
+<strong>Location:</strong> <code>locale.c:257</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "stack-buffer-overflow ... WRITE of size 1" past the end of the 2053-byte <code>message</code> stack variable at frame offset 6533 in ReadConfigureFile (coders/locale.c:257). The parser does not bound the copy of the <code>name</code> attribute against the fixed buffer size, so an attribute value ≥2053 bytes writes past the buffer end on the stack.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC (2081-byte XML file) triggers a deterministic stack-buffer-overflow in GraphicsMagick's LOCALE coder. The XML contains a `&lt;message&gt;` element with a `name` attribute consisting of ~2053 'A' characters, which overflows the fixed-size `message` stack buffer (2053 bytes, offsets [4480, 6533)) in `ReadConfigureFile()` at `coders/locale.c:257`.
+
+All 3 reproduction runs in a fresh `graphicsmagick:latest` container produced identical ASAN reports:
+- Error: `stack-buffer-overflow on address ... at pc ... in ReadConfigureFile coders/locale.c:257`
+- Write of size 1 overflowing the `message` variable at stack offset 6533
+- Exit code: 1 (ASAN abort)
+- Full call chain through project code: `ReadConfigureFile` -&gt; `ReadLOCALEImage` -&gt; `ReadImage` -&gt; `ConvertImageCommand` -&gt; `main`
+
+No OOM, timeout, or non-project crashes. The bug is a genuine stack buffer overflow in GraphicsMagick's locale configuration file parser.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a ~2KB XML file containing a  element whose name attribute is ≥2053 bytes (e.g. repeated 'A').</li>
+<li>Have the target run <code>gm convert</code> (or equivalent ReadImage entry point) on the file so the LOCALE coder is selected.</li>
+<li>ReadConfigureFile() copies the oversized attribute into the 2053-byte stack buffer <code>message</code>, writing past its end at locale.c:257.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-5BD488PV.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-5BD488PV<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c92a0732478e6b4e0c9f5d03dc61a114f5ae155c6b46aaebcecb593ad5222b59c3051574a36a0738b5c55e921cbd0209119035c91b4a010df72bc213b132e1b2</p>
+<p class="kicker">Committed 2026-05-31 07:18 UTC</p>
+<p class="kicker">Revealed 2026-08-18 10:06 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-5BD488PV-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-5BD488PV%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A30%3A54%2B00%3A00%22%2C%22description%22%3A%22GraphicsMagick%27s%20LOCALE%20coder%20parses%20XML%20configuration%20files%20in%20ReadConfigureFile%28%29%20%28coders/locale.c%29.%20When%20handling%20a%20%3Cmessage%3E%20element%2C%20the%20value%20of%20the%20name%20attribute%20is%20copied%20into%20a%20fixed-size%202053-byte%20stack%20buffer%20%60message%60%20%28frame%20offsets%20%5B4480%2C%206533%29%29%20without%20a%20length%20check.%20A%20crafted%202081-byte%20XML%20file%20containing%20a%20%3Cmessage%20name%3D%5C%22AAAA...%5C%22%3E%20attribute%20of%20~2053%20characters%20overflows%20this%20buffer%20at%20line%20257%2C%20producing%20a%20deterministic%20ASAN%20stack-buffer-overflow%20write.%20The%20overflow%20is%20reached%20from%20%60gm%20convert%60%20via%20ReadImage%20-%3E%20ReadLOCALEImage%20-%3E%20ReadConfigureFile%2C%20so%20any%20workflow%20that%20processes%20attacker-supplied%20files%20with%20the%20LOCALE%20coder%20is%20affected.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22locale.c%3A257%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22graphicsmagick%22%2C%22reproduction%22%3A%5B%221.%20Create%20a%20~2KB%20XML%20file%20containing%20a%20%3Cmessage%3E%20element%20whose%20name%20attribute%20is%20%E2%89%A52053%20bytes%20%28e.g.%20repeated%20%27A%27%29.%22%2C%222.%20Have%20the%20target%20run%20%60gm%20convert%60%20%28or%20equivalent%20ReadImage%20entry%20point%29%20on%20the%20file%20so%20the%20LOCALE%20coder%20is%20selected.%22%2C%223.%20ReadConfigureFile%28%29%20copies%20the%20oversized%20attribute%20into%20the%202053-byte%20stack%20buffer%20%60message%60%2C%20writing%20past%20its%20end%20at%20locale.c%3A257.%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22stack-buffer-overflow%20...%20WRITE%20of%20size%201%5C%22%20past%20the%20end%20of%20the%202053-byte%20%60message%60%20stack%20variable%20at%20frame%20offset%206533%20in%20ReadConfigureFile%20%28coders/locale.c%3A257%29.%20The%20parser%20does%20not%20bound%20the%20copy%20of%20the%20%60name%60%20attribute%20against%20the%20fixed%20buffer%20size%2C%20so%20an%20attribute%20value%20%E2%89%A52053%20bytes%20writes%20past%20the%20buffer%20end%20on%20the%20stack.%22%2C%22title%22%3A%22Stack-buffer-overflow%20in%20locale.c%3A257%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-5BD488PV&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:30:54+00:00&#34;,
+  &#34;description&#34;: &#34;GraphicsMagick&#39;s LOCALE coder parses XML configuration files in ReadConfigureFile() (coders/locale.c). When handling a &lt;message&gt; element, the value of the name attribute is copied into a fixed-size 2053-byte stack buffer `message` (frame offsets [4480, 6533)) without a length check. A crafted 2081-byte XML file containing a &lt;message name=\&#34;AAAA...\&#34;&gt; attribute of ~2053 characters overflows this buffer at line 257, producing a deterministic ASAN stack-buffer-overflow write. The overflow is reached from `gm convert` via ReadImage -&gt; ReadLOCALEImage -&gt; ReadConfigureFile, so any workflow that processes attacker-supplied files with the LOCALE coder is affected.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;locale.c:257&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;graphicsmagick&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Create a ~2KB XML file containing a &lt;message&gt; element whose name attribute is ≥2053 bytes (e.g. repeated &#39;A&#39;).&#34;,
+    &#34;2. Have the target run `gm convert` (or equivalent ReadImage entry point) on the file so the LOCALE coder is selected.&#34;,
+    &#34;3. ReadConfigureFile() copies the oversized attribute into the 2053-byte stack buffer `message`, writing past its end at locale.c:257.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;stack-buffer-overflow ... WRITE of size 1\&#34; past the end of the 2053-byte `message` stack variable at frame offset 6533 in ReadConfigureFile (coders/locale.c:257). The parser does not bound the copy of the `name` attribute against the fixed buffer size, so an attribute value ≥2053 bytes writes past the buffer end on the stack.&#34;,
+  &#34;title&#34;: &#34;Stack-buffer-overflow in locale.c:257&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

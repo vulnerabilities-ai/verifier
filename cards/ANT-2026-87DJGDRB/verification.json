@@ -5,11 +5,11 @@
   "hash": "f35e4f410ec58dab28431670e173e03fd1e5105f8afefc79c7edd5117d684d3aa377d218762d2f1ab70c6262e31227885bacaf2062958b077e305e5aebc6c37d",
   "ledger_source": "captures/2026/11/08/ledger.json",
   "card": {
-    "stored_at": "cards/ANT-2026-87DJGDRB/card.html",
-    "sha256": "4f6512fe6e9cbb84ecef5a8c456839b86eeb5c9280984291b308342316c7d925",
-    "fetched_utc": null,
-    "url": null,
-    "source": "manual copy by Jon, saved with the October 30, 2026 fixtures; fetch time, address and headers not recorded"
+    "stored_at": "cards/ANT-2026-87DJGDRB/card.T210512Z.html",
+    "sha256": "56ba2642c7338cec4b077cc2f5efa21447469fca084518b75fec9bec17ac3a27",
+    "fetched_utc": "2026-11-10T21:05:12Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-87DJGDRB",
+    "source": "fetched"
   },
   "r2": {
     "rule": "R2",
@@ -24,7 +24,7 @@
     "canonical_rebuild_match": true,
     "outcome": "match"
   },
-  "hash_checked_at": null,
+  "hash_checked_at": "2026-11-10T21:05:12Z",
   "card_facts": {
     "printed_hash": "f35e4f410ec58dab28431670e173e03fd1e5105f8afefc79c7edd5117d684d3aa377d218762d2f1ab70c6262e31227885bacaf2062958b077e305e5aebc6c37d",
     "committed_printed": "2026-05-18 03:27 UTC",

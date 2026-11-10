@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CT4ZXP4Z · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CT4ZXP4Z · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CT4ZXP4Z: Parent refresh token of post-MFA token yields AAL2 without MFA</h1>
+<p>In supabase/auth's refresh-token v1 flow, completing MFA issues a new AAL2 refresh token whose parent is the pre-MFA AAL1 token. RefreshTokenGrant has a grace path that, when presented with a revoked token that is the parent of the currently-active token, returns the active child. An attacker who captured the AAL1 refresh token before the victim completed MFA can replay it afterward; the server walks to the AAL2 child and mints an AAL2 access token. The attacker thus obtains a post-MFA session without ever performing MFA.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/tokens/service.go:376</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The parent-chain grace logic in RefreshTokenGrant does not compare the authentication assurance level of the presented parent token against that of the active child before returning the child. Because the post-MFA token is chained (parent = pre-MFA token) rather than starting a fresh chain, a lower-AAL revoked parent is accepted as proof of ownership of a higher-AAL child.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker steals victim's refresh token R1 issued at password login (AAL1).</li>
+<li>Victim completes MFA; server issues R2 (AAL2) with parent=R1 and revokes R1.</li>
+<li>Attacker POSTs /token?grant_type=refresh_token with R1.</li>
+<li>Service sees R1 is revoked, finds active child R2, and returns a new token pair derived from R2's session with aal2.</li>
+<li>Attacker now holds an AAL2 session despite never performing MFA.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>On AAL step-up, either start a new refresh-token chain with no parent, or record the AAL on each refresh token and refuse to return a child whose AAL is higher than that of the presented parent.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CT4ZXP4Z.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CT4ZXP4Z<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/go.mod b/go.mod</span>
+<span class="diff-h">index 361b464ba0..e14486baaa 100644</span>
+<span class="diff-h">--- a/go.mod</span>
+<span class="diff-h">+++ b/go.mod</span>
+<span class="diff-h">@@ -186,8 +186,8 @@ require (</span>
+<span class="diff-c"> 	gopkg.in/yaml.v3 v3.0.1 // indirect</span>
+<span class="diff-c"> )</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-go 1.25.11</span>
+<span class="diff-a">+go 1.25.12</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> replace (</span>
+<span class="diff-c"> 	github.com/joho/godotenv =&gt; ./internal/forks/godotenv</span>
+<span class="diff-d">-)</span>
+<span class="diff-c">\ No newline at end of file</span>
+<span class="diff-a">+)</span>
+<span class="diff-h">diff --git a/internal/models/refresh_token.go b/internal/models/refresh_token.go</span>
+<span class="diff-h">index 63e60fd140..8b4cc2d8e1 100644</span>
+<span class="diff-h">--- a/internal/models/refresh_token.go</span>
+<span class="diff-h">+++ b/internal/models/refresh_token.go</span>
+<span class="diff-h">@@ -110,7 +110,7 @@ func RevokeTokenFamily(tx *storage.Connection, token *RefreshToken) error {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> func FindTokenBySessionID(tx *storage.Connection, sessionId *uuid.UUID) (*RefreshToken, error) {</span>
+<span class="diff-c"> 	refreshToken := &amp;RefreshToken{}</span>
+<span class="diff-d">-	err := tx.Q().Where(&quot;instance_id = ? and session_id = ?&quot;, uuid.Nil, sessionId).Order(&quot;created_at asc&quot;).First(refreshToken)</span>
+<span class="diff-a">+	err := tx.Q().Where(&quot;instance_id = ? and session_id = ? and revoked = false&quot;, uuid.Nil, sessionId).Order(&quot;created_at asc&quot;).First(refreshToken)</span>
+<span class="diff-c"> 	if err != nil {</span>
+<span class="diff-c"> 		if errors.Cause(err) == sql.ErrNoRows {</span>
+<span class="diff-c"> 			return nil, RefreshTokenNotFoundError{}</span>
+<span class="diff-h">diff --git a/internal/models/refresh_token_test.go b/internal/models/refresh_token_test.go</span>
+<span class="diff-h">index 1a48da3f09..3e965b48c3 100644</span>
+<span class="diff-h">--- a/internal/models/refresh_token_test.go</span>
+<span class="diff-h">+++ b/internal/models/refresh_token_test.go</span>
+<span class="diff-h">@@ -67,6 +67,48 @@ func (ts *RefreshTokenTestSuite) TestGrantRefreshTokenSwap() {</span>
+<span class="diff-c"> 	require.Equal(ts.T(), u.ID, s.UserID)</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+func (ts *RefreshTokenTestSuite) TestFindTokenBySessionID() {</span>
+<span class="diff-a">+	u := ts.createUser()</span>
+<span class="diff-a">+	r, err := GrantAuthenticatedUser(ts.db, u, GrantParams{})</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	found, err := FindTokenBySessionID(ts.db, r.SessionId)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	require.Equal(ts.T(), r.ID, found.ID)</span>
+<span class="diff-a">+	require.Equal(ts.T(), r.Token, found.Token)</span>
+<span class="diff-a">+	require.False(ts.T(), found.Revoked)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+func (ts *RefreshTokenTestSuite) TestFindTokenBySessionIDExcludesRevokedToken() {</span>
+<span class="diff-a">+	u := ts.createUser()</span>
+<span class="diff-a">+	r, err := GrantAuthenticatedUser(ts.db, u, GrantParams{})</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	s, err := GrantRefreshTokenSwap(ts.config.AuditLog, &amp;http.Request{}, ts.db, u, r)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	found, err := FindTokenBySessionID(ts.db, r.SessionId)</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	require.Equal(ts.T(), s.ID, found.ID, &quot;expected the active (post-swap) token, not the revoked one&quot;)</span>
+<span class="diff-a">+	require.NotEqual(ts.T(), r.ID, found.ID)</span>
+<span class="diff-a">+	require.False(ts.T(), found.Revoked)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+func (ts *RefreshTokenTestSuite) TestFindTokenBySessionIDNotFoundWhenAllRevoked() {</span>
+<span class="diff-a">+	u := ts.createUser()</span>
+<span class="diff-a">+	r, err := GrantAuthenticatedUser(ts.db, u, GrantParams{})</span>
+<span class="diff-a">+	require.NoError(ts.T(), err)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	r.Revoked = true</span>
+<span class="diff-a">+	require.NoError(ts.T(), ts.db.UpdateOnly(r, &quot;revoked&quot;))</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	_, err = FindTokenBySessionID(ts.db, r.SessionId)</span>
+<span class="diff-a">+	require.Error(ts.T(), err)</span>
+<span class="diff-a">+	require.True(ts.T(), IsNotFoundError(err), &quot;expected NotFoundError&quot;)</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> func (ts *RefreshTokenTestSuite) TestLogout() {</span>
+<span class="diff-c"> 	u := ts.createUser()</span>
+<span class="diff-c"> 	r, err := GrantAuthenticatedUser(ts.db, u, GrantParams{})</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/87480005e2c3a16e35e5f6eacb97ea22b82ac9a5" rel="noopener noreferrer">https://github.com/supabase/auth/commit/87480005e2c3a16e35e5f6eacb97ea22b82ac9a5</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-14</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">ae3c71ba7736245576faf907403ec3bff4c5ef68974f237b162ac51864c126598f6665d471646fe4f1c626050400d434b4649eec1d04ac38d2db4ffba416987b</p>
+<p class="kicker">Committed 2026-05-18 01:00 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CT4ZXP4Z-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CT4ZXP4Z%22%2C%22bug_class%22%3A%22privilege-escalation%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A01%3A08%2B00%3A00%22%2C%22description%22%3A%22In%20supabase/auth%27s%20refresh-token%20v1%20flow%2C%20completing%20MFA%20issues%20a%20new%20AAL2%20refresh%20token%20whose%20parent%20is%20the%20pre-MFA%20AAL1%20token.%20RefreshTokenGrant%20has%20a%20grace%20path%20that%2C%20when%20presented%20with%20a%20revoked%20token%20that%20is%20the%20parent%20of%20the%20currently-active%20token%2C%20returns%20the%20active%20child.%20An%20attacker%20who%20captured%20the%20AAL1%20refresh%20token%20before%20the%20victim%20completed%20MFA%20can%20replay%20it%20afterward%3B%20the%20server%20walks%20to%20the%20AAL2%20child%20and%20mints%20an%20AAL2%20access%20token.%20The%20attacker%20thus%20obtains%20a%20post-MFA%20session%20without%20ever%20performing%20MFA.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/tokens/service.go%3A376%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20steals%20victim%27s%20refresh%20token%20R1%20issued%20at%20password%20login%20%28AAL1%29.%22%2C%222.%20Victim%20completes%20MFA%3B%20server%20issues%20R2%20%28AAL2%29%20with%20parent%3DR1%20and%20revokes%20R1.%22%2C%223.%20Attacker%20POSTs%20/token%3Fgrant_type%3Drefresh_token%20with%20R1.%22%2C%224.%20Service%20sees%20R1%20is%20revoked%2C%20finds%20active%20child%20R2%2C%20and%20returns%20a%20new%20token%20pair%20derived%20from%20R2%27s%20session%20with%20aal2.%22%2C%225.%20Attacker%20now%20holds%20an%20AAL2%20session%20despite%20never%20performing%20MFA.%22%5D%2C%22technical_details%22%3A%22The%20parent-chain%20grace%20logic%20in%20RefreshTokenGrant%20does%20not%20compare%20the%20authentication%20assurance%20level%20of%20the%20presented%20parent%20token%20against%20that%20of%20the%20active%20child%20before%20returning%20the%20child.%20Because%20the%20post-MFA%20token%20is%20chained%20%28parent%20%3D%20pre-MFA%20token%29%20rather%20than%20starting%20a%20fresh%20chain%2C%20a%20lower-AAL%20revoked%20parent%20is%20accepted%20as%20proof%20of%20ownership%20of%20a%20higher-AAL%20child.%22%2C%22title%22%3A%22Parent%20refresh%20token%20of%20post-MFA%20token%20yields%20AAL2%20without%20MFA%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CT4ZXP4Z&#34;,
+  &#34;bug_class&#34;: &#34;privilege-escalation&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:01:08+00:00&#34;,
+  &#34;description&#34;: &#34;In supabase/auth&#39;s refresh-token v1 flow, completing MFA issues a new AAL2 refresh token whose parent is the pre-MFA AAL1 token. RefreshTokenGrant has a grace path that, when presented with a revoked token that is the parent of the currently-active token, returns the active child. An attacker who captured the AAL1 refresh token before the victim completed MFA can replay it afterward; the server walks to the AAL2 child and mints an AAL2 access token. The attacker thus obtains a post-MFA session without ever performing MFA.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/tokens/service.go:376&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker steals victim&#39;s refresh token R1 issued at password login (AAL1).&#34;,
+    &#34;2. Victim completes MFA; server issues R2 (AAL2) with parent=R1 and revokes R1.&#34;,
+    &#34;3. Attacker POSTs /token?grant_type=refresh_token with R1.&#34;,
+    &#34;4. Service sees R1 is revoked, finds active child R2, and returns a new token pair derived from R2&#39;s session with aal2.&#34;,
+    &#34;5. Attacker now holds an AAL2 session despite never performing MFA.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The parent-chain grace logic in RefreshTokenGrant does not compare the authentication assurance level of the presented parent token against that of the active child before returning the child. Because the post-MFA token is chained (parent = pre-MFA token) rather than starting a fresh chain, a lower-AAL revoked parent is accepted as proof of ownership of a higher-AAL child.&#34;,
+  &#34;title&#34;: &#34;Parent refresh token of post-MFA token yields AAL2 without MFA&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

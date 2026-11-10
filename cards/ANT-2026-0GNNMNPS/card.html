@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-0GNNMNPS · wabt</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-0GNNMNPS · wabt</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-0GNNMNPS: Heap-buffer-overflow in wabt</h1>
+<p>When wat2wasm is run with --enable-annotations on a WAT file containing a @custom annotation inside a function body (e.g. <code>(module(func(@custom "a")))</code>), BinaryWriter::WriteExpr looks up the annotation's name in an unordered_map. The string_view key is malformed — an invalid pointer or underflowed length — so the libstdc++ hash routine reads out of bounds. ASAN reports a deterministic SEGV on a READ at an unknown address, reproducing in 3/3 runs. The agent attributes the root cause to an integer underflow producing a bogus string_view length.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wabt<br>
+<strong>Location:</strong> <code>wabt::BinaryWriter::WriteExpr in binary-writer.cc</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "SEGV on unknown address 0x603000010000 ... caused by a READ memory access". The SEGV fires inside std::_Hash_impl::hash while hashing a string_view key for an unordered_map lookup in BinaryWriter::WriteExpr. The string_view backing the @custom annotation's name has a corrupted pointer or length (the agent reports an integer underflow in the length field), so the hasher walks off valid memory. ASAN classified this as SEGV rather than heap-buffer-overflow, but both point to the same bad-string_view root cause.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>The PoC file `poc.bin` contains 27 bytes of WAT text: `(module(func(@custom &quot;a&quot;)))`. When processed by `wat2wasm-asan --enable-annotations`, it triggers a deterministic SEGV crash in all 3 runs.
+
+ASAN reports: `ERROR: AddressSanitizer: SEGV on unknown address 0x603000010000 ... caused by a READ memory access`.
+
+The symbolized stack trace confirms the crash is in wabt project code:
+- Frame #0: `std::_Hash_impl::hash` (libstdc++)
+- Frame #1-2: `std::hash&lt;string_view&gt;::operator()` — hashing a corrupted string_view
+- Frame #3-5: `unordered_map::operator[]` in `binary-writer.cc`
+- Frame #6: `wabt::BinaryWriter::WriteExpr` in `binary-writer.cc`
+- Frame #7: `wabt::BinaryWriter::WriteExprList` in `binary-writer.cc`
+- Frame #8: `wabt::BinaryWriter::WriteFunc` in `binary-writer.cc`
+- Frame #9: `wabt::BinaryWriter::WriteModule` in `binary-writer.cc`
+- Frame #10: `wabt::WriteBinaryModule`
+- Frame #11: `ProgramMain`
+- Frame #12: `main`
+
+The crash occurs when `BinaryWriter::WriteExpr` looks up a `@custom` annotation's name in an `unordered_map&lt;string_view, CodeMetadataSection&gt;`, but the `string_view` has an invalid/corrupted pointer or length, causing ASAN to detect a SEGV during the hash computation. This is consistent with the agent's reported &quot;heap-buffer-overflow (OOB read via integer underflow in string_view length).&quot;
+
+The slight score reduction from 1.0 is because the ASAN error type reported is SEGV rather than the claimed &quot;heap-buffer-overflow,&quot; though both indicate invalid memory reads and the root cause (bad string_view) is consistent.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Create a WAT file containing a @custom annotation inside a function body, e.g. (module(func(@custom "a")))</li>
+<li>Invoke wat2wasm --enable-annotations on the file</li>
+<li>BinaryWriter::WriteExpr hashes a corrupted string_view and crashes</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-0GNNMNPS.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-0GNNMNPS<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-18</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">30a1ea8f8f1c83f149bc34f805cf81885cd514e723f4304fb70b041f55d97ec82f955898d3e2b6a2bd10230046c90b5fcbd6c1b0c9a4f126645dd8cfe7d67a61</p>
+<p class="kicker">Committed 2026-05-08 16:19 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:28 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-0GNNMNPS-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-0GNNMNPS%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A28%3A36%2B00%3A00%22%2C%22description%22%3A%22When%20wat2wasm%20is%20run%20with%20--enable-annotations%20on%20a%20WAT%20file%20containing%20a%20%40custom%20annotation%20inside%20a%20function%20body%20%28e.g.%20%60%28module%28func%28%40custom%20%5C%22a%5C%22%29%29%29%60%29%2C%20BinaryWriter%3A%3AWriteExpr%20looks%20up%20the%20annotation%27s%20name%20in%20an%20unordered_map%3Cstring_view%2C%20CodeMetadataSection%3E.%20The%20string_view%20key%20is%20malformed%20%E2%80%94%20an%20invalid%20pointer%20or%20underflowed%20length%20%E2%80%94%20so%20the%20libstdc%2B%2B%20hash%20routine%20reads%20out%20of%20bounds.%20ASAN%20reports%20a%20deterministic%20SEGV%20on%20a%20READ%20at%20an%20unknown%20address%2C%20reproducing%20in%203/3%20runs.%20The%20agent%20attributes%20the%20root%20cause%20to%20an%20integer%20underflow%20producing%20a%20bogus%20string_view%20length.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22wabt%3A%3ABinaryWriter%3A%3AWriteExpr%20in%20binary-writer.cc%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wabt%22%2C%22reproduction%22%3A%5B%221.%20Create%20a%20WAT%20file%20containing%20a%20%40custom%20annotation%20inside%20a%20function%20body%2C%20e.g.%20%28module%28func%28%40custom%20%5C%22a%5C%22%29%29%29%22%2C%222.%20Invoke%20wat2wasm%20--enable-annotations%20on%20the%20file%22%2C%223.%20BinaryWriter%3A%3AWriteExpr%20hashes%20a%20corrupted%20string_view%20and%20crashes%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22SEGV%20on%20unknown%20address%200x603000010000%20...%20caused%20by%20a%20READ%20memory%20access%5C%22.%20The%20SEGV%20fires%20inside%20std%3A%3A_Hash_impl%3A%3Ahash%20while%20hashing%20a%20string_view%20key%20for%20an%20unordered_map%20lookup%20in%20BinaryWriter%3A%3AWriteExpr.%20The%20string_view%20backing%20the%20%40custom%20annotation%27s%20name%20has%20a%20corrupted%20pointer%20or%20length%20%28the%20agent%20reports%20an%20integer%20underflow%20in%20the%20length%20field%29%2C%20so%20the%20hasher%20walks%20off%20valid%20memory.%20ASAN%20classified%20this%20as%20SEGV%20rather%20than%20heap-buffer-overflow%2C%20but%20both%20point%20to%20the%20same%20bad-string_view%20root%20cause.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20wabt%22%2C%22vendor_severity%22%3A%22critical%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-0GNNMNPS&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:28:36+00:00&#34;,
+  &#34;description&#34;: &#34;When wat2wasm is run with --enable-annotations on a WAT file containing a @custom annotation inside a function body (e.g. `(module(func(@custom \&#34;a\&#34;)))`), BinaryWriter::WriteExpr looks up the annotation&#39;s name in an unordered_map&lt;string_view, CodeMetadataSection&gt;. The string_view key is malformed — an invalid pointer or underflowed length — so the libstdc++ hash routine reads out of bounds. ASAN reports a deterministic SEGV on a READ at an unknown address, reproducing in 3/3 runs. The agent attributes the root cause to an integer underflow producing a bogus string_view length.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;wabt::BinaryWriter::WriteExpr in binary-writer.cc&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wabt&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Create a WAT file containing a @custom annotation inside a function body, e.g. (module(func(@custom \&#34;a\&#34;)))&#34;,
+    &#34;2. Invoke wat2wasm --enable-annotations on the file&#34;,
+    &#34;3. BinaryWriter::WriteExpr hashes a corrupted string_view and crashes&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;SEGV on unknown address 0x603000010000 ... caused by a READ memory access\&#34;. The SEGV fires inside std::_Hash_impl::hash while hashing a string_view key for an unordered_map lookup in BinaryWriter::WriteExpr. The string_view backing the @custom annotation&#39;s name has a corrupted pointer or length (the agent reports an integer underflow in the length field), so the hasher walks off valid memory. ASAN classified this as SEGV rather than heap-buffer-overflow, but both point to the same bad-string_view root cause.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in wabt&#34;,
+  &#34;vendor_severity&#34;: &#34;critical&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-WNRZ9D35",
+  "hash": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-WNRZ9D35/card.html",
+    "sha256": "cfa75b42cc1965ad816f0addc807f3e919da5e760c6ae78c6f6397bab7d52049",
+    "fetched_utc": "2026-11-10T21:07:46Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-WNRZ9D35",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+    "printed_hash": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+    "canonical_rebuild_sha3_512": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:07:46Z",
+  "card_facts": {
+    "printed_hash": "5b5be7d5d077ff2663299960d35549bf6b3b1002b43e298475ccc1f822ef1b9fe11385712582d9c95d1c0ea18401bc96a9c9a1bf5d6b2aff33ce5739e1edace2",
+    "committed_printed": "2026-05-07 14:53 UTC",
+    "revealed_printed": "2026-07-08 22:55 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-24",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-28",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-07",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-05-08",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-07-08",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-24",
+      "report_date": "2026-04-28",
+      "acknowledged_date": "2026-05-07",
+      "patch_released_date": "2026-05-08",
+      "reveal_date": "2026-07-08"
+    },
+    "severities": {
+      "model": "critical",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [
+        "https://github.com/OSGeo/gdal/commit/262a41e151b80acf3b9f671ba2b774db2bbabb0e"
+      ],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

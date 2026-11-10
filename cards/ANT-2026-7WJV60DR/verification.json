@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-7WJV60DR",
+  "hash": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-7WJV60DR/card.html",
+    "sha256": "53fb08bb24d6b9fe58804047a66d8dec4b3e093d70f52604c4fa35ad0af6e099",
+    "fetched_utc": "2026-11-10T21:05:10Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-7WJV60DR",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+    "printed_hash": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+    "canonical_rebuild_sha3_512": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:05:10Z",
+  "card_facts": {
+    "printed_hash": "c81a4fd0cd3fc7a9defc4f385a2675b0caa4db28ee228297557b9e09805c5cd4b746d33c15d7dba56a19f6b0af7da18f34f78636e5842b01f8135b380f0dccec",
+    "committed_printed": "2026-05-18 01:02 UTC",
+    "revealed_printed": "2026-08-18 14:12 UTC",
+    "timeline": [
+      {
+        "date": "2026-05-10",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-05-15",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-15",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-08-06",
+        "label": "Patch released (corrected: this date was published in error)"
+      },
+      {
+        "date": "2026-08-18",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-05-10",
+      "report_date": "2026-05-15",
+      "acknowledged_date": "2026-05-15",
+      "reveal_date": "2026-08-18"
+    },
+    "severities": {
+      "model": "medium",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

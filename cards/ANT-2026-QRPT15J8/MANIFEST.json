@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-QRPT15J8",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "name": "card.html",
+      "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-QRPT15J8.html",
+      "final_url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-QRPT15J8",
+      "status": 200,
+      "fetched_utc": "2026-11-10T21:07:09Z",
+      "etag": null,
+      "last_modified": null,
+      "content_type": "text/html; charset=utf-8",
+      "size_bytes": 11983,
+      "sha256": "b727d0342d54b750faf2f17a8f2fd9b29a611878c29874b308e18a34616d36d4",
+      "headers": {
+        "Date": "Tue, 10 Nov 2026 21:07:10 GMT",
+        "Content-Type": "text/html; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "Connection": "close",
+        "x-content-type-options": "nosniff",
+        "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=f6qvK0qbKAq0rMkzZb6w2y6YU4deLVPw3GFIML0u5j9MBFVeVJcowV3xsjNclASdhj9hSlV8nUOMdRMApSWMvg9%2FO0NUQ%2FwM%2FWtZhE21HUu4MHCULvx52ol7CjRTg6BgsFmd4Q%3D%3D\"}]}",
+        "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=0, must-revalidate",
+        "referrer-policy": "strict-origin-when-cross-origin",
+        "Server": "cloudflare",
+        "cf-cache-status": "DYNAMIC",
+        "CF-RAY": "a58806733d9f2832-SJC",
+        "alt-svc": "h3=\":443\"; ma=86400"
+      },
+      "stored_at": "cards/ANT-2026-QRPT15J8/card.html",
+      "newly_stored": true,
+      "attempts_before": []
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "extracted_from": "cards/ANT-2026-QRPT15J8/card.html",
+      "method": "download_link_data_address",
+      "extracted_utc": "2026-11-10T21:07:09Z",
+      "size_bytes": 1602,
+      "sha256": "9b1d25906c6f891bbc8e9889aba61a0df6109ae06f89266f4163c49369a17770",
+      "stored_at": "cards/ANT-2026-QRPT15J8/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

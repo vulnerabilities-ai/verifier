@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-50T0MN89 · u-boot/u-boot</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-50T0MN89 · u-boot/u-boot</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-50T0MN89: U-Boot EFI Image Loader: Out-of-Bounds Write via Unbounded PE Relocation</h1>
+<p>A heap out-of-bounds write in U-Boot's EFI image loader. The PE relocation handler in <code>efi_loader_relocate()</code> computes write targets from attacker-controlled <code>VirtualAddress</code> and entry offsets without validating against the allocated image buffer bounds. A crafted EFI binary with <code>SizeOfImage=0</code> and relocation entries at large RVAs writes ~20MB past the allocation, corrupting heap metadata and ultimately redirecting control flow. U-Boot runs at the highest privilege level pre-OS, so exploitation yields full platform control.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> u-boot/u-boot<br>
+<strong>Commit:</strong> <code>135bc3756ecb63d7</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "SEGV on unknown address 0x0001deadbeef (pc 0x0001deadbeef ...) Hint: PC is at a non-executable region. Maybe a wild jump?" — the root cause is that efi_loader_relocate() trusts the PE header's SizeOfImage and the .reloc block's VirtualAddress/entry offsets without verifying that the derived pointer falls within [efi_reloc, efi_reloc + SizeOfImage). With SizeOfImage=0 and a large VirtualAddress, the DIR64 fixup *x64 += delta writes 8 bytes far outside the buffer, corrupting adjacent heap memory and ultimately a function pointer.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 416576577
+INFO: Loaded 1 modules   (113100 inline 8-bit counters): 113100 [0x55f64549ff20, 0x55f6454bb8ec), 
+INFO: Loaded 1 PC tables (113100 PCs): 113100 [0x55f6454bb8f0,0x55f6456755b0), 
+/out/fuzz_efi_load_image: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+AddressSanitizer:DEADLYSIGNAL
+EXIT_CODE:139
+/bin/bash: line 1:    25 Segmentation fault      ASAN_OPTIONS=&quot;${ASAN_OPTIONS:+$ASAN_OPTIONS:}log_path=/tmp/.asan_XXXXXXXX&quot; timeout -s SIGKILL 100 /out/fuzz_efi_load_image /tmp/poc 2&gt;&amp;1
+
+
+=== ASAN Report ===
+=================================================================
+==26==ERROR: AddressSanitizer: SEGV on unknown address 0x0001deadbeef (pc 0x0001deadbeef bp 0x74e08969e750 sp 0x74e08969e638 T2)
+==26==The signal is caused by a READ memory access.
+==26==Hint: PC is at a non-executable region. Maybe a wild jump?
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the commit listed above as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-50T0MN89.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-50T0MN89<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/lib/efi_loader/efi_image_loader.c b/lib/efi_loader/efi_image_loader.c</span>
+<span class="diff-h">index d002eb0c7440..f9a2d2df405d 100644</span>
+<span class="diff-h">--- a/lib/efi_loader/efi_image_loader.c</span>
+<span class="diff-h">+++ b/lib/efi_loader/efi_image_loader.c</span>
+<span class="diff-h">@@ -108,11 +108,13 @@ void efi_print_image_infos(void *pc)</span>
+<span class="diff-c">  * @rel_size:		size of the relocation table in bytes</span>
+<span class="diff-c">  * @efi_reloc:		actual load address of the image</span>
+<span class="diff-c">  * @pref_address:	preferred load address of the image</span>
+<span class="diff-a">+ * @virt_size:		virtual image size as provided in the PE-COFF header</span>
+<span class="diff-c">  * Return:		status code</span>
+<span class="diff-c">  */</span>
+<span class="diff-c"> static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,</span>
+<span class="diff-d">-			unsigned long rel_size, void *efi_reloc,</span>
+<span class="diff-d">-			unsigned long pref_address)</span>
+<span class="diff-a">+					unsigned long rel_size, void *efi_reloc,</span>
+<span class="diff-a">+					unsigned long pref_address,</span>
+<span class="diff-a">+					unsigned long virt_size)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	unsigned long delta = (unsigned long)efi_reloc - pref_address;</span>
+<span class="diff-c"> 	const IMAGE_BASE_RELOCATION *end;</span>
+<span class="diff-h">@@ -122,34 +124,95 @@ static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,</span>
+<span class="diff-c"> 		return EFI_SUCCESS;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	end = (const IMAGE_BASE_RELOCATION *)((const char *)rel + rel_size);</span>
+<span class="diff-d">-	while (rel + 1 &lt; end &amp;&amp; rel-&gt;SizeOfBlock) {</span>
+<span class="diff-a">+	while (rel + 1 &lt; end) {</span>
+<span class="diff-c"> 		const uint16_t *relocs = (const uint16_t *)(rel + 1);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+		/* Each block must start on a 32-bit boundary */</span>
+<span class="diff-a">+		if (!IS_ALIGNED((uintptr_t)rel, sizeof(uint32_t))) {</span>
+<span class="diff-a">+			log_debug(&quot;Relocation block not 32-bit aligned\n&quot;);</span>
+<span class="diff-a">+			return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		/* Relocation block cannot be shorter than its header */</span>
+<span class="diff-a">+		if (rel-&gt;SizeOfBlock &lt; sizeof(*rel)) {</span>
+<span class="diff-a">+			log_debug(&quot;Relocation block too small: %u\n&quot;,</span>
+<span class="diff-a">+				rel-&gt;SizeOfBlock);</span>
+<span class="diff-a">+			return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		/* All relocation entries must be inside the .reloc section */</span>
+<span class="diff-a">+		if ((const char *)rel + rel-&gt;SizeOfBlock &gt; (const char *)end) {</span>
+<span class="diff-a">+			log_debug(&quot;Relocation block exceeds relocation data\n&quot;);</span>
+<span class="diff-a">+			return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		/*</span>
+<span class="diff-a">+		 * Relocations must be within the virtual address range.</span>
+<span class="diff-a">+		 * This also ensures that there is no overflow in the</span>
+<span class="diff-a">+		 * entry_offset check below.</span>
+<span class="diff-a">+		 */</span>
+<span class="diff-a">+		if (rel-&gt;VirtualAddress &gt; virt_size) {</span>
+<span class="diff-a">+			log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+			return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> 		i = (rel-&gt;SizeOfBlock - sizeof(*rel)) / sizeof(uint16_t);</span>
+<span class="diff-c"> 		while (i--) {</span>
+<span class="diff-d">-			uint32_t offset = (uint32_t)(*relocs &amp; 0xfff) +</span>
+<span class="diff-d">-					  rel-&gt;VirtualAddress;</span>
+<span class="diff-a">+			uint32_t entry_offset = *relocs &amp; 0xfff;</span>
+<span class="diff-a">+			unsigned long offset;</span>
+<span class="diff-c"> 			int type = *relocs &gt;&gt; EFI_PAGE_SHIFT;</span>
+<span class="diff-d">-			uint64_t *x64 = efi_reloc + offset;</span>
+<span class="diff-d">-			uint32_t *x32 = efi_reloc + offset;</span>
+<span class="diff-d">-			uint16_t *x16 = efi_reloc + offset;</span>
+<span class="diff-a">+			uint64_t *x64;</span>
+<span class="diff-a">+			uint32_t *x32;</span>
+<span class="diff-a">+			uint16_t *x16;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			/*</span>
+<span class="diff-a">+			 * Relocation address must be within virtual address</span>
+<span class="diff-a">+			 * range.</span>
+<span class="diff-a">+			 */</span>
+<span class="diff-a">+			if (entry_offset &gt; virt_size - rel-&gt;VirtualAddress) {</span>
+<span class="diff-a">+				log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+				return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			offset = rel-&gt;VirtualAddress + entry_offset;</span>
+<span class="diff-a">+			x64 = efi_reloc + offset;</span>
+<span class="diff-a">+			x32 = efi_reloc + offset;</span>
+<span class="diff-a">+			x16 = efi_reloc + offset;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 			switch (type) {</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_ABSOLUTE:</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_HIGH:</span>
+<span class="diff-a">+				if (sizeof(uint16_t) &gt; virt_size - offset) {</span>
+<span class="diff-a">+					log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+					return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+				}</span>
+<span class="diff-c"> 				*x16 += ((uint32_t)delta) &gt;&gt; 16;</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_LOW:</span>
+<span class="diff-a">+				if (sizeof(uint16_t) &gt; virt_size - offset) {</span>
+<span class="diff-a">+					log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+					return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+				}</span>
+<span class="diff-c"> 				*x16 += (uint16_t)delta;</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_HIGHLOW:</span>
+<span class="diff-a">+				if (sizeof(uint32_t) &gt; virt_size - offset) {</span>
+<span class="diff-a">+					log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+					return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+				}</span>
+<span class="diff-c"> 				*x32 += (uint32_t)delta;</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_DIR64:</span>
+<span class="diff-a">+				if (sizeof(uint64_t) &gt; virt_size - offset) {</span>
+<span class="diff-a">+					log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+					return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+				}</span>
+<span class="diff-c"> 				*x64 += (uint64_t)delta;</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> #ifdef __riscv</span>
+<span class="diff-c"> 			case IMAGE_REL_BASED_RISCV_HI20:</span>
+<span class="diff-a">+				if (sizeof(uint32_t) &gt; virt_size - offset) {</span>
+<span class="diff-a">+					log_debug(&quot;relocation address out of bounds\n&quot;);</span>
+<span class="diff-a">+					return EFI_LOAD_ERROR;</span>
+<span class="diff-a">+				}</span>
+<span class="diff-c"> 				*x32 = ((*x32 &amp; 0xfffff000) + (uint32_t)delta) |</span>
+<span class="diff-c"> 					(*x32 &amp; 0x00000fff);</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-h">@@ -163,7 +226,7 @@ static efi_status_t efi_loader_relocate(const IMAGE_BASE_RELOCATION *rel,</span>
+<span class="diff-c"> 				break;</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> 			default:</span>
+<span class="diff-d">-				log_err(&quot;Unknown Relocation off %x type %x\n&quot;,</span>
+<span class="diff-a">+				log_err(&quot;Unknown Relocation off %lx type %x\n&quot;,</span>
+<span class="diff-c"> 					offset, type);</span>
+<span class="diff-c"> 				return EFI_LOAD_ERROR;</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-h">@@ -970,8 +1033,9 @@ efi_status_t efi_load_pe(struct efi_loaded_image_obj *handle,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/* Run through relocations */</span>
+<span class="diff-c"> 	if (efi_loader_relocate(rel, rel_size, efi_reloc,</span>
+<span class="diff-d">-				(unsigned long)image_base) != EFI_SUCCESS) {</span>
+<span class="diff-d">-		efi_free_pages((uintptr_t) efi_reloc,</span>
+<span class="diff-a">+				(unsigned long)image_base,</span>
+<span class="diff-a">+				virt_size) != EFI_SUCCESS) {</span>
+<span class="diff-a">+		efi_free_pages((uintptr_t)efi_reloc,</span>
+<span class="diff-c"> 			       (virt_size + EFI_PAGE_MASK) &gt;&gt; EFI_PAGE_SHIFT);</span>
+<span class="diff-c"> 		ret = EFI_LOAD_ERROR;</span>
+<span class="diff-c"> 		goto err;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/u-boot/u-boot/commit/bc82aa5b4145eba47f57e6f7148e0fa45bc16f51" rel="noopener noreferrer">https://github.com/u-boot/u-boot/commit/bc82aa5b4145eba47f57e6f7148e0fa45bc16f51</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-07</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e61613e4d8ba7f3efbccea262f6211cc505fdb23b85b340ea4e2395be305420b771b54d0f8f0cf5135ffed94283a6a33700fb2fd0ef433f107b6a34c14ef9743</p>
+<p class="kicker">Committed 2026-05-08 07:08 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:02 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-50T0MN89-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-50T0MN89%22%2C%22bug_class%22%3A%22Out-of-bounds-write%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%22135bc3756ecb63d7%22%2C%22created_at%22%3A%222026-03-30T23%3A29%3A47%2B00%3A00%22%2C%22description%22%3A%22A%20heap%20out-of-bounds%20write%20in%20U-Boot%27s%20EFI%20image%20loader.%20The%20PE%20relocation%20handler%20in%20%60efi_loader_relocate%28%29%60%20computes%20write%20targets%20from%20attacker-controlled%20%60VirtualAddress%60%20and%20entry%20offsets%20without%20validating%20against%20the%20allocated%20image%20buffer%20bounds.%20A%20crafted%20EFI%20binary%20with%20%60SizeOfImage%3D0%60%20and%20relocation%20entries%20at%20large%20RVAs%20writes%20~20MB%20past%20the%20allocation%2C%20corrupting%20heap%20metadata%20and%20ultimately%20redirecting%20control%20flow.%20U-Boot%20runs%20at%20the%20highest%20privilege%20level%20pre-OS%2C%20so%20exploitation%20yields%20full%20platform%20control.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3A%22865c8248b8c15154af0ddd5b419356b046bf31b3e9103eeefe1affcd87ee9c47%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22uboot%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22SEGV%20on%20unknown%20address%200x0001deadbeef%20%28pc%200x0001deadbeef%20...%29%20Hint%3A%20PC%20is%20at%20a%20non-executable%20region.%20Maybe%20a%20wild%20jump%3F%5C%22%20%E2%80%94%20the%20root%20cause%20is%20that%20efi_loader_relocate%28%29%20trusts%20the%20PE%20header%27s%20SizeOfImage%20and%20the%20.reloc%20block%27s%20VirtualAddress/entry%20offsets%20without%20verifying%20that%20the%20derived%20pointer%20falls%20within%20%5Befi_reloc%2C%20efi_reloc%20%2B%20SizeOfImage%29.%20With%20SizeOfImage%3D0%20and%20a%20large%20VirtualAddress%2C%20the%20DIR64%20fixup%20%2Ax64%20%2B%3D%20delta%20writes%208%20bytes%20far%20outside%20the%20buffer%2C%20corrupting%20adjacent%20heap%20memory%20and%20ultimately%20a%20function%20pointer.%22%2C%22title%22%3A%22U-Boot%20EFI%20Image%20Loader%3A%20Out-of-Bounds%20Write%20via%20Unbounded%20PE%20Relocation%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-50T0MN89&#34;,
+  &#34;bug_class&#34;: &#34;Out-of-bounds-write&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;135bc3756ecb63d7&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:29:47+00:00&#34;,
+  &#34;description&#34;: &#34;A heap out-of-bounds write in U-Boot&#39;s EFI image loader. The PE relocation handler in `efi_loader_relocate()` computes write targets from attacker-controlled `VirtualAddress` and entry offsets without validating against the allocated image buffer bounds. A crafted EFI binary with `SizeOfImage=0` and relocation entries at large RVAs writes ~20MB past the allocation, corrupting heap metadata and ultimately redirecting control flow. U-Boot runs at the highest privilege level pre-OS, so exploitation yields full platform control.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: &#34;865c8248b8c15154af0ddd5b419356b046bf31b3e9103eeefe1affcd87ee9c47&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;uboot&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;SEGV on unknown address 0x0001deadbeef (pc 0x0001deadbeef ...) Hint: PC is at a non-executable region. Maybe a wild jump?\&#34; — the root cause is that efi_loader_relocate() trusts the PE header&#39;s SizeOfImage and the .reloc block&#39;s VirtualAddress/entry offsets without verifying that the derived pointer falls within [efi_reloc, efi_reloc + SizeOfImage). With SizeOfImage=0 and a large VirtualAddress, the DIR64 fixup *x64 += delta writes 8 bytes far outside the buffer, corrupting adjacent heap memory and ultimately a function pointer.&#34;,
+  &#34;title&#34;: &#34;U-Boot EFI Image Loader: Out-of-Bounds Write via Unbounded PE Relocation&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

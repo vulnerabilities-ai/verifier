@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-6JWE6ZK7 · langchain-ai/deepagentsjs</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-6JWE6ZK7 · langchain-ai/deepagentsjs</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  command-injection
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Anvil Security.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-6JWE6ZK7: VFS sandbox executes agent commands directly on host</h1>
+<p>The VfsSandbox backend in @langchain/node-vfs is documented and advertised to the LLM as an isolated execution environment, but its execute() method simply runs <code>/bin/bash -c &lt;command&gt;</code> on the host with <code>env: { ...process.env }</code> and only cwd pointed at a temp directory. There is no chroot, namespace, container, or environment filtering, so absolute paths, host processes, the network, and every secret in process.env are reachable. An attacker who gets prompt-injection content into the agent's context can induce the execute tool to run arbitrary host commands, exfiltrating API keys and cloud credentials or achieving persistence. This is strictly worse than LocalShellBackend, which carries an explicit no-sandboxing warning and defaults to inheritEnv:false, while VfsSandbox has neither safeguard and sits alongside genuinely isolated providers (Modal, Deno, Daytona), misleading developers about its guarantees.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> langchain-ai/deepagentsjs<br>
+<strong>Location:</strong> <code>libs/providers/node-vfs/src/sandbox.ts:346</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is that execute() provides no actual OS-level isolation: it calls bash in-process with the full host environment and filesystem accessible, contradicting the README and tool-description claims of an isolated sandbox. Additionally, #syncDirFromTemp (lines 260-278) does not reject symlinks, so even after isolating the subprocess an attacker could read host files by planting a symlink in the shared temp directory.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Developer deploys an agent using VfsSandbox, trusting the documented isolation claim</li>
+<li>Attacker supplies content (e.g., a document to summarize) containing a prompt-injection payload</li>
+<li>The agent follows the injected instruction and invokes the execute tool with an attacker-chosen shell command</li>
+<li>VfsSandbox.execute() spawns /bin/bash -c on the host with full process.env, running the command with host privileges</li>
+<li>Command exfiltrates env secrets (e.g., ANTHROPIC_API_KEY, cloud creds), reads ~/.ssh/id_rsa, or writes to ~/.bashrc for persistence</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Either run agent-driven commands inside a real OS-level sandbox (container/namespace/microVM) that cannot reach host filesystem, network, or environment beyond the synced workspace, or drop the isolation claim and add a LocalShellBackend-style security warning; in all cases stop inheriting process.env into agent subprocesses, and harden #syncDirFromTemp to reject symlinks.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-6JWE6ZK7.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-6JWE6ZK7<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Anvil Security.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/.changeset/calm-carrots-allow.md b/.changeset/calm-carrots-allow.md</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 000000000..48200a6ba</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/.changeset/calm-carrots-allow.md</span>
+<span class="diff-h">@@ -0,0 +1,9 @@</span>
+<span class="diff-a">+---</span>
+<span class="diff-a">+&quot;@langchain/node-vfs&quot;: minor</span>
+<span class="diff-a">+---</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+BREAKING: remove shell execution from the VFS provider</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+`VfsBackend` now operates as a filesystem-only `BackendProtocolV2` implementation and no longer exposes command execution.</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+The provider now implements `read`, `ls`, `grep`, and `glob` directly against the in-memory VFS, path resolution is confined to the virtual workspace root, and legacy `VfsSandbox` / `createVfsSandboxFactory*` aliases are removed.</span>
+<span class="diff-h">diff --git a/examples/sandbox/vfs-sandbox.ts b/examples/sandbox/vfs-backend.ts</span>
+<span class="diff-c">similarity index 55%</span>
+<span class="diff-c">rename from examples/sandbox/vfs-sandbox.ts</span>
+<span class="diff-c">rename to examples/sandbox/vfs-backend.ts</span>
+<span class="diff-h">index 102e56ad1..f3c990820 100644</span>
+<span class="diff-h">--- a/examples/sandbox/vfs-sandbox.ts</span>
+<span class="diff-h">+++ b/examples/sandbox/vfs-backend.ts</span>
+<span class="diff-h">@@ -1,14 +1,14 @@</span>
+<span class="diff-c"> /**</span>
+<span class="diff-d">- * Node.js VFS Sandbox Example</span>
+<span class="diff-a">+ * Node.js VFS Backend Example</span>
+<span class="diff-c">  *</span>
+<span class="diff-d">- * This example demonstrates the Sandbox Execution Support feature of DeepAgents</span>
+<span class="diff-d">- * using an in-memory Virtual File System. It shows how to:</span>
+<span class="diff-d">- * 1. Create a VFS Sandbox backend using the @langchain/node-vfs package</span>
+<span class="diff-d">- * 2. Use the `execute` tool to run shell commands in an isolated environment</span>
+<span class="diff-d">- * 3. Pre-populate the sandbox with initial files</span>
+<span class="diff-a">+ * This example demonstrates DeepAgents with an in-memory Virtual File System backend.</span>
+<span class="diff-a">+ * It shows how to:</span>
+<span class="diff-a">+ * 1. Create a VFS backend using the @langchain/node-vfs package</span>
+<span class="diff-a">+ * 2. Pre-populate the backend with initial files</span>
+<span class="diff-a">+ * 3. Let the agent use filesystem tools (`ls`, `read_file`, `write_file`, etc.)</span>
+<span class="diff-c">  *</span>
+<span class="diff-d">- * The VfsSandbox runs commands in an isolated in-memory filesystem,</span>
+<span class="diff-d">- * perfect for code execution without affecting the real filesystem.</span>
+<span class="diff-a">+ * The VfsBackend provides an isolated in-memory filesystem,</span>
+<span class="diff-a">+ * perfect for file workflows without affecting the real filesystem.</span>
+<span class="diff-c">  * No external services, Docker, or cloud setup required!</span>
+<span class="diff-c">  *</span>
+<span class="diff-c">  * ## About Node.js VFS</span>
+<span class="diff-h">@@ -20,9 +20,9 @@</span>
+<span class="diff-c">  * ## Running the Example</span>
+<span class="diff-c">  *</span>
+<span class="diff-c">  * ```bash</span>
+<span class="diff-d">- * npx tsx examples/sandbox/vfs-sandbox.ts</span>
+<span class="diff-a">+ * npx tsx examples/sandbox/vfs-backend.ts</span>
+<span class="diff-c">  * # or</span>
+<span class="diff-d">- * bun run examples/sandbox/vfs-sandbox.ts</span>
+<span class="diff-a">+ * bun run examples/sandbox/vfs-backend.ts</span>
+<span class="diff-c">  * ```</span>
+<span class="diff-c">  */</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -32,20 +32,15 @@ import { HumanMessage, AIMessage } from &quot;@langchain/core/messages&quot;;</span>
+<span class="diff-c"> import { ChatAnthropic } from &quot;@langchain/anthropic&quot;;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> import { createDeepAgent } from &quot;deepagents&quot;;</span>
+<span class="diff-d">-import { VfsSandbox } from &quot;@langchain/node-vfs&quot;;</span>
+<span class="diff-a">+import { VfsBackend } from &quot;@langchain/node-vfs&quot;;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-// System prompt that leverages the execute capability</span>
+<span class="diff-a">+// System prompt for a filesystem-only backend</span>
+<span class="diff-c"> const systemPrompt = `You are a powerful coding assistant with access to an in-memory virtual file system.</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-You can execute shell commands to:</span>
+<span class="diff-d">-- Analyze code and projects (e.g., find patterns, count lines, check dependencies)</span>
+<span class="diff-d">-- Run build tools and scripts (npm, node, etc.)</span>
+<span class="diff-d">-- Create and run code files</span>
+<span class="diff-d">-- Manipulate files and directories</span>
+<span class="diff-a">+You can inspect and modify files safely inside this virtual workspace.</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> ## Tools Available</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-- **execute**: Run any shell command and see the output</span>
+<span class="diff-c"> - **ls**: List directory contents</span>
+<span class="diff-c"> - **read_file**: Read file contents</span>
+<span class="diff-c"> - **write_file**: Create new files</span>
+<span class="diff-h">@@ -55,22 +50,20 @@ You can execute shell commands to:</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> ## Best Practices</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-1. Start by exploring the workspace: \`ls\` or \`execute(&quot;ls -la&quot;)\`</span>
+<span class="diff-a">+1. Start by exploring the workspace: \`ls\`</span>
+<span class="diff-c"> 2. Use the right tool for the job:</span>
+<span class="diff-d">-   - Use \`execute\` for complex commands, pipelines, and running programs</span>
+<span class="diff-c">    - Use \`read_file\` for viewing file contents</span>
+<span class="diff-c">    - Use \`write_file\` for creating new files</span>
+<span class="diff-d">-3. Chain commands when needed: \`execute(&quot;npm install &amp;&amp; npm test&quot;)\`</span>
+<span class="diff-d">-4. Check exit codes to verify success</span>
+<span class="diff-a">+3. Prefer focused file edits and verification steps</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-You&#x27;re working in an isolated in-memory file system, so feel free to experiment!</span>
+<span class="diff-d">-All files exist only in memory and are cleaned up when the sandbox stops.`;</span>
+<span class="diff-a">+You&#x27;re working in an isolated in-memory file system, so feel free to experiment.</span>
+<span class="diff-a">+All files exist only in memory and are cleaned up when the backend stops.`;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> async function main() {</span>
+<span class="diff-d">-  // Create the VFS Sandbox with some initial files</span>
+<span class="diff-d">-  console.log(&quot;🚀 Creating VFS Sandbox...\n&quot;);</span>
+<span class="diff-a">+  // Create the VFS backend with some initial files</span>
+<span class="diff-a">+  console.log(&quot;🚀 Creating VFS backend...\n&quot;);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  const sandbox = await VfsSandbox.create({</span>
+<span class="diff-a">+  const backend = await VfsBackend.create({</span>
+<span class="diff-c">     initialFiles: {</span>
+<span class="diff-c">       // Pre-populate with a simple project structure</span>
+<span class="diff-c">       &quot;/package.json&quot;: JSON.stringify(</span>
+<span class="diff-h">@@ -87,18 +80,18 @@ async function main() {</span>
+<span class="diff-c">     },</span>
+<span class="diff-c">   });</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  console.log(`✅ Sandbox created with ID: ${sandbox.id}`);</span>
+<span class="diff-d">-  console.log(`📁 Working directory: ${sandbox.workingDirectory}\n`);</span>
+<span class="diff-a">+  console.log(&quot;✅ Backend created.&quot;);</span>
+<span class="diff-a">+  console.log(`📁 Working directory: ${backend.workingDirectory}\n`);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   try {</span>
+<span class="diff-d">-    // Create the agent with sandbox backend</span>
+<span class="diff-a">+    // Create the agent with VFS backend</span>
+<span class="diff-c">     const agent = createDeepAgent({</span>
+<span class="diff-c">       model: new ChatAnthropic({</span>
+<span class="diff-c">         model: &quot;claude-haiku-4-5&quot;,</span>
+<span class="diff-c">         temperature: 0,</span>
+<span class="diff-c">       }),</span>
+<span class="diff-c">       systemPrompt,</span>
+<span class="diff-d">-      backend: sandbox,</span>
+<span class="diff-a">+      backend,</span>
+<span class="diff-c">     });</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     console.log(&quot;🤖 Running agent...\n&quot;);</span>
+<span class="diff-h">@@ -108,8 +101,8 @@ async function main() {</span>
+<span class="diff-c">         messages: [</span>
+<span class="diff-c">           new HumanMessage(</span>
+<span class="diff-c">             `Create a simple Node.js project with a hello.js file that prints &quot;Hello from VFS!&quot;.</span>
+<span class="diff-d">-            Then run it with node to verify it works.</span>
+<span class="diff-d">-            Finally, show me the output and list all files in the workspace.`,</span>
+<span class="diff-a">+            Then explain what to run locally to verify it.</span>
+<span class="diff-a">+            Finally, list all files in the workspace.`,</span>
+<span class="diff-c">           ),</span>
+<span class="diff-c">         ],</span>
+<span class="diff-c">       },</span>
+<span class="diff-h">@@ -125,10 +118,10 @@ async function main() {</span>
+<span class="diff-c">       console.log(lastAIMessage.content);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c">   } finally {</span>
+<span class="diff-d">-    // Always cleanup the sandbox</span>
+<span class="diff-d">-    console.log(&quot;\n🧹 Cleaning up sandbox...&quot;);</span>
+<span class="diff-d">-    await sandbox.stop();</span>
+<span class="diff-d">-    console.log(&quot;✅ Sandbox stopped. All files cleaned up.&quot;);</span>
+<span class="diff-a">+    // Always cleanup the backend</span>
+<span class="diff-a">+    console.log(&quot;\n🧹 Cleaning up backend...&quot;);</span>
+<span class="diff-a">+    await backend.stop();</span>
+<span class="diff-a">+    console.log(&quot;✅ Backend stopped. All files cleaned up.&quot;);</span>
+<span class="diff-c">   }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/libs/providers/node-vfs/README.md b/libs/providers/node-vfs/README.md</span>
+<span class="diff-h">index 2dd7f4216..b17f6326a 100644</span>
+<span class="diff-h">--- a/libs/providers/node-vfs/README.md</span>
+<span class="diff-h">+++ b/libs/providers/node-vfs/README.md</span>
+<span class="diff-h">@@ -15,12 +15,12 @@ pnpm add @langchain/node-vfs deepagents</span>
+<span class="diff-c"> ## Quick Start</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> ```typescript</span>
+<span class="diff-d">-import { VfsSandbox } from &quot;@langchain/node-vfs&quot;;</span>
+<span class="diff-a">+import { VfsBackend } from &quot;@langchain/node-vfs&quot;;</span>
+<span class="diff-c"> import { createDeepAgent } from &quot;deepagents&quot;;</span>
+<span class="diff-c"> import { ChatAnthropic } from &quot;@langchain/anthropic&quot;;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-// Create and initialize a VFS sandbox</span>
+<span class="diff-d">-const sandbox = await VfsSandbox.create({</span>
+<span class="diff-a">+// Create and initialize a VFS backend</span>
+<span class="diff-a">+const backend = await VfsBackend.create({</span>
+<span class="diff-c">   initialFiles: {</span>
+<span class="diff-c">     &quot;/src/index.js&quot;: &quot;console.log(&#x27;Hello from VFS!&#x27;)&quot;,</span>
+<span class="diff-c">   },</span>
+<span class="diff-h">@@ -30,14 +30,14 @@ try {</span>
+<span class="diff-c">   const agent = createDeepAgent({</span>
+<span class="diff-c">     model: new ChatAnthropic({ model: &quot;claude-sonnet-4-20250514&quot; }),</span>
+<span class="diff-c">     systemPrompt: &quot;You are a coding assistant with VFS access.&quot;,</span>
+<span class="diff-d">-    backend: sandbox,</span>
+<span class="diff-a">+    backend,</span>
+<span class="diff-c">   });</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   const result = await agent.invoke({</span>
+<span class="diff-c">     messages: [{ role: &quot;user&quot;, content: &quot;Run the index.js file&quot; }],</span>
+<span class="diff-c">   });</span>
+<span class="diff-c"> } finally {</span>
+<span class="diff-d">-  await sandbox.stop();</span>
+<span class="diff-a">+  await backend.stop();</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> ```</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -45,27 +45,26 @@ try {</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> - **In-Memory File Storage** - Files are stored in a virtual file system using [node-vfs-polyfill](https://github.com/vercel-labs/node-vfs-polyfill)</span>
+<span class="diff-c"> - **Zero Setup** - No Docker, cloud services, or external dependencies required</span>
+<span class="diff-d">-- **Full Command Execution** - Execute shell commands with automatic file syncing</span>
+<span class="diff-d">-- **Automatic Cleanup** - All resources are cleaned up when sandbox stops</span>
+<span class="diff-d">-- **Initial Files** - Pre-populate the sandbox with files at creation time</span>
+<span class="diff-d">-- **Fallback Mode** - Automatically falls back to temp directory if VFS is unavailable</span>
+<span class="diff-a">+- **Native File Tools** - `read`, `ls`, `grep`, and `glob` run directly against VFS data</span>
+<span class="diff-a">+- **Automatic Cleanup** - All resources are cleaned up when the backend stops</span>
+<span class="diff-a">+- **Initial Files*</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/langchain-ai/deepagentsjs/commit/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe" rel="noopener noreferrer">https://github.com/langchain-ai/deepagentsjs/commit/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-19</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-17</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">24480aa64472e6337788092694e12da5095e84b394210eb2e27a1b85e56ac3dfea4adef86abc76c67de426a8d68c5f72fc266c3945b29219bb38dbc3d509f454</p>
+<p class="kicker">Committed 2026-05-19 21:41 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-6JWE6ZK7-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-6JWE6ZK7%22%2C%22bug_class%22%3A%22sandbox_escape%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-21T16%3A55%3A40%2B00%3A00%22%2C%22description%22%3A%22The%20VfsSandbox%20backend%20in%20%40langchain/node-vfs%20is%20documented%20and%20advertised%20to%20the%20LLM%20as%20an%20isolated%20execution%20environment%2C%20but%20its%20execute%28%29%20method%20simply%20runs%20%60/bin/bash%20-c%20%3Ccommand%3E%60%20on%20the%20host%20with%20%60env%3A%20%7B%20...process.env%20%7D%60%20and%20only%20cwd%20pointed%20at%20a%20temp%20directory.%20There%20is%20no%20chroot%2C%20namespace%2C%20container%2C%20or%20environment%20filtering%2C%20so%20absolute%20paths%2C%20host%20processes%2C%20the%20network%2C%20and%20every%20secret%20in%20process.env%20are%20reachable.%20An%20attacker%20who%20gets%20prompt-injection%20content%20into%20the%20agent%27s%20context%20can%20induce%20the%20execute%20tool%20to%20run%20arbitrary%20host%20commands%2C%20exfiltrating%20API%20keys%20and%20cloud%20credentials%20or%20achieving%20persistence.%20This%20is%20strictly%20worse%20than%20LocalShellBackend%2C%20which%20carries%20an%20explicit%20no-sandboxing%20warning%20and%20defaults%20to%20inheritEnv%3Afalse%2C%20while%20VfsSandbox%20has%20neither%20safeguard%20and%20sits%20alongside%20genuinely%20isolated%20providers%20%28Modal%2C%20Deno%2C%20Daytona%29%2C%20misleading%20developers%20about%20its%20guarantees.%22%2C%22discovered_at%22%3A%222026-04-19T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22libs/providers/node-vfs/src/sandbox.ts%3A346%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22langchain-ai/deepagentsjs%22%2C%22reproduction%22%3A%5B%22Developer%20deploys%20an%20agent%20using%20VfsSandbox%2C%20trusting%20the%20documented%20isolation%20claim%22%2C%22Attacker%20supplies%20content%20%28e.g.%2C%20a%20document%20to%20summarize%29%20containing%20a%20prompt-injection%20payload%22%2C%22The%20agent%20follows%20the%20injected%20instruction%20and%20invokes%20the%20execute%20tool%20with%20an%20attacker-chosen%20shell%20command%22%2C%22VfsSandbox.execute%28%29%20spawns%20/bin/bash%20-c%20on%20the%20host%20with%20full%20process.env%2C%20running%20the%20command%20with%20host%20privileges%22%2C%22Command%20exfiltrates%20env%20secrets%20%28e.g.%2C%20ANTHROPIC_API_KEY%2C%20cloud%20creds%29%2C%20reads%20~/.ssh/id_rsa%2C%20or%20writes%20to%20~/.bashrc%20for%20persistence%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20that%20execute%28%29%20provides%20no%20actual%20OS-level%20isolation%3A%20it%20calls%20bash%20in-process%20with%20the%20full%20host%20environment%20and%20filesystem%20accessible%2C%20contradicting%20the%20README%20and%20tool-description%20claims%20of%20an%20isolated%20sandbox.%20Additionally%2C%20%23syncDirFromTemp%20%28lines%20260-278%29%20does%20not%20reject%20symlinks%2C%20so%20even%20after%20isolating%20the%20subprocess%20an%20attacker%20could%20read%20host%20files%20by%20planting%20a%20symlink%20in%20the%20shared%20temp%20directory.%22%2C%22title%22%3A%22VFS%20sandbox%20executes%20agent%20commands%20directly%20on%20host%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-6JWE6ZK7&#34;,
+  &#34;bug_class&#34;: &#34;sandbox_escape&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-21T16:55:40+00:00&#34;,
+  &#34;description&#34;: &#34;The VfsSandbox backend in @langchain/node-vfs is documented and advertised to the LLM as an isolated execution environment, but its execute() method simply runs `/bin/bash -c &lt;command&gt;` on the host with `env: { ...process.env }` and only cwd pointed at a temp directory. There is no chroot, namespace, container, or environment filtering, so absolute paths, host processes, the network, and every secret in process.env are reachable. An attacker who gets prompt-injection content into the agent&#39;s context can induce the execute tool to run arbitrary host commands, exfiltrating API keys and cloud credentials or achieving persistence. This is strictly worse than LocalShellBackend, which carries an explicit no-sandboxing warning and defaults to inheritEnv:false, while VfsSandbox has neither safeguard and sits alongside genuinely isolated providers (Modal, Deno, Daytona), misleading developers about its guarantees.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-19T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;libs/providers/node-vfs/src/sandbox.ts:346&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;langchain-ai/deepagentsjs&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Developer deploys an agent using VfsSandbox, trusting the documented isolation claim&#34;,
+    &#34;Attacker supplies content (e.g., a document to summarize) containing a prompt-injection payload&#34;,
+    &#34;The agent follows the injected instruction and invokes the execute tool with an attacker-chosen shell command&#34;,
+    &#34;VfsSandbox.execute() spawns /bin/bash -c on the host with full process.env, running the command with host privileges&#34;,
+    &#34;Command exfiltrates env secrets (e.g., ANTHROPIC_API_KEY, cloud creds), reads ~/.ssh/id_rsa, or writes to ~/.bashrc for persistence&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is that execute() provides no actual OS-level isolation: it calls bash in-process with the full host environment and filesystem accessible, contradicting the README and tool-description claims of an isolated sandbox. Additionally, #syncDirFromTemp (lines 260-278) does not reject symlinks, so even after isolating the subprocess an attacker could read host files by planting a symlink in the shared temp directory.&#34;,
+  &#34;title&#34;: &#34;VFS sandbox executes agent commands directly on host&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

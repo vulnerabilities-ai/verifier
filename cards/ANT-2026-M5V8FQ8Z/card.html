@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-M5V8FQ8Z · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-M5V8FQ8Z · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-M5V8FQ8Z: Heap-buffer-overflow in jdcolor12.c:154</h1>
+<p>When GDAL's MRF driver decodes a 12-bit JPEG-compressed tile, DecompressJPEG12() passes a 52,000-byte page buffer (allocated via MRFDataset::SetPBuffer) to libjpeg12. During ycc_rgb_convert() the decoder writes 2 bytes immediately past the end of that heap buffer, indicating the output buffer was sized too small for the JPEG scanline dimensions/components embedded in the tile. An attacker who can supply a crafted MRF dataset controls the embedded JPEG parameters and thus the mismatch, yielding an out-of-bounds heap write on file open/read.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal<br>
+<strong>Location:</strong> <code>jdcolor12.c:154</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 2 at 0x755091cecf20 ... 0 bytes after 52000-byte region". The MRF page buffer allocated in SetPBuffer() is undersized relative to what jpeg_read_scanlines_12 → sep_upsample → ycc_rgb_convert emits, so the color-conversion loop writes past the allocation boundary.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3168514504
+INFO: Loaded 1 modules   (1158076 inline 8-bit counters): 1158076 [0x64883d0bfa60, 0x64883d1da61c), 
+INFO: Loaded 1 PC tables (1158076 PCs): 1158076 [0x64883d1da620,0x64883e3861e0), 
+/out/mrf_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x755091cecf20 at pc 0x6488361c5e2c bp 0x7ffe4e4f3f90 sp 0x7ffe4e4f3f88
+WRITE of size 2 at 0x755091cecf20 thread T0
+    #0 0x6488361c5e2b in ycc_rgb_convert /src/gdal/build/frmts/jpeg/libjpeg12/jdcolor12.c:154:24
+    #1 0x6488361ca3ed in sep_upsample /src/gdal/build/frmts/jpeg/libjpeg12/jdsample12.c:129:3
+    #2 0x6488361c8f9f in process_data_simple_main /src/gdal/build/frmts/jpeg/libjpeg12/jdmainct12.c:367:3
+    #3 0x64883617faaa in jpeg_read_scanlines_12 /src/gdal/build/frmts/jpeg/libjpeg12/jdapistd12.c:173:3
+    #4 0x648835c545a8 in GDAL_MRF::JPEG_Codec::DecompressJPEG12(GDAL_MRF::buf_mgr&amp;, GDAL_MRF::buf_mgr const&amp;) /src/gdal/frmts/mrf/JPEG_band.cpp:767:13
+    #5 0x64883684ad15 in GDAL_MRF::MRFRasterBand::IReadBlock(int, int, void*) /src/gdal/frmts/mrf/mrf_band.cpp:1204:18
+    #6 0x648835d1ed8e in GDALRasterBand::GetLockedBlockRef(int, int, int) /src/gdal/gcore/gdalrasterband.cpp:2048:20
+    #7 0x648835e7bc2f in GDALRasterBand::IRasterIO(GDALRWFlag, int, int, int, int, void*, int, int, GDALDataType, long long, long long, GDALRasterIOExtraArg*) /src/gdal/gcore/rasterio.cpp:299:27
+    [... 30 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-M5V8FQ8Z.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-M5V8FQ8Z<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/frmts/mrf/JPEG_band.cpp b/frmts/mrf/JPEG_band.cpp</span>
+<span class="diff-h">index 0c434f092d7a..a89f86ebac4a 100644</span>
+<span class="diff-h">--- a/frmts/mrf/JPEG_band.cpp</span>
+<span class="diff-h">+++ b/frmts/mrf/JPEG_band.cpp</span>
+<span class="diff-h">@@ -708,12 +708,25 @@ CPLErr JPEG_Codec::DecompressJPEG(buf_mgr &amp;dst, const buf_mgr &amp;isrc)</span>
+<span class="diff-c">     // Tolerate different input if we can do the conversion</span>
+<span class="diff-c">     // Gray and RGB for example</span>
+<span class="diff-c">     // This also means that a RGB MRF can be read as grayscale and vice versa</span>
+<span class="diff-d">-    // If libJPEG can&#x27;t convert it will throw an error</span>
+<span class="diff-a">+    // If libJPEG can&#x27;t convert it will throw an error later</span>
+<span class="diff-c">     //</span>
+<span class="diff-d">-    if (nbands == 3 &amp;&amp; cinfo.num_components != nbands)</span>
+<span class="diff-d">-        cinfo.out_color_space = JCS_RGB;</span>
+<span class="diff-d">-    if (nbands == 1 &amp;&amp; cinfo.num_components != nbands)</span>
+<span class="diff-d">-        cinfo.out_color_space = JCS_GRAYSCALE;</span>
+<span class="diff-a">+    if (nbands != cinfo.num_components)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+        switch (nbands)</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            case 1:</span>
+<span class="diff-a">+                cinfo.out_color_space = JCS_GRAYSCALE;</span>
+<span class="diff-a">+                break;</span>
+<span class="diff-a">+            case 3:</span>
+<span class="diff-a">+                cinfo.out_color_space = JCS_RGB;</span>
+<span class="diff-a">+                break;</span>
+<span class="diff-a">+            default:</span>
+<span class="diff-a">+                CPLError(CE_Failure, CPLE_AppDefined,</span>
+<span class="diff-a">+                         &quot;MRF: Input JPEG type missmatch&quot;);</span>
+<span class="diff-a">+                jpeg_destroy_decompress(&amp;cinfo);</span>
+<span class="diff-a">+                return CE_Failure;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     const int datasize = ((cinfo.data_precision == 8) ? 1 : 2);</span>
+<span class="diff-c">     if (cinfo.image_width &gt;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/79698857cb85daa32efe64bea7227dcc420f672a" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/79698857cb85daa32efe64bea7227dcc420f672a</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-05</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e6cc19222dcb2ec3ff52e9fbb51725083e11624a3f053cbfb1bbad09c45964d75d34dfdca14a84f65528245fb490fa4180d100e492fb07c4572217b1b603363e</p>
+<p class="kicker">Committed 2026-05-13 17:55 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:28 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-M5V8FQ8Z-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-M5V8FQ8Z%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A45%3A05%2B00%3A00%22%2C%22description%22%3A%22When%20GDAL%27s%20MRF%20driver%20decodes%20a%2012-bit%20JPEG-compressed%20tile%2C%20DecompressJPEG12%28%29%20passes%20a%2052%2C000-byte%20page%20buffer%20%28allocated%20via%20MRFDataset%3A%3ASetPBuffer%29%20to%20libjpeg12.%20During%20ycc_rgb_convert%28%29%20the%20decoder%20writes%202%20bytes%20immediately%20past%20the%20end%20of%20that%20heap%20buffer%2C%20indicating%20the%20output%20buffer%20was%20sized%20too%20small%20for%20the%20JPEG%20scanline%20dimensions/components%20embedded%20in%20the%20tile.%20An%20attacker%20who%20can%20supply%20a%20crafted%20MRF%20dataset%20controls%20the%20embedded%20JPEG%20parameters%20and%20thus%20the%20mismatch%2C%20yielding%20an%20out-of-bounds%20heap%20write%20on%20file%20open/read.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22jdcolor12.c%3A154%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%202%20at%200x755091cecf20%20...%200%20bytes%20after%2052000-byte%20region%5C%22.%20The%20MRF%20page%20buffer%20allocated%20in%20SetPBuffer%28%29%20is%20undersized%20relative%20to%20what%20jpeg_read_scanlines_12%20%E2%86%92%20sep_upsample%20%E2%86%92%20ycc_rgb_convert%20emits%2C%20so%20the%20color-conversion%20loop%20writes%20past%20the%20allocation%20boundary.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20jdcolor12.c%3A154%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-M5V8FQ8Z&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:45:05+00:00&#34;,
+  &#34;description&#34;: &#34;When GDAL&#39;s MRF driver decodes a 12-bit JPEG-compressed tile, DecompressJPEG12() passes a 52,000-byte page buffer (allocated via MRFDataset::SetPBuffer) to libjpeg12. During ycc_rgb_convert() the decoder writes 2 bytes immediately past the end of that heap buffer, indicating the output buffer was sized too small for the JPEG scanline dimensions/components embedded in the tile. An attacker who can supply a crafted MRF dataset controls the embedded JPEG parameters and thus the mismatch, yielding an out-of-bounds heap write on file open/read.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;jdcolor12.c:154&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 2 at 0x755091cecf20 ... 0 bytes after 52000-byte region\&#34;. The MRF page buffer allocated in SetPBuffer() is undersized relative to what jpeg_read_scanlines_12 → sep_upsample → ycc_rgb_convert emits, so the color-conversion loop writes past the allocation boundary.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in jdcolor12.c:154&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-3ZHWVDTX · kjur/jsrsasign</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-3ZHWVDTX · kjur/jsrsasign</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  authenticity-not-verified
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-3ZHWVDTX: [security] off-by-one DSA signature validation error; different than CVE-2026-45{99,01,02}</h1>
+<p>In jsrsasign's DSA verification (src/dsa-2.0.js:238-248), the FIPS 186-4 requirement 0 &lt; s &lt; q is implemented with a non-strict upper bound, so s = q is accepted. jsbn's <code>modInverse</code> returns 0 rather than throwing when the input is non-invertible, so w = s^-1 mod q becomes 0, forcing u1 = u2 = 0 and v = (g^0 * y^0) mod p mod q = 1. The attacker-chosen constant signature (r=1, s=q) therefore satisfies v == r for every message hash and every public key. This is a universal forgery: any DSA-signed data verified with jsrsasign can be spoofed without the private key. A PoC confirms the forged signature verifies on arbitrary messages under jsrsasign 11.1.1.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> kjur/jsrsasign<br>
+<strong>Version:</strong> 11.1.1<br>
+<strong>Location:</strong> <code>src/dsa-2.0.js:244 (also line 240)</code>  </p>
+<h2>Technical Details</h2>
+<p>Line 244 tests <code>s.compareTo(q) &gt; 0</code>, rejecting only s &gt; q and allowing s = q, contrary to FIPS 186-4 §4.7 (and the code's own comment). Because jsbn's <code>BigInteger.modInverse</code> returns 0 for non-invertible inputs (ext/jsbn2.js:517) instead of raising, and the verify path never checks w != 0, the degenerate w=0 silently propagates to produce v=1, which matches a forged r=1. Line 240 has the same off-by-one shape for r (allowing r=0 and r=q) but those values are not exploitable.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Obtain the target's public DSA parameter q (part of the public key / domain params).</li>
+<li>Construct the DER-encoded signature with r = 1 and s = q.</li>
+<li>Submit this signature alongside any message/payload of the attacker's choosing.</li>
+<li>jsrsasign computes w = q^-1 mod q = 0 (jsbn returns 0), so u1 = u2 = 0, v = 1 = r, and verification succeeds.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Change the upper-bound comparisons on lines 240 and 244 from <code>&gt; 0</code> to <code>&gt;= 0</code>, i.e. <code>if (BigInteger.ZERO.compareTo(s) &gt;= 0 || s.compareTo(q) &gt;= 0) throw ...</code>, enforcing strict 0 &lt; r &lt; q and 0 &lt; s &lt; q per FIPS 186-4. Patch attached by reporter.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-3ZHWVDTX.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-3ZHWVDTX<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+
+<div class="marker">ADVISORY</div>
+<p class="kicker"><a href="https://github.com/kjur/jsrsasign/releases/tag/11.1.2" rel="noopener noreferrer">https://github.com/kjur/jsrsasign/releases/tag/11.1.2</a></p>
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-28</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-13</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-14</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">23d31eff537f9f05e4c6dbe25239e82d3c709fe63e91cb3308694e68da47051e7e5d85c5bbf686fcca3736e6e129a1826c80579dd13948428e66aab8abf234f6</p>
+<p class="kicker">Committed 2026-03-29 04:27 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-3ZHWVDTX-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-3ZHWVDTX%22%2C%22bug_class%22%3A%22Improper%20Verification%20of%20Cryptographic%20Signature%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A41%3A47%2B00%3A00%22%2C%22description%22%3A%22In%20jsrsasign%27s%20DSA%20verification%20%28src/dsa-2.0.js%3A238-248%29%2C%20the%20FIPS%20186-4%20requirement%200%20%3C%20s%20%3C%20q%20is%20implemented%20with%20a%20non-strict%20upper%20bound%2C%20so%20s%20%3D%20q%20is%20accepted.%20jsbn%27s%20%60modInverse%60%20returns%200%20rather%20than%20throwing%20when%20the%20input%20is%20non-invertible%2C%20so%20w%20%3D%20s%5E-1%20mod%20q%20becomes%200%2C%20forcing%20u1%20%3D%20u2%20%3D%200%20and%20v%20%3D%20%28g%5E0%20%2A%20y%5E0%29%20mod%20p%20mod%20q%20%3D%201.%20The%20attacker-chosen%20constant%20signature%20%28r%3D1%2C%20s%3Dq%29%20therefore%20satisfies%20v%20%3D%3D%20r%20for%20every%20message%20hash%20and%20every%20public%20key.%20This%20is%20a%20universal%20forgery%3A%20any%20DSA-signed%20data%20verified%20with%20jsrsasign%20can%20be%20spoofed%20without%20the%20private%20key.%20A%20PoC%20confirms%20the%20forged%20signature%20verifies%20on%20arbitrary%20messages%20under%20jsrsasign%2011.1.1.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22src/dsa-2.0.js%3A244%20%28also%20line%20240%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22kjur/jsrsasign%22%2C%22reproduction%22%3A%5B%221.%20Obtain%20the%20target%27s%20public%20DSA%20parameter%20q%20%28part%20of%20the%20public%20key%20/%20domain%20params%29.%22%2C%222.%20Construct%20the%20DER-encoded%20signature%20with%20r%20%3D%201%20and%20s%20%3D%20q.%22%2C%223.%20Submit%20this%20signature%20alongside%20any%20message/payload%20of%20the%20attacker%27s%20choosing.%22%2C%224.%20jsrsasign%20computes%20w%20%3D%20q%5E-1%20mod%20q%20%3D%200%20%28jsbn%20returns%200%29%2C%20so%20u1%20%3D%20u2%20%3D%200%2C%20v%20%3D%201%20%3D%20r%2C%20and%20verification%20succeeds.%22%5D%2C%22technical_details%22%3A%22Hi%20Kenji%20--%5Cn%5CnI%27ve%20found%20a%20vulnerability%20that%27s%20looks%20quite%20similar%20to%20the%20recent%5Cn%5CnCVE-2026-4599/4600/4601%20fixes%20in%2011.1.1---the%20same%20file%5Cn%5Cn%28unfortunately%29%20has%20one%20more.%20The%20verify-side%20range%20check%20at%5Cn%5Cnsrc/dsa-2.0.js%20line%20244%20allows%20s%3Dq%2C%20and%20jsbn%27s%20modInverse%20returns%200%5Cn%5Cnfor%20non-invertible%20inputs%20rather%20than%20throwing%2C%20so%20%28r%3D1%2C%20s%3Dq%29%20is%20a%5Cn%5Cnuniversal%20forgery%3A%20it%20verifies%20against%20any%20message%20under%20any%20DSA%5Cn%5Cnpublic%20key.%5Cn%5Cn%28Up-front%20disclosure%3A%20an%20LLM%20found%20this%20bug.%20I%20validated%20it%20myself%5Cn%5Cnagainst%20jsrsasign%2011.1.1%20from%20npm%20and%20confirmed%20the%20forged%20signature%5Cn%5Cnverifies%20on%20arbitrary%20messages.%20I%20stand%20by%20this%20report%20personally.%29%5Cn%5CnThe%20bug%20is%20the%20same%20off-by-one%20shape%20as%20CVE-2026-4601%2C%20which%20fixed%20the%5Cn%5Cnr%3D0/s%3D0%20case%20on%20the%20%2Asign%2A%20side.%20That%20is%2C%20the%20verify%20side%20has%3A%5Cn%5Cn%20%20%20%20//%20src/dsa-2.0.js%3A238-248%5Cn%5Cn%20%20%20%20//%203.1.%200%20%3C%20r%20%3C%20q%5Cn%5Cn%20%20%20%20if%20%28BigInteger.ZERO.compareTo%28r%29%20%3E%200%20%7C%7C%20r.compareTo%28q%29%20%3E%200%29%20%20%20%20//%5Cn%5Cnallows%20r%3D0%2C%20r%3Dq%5Cn%5Cn%20%20%20%20%20%20%20%20throw%20%5C%22invalid%20DSA%20signature%5C%22%3B%5Cn%5Cn%20%20%20%20//%203.2.%200%20%3C%20s%20%3C%20q%5Cn%5Cn%20%20%20%20if%20%28BigInteger.ZERO.compareTo%28s%29%20%3E%3D%200%20%7C%7C%20s.compareTo%28q%29%20%3E%200%29%20%20%20//%5Cn%5Cnallows%20s%3Dq%20%20%3C--%20BUG%5Cn%5Cn%20%20%20%20%20%20%20%20throw%20%5C%22invalid%20DSA%20signature%5C%22%3B%5Cn%5Cn%20%20%20%20//%204.%20get%20w%20where%20w%20%3D%20s%5E-1%20mod%20q%5Cn%5Cn%20%20%20%20var%20w%20%3D%20s.modInverse%28q%29%3B%20%20%20%20//%20jsbn%20returns%200%20when%20s%20%3D%3D%200%20%28mod%20q%29%5Cn%5CnBut%20FIPS%20186-4%20section%204.7%20requires%20strict%20inequalities---the%20comment%20above%5Cn%5Cnexactly%20says%20this%21---but%20s.compareTo%28q%29%20%3E%200%20rejects%20only%20s%20%3E%20q%2C%20not%20s%20%3D%20q.%5Cn%5CnWhen%20s%20%3D%20q%2C%20modInverse%20is%20being%20asked%20for%20the%20inverse%20of%20q%20mod%20q%2C%20which%5Cn%5Cndoesn%27t%20exist.%20The%20jsbn%20library%20handles%20this%20by%20returning%200%5Cn%5Cn%28ext/jsbn2.js%3A517%2C%20the%20x.signum%28%29%20%3D%3D%200%20branch%20after%20x%20%3D%20this.mod%28m%29%29.%5Cn%5CnThe%20verify%20code%20never%20checks%20w%20%21%3D%200.%20Therefore%20we%20can%20calculate%20that%3A%5Cn%5Cn%20%20%20%20w%20%20%3D%200%5Cn%5Cn%20%20%20%20u1%20%3D%20z%2A0%20mod%20q%20%3D%200%5Cn%5Cn%20%20%20%20u2%20%3D%20r%2A0%20mod%20q%20%3D%200%5Cn%5Cn%20%20%20%20v%20%20%3D%20%28g%5E0%20%2A%20y%5E0%29%20mod%20p%20mod%20q%20%3D%201%5Cn%5CnSetting%20r%20%3D%201%20makes%20v%20%3D%3D%20r%20hold%20for%20every%20message%20hash%20z%20and%20every%5Cn%5Cnpublic%20key%20y.%20The%20forged%20signature%20is%20the%20constant%20DER%20sequence%5Cn%5CnSEQUENCE%20%7B%20INTEGER%201%2C%20INTEGER%20q%20%7D.%5Cn%5CnRunning%20the%20attached%20poc.js%20%28sorry---base64%20encoded%20to%20evade%20gmails%5Cn%5Cnmalware%20filter%29%20against%20jsrsasign%2011.1.1%20should%20give%20hte%20following%3A%5Cn%5Cn%20%20%20%20%5B%2A%5D%20Testing%20jsrsasign%2011.1.1%5Cn%5Cn%20%20%20%20%5B%2A%5D%20Forged%20signature%20%28r%3D1%2C%20s%3Dq%29%3A%20301a020101021500996f967f6c8e388d...%5Cn%5Cn%20%20%20%20%20%20verify%28hash%3D0000000000000000...%29%20%3D%20true%5Cn%5Cn%20%20%20%20%20%20verify%28hash%3Ddeadbeefdeadbeef...%29%20%3D%20true%5Cn%5Cn%20%20%20%20%20%20verify%28hash%3Daaf4c61ddcc5e8a2...%29%20%3D%20true%5Cn%5Cn%20%20%20%20%20%20verify%28hash%3D3c52e0e5c87f4b6a...%29%20%3D%20true%5Cn%5Cn%20%20%20%20%3E%3E%3E%20VULNERABLE%3A%20%28r%3D1%2C%20s%3Dq%29%20verifies%20on%20all%20messages%20%3C%3C%3C%5Cn%5CnThe%20r%20check%20at%20line%20240%20has%20the%20same%20two%20off-by-ones%20%28it%20allows%20r%3D0%5Cn%5Cnand%20r%3Dq%29%2C%20but%20neither%20of%20these%20leads%20to%20a%20bug.%20%20I%27ve%20included%20both%20in%5Cn%5Cnthe%20patch%20for%20completeness%20since%20they%27re%20the%20same%20FIPS%20186-4%5Cn%5Cnrequirement.%5Cn%5CnThe%20fix%20is%20a%20short%20change%20on%20line%20244%20%28and%20the%20same%20on%20240%29%3A%5Cn%5Cn%20%20%20%20-%20%20%20if%20%28BigInteger.ZERO.compareTo%28s%29%20%3E%3D%200%20%7C%7C%20s.compareTo%28q%29%20%3E%200%29%5Cn%5Cn%20%20%20%20%2B%20%20%20if%20%28BigInteger.ZERO.compareTo%28s%29%20%3E%3D%200%20%7C%7C%20s.compareTo%28q%29%20%3E%3D%200%29%5Cn%5CnA%20patch%20is%20attached.%5Cn%5CnPlease%20let%20me%20know%20if%20you%20have%20any%20questions.%5Cn%5CnNicholas%22%2C%22title%22%3A%22%5Bsecurity%5D%20off-by-one%20DSA%20signature%20validation%20error%3B%20different%20than%20CVE-2026-45%7B99%2C01%2C02%7D%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-3ZHWVDTX&#34;,
+  &#34;bug_class&#34;: &#34;Improper Verification of Cryptographic Signature&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:41:47+00:00&#34;,
+  &#34;description&#34;: &#34;In jsrsasign&#39;s DSA verification (src/dsa-2.0.js:238-248), the FIPS 186-4 requirement 0 &lt; s &lt; q is implemented with a non-strict upper bound, so s = q is accepted. jsbn&#39;s `modInverse` returns 0 rather than throwing when the input is non-invertible, so w = s^-1 mod q becomes 0, forcing u1 = u2 = 0 and v = (g^0 * y^0) mod p mod q = 1. The attacker-chosen constant signature (r=1, s=q) therefore satisfies v == r for every message hash and every public key. This is a universal forgery: any DSA-signed data verified with jsrsasign can be spoofed without the private key. A PoC confirms the forged signature verifies on arbitrary messages under jsrsasign 11.1.1.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;src/dsa-2.0.js:244 (also line 240)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;kjur/jsrsasign&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Obtain the target&#39;s public DSA parameter q (part of the public key / domain params).&#34;,
+    &#34;2. Construct the DER-encoded signature with r = 1 and s = q.&#34;,
+    &#34;3. Submit this signature alongside any message/payload of the attacker&#39;s choosing.&#34;,
+    &#34;4. jsrsasign computes w = q^-1 mod q = 0 (jsbn returns 0), so u1 = u2 = 0, v = 1 = r, and verification succeeds.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Hi Kenji --\n\nI&#39;ve found a vulnerability that&#39;s looks quite similar to the recent\n\nCVE-2026-4599/4600/4601 fixes in 11.1.1---the same file\n\n(unfortunately) has one more. The verify-side range check at\n\nsrc/dsa-2.0.js line 244 allows s=q, and jsbn&#39;s modInverse returns 0\n\nfor non-invertible inputs rather than throwing, so (r=1, s=q) is a\n\nuniversal forgery: it verifies against any message under any DSA\n\npublic key.\n\n(Up-front disclosure: an LLM found this bug. I validated it myself\n\nagainst jsrsasign 11.1.1 from npm and confirmed the forged signature\n\nverifies on arbitrary messages. I stand by this report personally.)\n\nThe bug is the same off-by-one shape as CVE-2026-4601, which fixed the\n\nr=0/s=0 case on the *sign* side. That is, the verify side has:\n\n    // src/dsa-2.0.js:238-248\n\n    // 3.1. 0 &lt; r &lt; q\n\n    if (BigInteger.ZERO.compareTo(r) &gt; 0 || r.compareTo(q) &gt; 0)    //\n\nallows r=0, r=q\n\n        throw \&#34;invalid DSA signature\&#34;;\n\n    // 3.2. 0 &lt; s &lt; q\n\n    if (BigInteger.ZERO.compareTo(s) &gt;= 0 || s.compareTo(q) &gt; 0)   //\n\nallows s=q  &lt;-- BUG\n\n        throw \&#34;invalid DSA signature\&#34;;\n\n    // 4. get w where w = s^-1 mod q\n\n    var w = s.modInverse(q);    // jsbn returns 0 when s == 0 (mod q)\n\nBut FIPS 186-4 section 4.7 requires strict inequalities---the comment above\n\nexactly says this!---but s.compareTo(q) &gt; 0 rejects only s &gt; q, not s = q.\n\nWhen s = q, modInverse is being asked for the inverse of q mod q, which\n\ndoesn&#39;t exist. The jsbn library handles this by returning 0\n\n(ext/jsbn2.js:517, the x.signum() == 0 branch after x = this.mod(m)).\n\nThe verify code never checks w != 0. Therefore we can calculate that:\n\n    w  = 0\n\n    u1 = z*0 mod q = 0\n\n    u2 = r*0 mod q = 0\n\n    v  = (g^0 * y^0) mod p mod q = 1\n\nSetting r = 1 makes v == r hold for every message hash z and every\n\npublic key y. The forged signature is the constant DER sequence\n\nSEQUENCE { INTEGER 1, INTEGER q }.\n\nRunning the attached poc.js (sorry---base64 encoded to evade gmails\n\nmalware filter) against jsrsasign 11.1.1 should give hte following:\n\n    [*] Testing jsrsasign 11.1.1\n\n    [*] Forged signature (r=1, s=q): 301a020101021500996f967f6c8e388d...\n\n      verify(hash=0000000000000000...) = true\n\n      verify(hash=deadbeefdeadbeef...) = true\n\n      verify(hash=aaf4c61ddcc5e8a2...) = true\n\n      verify(hash=3c52e0e5c87f4b6a...) = true\n\n    &gt;&gt;&gt; VULNERABLE: (r=1, s=q) verifies on all messages &lt;&lt;&lt;\n\nThe r check at line 240 has the same two off-by-ones (it allows r=0\n\nand r=q), but neither of these leads to a bug.  I&#39;ve included both in\n\nthe patch for completeness since they&#39;re the same FIPS 186-4\n\nrequirement.\n\nThe fix is a short change on line 244 (and the same on 240):\n\n    -   if (BigInteger.ZERO.compareTo(s) &gt;= 0 || s.compareTo(q) &gt; 0)\n\n    +   if (BigInteger.ZERO.compareTo(s) &gt;= 0 || s.compareTo(q) &gt;= 0)\n\nA patch is attached.\n\nPlease let me know if you have any questions.\n\nNicholas&#34;,
+  &#34;title&#34;: &#34;[security] off-by-one DSA signature validation error; different than CVE-2026-45{99,01,02}&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

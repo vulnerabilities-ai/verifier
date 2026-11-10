@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GPA6MCZ6 · libvips/libvips</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GPA6MCZ6 · libvips/libvips</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Sonnet 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GPA6MCZ6: Heap-buffer-overflow in region.c:1614</h1>
+<p>In libvips's SIMD-accelerated horizontal reduce (reduceh_hwy.cpp:213), the AVX2 code path issues a LoadU that reads 8 bytes starting 4 bytes beyond a 52-byte heap allocation. The overflow is reached through vips_reduceh_uchar_vector_gen during normal region generation, i.e. the standard resize pipeline. An attacker who can submit an image with dimensions/bands that exercise this tail case can trigger the over-read. The result is a process crash (DoS) and potentially leaking a few adjacent heap bytes into output pixel data.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libvips/libvips<br>
+<strong>Location:</strong> <code>region.c:1614</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 8 at 0x745be5fe1d38 ... located 4 bytes after 52-byte region". The vectorized inner loop in vips_reduceh_uchar_hwy calls hwy LoadU without ensuring the remaining source bytes cover the full vector width, so for certain input widths/band counts the final load runs off the end of the source scanline buffer.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2784531891
+INFO: Loaded 1 modules   (302682 inline 8-bit counters): 302682 [0x60abdeb2ae28, 0x60abdeb74c82), 
+INFO: Loaded 1 PC tables (302682 PCs): 302682 [0x60abdeb74c88,0x60abdf013228), 
+/out/vips_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+
+
+=== ASAN Report ===
+=================================================================
+==27==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x745be5fe1d38 at pc 0x60abdba54132 bp 0x73fbe159e170 sp 0x73fbe159e168
+READ of size 8 at 0x745be5fe1d38 thread T2
+    #0 0x60abdba54131 in Load&lt;hwy::N_AVX2::Simd&lt;unsigned char, 32UL, -2&gt;, nullptr, nullptr&gt; /work/include/hwy/ops/x86_128-inl.h:2214:21
+    #1 0x60abdba54131 in LoadU&lt;hwy::N_AVX2::Simd&lt;unsigned char, 32UL, -2&gt;, nullptr&gt; /work/include/hwy/ops/x86_128-inl.h:2275:10
+    #2 0x60abdba54131 in N_AVX2::vips_reduceh_uchar_hwy(unsigned char*, unsigned char*, int, int, int, short* restrict*, double, double) /src/libvips/build/../libvips/resample/reduceh_hwy.cpp:213:18
+    #3 0x60abdba4f845 in vips_reduceh_uchar_vector_gen(_VipsRegion*, void*, void*, void*, int*) /src/libvips/build/../libvips/resample/reduceh.cpp:380:3
+    #4 0x60abdb8baf16 in vips_region_generate /src/libvips/build/../libvips/iofuncs/region.c:1614:6
+    #5 0x60abdb8a8626 in vips_region_fill /src/libvips/build/../libvips/iofuncs/region.c:867:7
+    #6 0x60abdb8baad6 in vips_region_prepare /src/libvips/build/../libvips/iofuncs/region.c:1682:7
+    #7 0x60abdbabeab6 in vips_copy_gen /src/libvips/build/../libvips/conversion/copy.c:140:6
+    [... 52 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an input whose width/bands produce a source scanline length that leaves a short tail for the SIMD loop</li>
+<li>Invoke a libvips resize/reduceh on the image (e.g. thumbnail endpoint)</li>
+<li>vips_reduceh_uchar_hwy executes LoadU past the end of the source buffer, triggering the OOB read</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GPA6MCZ6.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GPA6MCZ6<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ChangeLog b/ChangeLog</span>
+<span class="diff-h">index 91a9afd6e6..2967eed3a4 100644</span>
+<span class="diff-h">--- a/ChangeLog</span>
+<span class="diff-h">+++ b/ChangeLog</span>
+<span class="diff-h">@@ -20,6 +20,7 @@ tbd 8.18.3</span>
+<span class="diff-c"> - source: fix max/min confusion [Himanshu Anand]</span>
+<span class="diff-c"> - uhdrsave: use macro to size buffer [Himanshu Anand]</span>
+<span class="diff-c"> - draw_mask: fix support for packed LABQ images [lovell]</span>
+<span class="diff-a">+- reduceh: fix possible OOB read in Highway path [kleisauke]</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 31/3/26 8.18.2</span>
+<span class="diff-c"> </span>
+<span class="diff-h">diff --git a/libvips/resample/reduceh.cpp b/libvips/resample/reduceh.cpp</span>
+<span class="diff-h">index bc35d472e0..ec5a89832f 100644</span>
+<span class="diff-h">--- a/libvips/resample/reduceh.cpp</span>
+<span class="diff-h">+++ b/libvips/resample/reduceh.cpp</span>
+<span class="diff-h">@@ -356,7 +356,10 @@ vips_reduceh_uchar_vector_gen(VipsRegion *out_region, void *seq,</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	s.left = r-&gt;left * reduceh-&gt;residual_hshrink - reduceh-&gt;hoffset;</span>
+<span class="diff-c"> 	s.top = r-&gt;top;</span>
+<span class="diff-d">-	s.width = r-&gt;width * reduceh-&gt;residual_hshrink + reduceh-&gt;n_point;</span>
+<span class="diff-a">+	/* Request one extra input pixel on the right so the Highway path can</span>
+<span class="diff-a">+	 * safely process a full SIMD vector.</span>
+<span class="diff-a">+	 */</span>
+<span class="diff-a">+	s.width = (r-&gt;width + 1) * reduceh-&gt;residual_hshrink + reduceh-&gt;n_point;</span>
+<span class="diff-c"> 	s.height = r-&gt;height;</span>
+<span class="diff-c"> 	if (vips_region_prepare(ir, &amp;s))</span>
+<span class="diff-c"> 		return -1;</span>
+<span class="diff-h">diff --git a/test/test-suite/test_resample.py b/test/test-suite/test_resample.py</span>
+<span class="diff-h">index 63c95c828a..00d4eb8358 100644</span>
+<span class="diff-h">--- a/test/test-suite/test_resample.py</span>
+<span class="diff-h">+++ b/test/test-suite/test_resample.py</span>
+<span class="diff-h">@@ -102,6 +102,14 @@ def test_reduce(self):</span>
+<span class="diff-c">                 d = abs(shr.avg() - im.avg())</span>
+<span class="diff-c">                 assert d == 0</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+        # https://github.com/libvips/libvips/issues/4864</span>
+<span class="diff-a">+        if have(&quot;ppmload&quot;):</span>
+<span class="diff-a">+            im = pyvips.Image.new_from_buffer(b&#x27;P6\n2 2\n255\n&#x27;</span>
+<span class="diff-a">+                                              b&#x27;\xff\x00\x00&#x27; b&#x27;\x00\xff\x00&#x27;</span>
+<span class="diff-a">+                                              b&#x27;\x00\x00\xff&#x27; b&#x27;\xff\xff\x00&#x27;, &quot;&quot;)</span>
+<span class="diff-a">+            im2 = im.reduceh(1.5, kernel=&quot;nearest&quot;)</span>
+<span class="diff-a">+            assert im2.width == 1</span>
+<span class="diff-a">+</span>
+<span class="diff-c">     def test_resize(self):</span>
+<span class="diff-c">         im = pyvips.Image.new_from_file(JPEG_FILE)</span>
+<span class="diff-c">         im2 = im.resize(0.25)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/libvips/libvips/commit/aebac9b8593956bffbd1bcacc52d8acf7219815e" rel="noopener noreferrer">https://github.com/libvips/libvips/commit/aebac9b8593956bffbd1bcacc52d8acf7219815e</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-09</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">c81718c6db39bdeaef9dc0718ca1c609b3c60bfdca59ce026527591433b950b0f6765ce4ce87eb0086cee48d5f1100df583cc2c8369a006f541e6482936143b6</p>
+<p class="kicker">Committed 2026-05-13 17:56 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GPA6MCZ6-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GPA6MCZ6%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A33%3A33%2B00%3A00%22%2C%22description%22%3A%22In%20libvips%27s%20SIMD-accelerated%20horizontal%20reduce%20%28reduceh_hwy.cpp%3A213%29%2C%20the%20AVX2%20code%20path%20issues%20a%20LoadU%20that%20reads%208%20bytes%20starting%204%20bytes%20beyond%20a%2052-byte%20heap%20allocation.%20The%20overflow%20is%20reached%20through%20vips_reduceh_uchar_vector_gen%20during%20normal%20region%20generation%2C%20i.e.%20the%20standard%20resize%20pipeline.%20An%20attacker%20who%20can%20submit%20an%20image%20with%20dimensions/bands%20that%20exercise%20this%20tail%20case%20can%20trigger%20the%20over-read.%20The%20result%20is%20a%20process%20crash%20%28DoS%29%20and%20potentially%20leaking%20a%20few%20adjacent%20heap%20bytes%20into%20output%20pixel%20data.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22region.c%3A1614%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22libvips%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20input%20whose%20width/bands%20produce%20a%20source%20scanline%20length%20that%20leaves%20a%20short%20tail%20for%20the%20SIMD%20loop%22%2C%222.%20Invoke%20a%20libvips%20resize/reduceh%20on%20the%20image%20%28e.g.%20thumbnail%20endpoint%29%22%2C%223.%20vips_reduceh_uchar_hwy%20executes%20LoadU%20past%20the%20end%20of%20the%20source%20buffer%2C%20triggering%20the%20OOB%20read%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%208%20at%200x745be5fe1d38%20...%20located%204%20bytes%20after%2052-byte%20region%5C%22.%20The%20vectorized%20inner%20loop%20in%20vips_reduceh_uchar_hwy%20calls%20hwy%20LoadU%20without%20ensuring%20the%20remaining%20source%20bytes%20cover%20the%20full%20vector%20width%2C%20so%20for%20certain%20input%20widths/band%20counts%20the%20final%20load%20runs%20off%20the%20end%20of%20the%20source%20scanline%20buffer.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20region.c%3A1614%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GPA6MCZ6&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:33:33+00:00&#34;,
+  &#34;description&#34;: &#34;In libvips&#39;s SIMD-accelerated horizontal reduce (reduceh_hwy.cpp:213), the AVX2 code path issues a LoadU that reads 8 bytes starting 4 bytes beyond a 52-byte heap allocation. The overflow is reached through vips_reduceh_uchar_vector_gen during normal region generation, i.e. the standard resize pipeline. An attacker who can submit an image with dimensions/bands that exercise this tail case can trigger the over-read. The result is a process crash (DoS) and potentially leaking a few adjacent heap bytes into output pixel data.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;region.c:1614&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;libvips&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an input whose width/bands produce a source scanline length that leaves a short tail for the SIMD loop&#34;,
+    &#34;2. Invoke a libvips resize/reduceh on the image (e.g. thumbnail endpoint)&#34;,
+    &#34;3. vips_reduceh_uchar_hwy executes LoadU past the end of the source buffer, triggering the OOB read&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 8 at 0x745be5fe1d38 ... located 4 bytes after 52-byte region\&#34;. The vectorized inner loop in vips_reduceh_uchar_hwy calls hwy LoadU without ensuring the remaining source bytes cover the full vector width, so for certain input widths/band counts the final load runs off the end of the source scanline buffer.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in region.c:1614&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

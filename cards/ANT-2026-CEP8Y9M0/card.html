@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CEP8Y9M0 · ffmpeg/ffmpeg</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CEP8Y9M0 · ffmpeg/ffmpeg</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  use-after-free
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CEP8Y9M0: avformat/mpegts: reset PES state before JPEG-XS error return</h1>
+<p>In the MPEG-TS demuxer, new_pes_packet() begins transferring ownership of pes-&gt;buffer into pkt-&gt;buf but only nulls out pes-&gt;buffer at the end of the function. The JPEG-XS header-size check added in 16f89d342e returns AVERROR_INVALIDDATA mid-function, so on that path both pkt-&gt;buf and pes-&gt;buffer point to the same refcount-1 buffer. mpegts_read_packet() sees the error, calls av_packet_unref() (freeing the buffer), then its flush loop re-enters new_pes_packet() on the same PES (reset was also skipped so data_index &gt; 0), dereferencing the dangling pes-&gt;buffer. A second path reaches the stale pointer via av_buffer_unref() in the seek-reset code in handle_packets, yielding a double-free and an atomic decrement through a freed AVBuffer*. The bug is triggered simply by running ffprobe on a crafted file.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> ffmpeg/ffmpeg<br>
+<strong>Version:</strong> git master only (introduced in commit 16f89d342e, Dec 2025; not present in 8.0.1 or any release)<br>
+<strong>Location:</strong> <code>libavformat/mpegts.c:1024 (new_pes_packet)</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "heap-use-after-free ... READ of size 8 at 0x509000000808" in new_pes_packet libavformat/mpegts.c:1024. The root cause is an uncommitted ownership move: pkt-&gt;buf = pes-&gt;buffer starts the transfer, but the early <code>return AVERROR_INVALIDDATA</code> in the JPEG-XS branch skips both <code>pes-&gt;buffer = NULL</code> and <code>reset_pes_packet_state(pes)</code>, leaving a dangling alias that is freed via av_packet_unref() and then reused.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>[mpegts @ ...] Invalid JPEG-XS header size 4294967295 &gt; packet size 359
+==2565539==ERROR: AddressSanitizer: heap-use-after-free on address 0x509000000808
+READ of size 8 at 0x509000000808 thread T0
+    #0 new_pes_packet libavformat/mpegts.c:1024:30
+    #1 mpegts_read_packet libavformat/mpegts.c:3495:27
+    ...
+    #4 avformat_find_stream_info libavformat/demux.c:2800:15
+freed by thread T0 here:
+    #3 av_packet_unref libavcodec/packet.c:436:5
+    #4 mpegts_read_packet libavformat/mpegts.c:3489:9
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft an MPEG-TS stream with a PES packet where stream_id==0xbd, stream_type==0x32, bytes 4..7 == 'jxes', and AV_RB32(data) &gt; packet size</li>
+<li>Deliver the file to the target (e.g. <code>ffprobe file.ts</code>)</li>
+<li>new_pes_packet() takes the early return, leaving pes-&gt;buffer == pkt-&gt;buf</li>
+<li>mpegts_read_packet() calls av_packet_unref(), freeing the buffer</li>
+<li>The flush loop (or later seek-reset in handle_packets) touches the dangling pes-&gt;buffer, producing a UAF read or double-free</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Before the early return in the JPEG-XS header_size &gt; pkt-&gt;size branch, perform the same cleanup as the success path: set pes-&gt;buffer = NULL and call reset_pes_packet_state(pes) (dropping the now-redundant pes-&gt;flags |= AV_PKT_FLAG_CORRUPT since reset clears flags). Patch submitted as a PR.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CEP8Y9M0.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CEP8Y9M0<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/libavformat/mpegts.c b/libavformat/mpegts.c</span>
+<span class="diff-h">index 0ee10f9a77492..bfbdbf5b19ecd 100644</span>
+<span class="diff-h">--- a/libavformat/mpegts.c</span>
+<span class="diff-h">+++ b/libavformat/mpegts.c</span>
+<span class="diff-h">@@ -1041,10 +1041,10 @@ static int new_pes_packet(PESContext *pes, AVPacket *pkt)</span>
+<span class="diff-c">                    &quot;Invalid JPEG-XS header size %&quot;PRIu32&quot; &gt; packet size %d\n&quot;,</span>
+<span class="diff-c">                    header_size, pkt-&gt;size);</span>
+<span class="diff-c">             pes-&gt;flags |= AV_PKT_FLAG_CORRUPT;</span>
+<span class="diff-d">-            return AVERROR_INVALIDDATA;</span>
+<span class="diff-a">+        } else {</span>
+<span class="diff-a">+            pkt-&gt;data += header_size;</span>
+<span class="diff-a">+            pkt-&gt;size -= header_size;</span>
+<span class="diff-c">         }</span>
+<span class="diff-d">-        pkt-&gt;data += header_size;</span>
+<span class="diff-d">-        pkt-&gt;size -= header_size;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     memset(pkt-&gt;data + pkt-&gt;size, 0, AV_INPUT_BUFFER_PADDING_SIZE);</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/FFmpeg/FFmpeg/commit/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee" rel="noopener noreferrer">https://github.com/FFmpeg/FFmpeg/commit/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-13</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">8512eaac6a2c21e5748f3d8801d6e310a02bede98fdf4a39607a4656343fe1e73fd4b2714a2643a607b19b4cf9d369d88e1c460a94c090492b871f0683fc5719</p>
+<p class="kicker">Committed 2026-03-13 18:31 UTC</p>
+<p class="kicker">Revealed 2026-08-17 18:17 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CEP8Y9M0-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CEP8Y9M0%22%2C%22bug_class%22%3A%22Use-After-Free%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A41%3A33%2B00%3A00%22%2C%22description%22%3A%22In%20the%20MPEG-TS%20demuxer%2C%20new_pes_packet%28%29%20begins%20transferring%20ownership%20of%20pes-%3Ebuffer%20into%20pkt-%3Ebuf%20but%20only%20nulls%20out%20pes-%3Ebuffer%20at%20the%20end%20of%20the%20function.%20The%20JPEG-XS%20header-size%20check%20added%20in%2016f89d342e%20returns%20AVERROR_INVALIDDATA%20mid-function%2C%20so%20on%20that%20path%20both%20pkt-%3Ebuf%20and%20pes-%3Ebuffer%20point%20to%20the%20same%20refcount-1%20buffer.%20mpegts_read_packet%28%29%20sees%20the%20error%2C%20calls%20av_packet_unref%28%29%20%28freeing%20the%20buffer%29%2C%20then%20its%20flush%20loop%20re-enters%20new_pes_packet%28%29%20on%20the%20same%20PES%20%28reset%20was%20also%20skipped%20so%20data_index%20%3E%200%29%2C%20dereferencing%20the%20dangling%20pes-%3Ebuffer.%20A%20second%20path%20reaches%20the%20stale%20pointer%20via%20av_buffer_unref%28%29%20in%20the%20seek-reset%20code%20in%20handle_packets%2C%20yielding%20a%20double-free%20and%20an%20atomic%20decrement%20through%20a%20freed%20AVBuffer%2A.%20The%20bug%20is%20triggered%20simply%20by%20running%20ffprobe%20on%20a%20crafted%20file.%22%2C%22discovered_at%22%3A%222026-03-13T18%3A31%3A10%2B00%3A00%22%2C%22location%22%3A%22libavformat/mpegts.c%3A1024%20%28new_pes_packet%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ffmpeg%22%2C%22reproduction%22%3A%5B%221.%20Craft%20an%20MPEG-TS%20stream%20with%20a%20PES%20packet%20where%20stream_id%3D%3D0xbd%2C%20stream_type%3D%3D0x32%2C%20bytes%204..7%20%3D%3D%20%27jxes%27%2C%20and%20AV_RB32%28data%29%20%3E%20packet%20size%22%2C%222.%20Deliver%20the%20file%20to%20the%20target%20%28e.g.%20%60ffprobe%20file.ts%60%29%22%2C%223.%20new_pes_packet%28%29%20takes%20the%20early%20return%2C%20leaving%20pes-%3Ebuffer%20%3D%3D%20pkt-%3Ebuf%22%2C%224.%20mpegts_read_packet%28%29%20calls%20av_packet_unref%28%29%2C%20freeing%20the%20buffer%22%2C%225.%20The%20flush%20loop%20%28or%20later%20seek-reset%20in%20handle_packets%29%20touches%20the%20dangling%20pes-%3Ebuffer%2C%20producing%20a%20UAF%20read%20or%20double-free%22%5D%2C%22technical_details%22%3A%22Hi%20--%5Cn%5CnI%27ve%20filed%20a%20PR%20for%20a%20fix%20that%20has%20a%20similar%20ffprobe-level%20failure.%5Cn%5CnThis%20one%20is%20master-only%20%28the%20vulnerable%20code%20landed%20in%2016f89d342e%2C%5Cn%5CnDecember%202025%2C%20after%208.0.1%20was%20cut%29%20so%20there%27s%20no%20released%20version%20to%5Cn%5Cnworry%20about.%5Cn%5CnIt%27s%20a%20use-after-free%20in%20the%20MPEG-TS%20demuxer%27s%20JPEG-XS%20handling%2C%20again%5Cn%5Cntriggers%20on%5Cn%5Cn%20%20ffprobe%20arbitrary_file%5Cn%5CnThe%20specific%20vulnerability%20here%20is%20that%20in%20libavformat/mpegts.c%20the%5Cn%5Cnfunction%20new_pes_packet%28%29%20moves%20a%20buffer%20from%20one%20place%20to%20another%5Cn%5Cn%28pes%20into%20pkt%29%20with%20the%20line%20pkt-%3Ebuf%20%3D%20pes-%3Ebuffer.%20This%20keeps%20the%5Cn%5Cnrefcount%20at%201.%20Then%20it%20does%20JPEG-XS%20validation%2C%20and%20commits%20the%20move%5Cn%5Cnwith%20pes-%3Ebuffer%20%3D%20NULL%20at%20the%20bottom.%20But%20the%20validation%20has%20an%20early%5Cn%5Cnreturn%20that%20skips%20the%20commit%3A%5Cn%5Cn%20%20//%20libavformat/mpegts.c%2C%20new_pes_packet%28%29%5Cn%5Cn%20%20pkt-%3Ebuf%20%20%3D%20pes-%3Ebuffer%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20//%20move%20started%5Cn%5Cn%20%20pkt-%3Edata%20%3D%20pes-%3Ebuffer-%3Edata%3B%5Cn%5Cn%20%20pkt-%3Esize%20%3D%20pes-%3Edata_index%3B%5Cn%5Cn%20%20...%5Cn%5Cn%20%20if%20%28pes-%3Estream_id%20%3D%3D%200xbd%20%26%26%20pes-%3Estream_type%20%3D%3D%200x32%20%26%26%5Cn%5Cn%20%20%20%20%20%20pkt-%3Esize%20%3E%3D%208%20%26%26%20memcmp%28pkt-%3Edata%20%2B%204%2C%20%5C%22jxes%5C%22%2C%204%29%20%3D%3D%200%29%5Cn%5Cn%20%20%7B%5Cn%5Cn%20%20%20%20%20%20uint32_t%20header_size%20%3D%20AV_RB32%28pkt-%3Edata%29%3B%5Cn%5Cn%20%20%20%20%20%20if%20%28header_size%20%3E%20pkt-%3Esize%29%20%7B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20...%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20return%20AVERROR_INVALIDDATA%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20//%20move%20never%20committed%5Cn%5Cn%20%20%20%20%20%20%7D%5Cn%5Cn%20%20%7D%5Cn%5Cn%20%20...%5Cn%5Cn%20%20pes-%3Ebuffer%20%3D%20NULL%3B%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20//%20not%20reached%5Cn%5Cn%20%20reset_pes_packet_state%28pes%29%3B%5Cn%5CnAfter%20the%20early%20return%2C%20pkt-%3Ebuf%20and%20pes-%3Ebuffer%20both%20hold%20the%20same%5Cn%5Cnpointer.%20But%20mpegts_read_packet%20sees%20the%20error%20and%20calls%5Cn%5Cnav_packet_unref%28ts-%3Epkt%29%2C%20freeing%20the%20buffer%20through%20pkt-%3Ebuf.%20Then%5Cn%5Cnits%20flush%20loop%20re-calls%20new_pes_packet%20on%20the%20same%20pes%20--%20because%5Cn%5Cnreset_pes_packet_state%20was%20also%20skipped%2C%20data_index%20is%20still%20%3E%200%20--%5Cn%5Cnand%20the%20dangling%20pes-%3Ebuffer%20gets%20dereferenced%20at%20line%201024.%5Cn%5CnThere%27s%20a%20second%20path%20where%20the%20dangling%20pointer%20survives%20dormant%20and%5Cn%5Cnlater%20gets%20hit%20by%20av_buffer_unref%28%26pes-%3Ebuffer%29%20in%20the%20seek-reset%5Cn%5Cncode%20at%20handle_packets.c%2C%20which%20goes%20to%20buffer_replace%20and%20gives%5Cn%5Cna%20double-free%20plus%20an%20atomic-decrement%20through%20the%20stale%20AVBuffer%2A.%5Cn%5CnI%20tested%20this%20against%20current%20master%3A%5Cn%5Cn%20%20%5Bmpegts%20%40%20...%5D%20Invalid%20JPEG-XS%20header%20size%204294967295%20%3E%20packet%20size%20359%5Cn%5Cn%20%20%3D%3D2565539%3D%3DERROR%3A%20AddressSanitizer%3A%20heap-use-after-free%20on%20address%5Cn%5Cn0x509000000808%5Cn%5Cn%20%20READ%20of%20size%208%20at%200x509000000808%20thread%20T0%5Cn%5Cn%20%20%20%20%20%20%230%20new_pes_packet%20libavformat/mpegts.c%3A1024%3A30%5Cn%5Cn%20%20%20%20%20%20%231%20mpegts_read_packet%20libavformat/mpegts.c%3A3495%3A27%5Cn%5Cn%20%20%20%20%20%20...%5Cn%5Cn%20%20%20%20%20%20%234%20avformat_find_stream_info%20libavformat/demux.c%3A2800%3A15%5Cn%5Cn%20%20freed%20by%20thread%20T0%20here%3A%5Cn%5Cn%20%20%20%20%20%20%233%20av_packet_unref%20libavcodec/packet.c%3A436%3A5%5Cn%5Cn%20%20%20%20%20%20%234%20mpegts_read_packet%20libavformat/mpegts.c%3A3489%3A9%5Cn%5CnI%20think%20the%20fix%20is%20pretty%20clear%2C%20which%20is%20to%20do%20the%20same%20cleanup%20the%5Cn%5Cnsuccess%20path%20does%20before%20the%20early%20return.%20I%27ve%20sent%20this%20as%20a%20PR%20that%5Cn%5Cndoes%20this%3A%5Cn%5Cndiff%20--git%20a/libavformat/mpegts.c%20b/libavformat/mpegts.c%5Cn%5Cnindex%200ee10f9a77..43b983660f%20100644%5Cn%5Cn---%20a/libavformat/mpegts.c%5Cn%5Cn%2B%2B%2B%20b/libavformat/mpegts.c%5Cn%5Cn%40%40%20-1040%2C7%20%2B1040%2C8%20%40%40%20static%20int%20new_pes_packet%28PESContext%20%2Apes%2C%20AVPacket%20%2Apkt%29%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20av_log%28pes-%3Estream%2C%20AV_LOG_WARNING%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%5C%22Invalid%20JPEG-XS%20header%20size%20%25%5C%22PRIu32%5C%22%20%3E%20packet%20size%20%25d%5C%5Cn%5C%22%2C%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20header_size%2C%20pkt-%3Esize%29%3B%5Cn%5Cn-%20%20%20%20%20%20%20%20%20%20%20%20pes-%3Eflags%20%7C%3D%20AV_PKT_FLAG_CORRUPT%3B%5Cn%5Cn%2B%20%20%20%20%20%20%20%20%20%20%20%20pes-%3Ebuffer%20%3D%20NULL%3B%5Cn%5Cn%2B%20%20%20%20%20%20%20%20%20%20%20%20reset_pes_packet_state%28pes%29%3B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%20%20%20%20return%20AVERROR_INVALIDDATA%3B%5Cn%5Cn%20%20%20%20%20%20%20%20%20%7D%5Cn%5Cn%20%20%20%20%20%20%20%20%20pkt-%3Edata%20%2B%3D%20header_size%3B%5Cn%5Cn%28The%20removal%20for%20pes-%3Eflags%20is%20because%20the%20call%20to%5Cn%5Cnreset_pes_packet_state%20clears%20the%20flags.%29%5Cn%5CnThanks%2C%5Cn%5CnNicholas%22%2C%22title%22%3A%22avformat/mpegts%3A%20reset%20PES%20state%20before%20JPEG-XS%20error%20return%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CEP8Y9M0&#34;,
+  &#34;bug_class&#34;: &#34;Use-After-Free&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:41:33+00:00&#34;,
+  &#34;description&#34;: &#34;In the MPEG-TS demuxer, new_pes_packet() begins transferring ownership of pes-&gt;buffer into pkt-&gt;buf but only nulls out pes-&gt;buffer at the end of the function. The JPEG-XS header-size check added in 16f89d342e returns AVERROR_INVALIDDATA mid-function, so on that path both pkt-&gt;buf and pes-&gt;buffer point to the same refcount-1 buffer. mpegts_read_packet() sees the error, calls av_packet_unref() (freeing the buffer), then its flush loop re-enters new_pes_packet() on the same PES (reset was also skipped so data_index &gt; 0), dereferencing the dangling pes-&gt;buffer. A second path reaches the stale pointer via av_buffer_unref() in the seek-reset code in handle_packets, yielding a double-free and an atomic decrement through a freed AVBuffer*. The bug is triggered simply by running ffprobe on a crafted file.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-13T18:31:10+00:00&#34;,
+  &#34;location&#34;: &#34;libavformat/mpegts.c:1024 (new_pes_packet)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ffmpeg&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft an MPEG-TS stream with a PES packet where stream_id==0xbd, stream_type==0x32, bytes 4..7 == &#39;jxes&#39;, and AV_RB32(data) &gt; packet size&#34;,
+    &#34;2. Deliver the file to the target (e.g. `ffprobe file.ts`)&#34;,
+    &#34;3. new_pes_packet() takes the early return, leaving pes-&gt;buffer == pkt-&gt;buf&#34;,
+    &#34;4. mpegts_read_packet() calls av_packet_unref(), freeing the buffer&#34;,
+    &#34;5. The flush loop (or later seek-reset in handle_packets) touches the dangling pes-&gt;buffer, producing a UAF read or double-free&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Hi --\n\nI&#39;ve filed a PR for a fix that has a similar ffprobe-level failure.\n\nThis one is master-only (the vulnerable code landed in 16f89d342e,\n\nDecember 2025, after 8.0.1 was cut) so there&#39;s no released version to\n\nworry about.\n\nIt&#39;s a use-after-free in the MPEG-TS demuxer&#39;s JPEG-XS handling, again\n\ntriggers on\n\n  ffprobe arbitrary_file\n\nThe specific vulnerability here is that in libavformat/mpegts.c the\n\nfunction new_pes_packet() moves a buffer from one place to another\n\n(pes into pkt) with the line pkt-&gt;buf = pes-&gt;buffer. This keeps the\n\nrefcount at 1. Then it does JPEG-XS validation, and commits the move\n\nwith pes-&gt;buffer = NULL at the bottom. But the validation has an early\n\nreturn that skips the commit:\n\n  // libavformat/mpegts.c, new_pes_packet()\n\n  pkt-&gt;buf  = pes-&gt;buffer;                           // move started\n\n  pkt-&gt;data = pes-&gt;buffer-&gt;data;\n\n  pkt-&gt;size = pes-&gt;data_index;\n\n  ...\n\n  if (pes-&gt;stream_id == 0xbd &amp;&amp; pes-&gt;stream_type == 0x32 &amp;&amp;\n\n      pkt-&gt;size &gt;= 8 &amp;&amp; memcmp(pkt-&gt;data + 4, \&#34;jxes\&#34;, 4) == 0)\n\n  {\n\n      uint32_t header_size = AV_RB32(pkt-&gt;data);\n\n      if (header_size &gt; pkt-&gt;size) {\n\n          ...\n\n          return AVERROR_INVALIDDATA;                // move never committed\n\n      }\n\n  }\n\n  ...\n\n  pes-&gt;buffer = NULL;                                // not reached\n\n  reset_pes_packet_state(pes);\n\nAfter the early return, pkt-&gt;buf and pes-&gt;buffer both hold the same\n\npointer. But mpegts_read_packet sees the error and calls\n\nav_packet_unref(ts-&gt;pkt), freeing the buffer through pkt-&gt;buf. Then\n\nits flush loop re-calls new_pes_packet on the same pes -- because\n\nreset_pes_packet_state was also skipped, data_index is still &gt; 0 --\n\nand the dangling pes-&gt;buffer gets dereferenced at line 1024.\n\nThere&#39;s a second path where the dangling pointer survives dormant and\n\nlater gets hit by av_buffer_unref(&amp;pes-&gt;buffer) in the seek-reset\n\ncode at handle_packets.c, which goes to buffer_replace and gives\n\na double-free plus an atomic-decrement through the stale AVBuffer*.\n\nI tested this against current master:\n\n  [mpegts @ ...] Invalid JPEG-XS header size 4294967295 &gt; packet size 359\n\n  ==2565539==ERROR: AddressSanitizer: heap-use-after-free on address\n\n0x509000000808\n\n  READ of size 8 at 0x509000000808 thread T0\n\n      #0 new_pes_packet libavformat/mpegts.c:1024:30\n\n      #1 mpegts_read_packet libavformat/mpegts.c:3495:27\n\n      ...\n\n      #4 avformat_find_stream_info libavformat/demux.c:2800:15\n\n  freed by thread T0 here:\n\n      #3 av_packet_unref libavcodec/packet.c:436:5\n\n      #4 mpegts_read_packet libavformat/mpegts.c:3489:9\n\nI think the fix is pretty clear, which is to do the same cleanup the\n\nsuccess path does before the early return. I&#39;ve sent this as a PR that\n\ndoes this:\n\ndiff --git a/libavformat/mpegts.c b/libavformat/mpegts.c\n\nindex 0ee10f9a77..43b983660f 100644\n\n--- a/libavformat/mpegts.c\n\n+++ b/libavformat/mpegts.c\n\n@@ -1040,7 +1040,8 @@ static int new_pes_packet(PESContext *pes, AVPacket *pkt)\n\n             av_log(pes-&gt;stream, AV_LOG_WARNING,\n\n                    \&#34;Invalid JPEG-XS header size %\&#34;PRIu32\&#34; &gt; packet size %d\\n\&#34;,\n\n                    header_size, pkt-&gt;size);\n\n-            pes-&gt;flags |= AV_PKT_FLAG_CORRUPT;\n\n+            pes-&gt;buffer = NULL;\n\n+            reset_pes_packet_state(pes);\n\n             return AVERROR_INVALIDDATA;\n\n         }\n\n         pkt-&gt;data += header_size;\n\n(The removal for pes-&gt;flags is because the call to\n\nreset_pes_packet_state clears the flags.)\n\nThanks,\n\nNicholas&#34;,
+  &#34;title&#34;: &#34;avformat/mpegts: reset PES state before JPEG-XS error return&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

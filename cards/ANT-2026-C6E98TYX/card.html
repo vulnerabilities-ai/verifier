@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-C6E98TYX · liboqs</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-C6E98TYX · liboqs</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  uninitialized-memory
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-C6E98TYX: 01-liboqs-ntru-uninit-fn-ptr</h1>
+<p>The NTRU constructors in src/kem/ntru/kem_ntru_<em>.c call OQS_MEM_malloc(sizeof(OQS_KEM)) and assign twelve struct fields but omit encaps_derand at offset 88, leaving it with stale heap residue. The public API OQS_KEM_encaps_derand() at kem.c:645 checks only that kem != NULL before tail-jumping through kem-&gt;encaps_derand (compiled as <code>jmp *0x58(%rax)</code>). An attacker who can influence the 112-byte tcache bin before OQS_KEM_new("NTRU-</em>") controls the jump target and all four pointer arguments passed to it. Demonstrated as a reliable (20/20) same-process control-flow hijack to system() on a Release build with glibc malloc; an ML-KEM-512 differential under identical heap groom confirms the NTRU constructor's missing initialization is the sole causal variable.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> liboqs<br>
+<strong>Version:</strong> commit ab0e07c3 (upstream open-quantum-safe/liboqs)<br>
+<strong>Location:</strong> <code>src/kem/kem.c:645 (OQS_KEM_encaps_derand); src/kem/ntru/kem_ntru_*.c:11 (six constructors)</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "SEGV on unknown address ... caused by a READ memory access ... dereference of a high value address" at kem.c:645 — the 0xbe poison pattern in encaps_derand proves the field was never written post-allocation. Root cause is a code-generation template gap: 33 of 39 KEM constructors set encaps_derand, but the six NTRU constructors predate the _derand API extension and were never updated. The dispatcher's guard checks only the struct pointer, not the function pointer it dereferences, so stale heap bytes become the target of a compiler-blessed indirect jump.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>AddressSanitizer:DEADLYSIGNAL
+=================================================================
+==74==ERROR: AddressSanitizer: SEGV on unknown address (pc 0x564e3eba1e6b bp 0x7fffe2b6a6f0 sp 0x7fffe2b6a6e8 T0)
+==74==The signal is caused by a READ memory access.
+==74==Hint: this fault was caused by a dereference of a high value address (see register values below).  Dissassemble the provided pc to learn which register was used.
+    #0 0x564e3eba1e6b in OQS_KEM_encaps_derand /workspace/repo/src/kem/kem.c:645
+    #1 0x564e3eba081f in main /tmp/poc.c:45
+    #2 0x7f6dd8e27d8f in __libc_start_call_main ../sysdeps/nptl/libc_start_call_main.h:58
+    #3 0x7f6dd8e27e3f in __libc_start_main_impl ../csu/libc-start.c:392
+    #4 0x564e3eba0544 in _start (/tmp/poc-asan+0x12544)
+
+AddressSanitizer can not provide additional info.
+SUMMARY: AddressSanitizer: SEGV /workspace/repo/src/kem/kem.c:645 in OQS_KEM_encaps_derand
+==74==ABORTING
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Allocate 112-byte chunks and write the desired jump target (e.g., &amp;system) at offset 88 of each</li>
+<li>Free the chunks so they populate glibc's 112-byte tcache freelist (LIFO)</li>
+<li>Call OQS_KEM_new(OQS_KEM_alg_ntru_hps2048509) — constructor reclaims a groomed chunk via OQS_MEM_malloc and writes fields 0–87 and 96–111, leaving offset 88 untouched</li>
+<li>kem-&gt;encaps_derand now holds the attacker-planted pointer</li>
+<li>Call OQS_KEM_encaps_derand(kem, payload, ...) — dispatcher's NULL check on kem passes, tail-call <code>jmp *0x58(%rax)</code> transfers to attacker target with payload in %rdi</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-C6E98TYX.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-C6E98TYX<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-01</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">036d8ef5dc823244713d07925545a3daa8e7f2b0dcb640d5e603e0b5af1ee56b0006b0a2cc12123774a58528d66c64171413eaaa9c6d62df3ede3fc27b30d600</p>
+<p class="kicker">Committed 2026-05-07 07:08 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-C6E98TYX-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-C6E98TYX%22%2C%22bug_class%22%3A%22Uninitialized%20Function%20Pointer%20%28CWE-824%29%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-01T02%3A20%3A52%2B00%3A00%22%2C%22description%22%3A%22The%20NTRU%20constructors%20in%20src/kem/ntru/kem_ntru_%2A.c%20call%20OQS_MEM_malloc%28sizeof%28OQS_KEM%29%29%20and%20assign%20twelve%20struct%20fields%20but%20omit%20encaps_derand%20at%20offset%2088%2C%20leaving%20it%20with%20stale%20heap%20residue.%20The%20public%20API%20OQS_KEM_encaps_derand%28%29%20at%20kem.c%3A645%20checks%20only%20that%20kem%20%21%3D%20NULL%20before%20tail-jumping%20through%20kem-%3Eencaps_derand%20%28compiled%20as%20%60jmp%20%2A0x58%28%25rax%29%60%29.%20An%20attacker%20who%20can%20influence%20the%20112-byte%20tcache%20bin%20before%20OQS_KEM_new%28%5C%22NTRU-%2A%5C%22%29%20controls%20the%20jump%20target%20and%20all%20four%20pointer%20arguments%20passed%20to%20it.%20Demonstrated%20as%20a%20reliable%20%2820/20%29%20same-process%20control-flow%20hijack%20to%20system%28%29%20on%20a%20Release%20build%20with%20glibc%20malloc%3B%20an%20ML-KEM-512%20differential%20under%20identical%20heap%20groom%20confirms%20the%20NTRU%20constructor%27s%20missing%20initialization%20is%20the%20sole%20causal%20variable.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22src/kem/kem.c%3A645%20%28OQS_KEM_encaps_derand%29%3B%20src/kem/ntru/kem_ntru_%2A.c%3A11%20%28six%20constructors%29%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22liboqs%22%2C%22reproduction%22%3A%5B%221.%20Allocate%20112-byte%20chunks%20and%20write%20the%20desired%20jump%20target%20%28e.g.%2C%20%26system%29%20at%20offset%2088%20of%20each%22%2C%222.%20Free%20the%20chunks%20so%20they%20populate%20glibc%27s%20112-byte%20tcache%20freelist%20%28LIFO%29%22%2C%223.%20Call%20OQS_KEM_new%28OQS_KEM_alg_ntru_hps2048509%29%20%E2%80%94%20constructor%20reclaims%20a%20groomed%20chunk%20via%20OQS_MEM_malloc%20and%20writes%20fields%200%E2%80%9387%20and%2096%E2%80%93111%2C%20leaving%20offset%2088%20untouched%22%2C%224.%20kem-%3Eencaps_derand%20now%20holds%20the%20attacker-planted%20pointer%22%2C%225.%20Call%20OQS_KEM_encaps_derand%28kem%2C%20payload%2C%20...%29%20%E2%80%94%20dispatcher%27s%20NULL%20check%20on%20kem%20passes%2C%20tail-call%20%60jmp%20%2A0x58%28%25rax%29%60%20transfers%20to%20attacker%20target%20with%20payload%20in%20%25rdi%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22SEGV%20on%20unknown%20address%20...%20caused%20by%20a%20READ%20memory%20access%20...%20dereference%20of%20a%20high%20value%20address%5C%22%20at%20kem.c%3A645%20%E2%80%94%20the%200xbe%20poison%20pattern%20in%20encaps_derand%20proves%20the%20field%20was%20never%20written%20post-allocation.%20Root%20cause%20is%20a%20code-generation%20template%20gap%3A%2033%20of%2039%20KEM%20constructors%20set%20encaps_derand%2C%20but%20the%20six%20NTRU%20constructors%20predate%20the%20_derand%20API%20extension%20and%20were%20never%20updated.%20The%20dispatcher%27s%20guard%20checks%20only%20the%20struct%20pointer%2C%20not%20the%20function%20pointer%20it%20dereferences%2C%20so%20stale%20heap%20bytes%20become%20the%20target%20of%20a%20compiler-blessed%20indirect%20jump.%22%2C%22title%22%3A%2201-liboqs-ntru-uninit-fn-ptr%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-C6E98TYX&#34;,
+  &#34;bug_class&#34;: &#34;Uninitialized Function Pointer (CWE-824)&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-01T02:20:52+00:00&#34;,
+  &#34;description&#34;: &#34;The NTRU constructors in src/kem/ntru/kem_ntru_*.c call OQS_MEM_malloc(sizeof(OQS_KEM)) and assign twelve struct fields but omit encaps_derand at offset 88, leaving it with stale heap residue. The public API OQS_KEM_encaps_derand() at kem.c:645 checks only that kem != NULL before tail-jumping through kem-&gt;encaps_derand (compiled as `jmp *0x58(%rax)`). An attacker who can influence the 112-byte tcache bin before OQS_KEM_new(\&#34;NTRU-*\&#34;) controls the jump target and all four pointer arguments passed to it. Demonstrated as a reliable (20/20) same-process control-flow hijack to system() on a Release build with glibc malloc; an ML-KEM-512 differential under identical heap groom confirms the NTRU constructor&#39;s missing initialization is the sole causal variable.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;src/kem/kem.c:645 (OQS_KEM_encaps_derand); src/kem/ntru/kem_ntru_*.c:11 (six constructors)&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;liboqs&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Allocate 112-byte chunks and write the desired jump target (e.g., &amp;system) at offset 88 of each&#34;,
+    &#34;2. Free the chunks so they populate glibc&#39;s 112-byte tcache freelist (LIFO)&#34;,
+    &#34;3. Call OQS_KEM_new(OQS_KEM_alg_ntru_hps2048509) — constructor reclaims a groomed chunk via OQS_MEM_malloc and writes fields 0–87 and 96–111, leaving offset 88 untouched&#34;,
+    &#34;4. kem-&gt;encaps_derand now holds the attacker-planted pointer&#34;,
+    &#34;5. Call OQS_KEM_encaps_derand(kem, payload, ...) — dispatcher&#39;s NULL check on kem passes, tail-call `jmp *0x58(%rax)` transfers to attacker target with payload in %rdi&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;SEGV on unknown address ... caused by a READ memory access ... dereference of a high value address\&#34; at kem.c:645 — the 0xbe poison pattern in encaps_derand proves the field was never written post-allocation. Root cause is a code-generation template gap: 33 of 39 KEM constructors set encaps_derand, but the six NTRU constructors predate the _derand API extension and were never updated. The dispatcher&#39;s guard checks only the struct pointer, not the function pointer it dereferences, so stale heap bytes become the target of a compiler-blessed indirect jump.&#34;,
+  &#34;title&#34;: &#34;01-liboqs-ntru-uninit-fn-ptr&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

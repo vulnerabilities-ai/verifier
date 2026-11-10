@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-T6EKK5DB · openssh/openssh-portable</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-T6EKK5DB · openssh/openssh-portable</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-read
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-T6EKK5DB: heap-buffer-overflow (READ of size 1, 1 byte before allocation) in openssh</h1>
+<p>In the OpenSSH sftp client, the server's REALPATH response is stored as <code>pwd</code> and later passed to path_strip() during <code>ls</code>. A malicious SFTP server can return an empty string for REALPATH, making <code>pwd</code> a zero-length heap string. In path_strip(), <code>len = strlen(strip)</code> is 0 and <code>strncmp(path, strip, 0)</code> always succeeds, so the code evaluates <code>strip[len - 1]</code>, i.e. <code>strip[-1]</code>, reading one byte before the 1-byte allocation. The attacker controls the server responses and needs only the victim to connect and run <code>ls</code>. The result is a deterministic 1-byte out-of-bounds heap read.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> openssh/openssh-portable<br>
+<strong>Commit:</strong> <code>fe7dffba1e470987</code><br>
+<strong>Location:</strong> <code>sftp.c:377</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "READ of size 1 at 0x5020000000af ... 1 bytes to the left of 1-byte region". path_strip() computes <code>len = strlen(strip)</code> and, because <code>strncmp(path, strip, 0) == 0</code> unconditionally, proceeds to check <code>strip[len - 1] != '/'</code> without guarding against <code>len == 0</code>, producing a heap-buffer-underflow read at index -1 when the server-supplied <code>pwd</code> is empty.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>sftp&gt; ls
+=================================================================
+==531==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x5020000000af at pc 0x556696487da0 bp 0x7ffee1187580 sp 0x7ffee1187570
+READ of size 1 at 0x5020000000af thread T0
+    #0 0x556696487d9f in path_strip /workspace/repo/sftp.c:377
+    #1 0x55669648ac77 in do_ls_dir /workspace/repo/sftp.c:867
+    #2 0x55669648fee9 in parse_dispatch_command /workspace/repo/sftp.c:1670
+    #3 0x5566964928c0 in interactive_loop /workspace/repo/sftp.c:2360
+    #4 0x556696493cb6 in main /workspace/repo/sftp.c:2702
+    #5 0x7a4bcf753d8f  (/lib/x86_64-linux-gnu/libc.so.6+0x29d8f)
+    #6 0x7a4bcf753e3f in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x29e3f)
+    #7 0x5566964868a4 in _start (/workspace/repo/sftp+0x1a8a4)
+
+allocated by thread T0 here:
+    #0 0x7a4bcfa4e887 in __interceptor_malloc ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:145
+    #1 0x5566964afa60 in sshbuf_get_cstring /workspace/repo/sshbuf-getput-basic.c:290
+    #2 0x55669649a228 in sftp_realpath_expand /workspace/repo/sftp-client.c:1051
+    #3 0x55669649ed54 in sftp_realpath /workspace/repo/sftp-client.c:1068
+    #4 0x55669649232a in interactive_loop /workspace/repo/sftp.c:2269
+    #5 0x556696493cb6 in main /workspace/repo/sftp.c:2702
+    #6 0x7a4bcf753d8f  (/lib/x86_64-linux-gnu/libc.so.6+0x29d8f)
+
+SUMMARY: AddressSanitizer: heap-buffer-overflow /workspace/repo/sftp.c:377 in path_strip
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker runs a malicious SFTP server (or MITMs one) that replies to SSH_FXP_REALPATH with an empty filename string</li>
+<li>Client stores empty string as <code>pwd</code> via sftp_realpath()</li>
+<li>Victim runs <code>ls</code>; do_ls_dir() calls path_strip(path, pwd)</li>
+<li>path_strip computes len=0, strncmp(...,0)==0, then dereferences strip[-1] → OOB read</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-T6EKK5DB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-T6EKK5DB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-low">low</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/sftp.c b/sftp.c</span>
+<span class="diff-h">index eebb166e8de4..0ab9206c2772 100644</span>
+<span class="diff-h">--- a/sftp.c</span>
+<span class="diff-h">+++ b/sftp.c</span>
+<span class="diff-h">@@ -1,4 +1,4 @@</span>
+<span class="diff-d">-/* $OpenBSD: sftp.c,v 1.250 2026/02/11 17:01:34 dtucker Exp $ */</span>
+<span class="diff-a">+/* $OpenBSD: sftp.c,v 1.251 2026/05/31 04:51:45 djm Exp $ */</span>
+<span class="diff-c"> /*</span>
+<span class="diff-c">  * Copyright (c) 2001-2004 Damien Miller &lt;djm@openbsd.org&gt;</span>
+<span class="diff-c">  *</span>
+<span class="diff-h">@@ -369,10 +369,9 @@ path_strip(const char *path, const char *strip)</span>
+<span class="diff-c"> {</span>
+<span class="diff-c"> 	size_t len;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	if (strip == NULL)</span>
+<span class="diff-a">+	if (strip == NULL || (len = strlen(strip)) == 0)</span>
+<span class="diff-c"> 		return (xstrdup(path));</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-	len = strlen(strip);</span>
+<span class="diff-c"> 	if (strncmp(path, strip, len) == 0) {</span>
+<span class="diff-c"> 		if (strip[len - 1] != &#x27;/&#x27; &amp;&amp; path[len] == &#x27;/&#x27;)</span>
+<span class="diff-c"> 			len++;</span>
+<span class="diff-h">@@ -1283,6 +1282,8 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,</span>
+<span class="diff-c"> 					/* Unescape everything */</span>
+<span class="diff-c"> 					/* XXX support \n and friends? */</span>
+<span class="diff-c"> 					i++;</span>
+<span class="diff-a">+					if (arg[i] == &#x27;\0&#x27;)</span>
+<span class="diff-a">+						goto early_nul;</span>
+<span class="diff-c"> 					argvs[j++] = arg[i];</span>
+<span class="diff-c"> 				}</span>
+<span class="diff-c"> 			}</span>
+<span class="diff-h">@@ -1293,6 +1294,7 @@ makeargv(const char *arg, int *argcp, int sloppy, char *lastquote,</span>
+<span class="diff-c"> 				goto string_done;</span>
+<span class="diff-c"> 		} else if (arg[i] == &#x27;\0&#x27;) {</span>
+<span class="diff-c"> 			if (state == MA_SQUOTE || state == MA_DQUOTE) {</span>
+<span class="diff-a">+ early_nul:</span>
+<span class="diff-c"> 				if (sloppy) {</span>
+<span class="diff-c"> 					state = MA_UNQUOTED;</span>
+<span class="diff-c"> 					if (terminated != NULL)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/openssh/openssh-portable/commit/073faa6beceea162eeeb7963c7352a6c851e507a" rel="noopener noreferrer">https://github.com/openssh/openssh-portable/commit/073faa6beceea162eeeb7963c7352a6c851e507a</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-31</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">117dd86e0aadff7247dd9e5178c3e5fcd6abcb44e6562e6af3c736bb36f2da9a32f2787bec21723b61ffa939192abe9a65fb3c0ccf697873be888489e90725f4</p>
+<p class="kicker">Committed 2026-05-08 07:10 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:02 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-T6EKK5DB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-T6EKK5DB%22%2C%22bug_class%22%3A%22heap-buffer-overflow%20%28READ%20of%20size%201%2C%201%20byte%20before%20allocation%29%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3A%22fe7dffba1e470987%22%2C%22created_at%22%3A%222026-03-27T02%3A10%3A30%2B00%3A00%22%2C%22description%22%3A%22In%20the%20OpenSSH%20sftp%20client%2C%20the%20server%27s%20REALPATH%20response%20is%20stored%20as%20%60pwd%60%20and%20later%20passed%20to%20path_strip%28%29%20during%20%60ls%60.%20A%20malicious%20SFTP%20server%20can%20return%20an%20empty%20string%20for%20REALPATH%2C%20making%20%60pwd%60%20a%20zero-length%20heap%20string.%20In%20path_strip%28%29%2C%20%60len%20%3D%20strlen%28strip%29%60%20is%200%20and%20%60strncmp%28path%2C%20strip%2C%200%29%60%20always%20succeeds%2C%20so%20the%20code%20evaluates%20%60strip%5Blen%20-%201%5D%60%2C%20i.e.%20%60strip%5B-1%5D%60%2C%20reading%20one%20byte%20before%20the%201-byte%20allocation.%20The%20attacker%20controls%20the%20server%20responses%20and%20needs%20only%20the%20victim%20to%20connect%20and%20run%20%60ls%60.%20The%20result%20is%20a%20deterministic%201-byte%20out-of-bounds%20heap%20read.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22sftp.c%3A377%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22openssh%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20runs%20a%20malicious%20SFTP%20server%20%28or%20MITMs%20one%29%20that%20replies%20to%20SSH_FXP_REALPATH%20with%20an%20empty%20filename%20string%22%2C%222.%20Client%20stores%20empty%20string%20as%20%60pwd%60%20via%20sftp_realpath%28%29%22%2C%223.%20Victim%20runs%20%60ls%60%3B%20do_ls_dir%28%29%20calls%20path_strip%28path%2C%20pwd%29%22%2C%224.%20path_strip%20computes%20len%3D0%2C%20strncmp%28...%2C0%29%3D%3D0%2C%20then%20dereferences%20strip%5B-1%5D%20%E2%86%92%20OOB%20read%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22READ%20of%20size%201%20at%200x5020000000af%20...%201%20bytes%20to%20the%20left%20of%201-byte%20region%5C%22.%20path_strip%28%29%20computes%20%60len%20%3D%20strlen%28strip%29%60%20and%2C%20because%20%60strncmp%28path%2C%20strip%2C%200%29%20%3D%3D%200%60%20unconditionally%2C%20proceeds%20to%20check%20%60strip%5Blen%20-%201%5D%20%21%3D%20%27/%27%60%20without%20guarding%20against%20%60len%20%3D%3D%200%60%2C%20producing%20a%20heap-buffer-underflow%20read%20at%20index%20-1%20when%20the%20server-supplied%20%60pwd%60%20is%20empty.%22%2C%22title%22%3A%22heap-buffer-overflow%20%28READ%20of%20size%201%2C%201%20byte%20before%20allocation%29%20in%20openssh%22%2C%22vendor_severity%22%3A%22low%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-T6EKK5DB&#34;,
+  &#34;bug_class&#34;: &#34;heap-buffer-overflow (READ of size 1, 1 byte before allocation)&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: &#34;fe7dffba1e470987&#34;,
+  &#34;created_at&#34;: &#34;2026-03-27T02:10:30+00:00&#34;,
+  &#34;description&#34;: &#34;In the OpenSSH sftp client, the server&#39;s REALPATH response is stored as `pwd` and later passed to path_strip() during `ls`. A malicious SFTP server can return an empty string for REALPATH, making `pwd` a zero-length heap string. In path_strip(), `len = strlen(strip)` is 0 and `strncmp(path, strip, 0)` always succeeds, so the code evaluates `strip[len - 1]`, i.e. `strip[-1]`, reading one byte before the 1-byte allocation. The attacker controls the server responses and needs only the victim to connect and run `ls`. The result is a deterministic 1-byte out-of-bounds heap read.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;sftp.c:377&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;openssh&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker runs a malicious SFTP server (or MITMs one) that replies to SSH_FXP_REALPATH with an empty filename string&#34;,
+    &#34;2. Client stores empty string as `pwd` via sftp_realpath()&#34;,
+    &#34;3. Victim runs `ls`; do_ls_dir() calls path_strip(path, pwd)&#34;,
+    &#34;4. path_strip computes len=0, strncmp(...,0)==0, then dereferences strip[-1] → OOB read&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;READ of size 1 at 0x5020000000af ... 1 bytes to the left of 1-byte region\&#34;. path_strip() computes `len = strlen(strip)` and, because `strncmp(path, strip, 0) == 0` unconditionally, proceeds to check `strip[len - 1] != &#39;/&#39;` without guarding against `len == 0`, producing a heap-buffer-underflow read at index -1 when the server-supplied `pwd` is empty.&#34;,
+  &#34;title&#34;: &#34;heap-buffer-overflow (READ of size 1, 1 byte before allocation) in openssh&#34;,
+  &#34;vendor_severity&#34;: &#34;low&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

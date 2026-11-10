@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-QT406EDT · libreoffice/core</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-QT406EDT · libreoffice/core</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-63274">CVE-2026-63274</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-QT406EDT: Heap overflow from unclamped /Length in hybrid-PDF stream extraction</h1>
+<p>In sdext/source/pdfimport/pdfparse/pdfentries.cxx, PDFObject::getDeflatedStream() allocates a heap buffer of nOuterStreamLen bytes (the lexically-measured distance between the 'stream' and 'endstream' tokens) but then sets the copy length to the raw dictionary /Length value via getDictLength() with no validation. The subsequent memmove at line 692 reads and writes that many bytes into the smaller allocation. This code path is reached from PDFDetector::detect() during default file-type detection whenever a PDF's trailer advertises /AdditionalStreams and a matching /DocChecksum — both of which the attacker authors and can trivially forge. An attacker who convinces a victim to open a crafted PDF therefore controls both the allocation size and the independent, larger copy length, yielding a heap OOB read+write that corrupts adjacent heap memory and is plausibly exploitable for code execution.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> libreoffice/core<br>
+<strong>Location:</strong> <code>sdext/source/pdfimport/pdfparse/pdfentries.cxx:692</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is a missing bounds clamp: nOuterStreamLen (m_nEndOffset - m_nBeginOffset) is determined purely lexically by the boost::spirit grammar scanning for 'stream'/'endstream', while <em>pBytes is set from getDictLength(), which returns the raw numeric /Length from the object dictionary unchecked. Because these two values are independent and attacker-controlled, memmove(rpStream.get(), pStream, </em>pBytes) at line 692 can copy far more bytes than were allocated at line 653, producing a classic heap buffer overflow (both OOB read from and OOB write to adjacent heap memory).</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Author a PDF containing an object whose physical 'stream'...'endstream' body is small (e.g., 32 bytes) but whose dictionary declares a huge /Length (e.g., 1000000).</li>
+<li>Add a trailer with /AdditionalStreams referencing that object and a /DocChecksum equal to the MD5 of the file prefix (attacker computes this); omit new-style embedded files so getEmbeddedFile() fails and control falls through to getAdditionalStream().</li>
+<li>Deliver the PDF to the victim and have them open it in LibreOffice.</li>
+<li>PDFDetector::detect() → getAdditionalStream() → PDFObject::writeStream() → getDeflatedStream() allocates nOuterStreamLen bytes then memmoves /Length bytes, overflowing the heap.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Clamp the number of bytes copied and subsequently processed to the actual allocated buffer size (nOuterStreamLen) rather than trusting the file-declared /Length; reject or truncate streams whose /Length exceeds the lexical stream span.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-QT406EDT.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-QT406EDT<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/sdext/source/pdfimport/pdfparse/pdfentries.cxx b/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">index d000a18dcea33..3ec950e22b755 100644</span>
+<span class="diff-h">--- a/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">+++ b/sdext/source/pdfimport/pdfparse/pdfentries.cxx</span>
+<span class="diff-h">@@ -688,6 +688,12 @@ bool PDFObject::getDeflatedStream( std::unique_ptr&lt;char[]&gt;&amp; rpStream, unsigned i</span>
+<span class="diff-c">             pStream++;</span>
+<span class="diff-c">         // get the compressed length</span>
+<span class="diff-c">         *pBytes = m_pStream-&gt;getDictLength( pObjectContainer );</span>
+<span class="diff-a">+        unsigned int nAvailable = nOuterStreamLen - static_cast&lt;unsigned int&gt;(pStream - rpStream.get());</span>
+<span class="diff-a">+        if (*pBytes &gt; nAvailable)</span>
+<span class="diff-a">+        {</span>
+<span class="diff-a">+            SAL_WARN(&quot;sdext.pdfimport.pdfparse&quot;, &quot;stream /Length &quot; &lt;&lt; *pBytes &lt;&lt; &quot; exceeds &quot; &lt;&lt; nAvailable &lt;&lt; &quot; available bytes&quot;);</span>
+<span class="diff-a">+            *pBytes = nAvailable;</span>
+<span class="diff-a">+        }</span>
+<span class="diff-c">         if( pStream != rpStream.get() )</span>
+<span class="diff-c">             memmove( rpStream.get(), pStream, *pBytes );</span>
+<span class="diff-c">         if( rContext.m_bDecrypt )</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/LibreOffice/core/commit/dcf16d610a32861349d4e4b84e7bef4b9420929c" rel="noopener noreferrer">https://github.com/LibreOffice/core/commit/dcf16d610a32861349d4e4b84e7bef4b9420929c</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-04</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-24</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-09-28</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">a546a862caaa6a6280b9ca7f696d78567d009cca5ef139a0b61306b5bdbdb7c494c58aac26ce4f0314b03512abf5ee240d50af1f8905096abda281f03e6e163e</p>
+<p class="kicker">Committed 2026-07-22 07:32 UTC</p>
+<p class="kicker">Revealed 2026-09-28 20:49 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-QT406EDT-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-QT406EDT%22%2C%22bug_class%22%3A%22Memory%20corruption%20%28heap%20buffer%20overflow%29%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T01%3A54%3A44%2B00%3A00%22%2C%22description%22%3A%22In%20sdext/source/pdfimport/pdfparse/pdfentries.cxx%2C%20PDFObject%3A%3AgetDeflatedStream%28%29%20allocates%20a%20heap%20buffer%20of%20nOuterStreamLen%20bytes%20%28the%20lexically-measured%20distance%20between%20the%20%27stream%27%20and%20%27endstream%27%20tokens%29%20but%20then%20sets%20the%20copy%20length%20to%20the%20raw%20dictionary%20/Length%20value%20via%20getDictLength%28%29%20with%20no%20validation.%20The%20subsequent%20memmove%20at%20line%20692%20reads%20and%20writes%20that%20many%20bytes%20into%20the%20smaller%20allocation.%20This%20code%20path%20is%20reached%20from%20PDFDetector%3A%3Adetect%28%29%20during%20default%20file-type%20detection%20whenever%20a%20PDF%27s%20trailer%20advertises%20/AdditionalStreams%20and%20a%20matching%20/DocChecksum%20%E2%80%94%20both%20of%20which%20the%20attacker%20authors%20and%20can%20trivially%20forge.%20An%20attacker%20who%20convinces%20a%20victim%20to%20open%20a%20crafted%20PDF%20therefore%20controls%20both%20the%20allocation%20size%20and%20the%20independent%2C%20larger%20copy%20length%2C%20yielding%20a%20heap%20OOB%20read%2Bwrite%20that%20corrupts%20adjacent%20heap%20memory%20and%20is%20plausibly%20exploitable%20for%20code%20execution.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22sdext/source/pdfimport/pdfparse/pdfentries.cxx%3A692%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22LibreOffice/core%22%2C%22reproduction%22%3A%5B%221.%20Author%20a%20PDF%20containing%20an%20object%20whose%20physical%20%27stream%27...%27endstream%27%20body%20is%20small%20%28e.g.%2C%2032%20bytes%29%20but%20whose%20dictionary%20declares%20a%20huge%20/Length%20%28e.g.%2C%201000000%29.%22%2C%222.%20Add%20a%20trailer%20with%20/AdditionalStreams%20referencing%20that%20object%20and%20a%20/DocChecksum%20equal%20to%20the%20MD5%20of%20the%20file%20prefix%20%28attacker%20computes%20this%29%3B%20omit%20new-style%20embedded%20files%20so%20getEmbeddedFile%28%29%20fails%20and%20control%20falls%20through%20to%20getAdditionalStream%28%29.%22%2C%223.%20Deliver%20the%20PDF%20to%20the%20victim%20and%20have%20them%20open%20it%20in%20LibreOffice.%22%2C%224.%20PDFDetector%3A%3Adetect%28%29%20%E2%86%92%20getAdditionalStream%28%29%20%E2%86%92%20PDFObject%3A%3AwriteStream%28%29%20%E2%86%92%20getDeflatedStream%28%29%20allocates%20nOuterStreamLen%20bytes%20then%20memmoves%20/Length%20bytes%2C%20overflowing%20the%20heap.%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20a%20missing%20bounds%20clamp%3A%20nOuterStreamLen%20%28m_nEndOffset%20-%20m_nBeginOffset%29%20is%20determined%20purely%20lexically%20by%20the%20boost%3A%3Aspirit%20grammar%20scanning%20for%20%27stream%27/%27endstream%27%2C%20while%20%2ApBytes%20is%20set%20from%20getDictLength%28%29%2C%20which%20returns%20the%20raw%20numeric%20/Length%20from%20the%20object%20dictionary%20unchecked.%20Because%20these%20two%20values%20are%20independent%20and%20attacker-controlled%2C%20memmove%28rpStream.get%28%29%2C%20pStream%2C%20%2ApBytes%29%20at%20line%20692%20can%20copy%20far%20more%20bytes%20than%20were%20allocated%20at%20line%20653%2C%20producing%20a%20classic%20heap%20buffer%20overflow%20%28both%20OOB%20read%20from%20and%20OOB%20write%20to%20adjacent%20heap%20memory%29.%22%2C%22title%22%3A%22Heap%20overflow%20from%20unclamped%20/Length%20in%20hybrid-PDF%20stream%20extraction%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-QT406EDT&#34;,
+  &#34;bug_class&#34;: &#34;Memory corruption (heap buffer overflow)&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T01:54:44+00:00&#34;,
+  &#34;description&#34;: &#34;In sdext/source/pdfimport/pdfparse/pdfentries.cxx, PDFObject::getDeflatedStream() allocates a heap buffer of nOuterStreamLen bytes (the lexically-measured distance between the &#39;stream&#39; and &#39;endstream&#39; tokens) but then sets the copy length to the raw dictionary /Length value via getDictLength() with no validation. The subsequent memmove at line 692 reads and writes that many bytes into the smaller allocation. This code path is reached from PDFDetector::detect() during default file-type detection whenever a PDF&#39;s trailer advertises /AdditionalStreams and a matching /DocChecksum — both of which the attacker authors and can trivially forge. An attacker who convinces a victim to open a crafted PDF therefore controls both the allocation size and the independent, larger copy length, yielding a heap OOB read+write that corrupts adjacent heap memory and is plausibly exploitable for code execution.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;sdext/source/pdfimport/pdfparse/pdfentries.cxx:692&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;LibreOffice/core&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Author a PDF containing an object whose physical &#39;stream&#39;...&#39;endstream&#39; body is small (e.g., 32 bytes) but whose dictionary declares a huge /Length (e.g., 1000000).&#34;,
+    &#34;2. Add a trailer with /AdditionalStreams referencing that object and a /DocChecksum equal to the MD5 of the file prefix (attacker computes this); omit new-style embedded files so getEmbeddedFile() fails and control falls through to getAdditionalStream().&#34;,
+    &#34;3. Deliver the PDF to the victim and have them open it in LibreOffice.&#34;,
+    &#34;4. PDFDetector::detect() → getAdditionalStream() → PDFObject::writeStream() → getDeflatedStream() allocates nOuterStreamLen bytes then memmoves /Length bytes, overflowing the heap.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is a missing bounds clamp: nOuterStreamLen (m_nEndOffset - m_nBeginOffset) is determined purely lexically by the boost::spirit grammar scanning for &#39;stream&#39;/&#39;endstream&#39;, while *pBytes is set from getDictLength(), which returns the raw numeric /Length from the object dictionary unchecked. Because these two values are independent and attacker-controlled, memmove(rpStream.get(), pStream, *pBytes) at line 692 can copy far more bytes than were allocated at line 653, producing a classic heap buffer overflow (both OOB read from and OOB write to adjacent heap memory).&#34;,
+  &#34;title&#34;: &#34;Heap overflow from unclamped /Length in hybrid-PDF stream extraction&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

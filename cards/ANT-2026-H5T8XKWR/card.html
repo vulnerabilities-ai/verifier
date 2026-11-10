@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-H5T8XKWR · duplicate</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-H5T8XKWR · tryghost/ghost</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>query-injection</h2>
+
+<p class="id-badges">
+<a class="id-badge" href="https://github.com/advisories/GHSA-w52v-v783-gw97">GHSA-w52v-v783-gw97</a></p>
+
+<div class="marker">DUPLICATE</div>
+<p class="section-intro">
+  This finding was found to be a duplicate of
+  <a href="ANT-2026-69D8H6RP.html">ANT-2026-69D8H6RP</a>
+  after publication. Both entries described the same underlying
+  vulnerability; the other finding carries the full report and the
+  disclosure record. The original commitment below remains in the
+  ledger.
+</p>
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">Advisories assigned to this finding before it was found to be a duplicate. The fix record is carried on the other finding.</p>
+<p class="kicker"><a href="https://github.com/advisories/GHSA-w52v-v783-gw97" rel="noopener noreferrer">https://github.com/advisories/GHSA-w52v-v783-gw97</a></p>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6479c89ca89975bde1a83168dcdaf7c0efffd8b9c3938659365bc7a4974131645c651422ea7bf38a531543cbeecea4d68d0743fa17e25e35e030028719e4c652</p>
+<p class="kicker">Committed 2026-05-08 16:37 UTC</p>
+<p class="kicker">Revealed 2026-05-20 07:40 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-H5T8XKWR-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-H5T8XKWR%22%2C%22bug_class%22%3A%22sql-injection%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-29T20%3A43%3A35%2B00%3A00%22%2C%22description%22%3A%22The%20Ghost%20Content%20API%2C%20which%20is%20publicly%20accessible%20by%20design%2C%20fails%20to%20properly%20sanitize%20the%20slug%20filter%20parameter%20in%20query%20strings.%20An%20unauthenticated%20attacker%20can%20inject%20SQL%20via%20a%20crafted%20%60slug%3A%5B...%5D%60%20filter%20value.%20This%20allows%20reading%20arbitrary%20data%20from%20the%20Ghost%20database%2C%20including%20staff%20API%20keys%20and%20other%20sensitive%20records.%20Because%20the%20Content%20API%20key%20is%20intentionally%20public%2C%20no%20authentication%20barrier%20exists.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22TryGhost/Ghost%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22User-supplied%20input%20in%20the%20Content%20API%20%60filter%60%20query-string%20parameter%20%28specifically%20%60slug%3A%5B...%5D%60%20expressions%29%20is%20incorporated%20into%20a%20SQL%20query%20without%20sufficient%20sanitization%2C%20permitting%20injection%20of%20arbitrary%20SQL%20and%20exfiltration%20of%20any%20row%20in%20the%20database.%22%2C%22title%22%3A%22SQL%20injection%20in%20Content%20API%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-H5T8XKWR&#34;,
+  &#34;bug_class&#34;: &#34;sql-injection&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-29T20:43:35+00:00&#34;,
+  &#34;description&#34;: &#34;The Ghost Content API, which is publicly accessible by design, fails to properly sanitize the slug filter parameter in query strings. An unauthenticated attacker can inject SQL via a crafted `slug:[...]` filter value. This allows reading arbitrary data from the Ghost database, including staff API keys and other sensitive records. Because the Content API key is intentionally public, no authentication barrier exists.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;TryGhost/Ghost&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;User-supplied input in the Content API `filter` query-string parameter (specifically `slug:[...]` expressions) is incorporated into a SQL query without sufficient sanitization, permitting injection of arbitrary SQL and exfiltration of any row in the database.&#34;,
+  &#34;title&#34;: &#34;SQL injection in Content API&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

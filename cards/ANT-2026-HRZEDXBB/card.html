@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-HRZEDXBB · artifexsoftware/ghostpdl</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-HRZEDXBB · artifexsoftware/ghostpdl</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-critical">critical</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-HRZEDXBB: Stack-buffer-overflow in ghostscript</h1>
+<p>In Ghostscript's Sampled Function evaluator (gsfunc0.c), fn_interpolate_linear allocates a stack array <code>uint sdata[max_Sd_n]</code> with max_Sd_n = 64 and passes it to fn_gets_8, which writes <code>n</code> uint values into it. The value of <code>n</code> is taken directly from the PDF Function dictionary's /Range array length and is only checked for n &gt; 0 in fn_check_mnDR, never against max_Sd_n. A crafted PDF supplying a FunctionType 0 with a 200-element /Range (n = 100) causes fn_gets_8 to write 100 uints into the 64-slot stack buffer, corrupting adjacent stack memory. Because Ghostscript routinely processes untrusted PDFs in print servers, thumbnailers, and conversion pipelines, this attacker-controlled stack write is a realistic path toward remote code execution.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> artifexsoftware/ghostpdl<br>
+<strong>Location:</strong> <code>pdf/pdf_func.c:pdfi_build_sub_function (crash in base/gsfunc0.c fn_gets_8)</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: stack-buffer-overflow WRITE of size 4 in fn_gets_8, overflowing the 256-byte (64 × uint) <code>sdata</code> stack object declared in fn_interpolate_linear. Root cause: the output-dimension count <code>n</code> is derived from the user-supplied /Range array and fn_check_mnDR only enforces n &gt; 0, so any n &gt; 64 overruns the fixed stack buffer during sample unpacking.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 2775612483
+INFO: Loaded 3 modules   (241643 inline 8-bit counters): 14221 [0x7603ebac62a0, 0x7603ebac9a2d), 958 [0x7603ebb67778, 0x7603ebb67b36), 226464 [0x5b23e9f2df20, 0x5b23e9f653c0), 
+INFO: Loaded 3 PC tables (241643 PCs): 14221 [0x7603ebac9a30,0x7603ebb01300), 958 [0x7603ebb67b38,0x7603ebb6b718), 226464 [0x5b23e9f653c0,0x5b23ea2d9dc0), 
+/out/gstoraster_pdf_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Validate params.n against max_Sd_n when building/checking the Sampled Function (e.g., in fn_check_mnDR or the FunctionType 0 constructor) and reject functions with n &gt; max_Sd_n, or dynamically allocate sdata based on n.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-HRZEDXBB.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-HRZEDXBB<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-critical">critical</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/pdf/pdf_func.c b/pdf/pdf_func.c</span>
+<span class="diff-h">index 1cf674691d..623cc6cc27 100644</span>
+<span class="diff-h">--- a/pdf/pdf_func.c</span>
+<span class="diff-h">+++ b/pdf/pdf_func.c</span>
+<span class="diff-h">@@ -714,6 +714,10 @@ static int pdfi_build_sub_function(pdf_context *ctx, gs_function_t ** ppfn, cons</span>
+<span class="diff-c">         else</span>
+<span class="diff-c">             params.n = 0;</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+    if (params.n &gt; GS_CLIENT_COLOR_MAX_COMPONENTS) {</span>
+<span class="diff-a">+        code = gs_note_error(gs_error_limitcheck);</span>
+<span class="diff-a">+        goto sub_function_error;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-c">     switch(Type) {</span>
+<span class="diff-c">         case 0:</span>
+<span class="diff-c">             code = pdfi_build_function_0(ctx, &amp;params, (pdf_stream *)stream_obj, 0, ppfn);</span>
+<span class="diff-h">diff --git a/pdf/pdf_gstate.c b/pdf/pdf_gstate.c</span>
+<span class="diff-h">index 238e920423..27c045c365 100644</span>
+<span class="diff-h">--- a/pdf/pdf_gstate.c</span>
+<span class="diff-h">+++ b/pdf/pdf_gstate.c</span>
+<span class="diff-h">@@ -1199,6 +1199,10 @@ static int build_type1_halftone(pdf_context *ctx, pdf_dict *halftone_dict, pdf_d</span>
+<span class="diff-c">             code = pdfi_build_function(ctx, &amp;pfn, (const float *)domain, 2, obj, page_dict);</span>
+<span class="diff-c">             if (code &lt; 0)</span>
+<span class="diff-c">                 goto error;</span>
+<span class="diff-a">+            if (pfn-&gt;params.m != 2 || pfn-&gt;params.n != 1) {</span>
+<span class="diff-a">+                code = gs_note_error(gs_error_rangecheck);</span>
+<span class="diff-a">+                goto error;</span>
+<span class="diff-a">+            }</span>
+<span class="diff-c">             break;</span>
+<span class="diff-c">         case PDF_ARRAY:</span>
+<span class="diff-c">             for (j = 0; j &lt; pdfi_array_size((pdf_array *)obj); j++) {</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/ArtifexSoftware/ghostpdl/commit/d1f809e46a1a8564d15d8b2501314bf22b412e7d" rel="noopener noreferrer">https://github.com/ArtifexSoftware/ghostpdl/commit/d1f809e46a1a8564d15d8b2501314bf22b412e7d</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-07</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-19</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">516b721dac9fd428e9fa99e9bca6317651eb49ba8d50bf8b49d35542a468af494628446a2284a1745b91a48e1bf4eec7523c9a8a0b7c64698ed15e9c2bc1f59f</p>
+<p class="kicker">Committed 2026-05-07 21:16 UTC</p>
+<p class="kicker">Revealed 2026-08-17 23:33 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-HRZEDXBB-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-HRZEDXBB%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T20%3A44%3A08%2B00%3A00%22%2C%22description%22%3Anull%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22ghostscript%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3Anull%2C%22title%22%3A%22Stack-buffer-overflow%20in%20ghostscript%22%2C%22vendor_severity%22%3A%22critical%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-HRZEDXBB&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T20:44:08+00:00&#34;,
+  &#34;description&#34;: null,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;ghostscript&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: null,
+  &#34;title&#34;: &#34;Stack-buffer-overflow in ghostscript&#34;,
+  &#34;vendor_severity&#34;: &#34;critical&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

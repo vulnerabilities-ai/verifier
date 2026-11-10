@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-G1XC2M5V",
+  "hash": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-G1XC2M5V/card.html",
+    "sha256": "af0166840f5debebebea168335728b4660c4ed943bcc9e1cee490fb53fb19854",
+    "fetched_utc": "2026-11-10T21:06:03Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-G1XC2M5V",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+    "printed_hash": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+    "canonical_rebuild_sha3_512": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:06:03Z",
+  "card_facts": {
+    "printed_hash": "b584f2326e4b4e1a939bfc0db8b166df6248669b703a6ceead9278c98a5765501383e7bebb3a43fa26b1ab4f7ea924d5c63791a7b9ab393c882b1f97e3c68d32",
+    "committed_printed": "2026-05-08 16:37 UTC",
+    "revealed_printed": "2026-07-21 05:13 UTC",
+    "timeline": [
+      {
+        "date": "2025-12-18",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-01-19",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-01-19",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-05-08",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-07-21",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2025-12-18",
+      "report_date": "2026-01-19",
+      "patch_released_date": "2026-01-19",
+      "acknowledged_date": "2026-05-08",
+      "reveal_date": "2026-07-21"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "-",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/dloebl/cgif/pull/84"
+      ],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

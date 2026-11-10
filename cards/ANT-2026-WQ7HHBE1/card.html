@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-WQ7HHBE1 · supabase/postgres</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-WQ7HHBE1 · supabase/postgres</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-WQ7HHBE1: Internal admin roles omitted from supautils reserved lists</h1>
+<p>The supautils config template lists roles the customer-facing postgres user is forbidden from touching, but leaves out supabase_functions_admin (owner of the supabase_functions schema) and supabase_privileged_role (the role supautils itself treats as privileged). On PostgreSQL 15 and earlier, CREATEROLE lets postgres ALTER/DROP any non-superuser role and GRANT it to anyone, so a customer can drop or password-hijack supabase_functions_admin or hand supabase_privileged_role to arbitrary app roles like authenticated. This enables self-DoS of platform webhooks, impersonation of the functions admin, and propagation of privileged-extension/privileged-GUC powers to end users. On PG16+ the new CREATEROLE-admin restriction largely mitigates it, and impact is confined to the customer's own project.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/postgres<br>
+<strong>Location:</strong> <code>ansible/files/postgresql_config/supautils.conf.j2:14</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The reserved_roles (line 15) and reserved_memberships (line 14) allow-lists are incomplete: supabase_functions_admin and supabase_privileged_role are platform-internal but not reserved, so supautils does not block ALTER/DROP/GRANT on them. Because the customer postgres role has CREATEROLE, on PG ≤15 it can freely manipulate any non-superuser role that supautils fails to reserve.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Connect to the project database as the customer postgres role (has CREATEROLE).</li>
+<li>Run ALTER ROLE supabase_functions_admin WITH PASSWORD '...' or DROP ROLE supabase_functions_admin.</li>
+<li>Optionally authenticate as supabase_functions_admin to use its net/http grants.</li>
+<li>Run GRANT supabase_privileged_role TO authenticated (or any app role) to propagate privileged powers.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Add supabase_functions_admin and supabase_privileged_role to both supautils.reserved_roles and supautils.reserved_memberships so customers cannot alter, drop, or grant membership in any platform-internal role.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-WQ7HHBE1.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-WQ7HHBE1<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/ansible/files/postgresql_config/supautils.conf.j2 b/ansible/files/postgresql_config/supautils.conf.j2</span>
+<span class="diff-h">index 984090544f..bbfd61ceab 100644</span>
+<span class="diff-h">--- a/ansible/files/postgresql_config/supautils.conf.j2</span>
+<span class="diff-h">+++ b/ansible/files/postgresql_config/supautils.conf.j2</span>
+<span class="diff-h">@@ -12,5 +12,5 @@ supautils.privileged_extensions_superuser = &#x27;supabase_admin&#x27;</span>
+<span class="diff-c"> supautils.privileged_role = &#x27;supabase_privileged_role&#x27;</span>
+<span class="diff-c"> supautils.privileged_role_allowed_configs = &#x27;auto_explain.*, deadlock_timeout, log_lock_waits, log_min_duration_statement, log_min_messages, log_parameter_max_length, log_replication_commands, log_statement, log_temp_files, pg_net.batch_size, pg_net.ttl, pg_stat_statements.*, pgaudit.log, pgaudit.log_catalog, pgaudit.log_client, pgaudit.log_level, pgaudit.log_relation, pgaudit.log_rows, pgaudit.log_statement, pgaudit.log_statement_once, pgaudit.role, pgrst.*, plan_filter.*, safeupdate.enabled, session_replication_role, track_functions, track_io_timing, wal_compression&#x27;</span>
+<span class="diff-c"> supautils.reserved_memberships = &#x27;pg_read_server_files, pg_write_server_files, pg_execute_server_program, supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, authenticator&#x27;</span>
+<span class="diff-d">-supautils.reserved_roles = &#x27;supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, service_role*, authenticator*, authenticated*, anon*&#x27;</span>
+<span class="diff-a">+supautils.reserved_roles = &#x27;supabase_admin, supabase_auth_admin, supabase_storage_admin, supabase_read_only_user, supabase_realtime_admin, supabase_replication_admin, supabase_etl_admin, dashboard_user, pgbouncer, service_role*, authenticator*, authenticated*, anon*, supabase_privileged_role&#x27;</span>
+<span class="diff-c"> supautils.hint_roles = &#x27;anon, authenticated, service_role&#x27;</span>
+<span class="diff-h">diff --git a/nix/tests/expected/supautils_reserved_roles.out b/nix/tests/expected/supautils_reserved_roles.out</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..0efb85f748</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/nix/tests/expected/supautils_reserved_roles.out</span>
+<span class="diff-h">@@ -0,0 +1,17 @@</span>
+<span class="diff-a">+-- verify non-superuser postgres role cannot drop supabase_privileged_role</span>
+<span class="diff-a">+BEGIN;</span>
+<span class="diff-a">+-- Switch to the postgres role (non-superuser) to test supautils behavior</span>
+<span class="diff-a">+SET ROLE postgres;</span>
+<span class="diff-a">+-- SAVEPOINT is needed to recover from the expected error and continue the transaction</span>
+<span class="diff-a">+SAVEPOINT before_drop;</span>
+<span class="diff-a">+DROP ROLE supabase_privileged_role;</span>
+<span class="diff-a">+ERROR:  &quot;supabase_privileged_role&quot; is a reserved role, only superusers can modify it</span>
+<span class="diff-a">+ROLLBACK TO SAVEPOINT before_drop;</span>
+<span class="diff-a">+RESET ROLE;</span>
+<span class="diff-a">+SELECT rolname FROM pg_roles WHERE rolname = &#x27;supabase_privileged_role&#x27;;</span>
+<span class="diff-a">+         rolname          </span>
+<span class="diff-a">+--------------------------</span>
+<span class="diff-a">+ supabase_privileged_role</span>
+<span class="diff-a">+(1 row)</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+ROLLBACK;</span>
+<span class="diff-h">diff --git a/nix/tests/sql/supautils_reserved_roles.sql b/nix/tests/sql/supautils_reserved_roles.sql</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000..710fc82c71</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/nix/tests/sql/supautils_reserved_roles.sql</span>
+<span class="diff-h">@@ -0,0 +1,16 @@</span>
+<span class="diff-a">+-- verify non-superuser postgres role cannot drop supabase_privileged_role</span>
+<span class="diff-a">+BEGIN;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+-- Switch to the postgres role (non-superuser) to test supautils behavior</span>
+<span class="diff-a">+SET ROLE postgres;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+-- SAVEPOINT is needed to recover from the expected error and continue the transaction</span>
+<span class="diff-a">+SAVEPOINT before_drop;</span>
+<span class="diff-a">+DROP ROLE supabase_privileged_role;</span>
+<span class="diff-a">+ROLLBACK TO SAVEPOINT before_drop;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+RESET ROLE;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+SELECT rolname FROM pg_roles WHERE rolname = &#x27;supabase_privileged_role&#x27;;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+ROLLBACK;</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/postgres/commit/52ac42ed2c5daa60425604d6bd17cf732575e916" rel="noopener noreferrer">https://github.com/supabase/postgres/commit/52ac42ed2c5daa60425604d6bd17cf732575e916</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-13</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">e047a349b01e4db4382e7004ba1ba6f36db8f1d2c252001eb1f13379db23d1ac587e1ebb98ec4d3195ea1e9de0150a264c0db3bfe9091b90083b3b9989fcdce4</p>
+<p class="kicker">Committed 2026-05-18 00:56 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-WQ7HHBE1-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-WQ7HHBE1%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A03%3A26%2B00%3A00%22%2C%22description%22%3A%22The%20supautils%20config%20template%20lists%20roles%20the%20customer-facing%20postgres%20user%20is%20forbidden%20from%20touching%2C%20but%20leaves%20out%20supabase_functions_admin%20%28owner%20of%20the%20supabase_functions%20schema%29%20and%20supabase_privileged_role%20%28the%20role%20supautils%20itself%20treats%20as%20privileged%29.%20On%20PostgreSQL%2015%20and%20earlier%2C%20CREATEROLE%20lets%20postgres%20ALTER/DROP%20any%20non-superuser%20role%20and%20GRANT%20it%20to%20anyone%2C%20so%20a%20customer%20can%20drop%20or%20password-hijack%20supabase_functions_admin%20or%20hand%20supabase_privileged_role%20to%20arbitrary%20app%20roles%20like%20authenticated.%20This%20enables%20self-DoS%20of%20platform%20webhooks%2C%20impersonation%20of%20the%20functions%20admin%2C%20and%20propagation%20of%20privileged-extension/privileged-GUC%20powers%20to%20end%20users.%20On%20PG16%2B%20the%20new%20CREATEROLE-admin%20restriction%20largely%20mitigates%20it%2C%20and%20impact%20is%20confined%20to%20the%20customer%27s%20own%20project.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22ansible/files/postgresql_config/supautils.conf.j2%3A14%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/postgres%22%2C%22reproduction%22%3A%5B%221.%20Connect%20to%20the%20project%20database%20as%20the%20customer%20postgres%20role%20%28has%20CREATEROLE%29.%22%2C%222.%20Run%20ALTER%20ROLE%20supabase_functions_admin%20WITH%20PASSWORD%20%27...%27%20or%20DROP%20ROLE%20supabase_functions_admin.%22%2C%223.%20Optionally%20authenticate%20as%20supabase_functions_admin%20to%20use%20its%20net/http%20grants.%22%2C%224.%20Run%20GRANT%20supabase_privileged_role%20TO%20authenticated%20%28or%20any%20app%20role%29%20to%20propagate%20privileged%20powers.%22%5D%2C%22technical_details%22%3A%22The%20reserved_roles%20%28line%2015%29%20and%20reserved_memberships%20%28line%2014%29%20allow-lists%20are%20incomplete%3A%20supabase_functions_admin%20and%20supabase_privileged_role%20are%20platform-internal%20but%20not%20reserved%2C%20so%20supautils%20does%20not%20block%20ALTER/DROP/GRANT%20on%20them.%20Because%20the%20customer%20postgres%20role%20has%20CREATEROLE%2C%20on%20PG%20%E2%89%A415%20it%20can%20freely%20manipulate%20any%20non-superuser%20role%20that%20supautils%20fails%20to%20reserve.%22%2C%22title%22%3A%22Internal%20admin%20roles%20omitted%20from%20supautils%20reserved%20lists%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-WQ7HHBE1&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:03:26+00:00&#34;,
+  &#34;description&#34;: &#34;The supautils config template lists roles the customer-facing postgres user is forbidden from touching, but leaves out supabase_functions_admin (owner of the supabase_functions schema) and supabase_privileged_role (the role supautils itself treats as privileged). On PostgreSQL 15 and earlier, CREATEROLE lets postgres ALTER/DROP any non-superuser role and GRANT it to anyone, so a customer can drop or password-hijack supabase_functions_admin or hand supabase_privileged_role to arbitrary app roles like authenticated. This enables self-DoS of platform webhooks, impersonation of the functions admin, and propagation of privileged-extension/privileged-GUC powers to end users. On PG16+ the new CREATEROLE-admin restriction largely mitigates it, and impact is confined to the customer&#39;s own project.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;ansible/files/postgresql_config/supautils.conf.j2:14&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/postgres&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Connect to the project database as the customer postgres role (has CREATEROLE).&#34;,
+    &#34;2. Run ALTER ROLE supabase_functions_admin WITH PASSWORD &#39;...&#39; or DROP ROLE supabase_functions_admin.&#34;,
+    &#34;3. Optionally authenticate as supabase_functions_admin to use its net/http grants.&#34;,
+    &#34;4. Run GRANT supabase_privileged_role TO authenticated (or any app role) to propagate privileged powers.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The reserved_roles (line 15) and reserved_memberships (line 14) allow-lists are incomplete: supabase_functions_admin and supabase_privileged_role are platform-internal but not reserved, so supautils does not block ALTER/DROP/GRANT on them. Because the customer postgres role has CREATEROLE, on PG ≤15 it can freely manipulate any non-superuser role that supautils fails to reserve.&#34;,
+  &#34;title&#34;: &#34;Internal admin roles omitted from supautils reserved lists&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

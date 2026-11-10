@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-F8AZ7X04 · wireshark/wireshark</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-F8AZ7X04 · wireshark/wireshark</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-F8AZ7X04: global-buffer-overflow in wireshark</h1>
+<p>In Wireshark's MACsec dissector (epan/dissectors/packet-macsec.c), dissect_macsec() calls tvb_memcpy() at line 640 to copy packet bytes into the static global buffer 'aad' (declared at packet-macsec.c:106, size 1514). A crafted Ethernet frame with EtherType 0x88E5 inside a pcapng file causes a 1501-byte memcpy that lands past the right edge of 'aad', corrupting adjacent global memory. The attacker controls the frame length and contents, so both the overflow size and the bytes written are attacker-influenced. This yields an out-of-bounds write into the .bss/.data segment whenever the malicious capture is opened in tshark or Wireshark.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> wireshark/wireshark<br>
+<strong>Commit:</strong> <code>7ad7e74628e14444</code><br>
+<strong>Location:</strong> <code>tvbuff.c:1054</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: "WRITE of size 1501 at 0x7fd93f3b094a ... 0 bytes to the right of global variable 'aad' ... of size 1514". The dissector uses a fixed 1514-byte global as the AAD staging buffer but derives the copy length/offset from the incoming tvb without clamping to sizeof(aad), so an oversized or specially-shaped MACsec frame drives tvb_memcpy() to write beyond the buffer's end.</p>
+<p><strong>Crash trace (truncated — full trace in attached crash.log):</strong></p>
+<pre tabindex="0"><code>==10340==ERROR: AddressSanitizer: global-buffer-overflow on address 0x7fd93f3b094a at pc 0x560a96763f8a bp 0x7ffd5708ac00 sp 0x7ffd5708a3d0
+WRITE of size 1501 at 0x7fd93f3b094a thread T0
+    #0 0x560a96763f89 in __asan_memcpy (/workspace/repo/build/run/tshark+0x10ef89)
+    #1 0x7fd92fd41666 in tvb_memcpy /workspace/repo/epan/tvbuff.c:1054:10
+    #2 0x7fd92dde3a58 in dissect_macsec /workspace/repo/epan/dissectors/packet-macsec.c:640:17
+    #3 0x7fd92fc43dd2 in call_dissector_through_handle /workspace/repo/epan/packet.c:945:9
+    #4 0x7fd92fc34bdd in call_dissector_work /workspace/repo/epan/packet.c:1036:9
+    #5 0x7fd92fc353be in dissector_try_uint_with_data /workspace/repo/epan/packet.c:1766:8
+    #6 0x7fd92fc353be in dissector_try_uint /workspace/repo/epan/packet.c:1790:9
+    #7 0x7fd92d734d28 in dissect_ethertype /workspace/repo/epan/dissectors/packet-ethertype.c:300:21
+    [... 20 more frames — full trace in crash.log]
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a pcapng containing an Ethernet frame with EtherType 0x88E5 (MACsec) whose length/header fields force the AAD copy offset+length to exceed 1514 bytes</li>
+<li>Deliver the file to the victim (email, download, shared drive) or transmit the frame on a monitored network</li>
+<li>Victim runs <code>tshark -r poc.pcapng</code> or opens it in Wireshark</li>
+<li>dissect_macsec() invokes tvb_memcpy() into the global 'aad' buffer and writes past its end</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-F8AZ7X04.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-F8AZ7X04<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/epan/dissectors/packet-macsec.c b/epan/dissectors/packet-macsec.c</span>
+<span class="diff-h">index b3732d61626..262067f1b64 100644</span>
+<span class="diff-h">--- a/epan/dissectors/packet-macsec.c</span>
+<span class="diff-h">+++ b/epan/dissectors/packet-macsec.c</span>
+<span class="diff-h">@@ -781,7 +781,7 @@ dissect_macsec(tvbuff_t *tvb, packet_info *pinfo, proto_tree *tree, void *data _</span>
+<span class="diff-c">                 We have to build the AAD since the incoming TVB payload does not have the Ethernet header. */</span>
+<span class="diff-c">             payload_len = frame_len - ETHHDR_LEN;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-            if (payload_len &lt;= MAX_PAYLOAD_LEN) {</span>
+<span class="diff-a">+            if (frame_len &lt;= MAX_PAYLOAD_LEN) {</span>
+<span class="diff-c">                 /* Copy the frame data up to the ICV. */</span>
+<span class="diff-c">                 tvb_memcpy(tvb, &amp;aad[ETHHDR_LEN], 0, payload_len);</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/wireshark/wireshark/commit/4a597d797cef5b1e256056f6e0feb15fcf3a56e0" rel="noopener noreferrer">https://github.com/wireshark/wireshark/commit/4a597d797cef5b1e256056f6e0feb15fcf3a56e0</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-27</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-01</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-01</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-01</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">687c5edfcc577128a9fbe48a062dd91d6fa55437c9cea02c93e4769a591d8f04e9977438e04e64587aad735b76977219f152374c797fb8feaa89e08d74e16655</p>
+<p class="kicker">Committed 2026-05-01 07:02 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:04 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-F8AZ7X04-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-F8AZ7X04%22%2C%22bug_class%22%3A%22global-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3A%227ad7e74628e14444%22%2C%22created_at%22%3A%222026-03-27T02%3A13%3A06%2B00%3A00%22%2C%22description%22%3A%22In%20Wireshark%27s%20MACsec%20dissector%20%28epan/dissectors/packet-macsec.c%29%2C%20dissect_macsec%28%29%20calls%20tvb_memcpy%28%29%20at%20line%20640%20to%20copy%20packet%20bytes%20into%20the%20static%20global%20buffer%20%27aad%27%20%28declared%20at%20packet-macsec.c%3A106%2C%20size%201514%29.%20A%20crafted%20Ethernet%20frame%20with%20EtherType%200x88E5%20inside%20a%20pcapng%20file%20causes%20a%201501-byte%20memcpy%20that%20lands%20past%20the%20right%20edge%20of%20%27aad%27%2C%20corrupting%20adjacent%20global%20memory.%20The%20attacker%20controls%20the%20frame%20length%20and%20contents%2C%20so%20both%20the%20overflow%20size%20and%20the%20bytes%20written%20are%20attacker-influenced.%20This%20yields%20an%20out-of-bounds%20write%20into%20the%20.bss/.data%20segment%20whenever%20the%20malicious%20capture%20is%20opened%20in%20tshark%20or%20Wireshark.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22tvbuff.c%3A1054%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22wireshark%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20pcapng%20containing%20an%20Ethernet%20frame%20with%20EtherType%200x88E5%20%28MACsec%29%20whose%20length/header%20fields%20force%20the%20AAD%20copy%20offset%2Blength%20to%20exceed%201514%20bytes%22%2C%222.%20Deliver%20the%20file%20to%20the%20victim%20%28email%2C%20download%2C%20shared%20drive%29%20or%20transmit%20the%20frame%20on%20a%20monitored%20network%22%2C%223.%20Victim%20runs%20%60tshark%20-r%20poc.pcapng%60%20or%20opens%20it%20in%20Wireshark%22%2C%224.%20dissect_macsec%28%29%20invokes%20tvb_memcpy%28%29%20into%20the%20global%20%27aad%27%20buffer%20and%20writes%20past%20its%20end%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20%5C%22WRITE%20of%20size%201501%20at%200x7fd93f3b094a%20...%200%20bytes%20to%20the%20right%20of%20global%20variable%20%27aad%27%20...%20of%20size%201514%5C%22.%20The%20dissector%20uses%20a%20fixed%201514-byte%20global%20as%20the%20AAD%20staging%20buffer%20but%20derives%20the%20copy%20length/offset%20from%20the%20incoming%20tvb%20without%20clamping%20to%20sizeof%28aad%29%2C%20so%20an%20oversized%20or%20specially-shaped%20MACsec%20frame%20drives%20tvb_memcpy%28%29%20to%20write%20beyond%20the%20buffer%27s%20end.%22%2C%22title%22%3A%22global-buffer-overflow%20in%20wireshark%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-F8AZ7X04&#34;,
+  &#34;bug_class&#34;: &#34;global-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: &#34;7ad7e74628e14444&#34;,
+  &#34;created_at&#34;: &#34;2026-03-27T02:13:06+00:00&#34;,
+  &#34;description&#34;: &#34;In Wireshark&#39;s MACsec dissector (epan/dissectors/packet-macsec.c), dissect_macsec() calls tvb_memcpy() at line 640 to copy packet bytes into the static global buffer &#39;aad&#39; (declared at packet-macsec.c:106, size 1514). A crafted Ethernet frame with EtherType 0x88E5 inside a pcapng file causes a 1501-byte memcpy that lands past the right edge of &#39;aad&#39;, corrupting adjacent global memory. The attacker controls the frame length and contents, so both the overflow size and the bytes written are attacker-influenced. This yields an out-of-bounds write into the .bss/.data segment whenever the malicious capture is opened in tshark or Wireshark.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;tvbuff.c:1054&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;wireshark&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a pcapng containing an Ethernet frame with EtherType 0x88E5 (MACsec) whose length/header fields force the AAD copy offset+length to exceed 1514 bytes&#34;,
+    &#34;2. Deliver the file to the victim (email, download, shared drive) or transmit the frame on a monitored network&#34;,
+    &#34;3. Victim runs `tshark -r poc.pcapng` or opens it in Wireshark&#34;,
+    &#34;4. dissect_macsec() invokes tvb_memcpy() into the global &#39;aad&#39; buffer and writes past its end&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: \&#34;WRITE of size 1501 at 0x7fd93f3b094a ... 0 bytes to the right of global variable &#39;aad&#39; ... of size 1514\&#34;. The dissector uses a fixed 1514-byte global as the AAD staging buffer but derives the copy length/offset from the incoming tvb without clamping to sizeof(aad), so an oversized or specially-shaped MACsec frame drives tvb_memcpy() to write beyond the buffer&#39;s end.&#34;,
+  &#34;title&#34;: &#34;global-buffer-overflow in wireshark&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

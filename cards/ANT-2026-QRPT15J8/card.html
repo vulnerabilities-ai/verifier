@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-QRPT15J8 · duckdb</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-QRPT15J8 · duckdb</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Trail of Bits.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-QRPT15J8: Stack-buffer-overflow in sanitizer_common_interceptors.inc:827</h1>
+<p>DuckDB's parquet extension decodes dictionary-encoded columns using a fixed 128-byte stack buffer (<code>aligned_data</code>) in <code>RleBpDecoder::GetBatch&lt;unsigned int&gt;</code>. A malformed Parquet file can specify a bit width that causes <code>BitUnpackAlignedInternal</code> to <code>memcpy</code> more unpacked data than this buffer can hold, writing 252 bytes past its end. An attacker who can supply a Parquet file for DuckDB to read controls the overflowing data, yielding stack memory corruption and potential control-flow hijack.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> duckdb<br>
+<strong>Location:</strong> <code>sanitizer_common_interceptors.inc:827</code>  </p>
+<h2>Technical Details</h2>
+<p>ASAN: stack-buffer-overflow, WRITE of size 252. The <code>memcpy</code> in <code>BitUnpackAlignedInternal</code> (decode_utils.hpp:105) writes past the 128-byte stack array <code>aligned_data</code> (frame offset [160, 288)) because the unpacked output size — derived from an attacker-controlled bit width in the Parquet file — is not validated against the fixed buffer size.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>The PoC is a 375-byte crafted Parquet file that triggers a deterministic stack-buffer-overflow in DuckDB's parquet extension. 
+
+All 3 reproduction runs in a fresh Docker container produced identical results:
+- Error: AddressSanitizer: stack-buffer-overflow (WRITE of size 252)
+- Exit code: 134 (SIGABRT from ASAN)
+- Root cause: In `RleBpDecoder::GetBatch&lt;unsigned int&gt;` (parquet_rle_bp_decoder.hpp:57), a `memcpy` in `BitUnpackAlignedInternal` (decode_utils.hpp:105) writes 252 bytes past the end of the stack-allocated `aligned_data` buffer (128 bytes at offset [160, 288)). The overflow occurs during dictionary-encoded column decoding when the bit width from the malformed Parquet file causes more data to be unpacked than the fixed-size buffer can hold.
+- The crash is entirely in DuckDB project code (parquet extension), deterministic (3/3), not OOM or timeout, and represents a genuine memory safety vulnerability.
+</code></pre>
+<h2>Reproduction</h2>
+<ol>
+<li>Craft a Parquet file with a dictionary-encoded column whose bit width forces oversized unpacking</li>
+<li>Deliver the file to a DuckDB-based application (e.g., read_parquet / COPY FROM)</li>
+<li>During RLE/bit-packed decoding, <code>BitUnpackAlignedInternal</code> memcpy overflows the 128-byte <code>aligned_data</code> stack buffer by 252 bytes</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-QRPT15J8.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-QRPT15J8<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Trail of Bits.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-29</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-29</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-17</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">594f0acb52de146e309c8d00e35a7d44242995d1b10dad1dd6295d7227f6773d7ac5cd12137562aac5a8bcd9c8a8b20e4cb531acf33f77a4ea416a3376b46ac6</p>
+<p class="kicker">Committed 2026-04-29 07:04 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-QRPT15J8-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-QRPT15J8%22%2C%22bug_class%22%3A%22Stack-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A31%3A39%2B00%3A00%22%2C%22description%22%3A%22DuckDB%27s%20parquet%20extension%20decodes%20dictionary-encoded%20columns%20using%20a%20fixed%20128-byte%20stack%20buffer%20%28%60aligned_data%60%29%20in%20%60RleBpDecoder%3A%3AGetBatch%3Cunsigned%20int%3E%60.%20A%20malformed%20Parquet%20file%20can%20specify%20a%20bit%20width%20that%20causes%20%60BitUnpackAlignedInternal%60%20to%20%60memcpy%60%20more%20unpacked%20data%20than%20this%20buffer%20can%20hold%2C%20writing%20252%20bytes%20past%20its%20end.%20An%20attacker%20who%20can%20supply%20a%20Parquet%20file%20for%20DuckDB%20to%20read%20controls%20the%20overflowing%20data%2C%20yielding%20stack%20memory%20corruption%20and%20potential%20control-flow%20hijack.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22sanitizer_common_interceptors.inc%3A827%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22duckdb%22%2C%22reproduction%22%3A%5B%221.%20Craft%20a%20Parquet%20file%20with%20a%20dictionary-encoded%20column%20whose%20bit%20width%20forces%20oversized%20unpacking%22%2C%222.%20Deliver%20the%20file%20to%20a%20DuckDB-based%20application%20%28e.g.%2C%20read_parquet%20/%20COPY%20FROM%29%22%2C%223.%20During%20RLE/bit-packed%20decoding%2C%20%60BitUnpackAlignedInternal%60%20memcpy%20overflows%20the%20128-byte%20%60aligned_data%60%20stack%20buffer%20by%20252%20bytes%22%5D%2C%22technical_details%22%3A%22ASAN%3A%20stack-buffer-overflow%2C%20WRITE%20of%20size%20252.%20The%20%60memcpy%60%20in%20%60BitUnpackAlignedInternal%60%20%28decode_utils.hpp%3A105%29%20writes%20past%20the%20128-byte%20stack%20array%20%60aligned_data%60%20%28frame%20offset%20%5B160%2C%20288%29%29%20because%20the%20unpacked%20output%20size%20%E2%80%94%20derived%20from%20an%20attacker-controlled%20bit%20width%20in%20the%20Parquet%20file%20%E2%80%94%20is%20not%20validated%20against%20the%20fixed%20buffer%20size.%22%2C%22title%22%3A%22Stack-buffer-overflow%20in%20sanitizer_common_interceptors.inc%3A827%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-QRPT15J8&#34;,
+  &#34;bug_class&#34;: &#34;Stack-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:31:39+00:00&#34;,
+  &#34;description&#34;: &#34;DuckDB&#39;s parquet extension decodes dictionary-encoded columns using a fixed 128-byte stack buffer (`aligned_data`) in `RleBpDecoder::GetBatch&lt;unsigned int&gt;`. A malformed Parquet file can specify a bit width that causes `BitUnpackAlignedInternal` to `memcpy` more unpacked data than this buffer can hold, writing 252 bytes past its end. An attacker who can supply a Parquet file for DuckDB to read controls the overflowing data, yielding stack memory corruption and potential control-flow hijack.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;sanitizer_common_interceptors.inc:827&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;duckdb&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Craft a Parquet file with a dictionary-encoded column whose bit width forces oversized unpacking&#34;,
+    &#34;2. Deliver the file to a DuckDB-based application (e.g., read_parquet / COPY FROM)&#34;,
+    &#34;3. During RLE/bit-packed decoding, `BitUnpackAlignedInternal` memcpy overflows the 128-byte `aligned_data` stack buffer by 252 bytes&#34;
+  ],
+  &#34;technical_details&#34;: &#34;ASAN: stack-buffer-overflow, WRITE of size 252. The `memcpy` in `BitUnpackAlignedInternal` (decode_utils.hpp:105) writes past the 128-byte stack array `aligned_data` (frame offset [160, 288)) because the unpacked output size — derived from an attacker-controlled bit width in the Parquet file — is not validated against the fixed buffer size.&#34;,
+  &#34;title&#34;: &#34;Stack-buffer-overflow in sanitizer_common_interceptors.inc:827&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

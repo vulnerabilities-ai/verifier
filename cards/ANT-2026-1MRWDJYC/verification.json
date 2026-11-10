@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-1MRWDJYC",
+  "hash": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+  "ledger_source": "captures/2026/11/08/ledger.json",
+  "card": {
+    "stored_at": "cards/ANT-2026-1MRWDJYC/card.html",
+    "sha256": "b5389bb26eaf1a6327e9f1c096c4e5c0b451b7fb2d4b379c9d17e10380b3f7f9",
+    "fetched_utc": "2026-11-10T21:04:32Z",
+    "url": "https://red.anthropic.com/2026/cvd/findings/ANT-2026-1MRWDJYC",
+    "source": "fetched"
+  },
+  "r2": {
+    "rule": "R2",
+    "algorithm": "SHA-3-512",
+    "ledger_hash": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+    "printed_hash": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+    "extraction_method": "download_link_data_address",
+    "printed_hash_equals_ledger_hash": true,
+    "preimage_sha3_512": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+    "canonical_rebuild_sha3_512": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+    "raw_bytes_match": true,
+    "canonical_rebuild_match": true,
+    "outcome": "match"
+  },
+  "hash_checked_at": "2026-11-10T21:04:32Z",
+  "card_facts": {
+    "printed_hash": "65cd97731d71689405fcde298bed051c878e3edeb67f73c88b45b34eb1fe84e35b4af485059b90a6110cca7579d271bb1d4ba2a019a98e37e9815ebb82752b2e",
+    "committed_printed": "2026-04-09 18:50 UTC",
+    "revealed_printed": "2026-08-17 20:03 UTC",
+    "timeline": [
+      {
+        "date": "2026-03-29",
+        "label": "Discovered or logged"
+      },
+      {
+        "date": "2026-04-09",
+        "label": "Sent to maintainer"
+      },
+      {
+        "date": "2026-05-04",
+        "label": "Patch released"
+      },
+      {
+        "date": "2026-05-09",
+        "label": "Maintainer acknowledged"
+      },
+      {
+        "date": "2026-08-17",
+        "label": "Publicly revealed"
+      }
+    ],
+    "dates": {
+      "discovered_or_logged_date": "2026-03-29",
+      "report_date": "2026-04-09",
+      "patch_released_date": "2026-05-04",
+      "acknowledged_date": "2026-05-09",
+      "reveal_date": "2026-08-17"
+    },
+    "severities": {
+      "model": "high",
+      "firm": "high",
+      "maintainer": "-"
+    },
+    "links": {
+      "fix": [],
+      "advisory": [
+        "https://github.com/ermig1979/Simd/releases/tag/v7.1.161"
+      ],
+      "nvd": [],
+      "ghsa": []
+    },
+    "missing_parts": []
+  },
+  "notes": [],
+  "phase3_not_checked_yet": {
+    "ids_exist": "not_checked",
+    "fix_merged": "not_checked",
+    "intervals": "not_checked",
+    "severity_github": "not_checked",
+    "severity_nvd": "not_checked"
+  }
+}

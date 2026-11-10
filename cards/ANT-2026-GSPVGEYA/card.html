@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-GSPVGEYA · gpg/libgcrypt</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-GSPVGEYA · gpg/libgcrypt</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-41990">CVE-2026-41990</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-78pv-qq8x-94px">GHSA-78pv-qq8x-94px</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-medium">medium</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-GSPVGEYA: ML-DSA context string stack buffer overflow</h1>
+<p>In cipher/dilithium.c, dilithium_sign() and dilithium_verify() declare <code>uint8_t pre[257]</code> and loop-copy <code>ctxlen</code> bytes of the caller's context into it with no bound check. The reference implementation's <code>if(ctxlen&gt;255) return -1;</code> guard in dilithium-dep.c is wrapped in <code>#ifndef DILITHIUM_INTERNAL_API_ONLY</code>, but libgcrypt defines that macro at dilithium.c:85, so the check is compiled out. The context arrives from the public gcry_pk_sign/gcry_pk_verify API via the <code>(label ...)</code> S-expression token, which pubkey-util.c stores into ctx.label/ctx.labellen with no length cap and pubkey-dilithium.c passes straight through. An attacker who can influence the label to exceed 255 bytes overwrites the stack past <code>pre[]</code>, smashing saved registers/return address and likely achieving code execution during signature verification.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> gpg/libgcrypt<br>
+<strong>Location:</strong> <code>cipher/dilithium.c:189</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>dilithium.c:189 declares <code>uint8_t pre[257]</code> and lines 199-200 execute <code>for(i=0;i&lt;ctxlen;i++) pre[2+i]=ctx[i];</code> with <code>ctxlen</code> as an unchecked size_t. The upstream 255-byte guard at dilithium-dep.c:1061/1235 is excluded by <code>#define DILITHIUM_INTERNAL_API_ONLY</code> (dilithium.c:85), and no replacement cap exists anywhere in the active gcry_pk_verify → mldsa_verify → dilithium_verify path, so any label &gt;255 bytes writes past the end of the stack array.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker supplies an ML-DSA signed object or handshake message whose domain-separation context/label is longer than 255 bytes.</li>
+<li>Application builds the data S-expression including <code>(label #...&gt;255 bytes...#)</code> and calls gcry_pk_verify().</li>
+<li>_gcry_pk_util_data_to_mpi reads the label via sexp_nth_buffer with no length cap (pubkey-util.c:760-777).</li>
+<li>mldsa_verify passes ctx-&gt;label / ctx-&gt;labellen directly to dilithium_verify (pubkey-dilithium.c:356-357).</li>
+<li>dilithium_verify loop-copies ctxlen bytes into the 257-byte stack array <code>pre[]</code>, overflowing it and overwriting saved registers / return address.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Enforce the FIPS-204 / reference-implementation limit that the ML-DSA context string is at most 255 bytes before copying into the fixed <code>pre[]</code> prefix buffer, regardless of which internal API variant is compiled (e.g., re-add <code>if(ctxlen&gt;255) return -1;</code> in dilithium_sign/dilithium_verify or cap labellen in pubkey-util.c / mldsa_sign/mldsa_verify).</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-GSPVGEYA.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-GSPVGEYA<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/cipher/dilithium.c b/cipher/dilithium.c</span>
+<span class="diff-h">index 955feb2ae..212c4afe5 100644</span>
+<span class="diff-h">--- a/cipher/dilithium.c</span>
+<span class="diff-h">+++ b/cipher/dilithium.c</span>
+<span class="diff-h">@@ -82,6 +82,7 @@</span>
+<span class="diff-c"> #include &quot;gcrypt-int.h&quot;</span>
+<span class="diff-c"> #include &quot;const-time.h&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+/* With glue code, we only use the &quot;_internal&quot; API of Dilithium.  */</span>
+<span class="diff-c"> #define DILITHIUM_INTERNAL_API_ONLY 1</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #include &quot;dilithium.h&quot;</span>
+<span class="diff-h">@@ -120,23 +121,33 @@ static int crypto_sign_verify_internal_5 (const uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">                                           const uint8_t *pre, size_t prelen,</span>
+<span class="diff-c">                                           const uint8_t *pk);</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-int</span>
+<span class="diff-a">+gpg_err_code_t</span>
+<span class="diff-c"> dilithium_keypair (int algo, uint8_t *pk, uint8_t *sk,</span>
+<span class="diff-c">                    const uint8_t seed[SEEDBYTES])</span>
+<span class="diff-c"> {</span>
+<span class="diff-a">+  int r;</span>
+<span class="diff-a">+</span>
+<span class="diff-c">   switch (algo)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">     case GCRY_MLDSA44:</span>
+<span class="diff-d">-      return crypto_sign_keypair_internal_2 (pk, sk, seed);</span>
+<span class="diff-a">+      r = crypto_sign_keypair_internal_2 (pk, sk, seed);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA65:</span>
+<span class="diff-c">     default:</span>
+<span class="diff-d">-      return crypto_sign_keypair_internal_3 (pk, sk, seed);</span>
+<span class="diff-a">+      r = crypto_sign_keypair_internal_3 (pk, sk, seed);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA87:</span>
+<span class="diff-d">-      return crypto_sign_keypair_internal_5 (pk, sk, seed);</span>
+<span class="diff-a">+      r = crypto_sign_keypair_internal_5 (pk, sk, seed);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  if (r &lt; 0)</span>
+<span class="diff-a">+    return GPG_ERR_INTERNAL;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  return 0;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-int</span>
+<span class="diff-a">+gpg_err_code_t</span>
+<span class="diff-c"> dilithium_sign (int algo, uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">                 const uint8_t *m, size_t mlen,</span>
+<span class="diff-c">                 const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-h">@@ -145,9 +156,17 @@ dilithium_sign (int algo, uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">   size_t i;</span>
+<span class="diff-c">   uint8_t pre[257];</span>
+<span class="diff-c">   size_t prelen;</span>
+<span class="diff-a">+  int r;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  if (ctx == NULL &amp;&amp; ctxlen == -1)</span>
+<span class="diff-d">-    prelen = 0;</span>
+<span class="diff-a">+  if (ctx == NULL)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+      if (ctxlen == -1)</span>
+<span class="diff-a">+        prelen = 0;</span>
+<span class="diff-a">+      else</span>
+<span class="diff-a">+        return GPG_ERR_INV_DATA;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+  else if (ctxlen &gt; 255)</span>
+<span class="diff-a">+    return GPG_ERR_INV_DATA;</span>
+<span class="diff-c">   else</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">       /* Prepare pre = (0, ctxlen, ctx) */</span>
+<span class="diff-h">@@ -158,28 +177,44 @@ dilithium_sign (int algo, uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">       prelen = 2 + ctxlen;</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+  /*</span>
+<span class="diff-a">+   * Note that the second argument of the upstream routine is the</span>
+<span class="diff-a">+   * pointer to output length of signature.  It assumes the first</span>
+<span class="diff-a">+   * argument (pointer to output signature) should have correct (or</span>
+<span class="diff-a">+   * more) length, beforehand.</span>
+<span class="diff-a">+   *</span>
+<span class="diff-a">+   * Before calling the routine, we should check the length.</span>
+<span class="diff-a">+   */</span>
+<span class="diff-c">   switch (algo)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">     case GCRY_MLDSA44:</span>
+<span class="diff-c">       if (siglen != CRYPTO_BYTES_2)</span>
+<span class="diff-d">-        return -1;</span>
+<span class="diff-d">-      return crypto_sign_signature_internal_2 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-d">-                                               pre, prelen, rnd, sk);</span>
+<span class="diff-a">+        return GPG_ERR_INV_DATA;</span>
+<span class="diff-a">+      r = crypto_sign_signature_internal_2 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-a">+                                            pre, prelen, rnd, sk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA65:</span>
+<span class="diff-c">     default:</span>
+<span class="diff-c">       if (siglen != CRYPTO_BYTES_3)</span>
+<span class="diff-d">-        return -1;</span>
+<span class="diff-d">-      return crypto_sign_signature_internal_3 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-d">-                                               pre, prelen, rnd, sk);</span>
+<span class="diff-a">+        return GPG_ERR_INV_DATA;</span>
+<span class="diff-a">+      r = crypto_sign_signature_internal_3 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-a">+                                            pre, prelen, rnd, sk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA87:</span>
+<span class="diff-c">       if (siglen != CRYPTO_BYTES_5)</span>
+<span class="diff-d">-        return -1;</span>
+<span class="diff-d">-      return crypto_sign_signature_internal_5 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-d">-                                               pre, prelen, rnd, sk);</span>
+<span class="diff-a">+        return GPG_ERR_INV_DATA;</span>
+<span class="diff-a">+      r = crypto_sign_signature_internal_5 (sig, &amp;siglen, m, mlen,</span>
+<span class="diff-a">+                                            pre, prelen, rnd, sk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  if (r &lt; 0)</span>
+<span class="diff-a">+    return GPG_ERR_INTERNAL;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  return 0;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-int</span>
+<span class="diff-a">+gpg_err_code_t</span>
+<span class="diff-c"> dilithium_verify (int algo, const uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">                   const uint8_t *m, size_t mlen,</span>
+<span class="diff-c">                   const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-h">@@ -188,9 +223,17 @@ dilithium_verify (int algo, const uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">   size_t i;</span>
+<span class="diff-c">   uint8_t pre[257];</span>
+<span class="diff-c">   size_t prelen;</span>
+<span class="diff-a">+  int r;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  if (ctx == NULL &amp;&amp; ctxlen == -1)</span>
+<span class="diff-d">-    prelen = 0;</span>
+<span class="diff-a">+  if (ctx == NULL)</span>
+<span class="diff-a">+    {</span>
+<span class="diff-a">+      if (ctxlen == -1)</span>
+<span class="diff-a">+        prelen = 0;</span>
+<span class="diff-a">+      else</span>
+<span class="diff-a">+        return GPG_ERR_INV_DATA;</span>
+<span class="diff-a">+    }</span>
+<span class="diff-a">+  else if (ctxlen &gt; 255)</span>
+<span class="diff-a">+    return GPG_ERR_INV_DATA;</span>
+<span class="diff-c">   else</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">       /* Prepare pre = (0, ctxlen, ctx) */</span>
+<span class="diff-h">@@ -204,16 +247,24 @@ dilithium_verify (int algo, const uint8_t *sig, size_t siglen,</span>
+<span class="diff-c">   switch (algo)</span>
+<span class="diff-c">     {</span>
+<span class="diff-c">     case GCRY_MLDSA44:</span>
+<span class="diff-d">-      return crypto_sign_verify_internal_2 (sig, siglen, m, mlen,</span>
+<span class="diff-d">-                                            pre, prelen, pk);</span>
+<span class="diff-a">+      r = crypto_sign_verify_internal_2 (sig, siglen, m, mlen,</span>
+<span class="diff-a">+                                         pre, prelen, pk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA65:</span>
+<span class="diff-c">     default:</span>
+<span class="diff-d">-      return crypto_sign_verify_internal_3 (sig, siglen, m, mlen,</span>
+<span class="diff-d">-                                            pre, prelen, pk);</span>
+<span class="diff-a">+      r = crypto_sign_verify_internal_3 (sig, siglen, m, mlen,</span>
+<span class="diff-a">+                                         pre, prelen, pk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     case GCRY_MLDSA87:</span>
+<span class="diff-d">-      return crypto_sign_verify_internal_5 (sig, siglen, m, mlen,</span>
+<span class="diff-d">-                                            pre, prelen, pk);</span>
+<span class="diff-a">+      r = crypto_sign_verify_internal_5 (sig, siglen, m, mlen,</span>
+<span class="diff-a">+                                         pre, prelen, pk);</span>
+<span class="diff-a">+      break;</span>
+<span class="diff-c">     }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  if (r &lt; 0)</span>
+<span class="diff-a">+    return GPG_ERR_BAD_SIGNATURE;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+  return 0;</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> typedef struct {</span>
+<span class="diff-h">diff --git a/cipher/dilithium.h b/cipher/dilithium.h</span>
+<span class="diff-h">index dd3597a53..1e868e1e6 100644</span>
+<span class="diff-h">--- a/cipher/dilithium.h</span>
+<span class="diff-h">+++ b/cipher/dilithium.h</span>
+<span class="diff-h">@@ -64,16 +64,16 @@</span>
+<span class="diff-c"> #define DILITHIUM_SIGN_STACK_BURN (161 * 1024)</span>
+<span class="diff-c"> #define DILITHIUM_VERIFY_STACK_BURN (122 * 1024)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-int dilithium_keypair (int algo, uint8_t *pk, uint8_t *sk,</span>
+<span class="diff-d">-                       const uint8_t seed[SEEDBYTES]);</span>
+<span class="diff-d">-int dilithium_sign (int algo, uint8_t *sig, size_t siglen,</span>
+<span class="diff-d">-                    const uint8_t *m, size_t mlen,</span>
+<span class="diff-d">-                    const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-d">-                    const uint8_t *sk, const uint8_t rnd[RNDBYTES]);</span>
+<span class="diff-d">-int dilithium_verify (int algo, const uint8_t *sig, size_t siglen,</span>
+<span class="diff-d">-                      const uint8_t *m, size_t mlen,</span>
+<span class="diff-d">-                      const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-d">-                      const uint8_t *pk);</span>
+<span class="diff-a">+gpg_err_code_t dilithium_keypair (int algo, uint8_t *pk, uint8_t *sk,</span>
+<span class="diff-a">+                                  const uint8_t seed[SEEDBYTES]);</span>
+<span class="diff-a">+gpg_err_code_t dilithium_sign (int algo, uint8_t *sig, size_t siglen,</span>
+<span class="diff-a">+                               const uint8_t *m, size_t mlen,</span>
+<span class="diff-a">+                               const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-a">+                               const uint8_t *sk, const uint8_t rnd[RNDBYTES]);</span>
+<span class="diff-a">+gpg_err_code_t dilithium_verify (int algo, const uint8_t *sig, size_t siglen,</span>
+<span class="diff-a">+                                 const uint8_t *m, size_t mlen,</span>
+<span class="diff-a">+                                 const uint8_t *ctx, size_t ctxlen,</span>
+<span class="diff-a">+                                 const uint8_t *pk);</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> #if defined(DILITHIUM_MODE)</span>
+<span class="diff-h">diff --git a/cipher/pubkey-dilithium.c b/cipher/pubkey-dilithium.c</span>
+<span class="diff-h">index 03958bb08..8c3f650e5 100644</span>
+<span class="diff-h">--- a/cipher/pubkey-dilithium.c</span>
+<span class="diff-h">+++ b/cipher/pubkey-dilithium.c</span>
+<span class="diff-h">@@ -170,7 +170,7 @@ mldsa_generate (const gcry_sexp_t genparms, gcry_sexp_t *r_skey)</span>
+<span class="diff-c">       memcpy (seed, seed_supplied, SEEDBYTES);</span>
+<span class="diff-c">     }</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  dilithium_keypair (info-&gt;algo, pk, sk, seed);</span>
+<span class="diff-a">+  rc = dilithium_keypair (info-&gt;algo, pk, sk, seed);</span>
+<span class="diff-c">   _gcry_burn_stack (DILITHIUM_KEYPAIR_STACK_BURN);</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   if (!rc)</span>
+<span class="diff-h">@@ -206,7 +206,6 @@ mldsa_sign (gcry_sexp_t *r_sig, gcry_sexp_t s_data, gcry_sexp_t keyparms)</span>
+<span class="diff-c">   size_t data_len;</span>
+<span class="diff-c">   const unsigned char *sk;</span>
+<span class="diff-c">   const struct mldsa_info *info = mldsa_get_info (keyparms);</span>
+<span class="diff-d">-  int r;</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   if (!info)</span>
+<span class="diff-c">     return GPG_ERR_PUBKEY_ALGO;</span>
+<span class="diff-h">@@ -258,17 +257,14 @@ mldsa_sign (gcry_sexp_t *r_sig, gcry_sexp_t s_data, gcry_sexp_t keyparms)</span>
+<span class="diff-c">   else</span>
+<span class="diff-c">     randombytes (rnd, RNDBYTES);</span>
+<span class="diff-c">   if (ctx.flags &amp; PUBKEY_FLAG_NO_PREFIX)</span>
+<span class="diff-d">-    r = dilithium_sign (info-&gt;algo, sig, info-&gt;sig_len, data, data_len,</span>
+<span class="diff-d">-                        NULL, -1, sk, rnd);</span>
+<span class="diff-a">+    rc = dilithium_sign (info-&gt;algo, sig, info-&gt;sig_len, data, data_len,</span>
+<span class="diff-a">+                         NULL, -1, sk, rnd);</span>
+<span class="diff-c">   else</span>
+<span class="diff-d">-    r = dilithium_sign (info-&gt;algo, sig, info-&gt;sig_len, da</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/gpg/libgcrypt/commit/905e00f046a71e5670517779afaf85a354952832" rel="noopener noreferrer">https://github.com/gpg/libgcrypt/commit/905e00f046a71e5670517779afaf85a354952832</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-13</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-15</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">86f014c5715067bbe17ca099b1f5c66cb367ce1167c9d0c77c15ca73594cb5c2a6ae966ae8809431af4cb2bc6eb0b7201c5ebdd8f1e2ae2f29987915712a8300</p>
+<p class="kicker">Committed 2026-05-28 15:09 UTC</p>
+<p class="kicker">Revealed 2026-08-17 17:47 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-GSPVGEYA-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-GSPVGEYA%22%2C%22bug_class%22%3A%22Stack%20Buffer%20Overflow%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T02%3A33%3A49%2B00%3A00%22%2C%22description%22%3A%22In%20cipher/dilithium.c%2C%20dilithium_sign%28%29%20and%20dilithium_verify%28%29%20declare%20%60uint8_t%20pre%5B257%5D%60%20and%20loop-copy%20%60ctxlen%60%20bytes%20of%20the%20caller%27s%20context%20into%20it%20with%20no%20bound%20check.%20The%20reference%20implementation%27s%20%60if%28ctxlen%3E255%29%20return%20-1%3B%60%20guard%20in%20dilithium-dep.c%20is%20wrapped%20in%20%60%23ifndef%20DILITHIUM_INTERNAL_API_ONLY%60%2C%20but%20libgcrypt%20defines%20that%20macro%20at%20dilithium.c%3A85%2C%20so%20the%20check%20is%20compiled%20out.%20The%20context%20arrives%20from%20the%20public%20gcry_pk_sign/gcry_pk_verify%20API%20via%20the%20%60%28label%20...%29%60%20S-expression%20token%2C%20which%20pubkey-util.c%20stores%20into%20ctx.label/ctx.labellen%20with%20no%20length%20cap%20and%20pubkey-dilithium.c%20passes%20straight%20through.%20An%20attacker%20who%20can%20influence%20the%20label%20to%20exceed%20255%20bytes%20overwrites%20the%20stack%20past%20%60pre%5B%5D%60%2C%20smashing%20saved%20registers/return%20address%20and%20likely%20achieving%20code%20execution%20during%20signature%20verification.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22cipher/dilithium.c%3A189%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gpg/libgcrypt%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20supplies%20an%20ML-DSA%20signed%20object%20or%20handshake%20message%20whose%20domain-separation%20context/label%20is%20longer%20than%20255%20bytes.%22%2C%222.%20Application%20builds%20the%20data%20S-expression%20including%20%60%28label%20%23...%3E255%20bytes...%23%29%60%20and%20calls%20gcry_pk_verify%28%29.%22%2C%223.%20_gcry_pk_util_data_to_mpi%20reads%20the%20label%20via%20sexp_nth_buffer%20with%20no%20length%20cap%20%28pubkey-util.c%3A760-777%29.%22%2C%224.%20mldsa_verify%20passes%20ctx-%3Elabel%20/%20ctx-%3Elabellen%20directly%20to%20dilithium_verify%20%28pubkey-dilithium.c%3A356-357%29.%22%2C%225.%20dilithium_verify%20loop-copies%20ctxlen%20bytes%20into%20the%20257-byte%20stack%20array%20%60pre%5B%5D%60%2C%20overflowing%20it%20and%20overwriting%20saved%20registers%20/%20return%20address.%22%5D%2C%22technical_details%22%3A%22dilithium.c%3A189%20declares%20%60uint8_t%20pre%5B257%5D%60%20and%20lines%20199-200%20execute%20%60for%28i%3D0%3Bi%3Cctxlen%3Bi%2B%2B%29%20pre%5B2%2Bi%5D%3Dctx%5Bi%5D%3B%60%20with%20%60ctxlen%60%20as%20an%20unchecked%20size_t.%20The%20upstream%20255-byte%20guard%20at%20dilithium-dep.c%3A1061/1235%20is%20excluded%20by%20%60%23define%20DILITHIUM_INTERNAL_API_ONLY%60%20%28dilithium.c%3A85%29%2C%20and%20no%20replacement%20cap%20exists%20anywhere%20in%20the%20active%20gcry_pk_verify%20%E2%86%92%20mldsa_verify%20%E2%86%92%20dilithium_verify%20path%2C%20so%20any%20label%20%3E255%20bytes%20writes%20past%20the%20end%20of%20the%20stack%20array.%22%2C%22title%22%3A%22ML-DSA%20context%20string%20stack%20buffer%20overflow%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-GSPVGEYA&#34;,
+  &#34;bug_class&#34;: &#34;Stack Buffer Overflow&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T02:33:49+00:00&#34;,
+  &#34;description&#34;: &#34;In cipher/dilithium.c, dilithium_sign() and dilithium_verify() declare `uint8_t pre[257]` and loop-copy `ctxlen` bytes of the caller&#39;s context into it with no bound check. The reference implementation&#39;s `if(ctxlen&gt;255) return -1;` guard in dilithium-dep.c is wrapped in `#ifndef DILITHIUM_INTERNAL_API_ONLY`, but libgcrypt defines that macro at dilithium.c:85, so the check is compiled out. The context arrives from the public gcry_pk_sign/gcry_pk_verify API via the `(label ...)` S-expression token, which pubkey-util.c stores into ctx.label/ctx.labellen with no length cap and pubkey-dilithium.c passes straight through. An attacker who can influence the label to exceed 255 bytes overwrites the stack past `pre[]`, smashing saved registers/return address and likely achieving code execution during signature verification.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;cipher/dilithium.c:189&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gpg/libgcrypt&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker supplies an ML-DSA signed object or handshake message whose domain-separation context/label is longer than 255 bytes.&#34;,
+    &#34;2. Application builds the data S-expression including `(label #...&gt;255 bytes...#)` and calls gcry_pk_verify().&#34;,
+    &#34;3. _gcry_pk_util_data_to_mpi reads the label via sexp_nth_buffer with no length cap (pubkey-util.c:760-777).&#34;,
+    &#34;4. mldsa_verify passes ctx-&gt;label / ctx-&gt;labellen directly to dilithium_verify (pubkey-dilithium.c:356-357).&#34;,
+    &#34;5. dilithium_verify loop-copies ctxlen bytes into the 257-byte stack array `pre[]`, overflowing it and overwriting saved registers / return address.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;dilithium.c:189 declares `uint8_t pre[257]` and lines 199-200 execute `for(i=0;i&lt;ctxlen;i++) pre[2+i]=ctx[i];` with `ctxlen` as an unchecked size_t. The upstream 255-byte guard at dilithium-dep.c:1061/1235 is excluded by `#define DILITHIUM_INTERNAL_API_ONLY` (dilithium.c:85), and no replacement cap exists anywhere in the active gcry_pk_verify → mldsa_verify → dilithium_verify path, so any label &gt;255 bytes writes past the end of the stack array.&#34;,
+  &#34;title&#34;: &#34;ML-DSA context string stack buffer overflow&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

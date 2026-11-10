@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-AM0R21ZY · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-AM0R21ZY · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  broken-authorization
+  <span class="sev-badge sev-medium">medium</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-medium">medium</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-AM0R21ZY: HIPAA sensitive-project AI block enforced only client-side</h1>
+<p>The client hook useOrgAiOptInLevel forces aiOptInLevel to 'disabled' when an org has the HIPAA add-on and the project is flagged sensitive, but the server-side getAiDetails() in lib/ai/ai-details.ts only reads the org's opt_in_tags and never checks project sensitivity or HIPAA status. All AI API routes (/api/ai/sql/generate-v4, /api/ai/sql/complete-v2, etc.) rely on getAiDetails() for enforcement. An authenticated member of a HIPAA org can therefore replay a direct request to these endpoints with a sensitive project's projectRef, and the server will compute an org-level opt-in like 'schema' and send the sensitive project's table/column metadata to OpenAI, bypassing the UI-only guard.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>apps/studio/lib/ai/ai-details.ts:27</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>getAiDetails() calls getAiOptInLevel(selectedOrg?.opt_in_tags) and returns immediately; it never fetches the project's is_sensitive flag or the org's HIPAA add-on status, so the downgrade-to-'disabled' logic that exists in the client hook is absent server-side. Because the API handlers trust this value, the compliance block is effectively client-side-only and trivially bypassed by calling the API directly.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Observe that the Assistant UI is greyed out for the sensitive project.</li>
+<li>Open browser devtools and copy a previous request to /api/ai/sql/generate-v4 (or similar AI route).</li>
+<li>Replay the request directly with the sensitive project's projectRef.</li>
+<li>Server-side getAiDetails reads only org opt_in_tags, returns a non-disabled aiOptInLevel, and the handler forwards the sensitive schema/metadata to OpenAI.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Make getAiDetails() fetch the project's sensitivity flag and the org's HIPAA add-on status and force aiOptInLevel = 'disabled' when both are true, mirroring the client hook so enforcement happens server-side.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-AM0R21ZY.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-AM0R21ZY<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/studio/lib/ai/ai-details.test.ts b/apps/studio/lib/ai/ai-details.test.ts</span>
+<span class="diff-h">index 6102aaf445dc1..56e4b61b3a2b9 100644</span>
+<span class="diff-h">--- a/apps/studio/lib/ai/ai-details.test.ts</span>
+<span class="diff-h">+++ b/apps/studio/lib/ai/ai-details.test.ts</span>
+<span class="diff-h">@@ -1,6 +1,6 @@</span>
+<span class="diff-c"> import { beforeEach, describe, expect, it, vi } from &#x27;vitest&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-import { getOrgAIDetails, getProjectAIDetails } from &#x27;./ai-details&#x27;</span>
+<span class="diff-a">+import { getAIDetails } from &#x27;./ai-details&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> vi.mock(&#x27;@/data/organizations/organizations-query&#x27;, () =&gt; ({</span>
+<span class="diff-c">   getOrganizations: vi.fn(),</span>
+<span class="diff-h">@@ -32,10 +32,14 @@ vi.mock(&#x27;@/data/entitlements/entitlements-query&#x27;, () =&gt; ({</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> const AUTH = &#x27;Bearer token&#x27;</span>
+<span class="diff-c"> const HEADERS = { &#x27;Content-Type&#x27;: &#x27;application/json&#x27;, Authorization: AUTH }</span>
+<span class="diff-a">+const ORG_SLUG = &#x27;test-org&#x27;</span>
+<span class="diff-a">+const PROJECT_REF = &#x27;test-project&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-describe(&#x27;getOrgAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-a">+describe(&#x27;getAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-c">   let mockGetOrganizations: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-c">   let mockGetOrgSubscription: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-a">+  let mockGetProjectDetail: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-a">+  let mockGetProjectSettings: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-c">   let mockGetAiOptInLevel: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-c">   let mockSubscriptionHasHipaaAddon: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-c">   let mockCheckEntitlement: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-h">@@ -45,6 +49,8 @@ describe(&#x27;getOrgAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     const orgsQuery = await import(&#x27;@/data/organizations/organizations-query&#x27;)</span>
+<span class="diff-c">     const subscriptionQuery = await import(&#x27;@/data/subscriptions/org-subscription-query&#x27;)</span>
+<span class="diff-a">+    const projectQuery = await import(&#x27;@/data/projects/project-detail-query&#x27;)</span>
+<span class="diff-a">+    const settingsQuery = await import(&#x27;@/data/config/project-settings-v2-query&#x27;)</span>
+<span class="diff-c">     const aiHook = await import(&#x27;@/hooks/misc/useOrgOptedIntoAi&#x27;)</span>
+<span class="diff-c">     const subscriptionUtils =</span>
+<span class="diff-c">       await import(&#x27;@/components/interfaces/Billing/Subscription/Subscription.utils&#x27;)</span>
+<span class="diff-h">@@ -52,22 +58,33 @@ describe(&#x27;getOrgAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     mockGetOrganizations = vi.mocked(orgsQuery.getOrganizations)</span>
+<span class="diff-c">     mockGetOrgSubscription = vi.mocked(subscriptionQuery.getOrgSubscription)</span>
+<span class="diff-a">+    mockGetProjectDetail = vi.mocked(projectQuery.getProjectDetail)</span>
+<span class="diff-a">+    mockGetProjectSettings = vi.mocked(settingsQuery.getProjectSettings)</span>
+<span class="diff-c">     mockGetAiOptInLevel = vi.mocked(aiHook.getAiOptInLevel)</span>
+<span class="diff-c">     mockSubscriptionHasHipaaAddon = vi.mocked(subscriptionUtils.subscriptionHasHipaaAddon)</span>
+<span class="diff-c">     mockCheckEntitlement = vi.mocked(entitlementsQuery.checkEntitlement)</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+    mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-a">+      { id: 1, slug: ORG_SLUG, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-a">+    ])</span>
+<span class="diff-a">+    mockGetProjectDetail.mockResolvedValue({</span>
+<span class="diff-a">+      ref: PROJECT_REF,</span>
+<span class="diff-a">+      region: &#x27;us-east-1&#x27;,</span>
+<span class="diff-a">+      organization_id: 1,</span>
+<span class="diff-a">+    })</span>
+<span class="diff-a">+    mockGetProjectSettings.mockResolvedValue({ is_sensitive: false })</span>
+<span class="diff-c">     mockGetOrgSubscription.mockResolvedValue({ addons: [] })</span>
+<span class="diff-c">     mockSubscriptionHasHipaaAddon.mockReturnValue(false)</span>
+<span class="diff-c">     mockCheckEntitlement.mockResolvedValue({ hasAccess: false })</span>
+<span class="diff-d">-  })</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  it(&#x27;returns org-level fields&#x27;, async () =&gt; {</span>
+<span class="diff-d">-    mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-d">-      { id: 1, slug: &#x27;test-org&#x27;, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-d">-    ])</span>
+<span class="diff-c">     mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-a">+  })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    const result = await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-a">+  it(&#x27;returns the resolved posture when the project belongs to the org&#x27;, async () =&gt; {</span>
+<span class="diff-a">+    const result = await getAIDetails({</span>
+<span class="diff-a">+      orgSlug: ORG_SLUG,</span>
+<span class="diff-a">+      projectRef: PROJECT_REF,</span>
+<span class="diff-a">+      authorization: AUTH,</span>
+<span class="diff-a">+    })</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     expect(result).toEqual({</span>
+<span class="diff-c">       aiOptInLevel: &#x27;schema&#x27;,</span>
+<span class="diff-h">@@ -75,132 +92,199 @@ describe(&#x27;getOrgAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-c">       hasHipaaAddon: false,</span>
+<span class="diff-c">       orgId: 1,</span>
+<span class="diff-c">       planId: &#x27;pro&#x27;,</span>
+<span class="diff-a">+      region: &#x27;us-east-1&#x27;,</span>
+<span class="diff-a">+      isSensitive: false,</span>
+<span class="diff-c">     })</span>
+<span class="diff-c">   })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  it(&#x27;returns hasAccessToAdvanceModel true when entitlement grants access&#x27;, async () =&gt; {</span>
+<span class="diff-d">-    mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-d">-      { id: 1, slug: &#x27;test-org&#x27;, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-d">-    ])</span>
+<span class="diff-d">-    mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-d">-    mockCheckEntitlement.mockResolvedValue({ hasAccess: true })</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    const result = await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    expect(result.hasAccessToAdvanceModel).toBe(true)</span>
+<span class="diff-d">-  })</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  it(&#x27;returns hasHipaaAddon from subscription&#x27;, async () =&gt; {</span>
+<span class="diff-d">-    mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-d">-      { id: 1, slug: &#x27;test-org&#x27;, plan: { id: &#x27;enterprise&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-d">-    ])</span>
+<span class="diff-d">-    mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-d">-    mockSubscriptionHasHipaaAddon.mockReturnValue(true)</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    const result = await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-    expect(result.hasHipaaAddon).toBe(true)</span>
+<span class="diff-d">-  })</span>
+<span class="diff-d">-</span>
+<span class="diff-c">   it(&#x27;calls getAiOptInLevel with the matched org opt_in_tags&#x27;, async () =&gt; {</span>
+<span class="diff-c">     const opt_in_tags = [&#x27;AI_SQL_GENERATOR_OPT_IN&#x27;]</span>
+<span class="diff-c">     mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-d">-      { id: 1, slug: &#x27;test-org&#x27;, plan: { id: &#x27;pro&#x27; }, opt_in_tags },</span>
+<span class="diff-a">+      { id: 1, slug: ORG_SLUG, plan: { id: &#x27;pro&#x27; }, opt_in_tags },</span>
+<span class="diff-c">     ])</span>
+<span class="diff-d">-    mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-a">+    await getAIDetails({ orgSlug: ORG_SLUG, projectRef: PROJECT_REF, authorization: AUTH })</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     expect(mockGetAiOptInLevel).toHaveBeenCalledWith(opt_in_tags)</span>
+<span class="diff-c">   })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  it(&#x27;forwards authorization headers to all fetches&#x27;, async () =&gt; {</span>
+<span class="diff-d">-    mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-d">-      { id: 1, slug: &#x27;test-org&#x27;, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-d">-    ])</span>
+<span class="diff-d">-    mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-a">+  it(&#x27;returns hasAccessToAdvanceModel true when the entitlement grants access&#x27;, async () =&gt; {</span>
+<span class="diff-a">+    mockCheckEntitlement.mockResolvedValue({ hasAccess: true })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-a">+    const result = await getAIDetails({</span>
+<span class="diff-a">+      orgSlug: ORG_SLUG,</span>
+<span class="diff-a">+      projectRef: PROJECT_REF,</span>
+<span class="diff-a">+      authorization: AUTH,</span>
+<span class="diff-a">+    })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    expect(mockGetOrganizations).toHaveBeenCalledWith({ headers: HEADERS })</span>
+<span class="diff-d">-    expect(mockGetOrgSubscription).toHaveBeenCalledWith({ orgSlug: &#x27;test-org&#x27; }, undefined, HEADERS)</span>
+<span class="diff-a">+    expect(result.hasAccessToAdvanceModel).toBe(true)</span>
+<span class="diff-c">   })</span>
+<span class="diff-c"> </span>
+<span class="diff-c">   it(&#x27;finds the correct org when multiple orgs are returned&#x27;, async () =&gt; {</span>
+<span class="diff-c">     mockGetOrganizations.mockResolvedValue([</span>
+<span class="diff-c">       { id: 1, slug: &#x27;org-1&#x27;, plan: { id: &#x27;free&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-d">-      { id: 2, slug: &#x27;test-org&#x27;, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-a">+      { id: 2, slug: ORG_SLUG, plan: { id: &#x27;pro&#x27; }, opt_in_tags: [] },</span>
+<span class="diff-c">     ])</span>
+<span class="diff-d">-    mockGetAiOptInLevel.mockReturnValue(&#x27;schema&#x27;)</span>
+<span class="diff-a">+    mockGetProjectDetail.mockResolvedValue({</span>
+<span class="diff-a">+      ref: PROJECT_REF,</span>
+<span class="diff-a">+      region: &#x27;us-east-1&#x27;,</span>
+<span class="diff-a">+      organization_id: 2,</span>
+<span class="diff-a">+    })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    const result = await getOrgAIDetails({ orgSlug: &#x27;test-org&#x27;, authorization: AUTH })</span>
+<span class="diff-a">+    const result = await getAIDetails({</span>
+<span class="diff-a">+      orgSlug: ORG_SLUG,</span>
+<span class="diff-a">+      projectRef: PROJECT_REF,</span>
+<span class="diff-a">+      authorization: AUTH,</span>
+<span class="diff-a">+    })</span>
+<span class="diff-c"> </span>
+<span class="diff-c">     expect(result.orgId).toBe(2)</span>
+<span class="diff-c">     expect(result.planId).toBe(&#x27;pro&#x27;)</span>
+<span class="diff-c">   })</span>
+<span class="diff-d">-})</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-describe(&#x27;getProjectAIDetails&#x27;, () =&gt; {</span>
+<span class="diff-d">-  let mockGetProjectDetail: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-d">-  let mockGetProjectSettings: ReturnType&lt;typeof vi.fn&gt;</span>
+<span class="diff-a">+  it(&#x27;forwards authorization headers to all fetches&#x27;, async () =&gt; {</span>
+<span class="diff-a">+    await getAIDetails({ orgSlug: ORG_SLUG, projectRef: PROJECT_REF, authorization: AUTH })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  beforeEach(async () =&gt; {</span>
+<span class="diff-d">-    vi.clearAllMocks()</span>
+<span class="diff-a">+    expect(mockGetOrganizations).toHaveBeenCalledWith({ headers: HEADERS })</span>
+<span class="diff-a">+    expect(mockGetOrgSubscription).toHaveBeenCalledWith({ orgSlug: ORG_SLUG }, undefined, HEADERS)</span>
+<span class="diff-a">+    expect(mockCheckEntitlement).toHaveBeenCalledWith(</span>
+<span class="diff-a">+      ORG_SLUG,</span>
+<span class="diff-a">+      &#x27;assistant.advance_model&#x27;,</span>
+<span class="diff-a">+      undefined,</span>
+<span class="diff-a">+      HEADERS</span>
+<span class="diff-a">+    )</span>
+<span class="diff-a">+    expect(mockGetProjectDetail).toHaveBeenCalledWith(</span>
+<span class="diff-a">+      { ref: PROJECT_REF, skipWake: true },</span>
+<span class="diff-a">+      undefined,</span>
+<span class="diff-a">+      HEADERS</span>
+<span class="diff-a">+    )</span>
+<span class="diff-a">+    expect(mockGetProjectSettings).toHaveBeenCalledWith(</span>
+<span class="diff-a">+      { projectRef: PROJECT_REF },</span>
+<span class="diff-a">+      undefined,</span>
+<span class="diff-a">+      HEADERS</span>
+<span class="diff-a">+    )</span>
+<span class="diff-a">+  })</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-    const projectQuery = await import(&#x27;@/data/projects/project-detail-query&#x27;)</span>
+<span class="diff-d">-    const settingsQuery = await import(&#x27;@/data/config/project-settings-v2-query&#x27;)</span>
+<span class="diff-a">+  describe(&#x27;when the project does not belong to the org&#x27;, () =&gt; {</span>
+<span class="diff-a">+    beforeEach((</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/b04d14856ab0c3db99cbf98389baa18fb4467450" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/b04d14856ab0c3db99cbf98389baa18fb4467450</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-10</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">865e16fe8de1cf11c3d4c31e6303eb13ff8c84a3a62fd8b597f17baac56cc6c4a772f06ffa12a454c9a8dac7c7b69f3d4cfe594d2ea28eb6fd37af330936bdd6</p>
+<p class="kicker">Committed 2026-05-18 00:55 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:11 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-AM0R21ZY-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-AM0R21ZY%22%2C%22bug_class%22%3A%22broken-access-control%22%2C%22claude_severity%22%3A%22medium%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A03%3A41%2B00%3A00%22%2C%22description%22%3A%22The%20client%20hook%20useOrgAiOptInLevel%20forces%20aiOptInLevel%20to%20%27disabled%27%20when%20an%20org%20has%20the%20HIPAA%20add-on%20and%20the%20project%20is%20flagged%20sensitive%2C%20but%20the%20server-side%20getAiDetails%28%29%20in%20lib/ai/ai-details.ts%20only%20reads%20the%20org%27s%20opt_in_tags%20and%20never%20checks%20project%20sensitivity%20or%20HIPAA%20status.%20All%20AI%20API%20routes%20%28/api/ai/sql/generate-v4%2C%20/api/ai/sql/complete-v2%2C%20etc.%29%20rely%20on%20getAiDetails%28%29%20for%20enforcement.%20An%20authenticated%20member%20of%20a%20HIPAA%20org%20can%20therefore%20replay%20a%20direct%20request%20to%20these%20endpoints%20with%20a%20sensitive%20project%27s%20projectRef%2C%20and%20the%20server%20will%20compute%20an%20org-level%20opt-in%20like%20%27schema%27%20and%20send%20the%20sensitive%20project%27s%20table/column%20metadata%20to%20OpenAI%2C%20bypassing%20the%20UI-only%20guard.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22apps/studio/lib/ai/ai-details.ts%3A27%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Observe%20that%20the%20Assistant%20UI%20is%20greyed%20out%20for%20the%20sensitive%20project.%22%2C%222.%20Open%20browser%20devtools%20and%20copy%20a%20previous%20request%20to%20/api/ai/sql/generate-v4%20%28or%20similar%20AI%20route%29.%22%2C%223.%20Replay%20the%20request%20directly%20with%20the%20sensitive%20project%27s%20projectRef.%22%2C%224.%20Server-side%20getAiDetails%20reads%20only%20org%20opt_in_tags%2C%20returns%20a%20non-disabled%20aiOptInLevel%2C%20and%20the%20handler%20forwards%20the%20sensitive%20schema/metadata%20to%20OpenAI.%22%5D%2C%22technical_details%22%3A%22getAiDetails%28%29%20calls%20getAiOptInLevel%28selectedOrg%3F.opt_in_tags%29%20and%20returns%20immediately%3B%20it%20never%20fetches%20the%20project%27s%20is_sensitive%20flag%20or%20the%20org%27s%20HIPAA%20add-on%20status%2C%20so%20the%20downgrade-to-%27disabled%27%20logic%20that%20exists%20in%20the%20client%20hook%20is%20absent%20server-side.%20Because%20the%20API%20handlers%20trust%20this%20value%2C%20the%20compliance%20block%20is%20effectively%20client-side-only%20and%20trivially%20bypassed%20by%20calling%20the%20API%20directly.%22%2C%22title%22%3A%22HIPAA%20sensitive-project%20AI%20block%20enforced%20only%20client-side%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-AM0R21ZY&#34;,
+  &#34;bug_class&#34;: &#34;broken-access-control&#34;,
+  &#34;claude_severity&#34;: &#34;medium&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:03:41+00:00&#34;,
+  &#34;description&#34;: &#34;The client hook useOrgAiOptInLevel forces aiOptInLevel to &#39;disabled&#39; when an org has the HIPAA add-on and the project is flagged sensitive, but the server-side getAiDetails() in lib/ai/ai-details.ts only reads the org&#39;s opt_in_tags and never checks project sensitivity or HIPAA status. All AI API routes (/api/ai/sql/generate-v4, /api/ai/sql/complete-v2, etc.) rely on getAiDetails() for enforcement. An authenticated member of a HIPAA org can therefore replay a direct request to these endpoints with a sensitive project&#39;s projectRef, and the server will compute an org-level opt-in like &#39;schema&#39; and send the sensitive project&#39;s table/column metadata to OpenAI, bypassing the UI-only guard.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;apps/studio/lib/ai/ai-details.ts:27&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Observe that the Assistant UI is greyed out for the sensitive project.&#34;,
+    &#34;2. Open browser devtools and copy a previous request to /api/ai/sql/generate-v4 (or similar AI route).&#34;,
+    &#34;3. Replay the request directly with the sensitive project&#39;s projectRef.&#34;,
+    &#34;4. Server-side getAiDetails reads only org opt_in_tags, returns a non-disabled aiOptInLevel, and the handler forwards the sensitive schema/metadata to OpenAI.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;getAiDetails() calls getAiOptInLevel(selectedOrg?.opt_in_tags) and returns immediately; it never fetches the project&#39;s is_sensitive flag or the org&#39;s HIPAA add-on status, so the downgrade-to-&#39;disabled&#39; logic that exists in the client hook is absent server-side. Because the API handlers trust this value, the compliance block is effectively client-side-only and trivially bypassed by calling the API directly.&#34;,
+  &#34;title&#34;: &#34;HIPAA sensitive-project AI block enforced only client-side&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

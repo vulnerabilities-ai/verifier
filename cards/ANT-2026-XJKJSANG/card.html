@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-XJKJSANG · supabase/auth</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-XJKJSANG · supabase/auth</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  auth-bypass
+  <span class="sev-badge sev-low">low</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-low">low</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-XJKJSANG: Azure issuer check uses always-true boolean expression</h1>
+<p>In the Azure external auth provider (azure.go:72), the guard <code>if !IsAzureIssuer(x) || !IsAzureCIAMIssuer(x)</code> is always true because no issuer string can be both a v2 Azure issuer and a CIAM issuer simultaneously. As a result, expectedIssuer is unconditionally cleared and the strict per-tenant issuer comparison never fires. An attacker presenting an otherwise well-formed id_token from a different Azure tenant is not rejected early by the tenant pin; the token instead proceeds to the generic multi-tenant Azure common-key verification path. Operators who configured a specific tenant issuer and rely on this check for tenant isolation get weaker filtering than intended.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/auth<br>
+<strong>Location:</strong> <code>internal/api/provider/azure.go:72</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The boolean uses OR of two negations where AND was intended: since IsAzureIssuer(x) and IsAzureCIAMIssuer(x) are mutually exclusive, at least one negation is always true, making the whole expression a tautology. This unconditionally sets expectedIssuer = "", neutering the subsequent equality check against the configured tenant issuer.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Operator configures Azure provider with a specific tenant issuer URL</li>
+<li>Attacker obtains a valid, well-formed id_token from a different Azure tenant</li>
+<li>Attacker submits the token to the auth endpoint</li>
+<li>Tautological guard clears expectedIssuer so the strict tenant-issuer equality check is skipped</li>
+<li>Token proceeds to downstream common-key verification instead of being rejected early</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Change the condition so expectedIssuer is cleared only when the configured URL is neither an Azure v2 issuer nor a CIAM issuer — i.e., use logical AND of the negations (<code>!IsAzureIssuer(x) &amp;&amp; !IsAzureCIAMIssuer(x)</code>) — restoring per-tenant issuer pinning.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-XJKJSANG.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-XJKJSANG<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/internal/api/provider/azure.go b/internal/api/provider/azure.go</span>
+<span class="diff-h">index 7c898df65c..f66a2e653e 100644</span>
+<span class="diff-h">--- a/internal/api/provider/azure.go</span>
+<span class="diff-h">+++ b/internal/api/provider/azure.go</span>
+<span class="diff-h">@@ -69,7 +69,7 @@ func NewAzureProvider(ext conf.OAuthProviderConfiguration, scopes string, cache</span>
+<span class="diff-c"> 	if ext.URL != &quot;&quot; {</span>
+<span class="diff-c"> 		expectedIssuer = authHost + &quot;/v2.0&quot;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-		if !IsAzureIssuer(expectedIssuer) || !IsAzureCIAMIssuer(expectedIssuer) || expectedIssuer == IssuerAzureCommon || expectedIssuer == IssuerAzureOrganizations {</span>
+<span class="diff-a">+		if (!IsAzureIssuer(expectedIssuer) &amp;&amp; !IsAzureCIAMIssuer(expectedIssuer)) || expectedIssuer == IssuerAzureCommon || expectedIssuer == IssuerAzureOrganizations {</span>
+<span class="diff-c"> 			// in tests, the URL is a local server which should not</span>
+<span class="diff-c"> 			// be the expected issuer</span>
+<span class="diff-c"> 			// also, IssuerAzure (common) never actually issues any</span>
+<span class="diff-h">diff --git a/internal/api/provider/azure_test.go b/internal/api/provider/azure_test.go</span>
+<span class="diff-h">index 316cb08baf..7dee9a6731 100644</span>
+<span class="diff-h">--- a/internal/api/provider/azure_test.go</span>
+<span class="diff-h">+++ b/internal/api/provider/azure_test.go</span>
+<span class="diff-h">@@ -1,6 +1,10 @@</span>
+<span class="diff-c"> package provider</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-import &quot;testing&quot;</span>
+<span class="diff-a">+import (</span>
+<span class="diff-a">+	&quot;testing&quot;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	&quot;github.com/supabase/auth/internal/conf&quot;</span>
+<span class="diff-a">+)</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> func TestIsAzureIssuer(t *testing.T) {</span>
+<span class="diff-c"> 	positiveExamples := []string{</span>
+<span class="diff-h">@@ -27,3 +31,75 @@ func TestIsAzureIssuer(t *testing.T) {</span>
+<span class="diff-c"> 		}</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> }</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+func TestNewAzureProviderExpectedIssuer(t *testing.T) {</span>
+<span class="diff-a">+	config := func(url string) conf.OAuthProviderConfiguration {</span>
+<span class="diff-a">+		return conf.OAuthProviderConfiguration{</span>
+<span class="diff-a">+			Enabled:     true,</span>
+<span class="diff-a">+			ClientID:    []string{&quot;client-id&quot;},</span>
+<span class="diff-a">+			Secret:      &quot;secret&quot;,</span>
+<span class="diff-a">+			RedirectURI: &quot;https://project.supabase.co/auth/v1/callback&quot;,</span>
+<span class="diff-a">+			URL:         url,</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	cases := []struct {</span>
+<span class="diff-a">+		name           string</span>
+<span class="diff-a">+		url            string</span>
+<span class="diff-a">+		expectedIssuer string</span>
+<span class="diff-a">+	}{</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;tenant-specific issuer is pinned&quot;,</span>
+<span class="diff-a">+			url:            &quot;https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;tenant-specific issuer is pinned (trailing slash)&quot;,</span>
+<span class="diff-a">+			url:            &quot;https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;CIAM tenant issuer is pinned&quot;,</span>
+<span class="diff-a">+			url:            &quot;https://contoso.ciamlogin.com/9188040d-6c67-4c5b-b112-36a304b66dad&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;https://contoso.ciamlogin.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;common endpoint is not pinned&quot;,</span>
+<span class="diff-a">+			url:            &quot;https://login.microsoftonline.com/common&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;organizations endpoint is not pinned&quot;,</span>
+<span class="diff-a">+			url:            &quot;https://login.microsoftonline.com/organizations&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;non-Azure URL is not pinned&quot;,</span>
+<span class="diff-a">+			url:            &quot;http://localhost:3000&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			name:           &quot;empty URL defaults to multi-tenant (not pinned)&quot;,</span>
+<span class="diff-a">+			url:            &quot;&quot;,</span>
+<span class="diff-a">+			expectedIssuer: &quot;&quot;,</span>
+<span class="diff-a">+		},</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+	for _, c := range cases {</span>
+<span class="diff-a">+		t.Run(c.name, func(t *testing.T) {</span>
+<span class="diff-a">+			p, err := NewAzureProvider(config(c.url), &quot;&quot;, nil)</span>
+<span class="diff-a">+			if err != nil {</span>
+<span class="diff-a">+				t.Fatalf(&quot;NewAzureProvider returned error: %v&quot;, err)</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			azure, ok := p.(*azureProvider)</span>
+<span class="diff-a">+			if !ok {</span>
+<span class="diff-a">+				t.Fatalf(&quot;expected *azureProvider, got %T&quot;, p)</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+			if azure.ExpectedIssuer != c.expectedIssuer {</span>
+<span class="diff-a">+				t.Errorf(&quot;ExpectedIssuer = %q, want %q&quot;, azure.ExpectedIssuer, c.expectedIssuer)</span>
+<span class="diff-a">+			}</span>
+<span class="diff-a">+		})</span>
+<span class="diff-a">+	}</span>
+<span class="diff-a">+}</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/auth/commit/a39858b6e9d194198005eceff9e707c0cd3118e1" rel="noopener noreferrer">https://github.com/supabase/auth/commit/a39858b6e9d194198005eceff9e707c0cd3118e1</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-10</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-15</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-06-03</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">33feceffbe4abf6811dd3cab5c315a6e1fa1d9e3e4aaf937f4a69d8aed2512c787f3341c4055fa55907cc735e0ea4eb61a9f91cb60e9647dd4c1ae7551d3654d</p>
+<p class="kicker">Committed 2026-05-18 00:59 UTC</p>
+<p class="kicker">Revealed 2026-08-18 14:12 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-XJKJSANG-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-XJKJSANG%22%2C%22bug_class%22%3A%22other%22%2C%22claude_severity%22%3A%22low%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-14T22%3A01%3A37%2B00%3A00%22%2C%22description%22%3A%22In%20the%20Azure%20external%20auth%20provider%20%28azure.go%3A72%29%2C%20the%20guard%20%60if%20%21IsAzureIssuer%28x%29%20%7C%7C%20%21IsAzureCIAMIssuer%28x%29%60%20is%20always%20true%20because%20no%20issuer%20string%20can%20be%20both%20a%20v2%20Azure%20issuer%20and%20a%20CIAM%20issuer%20simultaneously.%20As%20a%20result%2C%20expectedIssuer%20is%20unconditionally%20cleared%20and%20the%20strict%20per-tenant%20issuer%20comparison%20never%20fires.%20An%20attacker%20presenting%20an%20otherwise%20well-formed%20id_token%20from%20a%20different%20Azure%20tenant%20is%20not%20rejected%20early%20by%20the%20tenant%20pin%3B%20the%20token%20instead%20proceeds%20to%20the%20generic%20multi-tenant%20Azure%20common-key%20verification%20path.%20Operators%20who%20configured%20a%20specific%20tenant%20issuer%20and%20rely%20on%20this%20check%20for%20tenant%20isolation%20get%20weaker%20filtering%20than%20intended.%22%2C%22discovered_at%22%3A%222026-05-10T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22internal/api/provider/azure.go%3A72%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/auth%22%2C%22reproduction%22%3A%5B%22Operator%20configures%20Azure%20provider%20with%20a%20specific%20tenant%20issuer%20URL%22%2C%22Attacker%20obtains%20a%20valid%2C%20well-formed%20id_token%20from%20a%20different%20Azure%20tenant%22%2C%22Attacker%20submits%20the%20token%20to%20the%20auth%20endpoint%22%2C%22Tautological%20guard%20clears%20expectedIssuer%20so%20the%20strict%20tenant-issuer%20equality%20check%20is%20skipped%22%2C%22Token%20proceeds%20to%20downstream%20common-key%20verification%20instead%20of%20being%20rejected%20early%22%5D%2C%22technical_details%22%3A%22The%20boolean%20uses%20OR%20of%20two%20negations%20where%20AND%20was%20intended%3A%20since%20IsAzureIssuer%28x%29%20and%20IsAzureCIAMIssuer%28x%29%20are%20mutually%20exclusive%2C%20at%20least%20one%20negation%20is%20always%20true%2C%20making%20the%20whole%20expression%20a%20tautology.%20This%20unconditionally%20sets%20expectedIssuer%20%3D%20%5C%22%5C%22%2C%20neutering%20the%20subsequent%20equality%20check%20against%20the%20configured%20tenant%20issuer.%22%2C%22title%22%3A%22Azure%20issuer%20check%20uses%20always-true%20boolean%20expression%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-XJKJSANG&#34;,
+  &#34;bug_class&#34;: &#34;other&#34;,
+  &#34;claude_severity&#34;: &#34;low&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-14T22:01:37+00:00&#34;,
+  &#34;description&#34;: &#34;In the Azure external auth provider (azure.go:72), the guard `if !IsAzureIssuer(x) || !IsAzureCIAMIssuer(x)` is always true because no issuer string can be both a v2 Azure issuer and a CIAM issuer simultaneously. As a result, expectedIssuer is unconditionally cleared and the strict per-tenant issuer comparison never fires. An attacker presenting an otherwise well-formed id_token from a different Azure tenant is not rejected early by the tenant pin; the token instead proceeds to the generic multi-tenant Azure common-key verification path. Operators who configured a specific tenant issuer and rely on this check for tenant isolation get weaker filtering than intended.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-05-10T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;internal/api/provider/azure.go:72&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/auth&#34;,
+  &#34;reproduction&#34;: [
+    &#34;Operator configures Azure provider with a specific tenant issuer URL&#34;,
+    &#34;Attacker obtains a valid, well-formed id_token from a different Azure tenant&#34;,
+    &#34;Attacker submits the token to the auth endpoint&#34;,
+    &#34;Tautological guard clears expectedIssuer so the strict tenant-issuer equality check is skipped&#34;,
+    &#34;Token proceeds to downstream common-key verification instead of being rejected early&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The boolean uses OR of two negations where AND was intended: since IsAzureIssuer(x) and IsAzureCIAMIssuer(x) are mutually exclusive, at least one negation is always true, making the whole expression a tautology. This unconditionally sets expectedIssuer = \&#34;\&#34;, neutering the subsequent equality check against the configured tenant issuer.&#34;,
+  &#34;title&#34;: &#34;Azure issuer check uses always-true boolean expression&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

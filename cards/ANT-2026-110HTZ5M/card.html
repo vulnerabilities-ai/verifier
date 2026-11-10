@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-110HTZ5M · kjur/jsrsasign</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-110HTZ5M · kjur/jsrsasign</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  weak-crypto
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-110HTZ5M: jsrsasign npm — ECDSA nonce RNG seeded entirely from Math.random() in Node.js</h1>
+<p>The npm wrapper at lib/jsrsasign.js:2-5 declares a module-local <code>window = {}</code> with no <code>.crypto</code>, so the seed-pool initialiser in ext/rng.js falls through to filling all 256 ARC4 key bytes from 128 Math.random() calls plus Date.now(). Every ECDSA nonce k (ecdsa-modified-1.0.js:243), generated EC private key, DSA nonce, RSA-PSS salt, and RSA prime produced by jsrsasign in Node is therefore a deterministic function of V8's xorshift128+ state at require() time. An attacker who observes a few Math.random() outputs leaked by any co-resident code (request-ID middleware, jitter, shuffles, non-secure UUIDs) can solve the xorshift128+ state, rewind to the pool-fill window, bound the load timestamp, replay the ARC4 keystream, and recover the signing nonce k. From one observed ECDSA signature (r,s) on a known message, the private key follows directly as d = (s·k − e)·r⁻¹ mod n.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> kjur/jsrsasign<br>
+<strong>Version:</strong> ≤ 11.1.1 (npm distribution)<br>
+<strong>Location:</strong> <code>ext/rng.js:28-58; npm/lib/jsrsasign.js:2-5; src/ecdsa-modified-1.0.js:61,98-103,235-252</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>Root cause is the <code>var window = {}</code> shim in the npm build: ext/rng.js checks only <code>window.crypto</code>/<code>window.msCrypto</code> (both undefined on the stub) and never checks <code>globalThis.crypto.getRandomValues</code> (present in Node ≥19) or <code>require('crypto').randomBytes</code> (zero grep hits in the package). The <code>while (rng_pptr &lt; rng_psize)</code> loop therefore always executes in Node, deriving the entire 256-byte ARC4 seed from <code>Math.floor(65536 * Math.random())</code> — V8's non-cryptographic xorshift128+ — XORed with two correlated millisecond timestamps. This predictable seed flows into <code>new SecureRandom()</code> → <code>getBigRandom(n)</code> → the ECDSA nonce k in <code>signHex</code>.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Collect ~5 leaked Math.random() doubles from victim responses (request IDs, Retry-After jitter, shuffled arrays, non-secure UUIDs).</li>
+<li>Solve V8 xorshift128+ internal state from the doubles via linear algebra over GF(2) / Z3 (milliseconds; public tooling).</li>
+<li>Rewind the linear generator by 128+Δ calls to the require()-time pool-fill window, accounting for V8's reversed 64-entry cache.</li>
+<li>Iterate ~10³–10⁶ candidate Date.now() values for the two rng_seed_time() XORs; re-key ARC4 for each and generate candidate nonces k.</li>
+<li>Capture one ECDSA signature (r,s) on known hash e; for each candidate k compute d = (s·k − e)·r⁻¹ mod n and check against the public key.</li>
+<li>On match, attacker holds the private key; forge arbitrary signatures/JWTs for the lifetime of that key.</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>In ext/rng.js, before the Math.random() fallback loop, check for <code>globalThis.crypto?.getRandomValues</code> (Node ≥19, all modern browsers) or <code>require('crypto').randomBytes</code> when <code>process.versions.node</code> is defined. Alternatively/additionally, adopt RFC 6979 deterministic nonce derivation for ECDSA/DSA to remove RNG dependence from signing. Until fixed, Node users should not use jsrsasign for key generation or ECDSA/DSA signing.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-110HTZ5M.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-110HTZ5M<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-28</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-12</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-12</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-28</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-17</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">16201330990313937c8b3a3daafb87057c94bbbed5c303c3b4c4da71a857d78c6775deb7527010b042ee68486a5a15a95a4ec8fa13319ecad7b6714567b11031</p>
+<p class="kicker">Committed 2026-05-28 15:09 UTC</p>
+<p class="kicker">Revealed 2026-08-17 20:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-110HTZ5M-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-110HTZ5M%22%2C%22bug_class%22%3A%22Cryptographically%20Weak%20PRNG%20/%20Predictable%20ECDSA%20Nonce%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-05-20T01%3A48%3A55%2B00%3A00%22%2C%22description%22%3A%22The%20npm%20wrapper%20at%20lib/jsrsasign.js%3A2-5%20declares%20a%20module-local%20%60window%20%3D%20%7B%7D%60%20with%20no%20%60.crypto%60%2C%20so%20the%20seed-pool%20initialiser%20in%20ext/rng.js%20falls%20through%20to%20filling%20all%20256%20ARC4%20key%20bytes%20from%20128%20Math.random%28%29%20calls%20plus%20Date.now%28%29.%20Every%20ECDSA%20nonce%20k%20%28ecdsa-modified-1.0.js%3A243%29%2C%20generated%20EC%20private%20key%2C%20DSA%20nonce%2C%20RSA-PSS%20salt%2C%20and%20RSA%20prime%20produced%20by%20jsrsasign%20in%20Node%20is%20therefore%20a%20deterministic%20function%20of%20V8%27s%20xorshift128%2B%20state%20at%20require%28%29%20time.%20An%20attacker%20who%20observes%20a%20few%20Math.random%28%29%20outputs%20leaked%20by%20any%20co-resident%20code%20%28request-ID%20middleware%2C%20jitter%2C%20shuffles%2C%20non-secure%20UUIDs%29%20can%20solve%20the%20xorshift128%2B%20state%2C%20rewind%20to%20the%20pool-fill%20window%2C%20bound%20the%20load%20timestamp%2C%20replay%20the%20ARC4%20keystream%2C%20and%20recover%20the%20signing%20nonce%20k.%20From%20one%20observed%20ECDSA%20signature%20%28r%2Cs%29%20on%20a%20known%20message%2C%20the%20private%20key%20follows%20directly%20as%20d%20%3D%20%28s%C2%B7k%20%E2%88%92%20e%29%C2%B7r%E2%81%BB%C2%B9%20mod%20n.%22%2C%22discovered_at%22%3A%222026-03-28T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22ext/rng.js%3A28-58%3B%20npm/lib/jsrsasign.js%3A2-5%3B%20src/ecdsa-modified-1.0.js%3A61%2C98-103%2C235-252%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22jsrsasign%22%2C%22reproduction%22%3A%5B%221.%20Collect%20~5%20leaked%20Math.random%28%29%20doubles%20from%20victim%20responses%20%28request%20IDs%2C%20Retry-After%20jitter%2C%20shuffled%20arrays%2C%20non-secure%20UUIDs%29.%22%2C%222.%20Solve%20V8%20xorshift128%2B%20internal%20state%20from%20the%20doubles%20via%20linear%20algebra%20over%20GF%282%29%20/%20Z3%20%28milliseconds%3B%20public%20tooling%29.%22%2C%223.%20Rewind%20the%20linear%20generator%20by%20128%2B%CE%94%20calls%20to%20the%20require%28%29-time%20pool-fill%20window%2C%20accounting%20for%20V8%27s%20reversed%2064-entry%20cache.%22%2C%224.%20Iterate%20~10%C2%B3%E2%80%9310%E2%81%B6%20candidate%20Date.now%28%29%20values%20for%20the%20two%20rng_seed_time%28%29%20XORs%3B%20re-key%20ARC4%20for%20each%20and%20generate%20candidate%20nonces%20k.%22%2C%225.%20Capture%20one%20ECDSA%20signature%20%28r%2Cs%29%20on%20known%20hash%20e%3B%20for%20each%20candidate%20k%20compute%20d%20%3D%20%28s%C2%B7k%20%E2%88%92%20e%29%C2%B7r%E2%81%BB%C2%B9%20mod%20n%20and%20check%20against%20the%20public%20key.%22%2C%226.%20On%20match%2C%20attacker%20holds%20the%20private%20key%3B%20forge%20arbitrary%20signatures/JWTs%20for%20the%20lifetime%20of%20that%20key.%22%5D%2C%22technical_details%22%3A%22Root%20cause%20is%20the%20%60var%20window%20%3D%20%7B%7D%60%20shim%20in%20the%20npm%20build%3A%20ext/rng.js%20checks%20only%20%60window.crypto%60/%60window.msCrypto%60%20%28both%20undefined%20on%20the%20stub%29%20and%20never%20checks%20%60globalThis.crypto.getRandomValues%60%20%28present%20in%20Node%20%E2%89%A519%29%20or%20%60require%28%27crypto%27%29.randomBytes%60%20%28zero%20grep%20hits%20in%20the%20package%29.%20The%20%60while%20%28rng_pptr%20%3C%20rng_psize%29%60%20loop%20therefore%20always%20executes%20in%20Node%2C%20deriving%20the%20entire%20256-byte%20ARC4%20seed%20from%20%60Math.floor%2865536%20%2A%20Math.random%28%29%29%60%20%E2%80%94%20V8%27s%20non-cryptographic%20xorshift128%2B%20%E2%80%94%20XORed%20with%20two%20correlated%20millisecond%20timestamps.%20This%20predictable%20seed%20flows%20into%20%60new%20SecureRandom%28%29%60%20%E2%86%92%20%60getBigRandom%28n%29%60%20%E2%86%92%20the%20ECDSA%20nonce%20k%20in%20%60signHex%60.%22%2C%22title%22%3A%22jsrsasign%20npm%20%E2%80%94%20ECDSA%20nonce%20RNG%20seeded%20entirely%20from%20Math.random%28%29%20in%20Node.js%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-110HTZ5M&#34;,
+  &#34;bug_class&#34;: &#34;Cryptographically Weak PRNG / Predictable ECDSA Nonce&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-05-20T01:48:55+00:00&#34;,
+  &#34;description&#34;: &#34;The npm wrapper at lib/jsrsasign.js:2-5 declares a module-local `window = {}` with no `.crypto`, so the seed-pool initialiser in ext/rng.js falls through to filling all 256 ARC4 key bytes from 128 Math.random() calls plus Date.now(). Every ECDSA nonce k (ecdsa-modified-1.0.js:243), generated EC private key, DSA nonce, RSA-PSS salt, and RSA prime produced by jsrsasign in Node is therefore a deterministic function of V8&#39;s xorshift128+ state at require() time. An attacker who observes a few Math.random() outputs leaked by any co-resident code (request-ID middleware, jitter, shuffles, non-secure UUIDs) can solve the xorshift128+ state, rewind to the pool-fill window, bound the load timestamp, replay the ARC4 keystream, and recover the signing nonce k. From one observed ECDSA signature (r,s) on a known message, the private key follows directly as d = (s·k − e)·r⁻¹ mod n.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-03-28T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;ext/rng.js:28-58; npm/lib/jsrsasign.js:2-5; src/ecdsa-modified-1.0.js:61,98-103,235-252&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;jsrsasign&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Collect ~5 leaked Math.random() doubles from victim responses (request IDs, Retry-After jitter, shuffled arrays, non-secure UUIDs).&#34;,
+    &#34;2. Solve V8 xorshift128+ internal state from the doubles via linear algebra over GF(2) / Z3 (milliseconds; public tooling).&#34;,
+    &#34;3. Rewind the linear generator by 128+Δ calls to the require()-time pool-fill window, accounting for V8&#39;s reversed 64-entry cache.&#34;,
+    &#34;4. Iterate ~10³–10⁶ candidate Date.now() values for the two rng_seed_time() XORs; re-key ARC4 for each and generate candidate nonces k.&#34;,
+    &#34;5. Capture one ECDSA signature (r,s) on known hash e; for each candidate k compute d = (s·k − e)·r⁻¹ mod n and check against the public key.&#34;,
+    &#34;6. On match, attacker holds the private key; forge arbitrary signatures/JWTs for the lifetime of that key.&#34;
+  ],
+  &#34;technical_details&#34;: &#34;Root cause is the `var window = {}` shim in the npm build: ext/rng.js checks only `window.crypto`/`window.msCrypto` (both undefined on the stub) and never checks `globalThis.crypto.getRandomValues` (present in Node ≥19) or `require(&#39;crypto&#39;).randomBytes` (zero grep hits in the package). The `while (rng_pptr &lt; rng_psize)` loop therefore always executes in Node, deriving the entire 256-byte ARC4 seed from `Math.floor(65536 * Math.random())` — V8&#39;s non-cryptographic xorshift128+ — XORed with two correlated millisecond timestamps. This predictable seed flows into `new SecureRandom()` → `getBigRandom(n)` → the ECDSA nonce k in `signHex`.&#34;,
+  &#34;title&#34;: &#34;jsrsasign npm — ECDSA nonce RNG seeded entirely from Math.random() in Node.js&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-4PKJCSR8 · osgeo/gdal</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-4PKJCSR8 · osgeo/gdal</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  oob-write
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-critical">critical</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Ada Logics.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-4PKJCSR8: Heap-buffer-overflow in gdal</h1>
+<p>In GDAL's bundled g2clib, specunpack() allocates the ifld buffer as ndpts<em>sizeof(g2int) and then calls gbits() to unpack Ts elements into it, where Ts is idrstmpl[8] taken directly from the GRIB2 Data Representation Section without validation. A crafted GRIB2 file using DRS template 5.51 can set Ts &gt; ndpts, causing the store at gbits.c:74 (</em>(iout+i) = itmp;) to write past the allocated region. ASAN confirms a WRITE of size 4 immediately past a 16-byte heap allocation. The attacker controls Ts (and thus the overflow extent) via file contents, yielding heap memory corruption and at minimum a crash when GDAL opens the file.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> osgeo/gdal  </p>
+<h2>Technical Details</h2>
+<p>ASAN: heap-buffer-overflow WRITE of size 4 at 0x502000012a20 in gdal_gbits (gbits.c:74). Root cause: in specunpack() (reached via g2_unpack7 when idrsnum == 51), ifld is malloc'd for ndpts g2int elements, but the first gbits() call unpacks Ts = idrstmpl[8] elements into ifld. Ts is read from the GRIB2 file with no check that Ts &lt;= ndpts, so a malformed file overflows ifld on the heap.</p>
+<p><strong>Crash trace:</strong></p>
+<pre tabindex="0"><code>INFO: Running with entropic power schedule (0xFF, 100).
+INFO: Seed: 3580123152
+INFO: Loaded 1 modules   (1021857 inline 8-bit counters): 1021857 [0x5ce901bd7460, 0x5ce901cd0c01), 
+INFO: Loaded 1 PC tables (1021857 PCs): 1021857 [0x5ce901cd0c08,0x5ce902c68618), 
+/out/gdal_fuzzer: Running 1 inputs 1 time(s) each.
+Running: /tmp/poc
+EXIT_CODE:1
+</code></pre>
+<h2>Reproduction</h2>
+<p>Reproduce against the target as described under Technical Details.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-4PKJCSR8.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-4PKJCSR8<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Ada Logics.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/frmts/grib/degrib/g2clib/specunpack.c b/frmts/grib/degrib/g2clib/specunpack.c</span>
+<span class="diff-h">index da976d1e549d..eb09f1af6cc2 100644</span>
+<span class="diff-h">--- a/frmts/grib/degrib/g2clib/specunpack.c</span>
+<span class="diff-h">+++ b/frmts/grib/degrib/g2clib/specunpack.c</span>
+<span class="diff-h">@@ -67,6 +67,13 @@ g2int specunpack(unsigned char *cpack,g2int *idrstmpl,g2int ndpts,g2int JJ,</span>
+<span class="diff-c"> </span>
+<span class="diff-c">       if (idrstmpl[9] == 1) {           // unpacked floats are 32-bit IEEE</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+         if (Ts &gt; ndpts)</span>
+<span class="diff-a">+         {</span>
+<span class="diff-a">+             fprintf(stderr, &quot;specunpack: invalid Ts=%d vs ndpts=%d.\n&quot;, Ts, ndpts);</span>
+<span class="diff-a">+             for (j=0;j&lt;ndpts;j++) fld[j]=0.0;</span>
+<span class="diff-a">+             return -1;</span>
+<span class="diff-a">+         }</span>
+<span class="diff-a">+</span>
+<span class="diff-c">          unpk=(g2float *)malloc(ndpts*sizeof(g2float));</span>
+<span class="diff-c">          ifld=(g2int *)malloc(ndpts*sizeof(g2int));</span>
+<span class="diff-c"> </span></code></pre></div>
+<p class="kicker"><a href="https://github.com/OSGeo/gdal/commit/75cbc453e7491ec10442ee1c9d37a03aef237a00" rel="noopener noreferrer">https://github.com/OSGeo/gdal/commit/75cbc453e7491ec10442ee1c9d37a03aef237a00</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-03-24</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-29</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-12</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-08</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">97ac254e71a7a9d8ccc76c07181dc668616c36c0ee2c1a31b812a1c57ec382e579db8c3b870617860b644351b8062a803d4caaf9c1c43400c6633c17122d731a</p>
+<p class="kicker">Committed 2026-05-07 21:16 UTC</p>
+<p class="kicker">Revealed 2026-07-08 23:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-4PKJCSR8-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-4PKJCSR8%22%2C%22bug_class%22%3A%22Heap-buffer-overflow%22%2C%22claude_severity%22%3A%22critical%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-03-24T18%3A31%3A35%2B00%3A00%22%2C%22description%22%3A%22In%20GDAL%27s%20bundled%20g2clib%2C%20specunpack%28%29%20allocates%20the%20ifld%20buffer%20as%20ndpts%2Asizeof%28g2int%29%20and%20then%20calls%20gbits%28%29%20to%20unpack%20Ts%20elements%20into%20it%2C%20where%20Ts%20is%20idrstmpl%5B8%5D%20taken%20directly%20from%20the%20GRIB2%20Data%20Representation%20Section%20without%20validation.%20A%20crafted%20GRIB2%20file%20using%20DRS%20template%205.51%20can%20set%20Ts%20%3E%20ndpts%2C%20causing%20the%20store%20at%20gbits.c%3A74%20%28%2A%28iout%2Bi%29%20%3D%20itmp%3B%29%20to%20write%20past%20the%20allocated%20region.%20ASAN%20confirms%20a%20WRITE%20of%20size%204%20immediately%20past%20a%2016-byte%20heap%20allocation.%20The%20attacker%20controls%20Ts%20%28and%20thus%20the%20overflow%20extent%29%20via%20file%20contents%2C%20yielding%20heap%20memory%20corruption%20and%20at%20minimum%20a%20crash%20when%20GDAL%20opens%20the%20file.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3Anull%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22gdal%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22ASAN%3A%20heap-buffer-overflow%20WRITE%20of%20size%204%20at%200x502000012a20%20in%20gdal_gbits%20%28gbits.c%3A74%29.%20Root%20cause%3A%20in%20specunpack%28%29%20%28reached%20via%20g2_unpack7%20when%20idrsnum%20%3D%3D%2051%29%2C%20ifld%20is%20malloc%27d%20for%20ndpts%20g2int%20elements%2C%20but%20the%20first%20gbits%28%29%20call%20unpacks%20Ts%20%3D%20idrstmpl%5B8%5D%20elements%20into%20ifld.%20Ts%20is%20read%20from%20the%20GRIB2%20file%20with%20no%20check%20that%20Ts%20%3C%3D%20ndpts%2C%20so%20a%20malformed%20file%20overflows%20ifld%20on%20the%20heap.%22%2C%22title%22%3A%22Heap-buffer-overflow%20in%20gdal%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-4PKJCSR8&#34;,
+  &#34;bug_class&#34;: &#34;Heap-buffer-overflow&#34;,
+  &#34;claude_severity&#34;: &#34;critical&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-03-24T18:31:35+00:00&#34;,
+  &#34;description&#34;: &#34;In GDAL&#39;s bundled g2clib, specunpack() allocates the ifld buffer as ndpts*sizeof(g2int) and then calls gbits() to unpack Ts elements into it, where Ts is idrstmpl[8] taken directly from the GRIB2 Data Representation Section without validation. A crafted GRIB2 file using DRS template 5.51 can set Ts &gt; ndpts, causing the store at gbits.c:74 (*(iout+i) = itmp;) to write past the allocated region. ASAN confirms a WRITE of size 4 immediately past a 16-byte heap allocation. The attacker controls Ts (and thus the overflow extent) via file contents, yielding heap memory corruption and at minimum a crash when GDAL opens the file.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: null,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;gdal&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;ASAN: heap-buffer-overflow WRITE of size 4 at 0x502000012a20 in gdal_gbits (gbits.c:74). Root cause: in specunpack() (reached via g2_unpack7 when idrsnum == 51), ifld is malloc&#39;d for ndpts g2int elements, but the first gbits() call unpacks Ts = idrstmpl[8] elements into ifld. Ts is read from the GRIB2 file with no check that Ts &lt;= ndpts, so a malformed file overflows ifld on the heap.&#34;,
+  &#34;title&#34;: &#34;Heap-buffer-overflow in gdal&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

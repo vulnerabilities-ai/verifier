@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-MEXHXGNE · supabase/supabase</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-MEXHXGNE · supabase/supabase</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  query-injection
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-unknown">-</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-unknown">-</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Mythos Preview</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis of this finding, sealed at approval.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-MEXHXGNE: Link-driven SQL injection via schema URL parameter</h1>
+<p>Supabase Studio reads the <code>?schema=</code> URL parameter via nuqs <code>parseAsString</code> with no validation and passes it to <code>useIndexesQuery</code>, which auto-fires on component mount. The query builder at <code>indexes.ts:20</code> interpolates this value raw into <code>WHERE n.nspname = '${schema}'</code> and the resulting string is POSTed to the write-capable <code>/pg-meta/{ref}/query</code> endpoint using the victim's session token. An attacker who is not a project member can send an authenticated victim a crafted <code>/project/&lt;ref&gt;/database/indexes?schema=&lt;payload&gt;</code> link; merely opening it executes attacker-chosen SQL (DROP SCHEMA, CREATE ROLE, secret exfiltration) against the victim's Postgres. The tainted schema is also persisted to localStorage, causing the payload to re-execute on subsequent visits to schema-aware pages.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> supabase/supabase<br>
+<strong>Location:</strong> <code>packages/pg-meta/src/sql/studio/database/indexes.ts:20</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>The root cause is raw string interpolation of a user-controlled URL parameter into SQL: <code>WHERE n.nspname = '${schema}'</code> uses neither the existing <code>ident()</code> nor <code>literal()</code> escaping helpers (unlike sibling builders such as <code>database/misc.ts:15</code>). Because react-query is <code>enabled</code> as soon as <code>projectRef</code> and <code>schema</code> are defined, the injected SQL executes automatically on page load with no further user interaction, and the backend <code>/query</code> endpoint accepts arbitrary SQL with no read-only restriction.</p>
+<h2>Reproduction</h2>
+<ol>
+<li>Attacker crafts URL: https://supabase.com/dashboard/project//database/indexes?schema=public%27%3B%20DROP%20SCHEMA%20public%20CASCADE%3B--</li>
+<li>Victim (authenticated) opens the link; <code>useSchemaQueryState</code> reads <code>?schema=</code> unvalidated</li>
+<li><code>Indexes.tsx</code> mounts and <code>useIndexesQuery</code> auto-fires with the tainted schema</li>
+<li><code>getIndexesSQL</code> concatenates the payload into raw SQL; <code>executeSql</code> POSTs it to <code>/platform/pg-meta/{ref}/query</code> with the victim's access token</li>
+<li>Payload executes in victim's Postgres; tainted schema is persisted to localStorage and re-runs on later visits</li>
+</ol>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Suggested Fix</h2>
+<p>Pass all identifiers and literals embedded in generated SQL through the existing <code>ident()</code>/<code>literal()</code> escaping helpers, and validate URL-sourced schema names against the project's actual schema list before using them in any query.</p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-MEXHXGNE.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-MEXHXGNE<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/apps/studio/components/interfaces/Database/Hooks/EditHookPanel.tsx b/apps/studio/components/interfaces/Database/Hooks/EditHookPanel.tsx</span>
+<span class="diff-h">index 11646d724e7ad..672447796fc41 100644</span>
+<span class="diff-h">--- a/apps/studio/components/interfaces/Database/Hooks/EditHookPanel.tsx</span>
+<span class="diff-h">+++ b/apps/studio/components/interfaces/Database/Hooks/EditHookPanel.tsx</span>
+<span class="diff-h">@@ -1,4 +1,5 @@</span>
+<span class="diff-c"> import { zodResolver } from &#x27;@hookform/resolvers/zod&#x27;</span>
+<span class="diff-a">+import { keyword } from &#x27;@supabase/pg-meta&#x27;</span>
+<span class="diff-c"> import { PGTriggerCreate } from &#x27;@supabase/pg-meta/src/pg-meta-triggers&#x27;</span>
+<span class="diff-c"> import type { PostgresTrigger } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import { useQueryClient } from &#x27;@tanstack/react-query&#x27;</span>
+<span class="diff-h">@@ -275,7 +276,11 @@ export const EditHookPanel = () =&gt; {</span>
+<span class="diff-c">           projectRef: project?.ref,</span>
+<span class="diff-c">           connectionString: project?.connectionString,</span>
+<span class="diff-c">           originalTrigger: selectedHook,</span>
+<span class="diff-d">-          updatedTrigger: { ...payload, enabled_mode: &#x27;ORIGIN&#x27; },</span>
+<span class="diff-a">+          updatedTrigger: {</span>
+<span class="diff-a">+            ...payload,</span>
+<span class="diff-a">+            enabled_mode: &#x27;ORIGIN&#x27;,</span>
+<span class="diff-a">+            events: payload.events.map(keyword),</span>
+<span class="diff-a">+          },</span>
+<span class="diff-c">         })</span>
+<span class="diff-c">       }</span>
+<span class="diff-c">     } catch (error) {</span>
+<span class="diff-h">diff --git a/apps/studio/data/database-triggers/database-trigger-update-transaction-mutation.ts b/apps/studio/data/database-triggers/database-trigger-update-transaction-mutation.ts</span>
+<span class="diff-h">index 64897d5ac329b..738fe4a3061c1 100644</span>
+<span class="diff-h">--- a/apps/studio/data/database-triggers/database-trigger-update-transaction-mutation.ts</span>
+<span class="diff-h">+++ b/apps/studio/data/database-triggers/database-trigger-update-transaction-mutation.ts</span>
+<span class="diff-h">@@ -1,4 +1,4 @@</span>
+<span class="diff-d">-import { getDatabaseTriggerUpdateSQL } from &#x27;@supabase/pg-meta&#x27;</span>
+<span class="diff-a">+import { getDatabaseTriggerUpdateSQL, type SafeSqlFragment } from &#x27;@supabase/pg-meta&#x27;</span>
+<span class="diff-c"> import { PGTrigger, PGTriggerCreate } from &#x27;@supabase/pg-meta/src/pg-meta-triggers&#x27;</span>
+<span class="diff-c"> import { PostgresTrigger } from &#x27;@supabase/postgres-meta&#x27;</span>
+<span class="diff-c"> import { useMutation, useQueryClient } from &#x27;@tanstack/react-query&#x27;</span>
+<span class="diff-h">@@ -16,7 +16,8 @@ export type DatabaseTriggerUpdateVariables = {</span>
+<span class="diff-c">   projectRef: string</span>
+<span class="diff-c">   connectionString?: string | null</span>
+<span class="diff-c">   originalTrigger: PostgresTrigger</span>
+<span class="diff-d">-  updatedTrigger: PGTriggerCreate &amp; Pick&lt;PGTrigger, &#x27;enabled_mode&#x27;&gt;</span>
+<span class="diff-a">+  updatedTrigger: Omit&lt;PGTriggerCreate, &#x27;events&#x27;&gt; &amp;</span>
+<span class="diff-a">+    Pick&lt;PGTrigger, &#x27;enabled_mode&#x27;&gt; &amp; { events: Array&lt;SafeSqlFragment&gt; }</span>
+<span class="diff-c"> }</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> export async function updateDatabaseTrigger({</span>
+<span class="diff-h">diff --git a/packages/pg-meta/src/sql/studio/advisor/index-advisor.ts b/packages/pg-meta/src/sql/studio/advisor/index-advisor.ts</span>
+<span class="diff-h">index 3fe4152292065..8708b11e1d8e5 100644</span>
+<span class="diff-h">--- a/packages/pg-meta/src/sql/studio/advisor/index-advisor.ts</span>
+<span class="diff-h">+++ b/packages/pg-meta/src/sql/studio/advisor/index-advisor.ts</span>
+<span class="diff-h">@@ -1,15 +1,18 @@</span>
+<span class="diff-a">+import { literal, safeSql, type SafeSqlFragment } from &#x27;../../../pg-format&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> /**</span>
+<span class="diff-c">  * Generates SQL to find top 5 SELECT queries involving a table and run them through index_advisor</span>
+<span class="diff-c">  */</span>
+<span class="diff-d">-export function getTableIndexAdvisorSql(schema: string, table: string): string {</span>
+<span class="diff-d">-  const escapedSchema = schema.replace(/&#x27;/g, &quot;&#x27;&#x27;&quot;)</span>
+<span class="diff-d">-  const escapedTable = table.replace(/&#x27;/g, &quot;&#x27;&#x27;&quot;)</span>
+<span class="diff-a">+export function getTableIndexAdvisorSql(schema: string, table: string): SafeSqlFragment {</span>
+<span class="diff-a">+  // Escape regex metacharacters so schema/table names are matched literally in PostgreSQL regex</span>
+<span class="diff-a">+  const regexSchema = schema.toLowerCase().replace(/[.+*?^${}()|[\]\\]/g, &#x27;\\$&amp;&#x27;)</span>
+<span class="diff-a">+  const regexTable = table.toLowerCase().replace(/[.+*?^${}()|[\]\\]/g, &#x27;\\$&amp;&#x27;)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  // Escape regex metacharacters so schema/table names are matched literally</span>
+<span class="diff-d">-  const regexSchema = escapedSchema.toLowerCase().replace(/[.+*?^${}()|[\]\\]/g, &#x27;\\$&amp;&#x27;)</span>
+<span class="diff-d">-  const regexTable = escapedTable.toLowerCase().replace(/[.+*?^${}()|[\]\\]/g, &#x27;\\$&amp;&#x27;)</span>
+<span class="diff-a">+  const tablePattern = literal(`(^|[^a-z0-9_$])${regexSchema}[.]${regexTable}($|[^a-z0-9_$])`)</span>
+<span class="diff-a">+  const fromPattern = literal(`(^|[^a-z0-9_$])from[[:space:]]+${regexTable}($|[^a-z0-9_$])`)</span>
+<span class="diff-a">+  const joinPattern = literal(`(^|[^a-z0-9_$])join[[:space:]]+${regexTable}($|[^a-z0-9_$])`)</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-  return /* SQL */ `</span>
+<span class="diff-a">+  return safeSql`</span>
+<span class="diff-c"> -- Get top 5 SELECT queries involving this table and run through index_advisor</span>
+<span class="diff-c"> set search_path to public, extensions;</span>
+<span class="diff-c"> </span>
+<span class="diff-h">@@ -27,9 +30,9 @@ with top_queries as (</span>
+<span class="diff-c">     -- Filter for queries involving our table. Use regex word boundaries so that e.g.</span>
+<span class="diff-c">     -- looking for table &quot;orders&quot; does not match queries on &quot;orders_items&quot;.</span>
+<span class="diff-c">     and (</span>
+<span class="diff-d">-      lower(statements.query) ~ &#x27;(^|[^a-z0-9_$])${regexSchema}[.]${regexTable}($|[^a-z0-9_$])&#x27;</span>
+<span class="diff-d">-      or lower(statements.query) ~ &#x27;(^|[^a-z0-9_$])from[[:space:]]+${regexTable}($|[^a-z0-9_$])&#x27;</span>
+<span class="diff-d">-      or lower(statements.query) ~ &#x27;(^|[^a-z0-9_$])join[[:space:]]+${regexTable}($|[^a-z0-9_$])&#x27;</span>
+<span class="diff-a">+      lower(statements.query) ~ ${tablePattern}</span>
+<span class="diff-a">+      or lower(statements.query) ~ ${fromPattern}</span>
+<span class="diff-a">+      or lower(statements.query) ~ ${joinPattern}</span>
+<span class="diff-c">     )</span>
+<span class="diff-c">     -- Exclude system queries</span>
+<span class="diff-c">     and statements.query not like &#x27;%pg_catalog%&#x27;</span>
+<span class="diff-h">@@ -50,6 +53,5 @@ select</span>
+<span class="diff-c"> from top_queries tq</span>
+<span class="diff-c"> left join lateral (</span>
+<span class="diff-c">   select * from index_advisor(tq.query)</span>
+<span class="diff-d">-) ia on true;</span>
+<span class="diff-d">-`.trim()</span>
+<span class="diff-a">+) ia on true;`</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/packages/pg-meta/src/sql/studio/auth/get-index-statuses.ts b/packages/pg-meta/src/sql/studio/auth/get-index-statuses.ts</span>
+<span class="diff-h">index 685c1c809fb54..97ad7e83afa78 100644</span>
+<span class="diff-h">--- a/packages/pg-meta/src/sql/studio/auth/get-index-statuses.ts</span>
+<span class="diff-h">+++ b/packages/pg-meta/src/sql/studio/auth/get-index-statuses.ts</span>
+<span class="diff-h">@@ -1,4 +1,4 @@</span>
+<span class="diff-d">-import { literal } from &#x27;../../../pg-format&#x27;</span>
+<span class="diff-a">+import { joinSqlFragments, literal, safeSql, type SafeSqlFragment } from &#x27;../../../pg-format&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> export const USER_SEARCH_INDEXES = [</span>
+<span class="diff-c">   &#x27;idx_users_email&#x27;,</span>
+<span class="diff-h">@@ -10,11 +10,12 @@ export const USER_SEARCH_INDEXES = [</span>
+<span class="diff-c">   &#x27;users_phone_key&#x27;,</span>
+<span class="diff-c"> ]</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-export const getIndexStatusesSQL = () =&gt; {</span>
+<span class="diff-d">-  return `SELECT c.relname as index_name, i.indisvalid as is_valid, i.indisready as is_ready</span>
+<span class="diff-a">+export const getIndexStatusesSQL = (): SafeSqlFragment =&gt; {</span>
+<span class="diff-a">+  const indexNames = joinSqlFragments(USER_SEARCH_INDEXES.map(literal), &#x27;, &#x27;)</span>
+<span class="diff-a">+  return safeSql`SELECT c.relname as index_name, i.indisvalid as is_valid, i.indisready as is_ready</span>
+<span class="diff-c">     FROM pg_index i</span>
+<span class="diff-c">     JOIN pg_class c ON c.oid = i.indexrelid</span>
+<span class="diff-c">     JOIN pg_namespace n ON n.oid = c.relnamespace</span>
+<span class="diff-c">     WHERE n.nspname = &#x27;auth&#x27;</span>
+<span class="diff-d">-    AND c.relname IN (${USER_SEARCH_INDEXES.map(literal).join(&#x27;, &#x27;)});`</span>
+<span class="diff-a">+    AND c.relname IN (${indexNames});`</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/packages/pg-meta/src/sql/studio/auth/get-index-worker-status.ts b/packages/pg-meta/src/sql/studio/auth/get-index-worker-status.ts</span>
+<span class="diff-h">index 8917fa5f849a4..43244c9127ad2 100644</span>
+<span class="diff-h">--- a/packages/pg-meta/src/sql/studio/auth/get-index-worker-status.ts</span>
+<span class="diff-h">+++ b/packages/pg-meta/src/sql/studio/auth/get-index-worker-status.ts</span>
+<span class="diff-h">@@ -1,11 +1,13 @@</span>
+<span class="diff-a">+import { literal, safeSql, type SafeSqlFragment } from &#x27;../../../pg-format&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-c"> // Checks pg_locks to determine if the index worker advisory lock is currently held</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> const INDEX_WORKER_ADVISORY_LOCK_KEY = &#x27;auth_index_worker&#x27;</span>
+<span class="diff-c"> </span>
+<span class="diff-d">-export const getIndexWorkerStatusSQL = () =&gt; {</span>
+<span class="diff-d">-  return `SELECT EXISTS (</span>
+<span class="diff-a">+export const getIndexWorkerStatusSQL = (): SafeSqlFragment =&gt; {</span>
+<span class="diff-a">+  return safeSql`SELECT EXISTS (</span>
+<span class="diff-c">     SELECT 1 FROM pg_locks</span>
+<span class="diff-c">     WHERE locktype = &#x27;advisory&#x27;</span>
+<span class="diff-d">-    AND (classid::bigint &lt;&lt; 32 | objid::bigint) = hashtext(&#x27;${INDEX_WORKER_ADVISORY_LOCK_KEY}&#x27;)::bigint</span>
+<span class="diff-a">+    AND (classid::bigint &lt;&lt; 32 | objid::bigint) = hashtext(${literal(INDEX_WORKER_ADVISORY_LOCK_KEY)})::bigint</span>
+<span class="diff-c">   ) as is_in_progress;`</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/packages/pg-meta/src/sql/studio/auth/get-user.ts b/packages/pg-meta/src/sql/studio/auth/get-user.ts</span>
+<span class="diff-h">index cbb03efd0bb2b..9527cce33d5f0 100644</span>
+<span class="diff-h">--- a/packages/pg-meta/src/sql/studio/auth/get-user.ts</span>
+<span class="diff-h">+++ b/packages/pg-meta/src/sql/studio/auth/get-user.ts</span>
+<span class="diff-h">@@ -1,5 +1,7 @@</span>
+<span class="diff-d">-export const getUserSQL = (userId: string) =&gt; {</span>
+<span class="diff-d">-  const sql = /* SQL */ `</span>
+<span class="diff-a">+import { literal, safeSql, type SafeSqlFragment } from &#x27;../../../pg-format&#x27;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+export const getUserSQL = (userId: string): SafeSqlFragment =&gt; {</span>
+<span class="diff-a">+  return safeSql`</span>
+<span class="diff-c"> select</span>
+<span class="diff-c">   auth.users.id,</span>
+<span class="diff-c">   auth.users.email,</span>
+<span class="diff-h">@@ -28,8 +30,5 @@ select</span>
+<span class="diff-c">   ) as providers</span>
+<span class="diff-c"> from</span>
+<span class="diff-c">   auth.users</span>
+<span class="diff-d">-where id = &#x27;${userId}&#x27;;</span>
+<span class="diff-d">-`.trim()</span>
+<span class="diff-d">-</span>
+<span class="diff-d">-  return sql</span>
+<span class="diff-a">+where id = ${literal(userId)};`</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/packages/pg-meta/src/sql/studio/database/check-tables-anon-authenticated-access.ts b/packages/pg-meta/src/sql/studio/database/check-tables-anon-authenticated-access.ts</span>
+<span class="diff-h">index 67b80967b0907..23f4fc1036424 100644</span>
+<span class="diff-h">--- a/pac</span>
+<span class="diff-c">… (truncated)</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/supabase/supabase/commit/b1531545fbb4247d37e538e8bc1dbf6bf3df3871" rel="noopener noreferrer">https://github.com/supabase/supabase/commit/b1531545fbb4247d37e538e8bc1dbf6bf3df3871</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-16</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-05</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-05</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-08-18</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">714bebf647e515eb911a0607d39e68f5f25150127bd9e7c5e844c5aabb7497ab89fe247902321044b1f89ee23c0755f545c9aa993fad87d02579ec29f42f366d</p>
+<p class="kicker">Committed 2026-05-18 03:24 UTC</p>
+<p class="kicker">Revealed 2026-08-18 00:36 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-MEXHXGNE-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-MEXHXGNE%22%2C%22bug_class%22%3A%22SQL%20Injection%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3Anull%2C%22created_at%22%3A%222026-04-16T14%3A01%3A52%2B00%3A00%22%2C%22description%22%3A%22Supabase%20Studio%20reads%20the%20%60%3Fschema%3D%60%20URL%20parameter%20via%20nuqs%20%60parseAsString%60%20with%20no%20validation%20and%20passes%20it%20to%20%60useIndexesQuery%60%2C%20which%20auto-fires%20on%20component%20mount.%20The%20query%20builder%20at%20%60indexes.ts%3A20%60%20interpolates%20this%20value%20raw%20into%20%60WHERE%20n.nspname%20%3D%20%27%24%7Bschema%7D%27%60%20and%20the%20resulting%20string%20is%20POSTed%20to%20the%20write-capable%20%60/pg-meta/%7Bref%7D/query%60%20endpoint%20using%20the%20victim%27s%20session%20token.%20An%20attacker%20who%20is%20not%20a%20project%20member%20can%20send%20an%20authenticated%20victim%20a%20crafted%20%60/project/%3Cref%3E/database/indexes%3Fschema%3D%3Cpayload%3E%60%20link%3B%20merely%20opening%20it%20executes%20attacker-chosen%20SQL%20%28DROP%20SCHEMA%2C%20CREATE%20ROLE%2C%20secret%20exfiltration%29%20against%20the%20victim%27s%20Postgres.%20The%20tainted%20schema%20is%20also%20persisted%20to%20localStorage%2C%20causing%20the%20payload%20to%20re-execute%20on%20subsequent%20visits%20to%20schema-aware%20pages.%22%2C%22discovered_at%22%3A%222026-04-02T00%3A00%3A00%2B00%3A00%22%2C%22location%22%3A%22packages/pg-meta/src/sql/studio/database/indexes.ts%3A20%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22supabase/supabase%22%2C%22reproduction%22%3A%5B%221.%20Attacker%20crafts%20URL%3A%20https%3A//supabase.com/dashboard/project/%3Cref%3E/database/indexes%3Fschema%3Dpublic%2527%253B%2520DROP%2520SCHEMA%2520public%2520CASCADE%253B--%22%2C%222.%20Victim%20%28authenticated%29%20opens%20the%20link%3B%20%60useSchemaQueryState%60%20reads%20%60%3Fschema%3D%60%20unvalidated%22%2C%223.%20%60Indexes.tsx%60%20mounts%20and%20%60useIndexesQuery%60%20auto-fires%20with%20the%20tainted%20schema%22%2C%224.%20%60getIndexesSQL%60%20concatenates%20the%20payload%20into%20raw%20SQL%3B%20%60executeSql%60%20POSTs%20it%20to%20%60/platform/pg-meta/%7Bref%7D/query%60%20with%20the%20victim%27s%20access%20token%22%2C%225.%20Payload%20executes%20in%20victim%27s%20Postgres%3B%20tainted%20schema%20is%20persisted%20to%20localStorage%20and%20re-runs%20on%20later%20visits%22%5D%2C%22technical_details%22%3A%22The%20root%20cause%20is%20raw%20string%20interpolation%20of%20a%20user-controlled%20URL%20parameter%20into%20SQL%3A%20%60WHERE%20n.nspname%20%3D%20%27%24%7Bschema%7D%27%60%20uses%20neither%20the%20existing%20%60ident%28%29%60%20nor%20%60literal%28%29%60%20escaping%20helpers%20%28unlike%20sibling%20builders%20such%20as%20%60database/misc.ts%3A15%60%29.%20Because%20react-query%20is%20%60enabled%60%20as%20soon%20as%20%60projectRef%60%20and%20%60schema%60%20are%20defined%2C%20the%20injected%20SQL%20executes%20automatically%20on%20page%20load%20with%20no%20further%20user%20interaction%2C%20and%20the%20backend%20%60/query%60%20endpoint%20accepts%20arbitrary%20SQL%20with%20no%20read-only%20restriction.%22%2C%22title%22%3A%22Link-driven%20SQL%20injection%20via%20schema%20URL%20parameter%22%2C%22vendor_severity%22%3Anull%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-MEXHXGNE&#34;,
+  &#34;bug_class&#34;: &#34;SQL Injection&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: null,
+  &#34;created_at&#34;: &#34;2026-04-16T14:01:52+00:00&#34;,
+  &#34;description&#34;: &#34;Supabase Studio reads the `?schema=` URL parameter via nuqs `parseAsString` with no validation and passes it to `useIndexesQuery`, which auto-fires on component mount. The query builder at `indexes.ts:20` interpolates this value raw into `WHERE n.nspname = &#39;${schema}&#39;` and the resulting string is POSTed to the write-capable `/pg-meta/{ref}/query` endpoint using the victim&#39;s session token. An attacker who is not a project member can send an authenticated victim a crafted `/project/&lt;ref&gt;/database/indexes?schema=&lt;payload&gt;` link; merely opening it executes attacker-chosen SQL (DROP SCHEMA, CREATE ROLE, secret exfiltration) against the victim&#39;s Postgres. The tainted schema is also persisted to localStorage, causing the payload to re-execute on subsequent visits to schema-aware pages.&#34;,
+  &#34;discovered_at&#34;: &#34;2026-04-02T00:00:00+00:00&#34;,
+  &#34;location&#34;: &#34;packages/pg-meta/src/sql/studio/database/indexes.ts:20&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;supabase/supabase&#34;,
+  &#34;reproduction&#34;: [
+    &#34;1. Attacker crafts URL: https://supabase.com/dashboard/project/&lt;ref&gt;/database/indexes?schema=public%27%3B%20DROP%20SCHEMA%20public%20CASCADE%3B--&#34;,
+    &#34;2. Victim (authenticated) opens the link; `useSchemaQueryState` reads `?schema=` unvalidated&#34;,
+    &#34;3. `Indexes.tsx` mounts and `useIndexesQuery` auto-fires with the tainted schema&#34;,
+    &#34;4. `getIndexesSQL` concatenates the payload into raw SQL; `executeSql` POSTs it to `/platform/pg-meta/{ref}/query` with the victim&#39;s access token&#34;,
+    &#34;5. Payload executes in victim&#39;s Postgres; tainted schema is persisted to localStorage and re-runs on later visits&#34;
+  ],
+  &#34;technical_details&#34;: &#34;The root cause is raw string interpolation of a user-controlled URL parameter into SQL: `WHERE n.nspname = &#39;${schema}&#39;` uses neither the existing `ident()` nor `literal()` escaping helpers (unlike sibling builders such as `database/misc.ts:15`). Because react-query is `enabled` as soon as `projectRef` and `schema` are defined, the injected SQL executes automatically on page load with no further user interaction, and the backend `/query` endpoint accepts arbitrary SQL with no read-only restriction.&#34;,
+  &#34;title&#34;: &#34;Link-driven SQL injection via schema URL parameter&#34;,
+  &#34;vendor_severity&#34;: null
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>

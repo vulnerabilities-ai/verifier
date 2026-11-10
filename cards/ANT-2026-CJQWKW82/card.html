@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ANT-2026-CJQWKW82 · postgres/postgres</title>
+<link rel="icon" type="image/x-icon" href="/anthropic-serve/favicon.ico">
+<script>(function(){try{var t=localStorage.getItem("cvd_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);}catch(e){}})();</script>
+<link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/ledger.css">
+</head>
+<body>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT0111843S"></script><script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-MT0111843S');
+</script>
+<main>
+<h1>ANT-2026-CJQWKW82 · postgres/postgres</h1>
+<nav class="site-nav muted">
+<a href="../index.html">Overview</a>  ·
+<a href="../ledger/index.html">Ledger</a>  ·
+<a href="../archive/index.html">Archive</a>  ·
+<a href="../about/index.html">About</a>  <span class="theme-toggle">
+    <button type="button" data-set-theme="light">Light</button>
+    <button type="button" data-set-theme="dark">Dark</button>
+    <button type="button" data-set-theme="system">System</button>
+  </span>
+</nav>
+<h2>
+  unbounded-recursion
+  <span class="sev-badge sev-high">high</span>
+</h2>
+
+<p class="id-badges">
+  <a class="id-badge" href="https://nvd.nist.gov/vuln/detail/CVE-2026-6479">CVE-2026-6479</a>
+  <a class="id-badge" href="https://github.com/advisories/GHSA-hwfh-mh4f-m67f">GHSA-hwfh-mh4f-m67f</a>
+</p>
+
+<p class="sev-compare">
+  <span class="sev-compare-label">Severity</span>
+  <span class="sev-compare-item">Claude <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Security research firm <span class="sev-chip sev-high">high</span></span>
+  <span class="sev-compare-sep">·</span>
+  <span class="sev-compare-item">Maintainer <span class="sev-chip sev-high">high</span></span>
+</p>
+
+<p class="attribution">Discovered by
+<span class="model-chip">Claude Opus 4.6</span></p>
+
+
+<div class="marker">REPORT</div>
+<p class="section-intro">Anthropic's analysis, sealed at approval. Disclosure to the maintainer was performed by Calif.</p>
+<div class="report-body" tabindex="0"><h1>ANT-2026-CJQWKW82: Pre-auth unbounded recursion in ProcessStartupPacket: alternating SSL/GSS negotiation requests cause infinite recursion when both are rejected. ssl_done/gss_done flags oscillate (true,false)-&gt;(false,true) endlessly. No check_stack_depth. Pre-authentication.</h1>
+<p>Unauthenticated attacker alternates SSL and GSS request packets. After ~40K-80K exchanges the backend crashes from stack overflow (SIGSEGV). On localhost takes seconds. AuthenticationTimeout (60s) is only time bound.</p>
+<h2>Target</h2>
+<p><strong>Project:</strong> postgres/postgres<br>
+<strong>Commit:</strong> <code>5241616289cc64e0</code><br>
+<strong>Location:</strong> <code>src/backend/tcop/backend_startup.c:637</code><br>
+<strong>Discovery:</strong> static analysis — not yet dynamically reproduced  </p>
+<h2>Technical Details</h2>
+<p>When SSL is rejected, line 637 recurses with ProcessStartupPacket(port, true, SSLok == 'S') → (true,false); when GSS is rejected, line 693 recurses with ProcessStartupPacket(port, GSSok == 'G', true) → (false,true). The guards at lines 574 (!ssl_done) and 639 (!gss_done) therefore never both stay true, so alternating requests re-enter forever. No check_stack_depth(), counter, or iteration cap exists in the path, so the recursion terminates only via stack exhaustion (SIGSEGV).</p>
+<h2>Reproduction</h2>
+<p>This finding was identified by static analysis and has not yet been dynamically reproduced. The Technical Details section above describes the code path; a trigger input is not included.</p>
+<p><em>[No reproducer or sanitizer output attached — request from security-cvd@anthropic.com if needed.]</em></p>
+<h2>Acknowledgement</h2>
+<p>This vulnerability was discovered by Claude, Anthropic's AI assistant, and triaged by the Anthropic security team in collaboration with Anthropic Research. Please direct questions to security-cvd@anthropic.com and reference ANT-2026-CJQWKW82.</p>
+<hr>
+<p><strong>Reference:</strong> ANT-2026-CJQWKW82<br>
+<strong>Anthropic CVD Policy:</strong> https://www.anthropic.com/coordinated-vulnerability-disclosure</p></div>
+
+<div class="marker">SECURITY RESEARCH FIRM ANALYSIS</div>
+<p class="section-intro">Triage and disclosure were performed by Calif.</p>
+<dl class="vendor-analysis">
+<dt>Verdict</dt><dd><span class="verdict-chip verdict-tp">true positive</span></dd><dt>Severity</dt><dd class="sev-high">high</dd></dl>
+
+
+<div class="marker">UPSTREAM FIX</div>
+<p class="section-intro">The change that resolved this finding.</p>
+<div class="diff-block"><pre class="diff" tabindex="0"><code><span class="diff-h">diff --git a/src/backend/tcop/backend_startup.c b/src/backend/tcop/backend_startup.c</span>
+<span class="diff-h">index 5abf276c89848..a810e41a9040e 100644</span>
+<span class="diff-h">--- a/src/backend/tcop/backend_startup.c</span>
+<span class="diff-h">+++ b/src/backend/tcop/backend_startup.c</span>
+<span class="diff-h">@@ -496,6 +496,7 @@ ProcessStartupPacket(Port *port, bool ssl_done, bool gss_done)</span>
+<span class="diff-c"> 	ProtocolVersion proto;</span>
+<span class="diff-c"> 	MemoryContext oldcontext;</span>
+<span class="diff-c"> </span>
+<span class="diff-a">+retry:</span>
+<span class="diff-c"> 	pq_startmsgread();</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/*</span>
+<span class="diff-h">@@ -616,6 +617,7 @@ ProcessStartupPacket(Port *port, bool ssl_done, bool gss_done)</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		pfree(buf);</span>
+<span class="diff-a">+		buf = NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		/*</span>
+<span class="diff-c"> 		 * At this point we should have no data already buffered.  If we do,</span>
+<span class="diff-h">@@ -634,7 +636,16 @@ ProcessStartupPacket(Port *port, bool ssl_done, bool gss_done)</span>
+<span class="diff-c"> 		 * another SSL negotiation request, and a GSS request should only</span>
+<span class="diff-c"> 		 * follow if SSL was rejected (client may negotiate in either order)</span>
+<span class="diff-c"> 		 */</span>
+<span class="diff-d">-		return ProcessStartupPacket(port, true, SSLok == &#x27;S&#x27;);</span>
+<span class="diff-a">+		ssl_done = true;</span>
+<span class="diff-a">+		if (SSLok == &#x27;S&#x27;)</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			/*</span>
+<span class="diff-a">+			 * We are done with SSL and negotiated correctly, so consider the</span>
+<span class="diff-a">+			 * same for GSS.</span>
+<span class="diff-a">+			 */</span>
+<span class="diff-a">+			gss_done = true;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		goto retry;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> 	else if (proto == NEGOTIATE_GSS_CODE &amp;&amp; !gss_done)</span>
+<span class="diff-c"> 	{</span>
+<span class="diff-h">@@ -672,6 +683,7 @@ ProcessStartupPacket(Port *port, bool ssl_done, bool gss_done)</span>
+<span class="diff-c"> #endif</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		pfree(buf);</span>
+<span class="diff-a">+		buf = NULL;</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 		/*</span>
+<span class="diff-c"> 		 * At this point we should have no data already buffered.  If we do,</span>
+<span class="diff-h">@@ -690,7 +702,16 @@ ProcessStartupPacket(Port *port, bool ssl_done, bool gss_done)</span>
+<span class="diff-c"> 		 * another GSS negotiation request, and an SSL request should only</span>
+<span class="diff-c"> 		 * follow if GSS was rejected (client may negotiate in either order)</span>
+<span class="diff-c"> 		 */</span>
+<span class="diff-d">-		return ProcessStartupPacket(port, GSSok == &#x27;G&#x27;, true);</span>
+<span class="diff-a">+		gss_done = true;</span>
+<span class="diff-a">+		if (GSSok == &#x27;G&#x27;)</span>
+<span class="diff-a">+		{</span>
+<span class="diff-a">+			/*</span>
+<span class="diff-a">+			 * We are done with GSS and negotiated correctly, so consider the</span>
+<span class="diff-a">+			 * same for SSL.</span>
+<span class="diff-a">+			 */</span>
+<span class="diff-a">+			ssl_done = true;</span>
+<span class="diff-a">+		}</span>
+<span class="diff-a">+		goto retry;</span>
+<span class="diff-c"> 	}</span>
+<span class="diff-c"> </span>
+<span class="diff-c"> 	/* Could add additional special packet types here */</span>
+<span class="diff-h">diff --git a/src/test/postmaster/meson.build b/src/test/postmaster/meson.build</span>
+<span class="diff-h">index d2709867da71c..fa30883b601bd 100644</span>
+<span class="diff-h">--- a/src/test/postmaster/meson.build</span>
+<span class="diff-h">+++ b/src/test/postmaster/meson.build</span>
+<span class="diff-h">@@ -9,6 +9,7 @@ tests += {</span>
+<span class="diff-c">       &#x27;t/001_basic.pl&#x27;,</span>
+<span class="diff-c">       &#x27;t/002_connection_limits.pl&#x27;,</span>
+<span class="diff-c">       &#x27;t/003_start_stop.pl&#x27;,</span>
+<span class="diff-a">+      &#x27;t/004_negotiate.pl&#x27;,</span>
+<span class="diff-c">     ],</span>
+<span class="diff-c">   },</span>
+<span class="diff-c"> }</span>
+<span class="diff-h">diff --git a/src/test/postmaster/t/004_negotiate.pl b/src/test/postmaster/t/004_negotiate.pl</span>
+<span class="diff-c">new file mode 100644</span>
+<span class="diff-h">index 0000000000000..949aa2ba19ac0</span>
+<span class="diff-h">--- /dev/null</span>
+<span class="diff-h">+++ b/src/test/postmaster/t/004_negotiate.pl</span>
+<span class="diff-h">@@ -0,0 +1,83 @@</span>
+<span class="diff-a">+# Copyright (c) 2026, PostgreSQL Global Development Group</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Test the negotiation of combined SSL and GSS requests.  This test</span>
+<span class="diff-a">+# relies on both SSL and GSS requests to be rejected first, followed</span>
+<span class="diff-a">+# by more requests.</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+use strict;</span>
+<span class="diff-a">+use warnings FATAL =&gt; &#x27;all&#x27;;</span>
+<span class="diff-a">+use PostgreSQL::Test::Cluster;</span>
+<span class="diff-a">+use PostgreSQL::Test::Utils;</span>
+<span class="diff-a">+use Test::More;</span>
+<span class="diff-a">+use Time::HiRes qw(usleep);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+my $node = PostgreSQL::Test::Cluster-&gt;new(&#x27;main&#x27;);</span>
+<span class="diff-a">+$node-&gt;init;</span>
+<span class="diff-a">+$node-&gt;append_conf(&#x27;postgresql.conf&#x27;, &quot;log_min_messages = debug2&quot;);</span>
+<span class="diff-a">+$node-&gt;append_conf(&#x27;postgresql.conf&#x27;,</span>
+<span class="diff-a">+	&quot;log_connections = &#x27;receipt,authentication,authorization&#x27;&quot;);</span>
+<span class="diff-a">+$node-&gt;append_conf(&#x27;postgresql.conf&#x27;, &#x27;trace_connection_negotiation=on&#x27;);</span>
+<span class="diff-a">+$node-&gt;start;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+if (!$node-&gt;raw_connect_works())</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	plan skip_all =&gt; &quot;this test requires working raw_connect()&quot;;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+my $sock = $node-&gt;raw_connect();</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# SSLRequest: packet length followed by NEGOTIATE_SSL_CODE.</span>
+<span class="diff-a">+my $ssl_request = pack(&quot;Nnn&quot;, 8, 1234, 5679);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# GSSENCRequest: packet length followed by NEGOTIATE_GSS_CODE.</span>
+<span class="diff-a">+my $gss_request = pack(&quot;Nnn&quot;, 8, 1234, 5680);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Send SSLRequest, reject or bypass.</span>
+<span class="diff-a">+$sock-&gt;send($ssl_request);</span>
+<span class="diff-a">+my $reply = &quot;&quot;;</span>
+<span class="diff-a">+$sock-&gt;recv($reply, 1);</span>
+<span class="diff-a">+if ($reply ne &#x27;N&#x27;)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	$sock-&gt;close();</span>
+<span class="diff-a">+	plan skip_all =&gt;</span>
+<span class="diff-a">+	  &quot;server accepted SSL; test requires SSL to be rejected&quot;;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Send GSSENCRequest, reject or bypass test.</span>
+<span class="diff-a">+$sock-&gt;send($gss_request);</span>
+<span class="diff-a">+$reply = &quot;&quot;;</span>
+<span class="diff-a">+$sock-&gt;recv($reply, 1);</span>
+<span class="diff-a">+if ($reply ne &#x27;N&#x27;)</span>
+<span class="diff-a">+{</span>
+<span class="diff-a">+	$sock-&gt;close();</span>
+<span class="diff-a">+	plan skip_all =&gt;</span>
+<span class="diff-a">+	  &quot;server accepted GSS; test requires GSS to be rejected&quot;;</span>
+<span class="diff-a">+}</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+my $log_offset = -s $node-&gt;logfile;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Send a second SSLRequest, now that we know that both SSL and GSS have</span>
+<span class="diff-a">+# been rejected for this connection.  We are done with both requests, so</span>
+<span class="diff-a">+# extra requests will be rejected and fail with an invalid protocol</span>
+<span class="diff-a">+# version, and the connection should be closed by the server.</span>
+<span class="diff-a">+$sock-&gt;send($ssl_request);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Try to read a response, there should be nothing, and certainly not an</span>
+<span class="diff-a">+# extra &#x27;N&#x27; message indicating a rejection.</span>
+<span class="diff-a">+$reply = &quot;&quot;;</span>
+<span class="diff-a">+my $bytes = $sock-&gt;recv($reply, 1024);</span>
+<span class="diff-a">+isnt($reply, &#x27;N&#x27;,</span>
+<span class="diff-a">+	&quot;server does not re-enter SSL negotiation after SSL+GSS were both tried&quot;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+$sock-&gt;close();</span>
+<span class="diff-a">+$node-&gt;wait_for_log(qr/FATAL: .* unsupported frontend protocol 1234.5679/,</span>
+<span class="diff-a">+					$log_offset);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+# Check extra connection with a simple query.</span>
+<span class="diff-a">+my $result = $node-&gt;safe_psql(&#x27;postgres&#x27;, &#x27;select 1;&#x27;);</span>
+<span class="diff-a">+is($result, &#x27;1&#x27;, &#x27;server able to accept connection&#x27;);</span>
+<span class="diff-a">+ok($node-&gt;is_alive(), &quot;server still running after negotiation attempt&quot;);</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+$node-&gt;stop;</span>
+<span class="diff-a">+</span>
+<span class="diff-a">+done_testing();</span></code></pre></div>
+<p class="kicker"><a href="https://github.com/postgres/postgres/commit/b63f25bddfebc67b1e78f86341a6aecb0e9fe576" rel="noopener noreferrer">https://github.com/postgres/postgres/commit/b63f25bddfebc67b1e78f86341a6aecb0e9fe576</a></p>
+
+
+
+<div class="marker">TIMELINE</div>
+<p class="section-intro">Recorded dates, in order.</p>
+<div class="figure">
+  <ol class="timeline">
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-04-02</span>
+      <span class="timeline-label">Discovered or logged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-08</span>
+      <span class="timeline-label">Sent to maintainer</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-09</span>
+      <span class="timeline-label">Maintainer acknowledged</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-05-14</span>
+      <span class="timeline-label">Patch released</span>
+    </li>
+    <li class="timeline-pt">
+      <span class="timeline-dot"></span>
+      <span class="timeline-date">2026-07-21</span>
+      <span class="timeline-label">Publicly revealed</span>
+    </li>
+  </ol>
+</div>
+
+<div class="marker">PROVENANCE</div>
+<p class="kicker">SHA-3-512 hash:</p>
+<p class="hash full">6ccb97193bc23f5185d8846690778b6b553b97c7a27eff1ae8a5e80c0f404193c5d139372722332faa52572e486f6d0512238b53e885233b5bf7d1c8d3589f5a</p>
+<p class="kicker">Committed 2026-05-08 07:09 UTC</p>
+<p class="kicker">Revealed 2026-07-21 18:01 UTC</p>
+<p class="kicker">
+  <a download="ANT-2026-CJQWKW82-preimage.json"
+     href="data:application/json;charset=utf-8,%7B%22ant_id%22%3A%22ANT-2026-CJQWKW82%22%2C%22bug_class%22%3A%22Denial-of-service%22%2C%22claude_severity%22%3A%22high%22%2C%22commit_sha%22%3A%225241616289cc64e0%22%2C%22created_at%22%3A%222026-04-02T05%3A09%3A32%2B00%3A00%22%2C%22description%22%3A%22Unauthenticated%20attacker%20alternates%20SSL%20and%20GSS%20request%20packets.%20After%20~40K-80K%20exchanges%20the%20backend%20crashes%20from%20stack%20overflow%20%28SIGSEGV%29.%20On%20localhost%20takes%20seconds.%20AuthenticationTimeout%20%2860s%29%20is%20only%20time%20bound.%22%2C%22discovered_at%22%3Anull%2C%22location%22%3A%22src/backend/tcop/backend_startup.c%3A637%22%2C%22poc_sha256%22%3Anull%2C%22preimage_version%22%3A1%2C%22project%22%3A%22postgres/postgres%22%2C%22reproduction%22%3Anull%2C%22technical_details%22%3A%22When%20SSL%20is%20rejected%2C%20line%20637%20recurses%20with%20ProcessStartupPacket%28port%2C%20true%2C%20SSLok%20%3D%3D%20%27S%27%29%20%E2%86%92%20%28true%2Cfalse%29%3B%20when%20GSS%20is%20rejected%2C%20line%20693%20recurses%20with%20ProcessStartupPacket%28port%2C%20GSSok%20%3D%3D%20%27G%27%2C%20true%29%20%E2%86%92%20%28false%2Ctrue%29.%20The%20guards%20at%20lines%20574%20%28%21ssl_done%29%20and%20639%20%28%21gss_done%29%20therefore%20never%20both%20stay%20true%2C%20so%20alternating%20requests%20re-enter%20forever.%20No%20check_stack_depth%28%29%2C%20counter%2C%20or%20iteration%20cap%20exists%20in%20the%20path%2C%20so%20the%20recursion%20terminates%20only%20via%20stack%20exhaustion%20%28SIGSEGV%29.%22%2C%22title%22%3A%22Pre-auth%20unbounded%20recursion%20in%20ProcessStartupPacket%3A%20alternating%20SSL/GSS%20negotiation%20requests%20cause%20infinite%20recursion%20when%20both%20are%20rejected.%20ssl_done/gss_done%20flags%20oscillate%20%28true%2Cfalse%29-%3E%28false%2Ctrue%29%20endlessly.%20No%20check_stack_depth.%20Pre-authentication.%22%2C%22vendor_severity%22%3A%22high%22%7D">Verify (download preimage.json)</a>
+</p>
+<details class="preimage">
+  <summary>Show preimage JSON</summary>
+  <pre class="preimage-body">{
+  &#34;ant_id&#34;: &#34;ANT-2026-CJQWKW82&#34;,
+  &#34;bug_class&#34;: &#34;Denial-of-service&#34;,
+  &#34;claude_severity&#34;: &#34;high&#34;,
+  &#34;commit_sha&#34;: &#34;5241616289cc64e0&#34;,
+  &#34;created_at&#34;: &#34;2026-04-02T05:09:32+00:00&#34;,
+  &#34;description&#34;: &#34;Unauthenticated attacker alternates SSL and GSS request packets. After ~40K-80K exchanges the backend crashes from stack overflow (SIGSEGV). On localhost takes seconds. AuthenticationTimeout (60s) is only time bound.&#34;,
+  &#34;discovered_at&#34;: null,
+  &#34;location&#34;: &#34;src/backend/tcop/backend_startup.c:637&#34;,
+  &#34;poc_sha256&#34;: null,
+  &#34;preimage_version&#34;: 1,
+  &#34;project&#34;: &#34;postgres/postgres&#34;,
+  &#34;reproduction&#34;: null,
+  &#34;technical_details&#34;: &#34;When SSL is rejected, line 637 recurses with ProcessStartupPacket(port, true, SSLok == &#39;S&#39;) → (true,false); when GSS is rejected, line 693 recurses with ProcessStartupPacket(port, GSSok == &#39;G&#39;, true) → (false,true). The guards at lines 574 (!ssl_done) and 639 (!gss_done) therefore never both stay true, so alternating requests re-enter forever. No check_stack_depth(), counter, or iteration cap exists in the path, so the recursion terminates only via stack exhaustion (SIGSEGV).&#34;,
+  &#34;title&#34;: &#34;Pre-auth unbounded recursion in ProcessStartupPacket: alternating SSL/GSS negotiation requests cause infinite recursion when both are rejected. ssl_done/gss_done flags oscillate (true,false)-&gt;(false,true) endlessly. No check_stack_depth. Pre-authentication.&#34;,
+  &#34;vendor_severity&#34;: &#34;high&#34;
+}</pre>
+</details>
+</main>
+<footer>
+  <p>Anthropic Frontier Red Team</p>
+  <p>Snapshot generated at 2026-11-02 19:30 UTC</p>
+  <p>Dates and times are in UTC</p>
+  <p>Manifest hash <code>25d811e7b56632ef5bbb23eb…</code></p>
+  <p>Archived snapshots remain available at their dated paths so any figure can be verified against the page that was live on that date</p>
+  <p><a href="../data/payload.json">payload.json</a></p>
+</footer>
+<script src="../assets/figures.js" data-root="../"></script>
+<script src="../assets/ledger.js"></script>
+</body>
+</html>
