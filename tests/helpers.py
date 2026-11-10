@@ -94,6 +94,7 @@ import shutil  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
 FIXTURE_CARD = REPO / "tests" / "fixtures" / "wolfssl-card"
+FIXTURE_PROGRAMS = REPO / "tests" / "fixtures" / "programs-manual.csv"  # Jon's rows, frozen
 WOLF_ID = "ANT-2026-87DJGDRB"
 FROZEN_CAPTURE_DIRS = ["captures/2026/10/30", "captures/2026/11/08", "captures/anthropic-archive"]
 
@@ -101,6 +102,8 @@ FROZEN_CAPTURE_DIRS = ["captures/2026/10/30", "captures/2026/11/08", "captures/a
 def frozen_archive(dst: Path) -> Path:
     for rel in FROZEN_CAPTURE_DIRS:
         shutil.copytree(REPO / rel, dst / rel)
+    (dst / "data").mkdir(parents=True, exist_ok=True)
+    shutil.copy(FIXTURE_PROGRAMS, dst / "data" / "programs-manual.csv")
     card_dir = dst / "cards" / WOLF_ID
     card_dir.mkdir(parents=True)
     for f in ("card.html", "preimage.json", "MANIFEST.json"):

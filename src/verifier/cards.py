@@ -169,28 +169,31 @@ def write_verifications(root: Path, revealed: dict[str, str], ledger_source: str
                 card={"stored_at": card["stored_at"], "sha256": card["sha256"],
                       "fetched_utc": card.get("fetched_utc"), "url": card.get("final_url") or card.get("url"),
                       "source": card.get("source", "fetched")},
-                r2=r2_check(pre.get("bytes"), ledger_hash, facts["printed_hash"], method),
+                r2=r2_check(pre.get("bytes"), ledger_hash, facts["printed_hash"], method,
+                            withheld=facts.get("withheld_statement")),
                 hash_checked_at=card.get("fetched_utc"),
                 card_facts=facts, notes=notes)
             if pre.get("note"):
                 rec["notes"].append(pre["note"])
+            if rec["r2"]["outcome"] == "preimage_withheld":
+                rec["r2"]["withheld_statement_card"] = {"stored_at": card["stored_at"], "sha256": card["sha256"]}
             if rec["r2"]["outcome"] == "unavailable":
                 code = "no_ledger_hash" if not ledger_hash else pre.get("code", "no_preimage_link")
                 rec["r2"]["unavailable_reason"] = unavailable_reason(code, pre.get("error"))
                 rec["card_hints"] = card_hints(body)
-        rec["phase3_not_checked_yet"] = {
-            "ids_exist": "not_checked", "fix_merged": "not_checked", "intervals": "not_checked",
-            "severity_github": "not_checked", "severity_nvd": "not_checked"}
+        rec["public_records"] = ("Rules R3, R4, R5 and R7 for this finding are in data/verification.json "
+                                 "(raw responses under records/).")
         store.save_json(f"cards/{fid}/verification.json", rec)
         url = (rec.get("card") or {}).get("url")
         out[fid] = {"outcome": rec["r2"]["outcome"], "card_url": url,
-                    "unavailable_reason": rec["r2"].get("unavailable_reason")}
+                    "unavailable_reason": rec["r2"].get("unavailable_reason"),
+                    "withheld_statement": rec["r2"].get("withheld_statement")}
     return out
 
 
 def card_tally(checks: dict[str, dict], revealed: dict[str, str]) -> dict:
     t = {"revealed": len(revealed), "with_card_folder": len(checks), "match": 0, "mismatch": 0,
-         "unavailable": 0, "not_checked": len(set(revealed) - set(checks))}
+         "preimage_withheld": 0, "unavailable": 0, "not_checked": len(set(revealed) - set(checks))}
     for c in checks.values():
         t[c["outcome"]] = t.get(c["outcome"], 0) + 1
     return t

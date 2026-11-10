@@ -18,13 +18,14 @@
     "printed_hash": "795b824d3a8ae740b46f0ead862b0ea39eba87b6fe127e9eb774ef4e34a17aec032cfd1a1cfeb29958f591e5118f4525adc14699a2e0c6f103f24dc793aa9a99",
     "extraction_method": null,
     "printed_hash_equals_ledger_hash": true,
-    "outcome": "unavailable",
+    "outcome": "preimage_withheld",
     "raw_bytes_match": null,
     "canonical_rebuild_match": null,
-    "reason": "no preimage",
-    "unavailable_reason": {
-      "code": "no_preimage_link",
-      "text": "the card has no preimage download link and no visible preimage text: no preimage download link or visible preimage text on the card"
+    "withheld_statement": "The preimage for this commitment is withheld because it references findings that are not yet disclosed. The commitment hash remains in the ledger and the full preimage will be published when the referenced findings are revealed.",
+    "withheld_statement_source": "the program's finding card",
+    "withheld_statement_card": {
+      "stored_at": "cards/ANT-2026-7DG11TPA/card.html",
+      "sha256": "a61bc3b16dabd4491dd5f533ef7af07407c7aee37753c31f0929440a0a5d5e3a"
     }
   },
   "hash_checked_at": "2026-11-10T21:05:08Z",
@@ -74,20 +75,9 @@
       ],
       "ghsa": []
     },
-    "missing_parts": []
+    "missing_parts": [],
+    "withheld_statement": "The preimage for this commitment is withheld because it references findings that are not yet disclosed. The commitment hash remains in the ledger and the full preimage will be published when the referenced findings are revealed."
   },
   "notes": [],
-  "card_hints": {
-    "mentions_of_preimage": 3,
-    "data_addresses": 0,
-    "download_links": 0,
-    "visible_preimage_blocks": 0
-  },
-  "phase3_not_checked_yet": {
-    "ids_exist": "not_checked",
-    "fix_merged": "not_checked",
-    "intervals": "not_checked",
-    "severity_github": "not_checked",
-    "severity_nvd": "not_checked"
-  }
+  "public_records": "Rules R3, R4, R5 and R7 for this finding are in data/verification.json (raw responses under records/)."
 }

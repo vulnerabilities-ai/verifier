@@ -8,7 +8,7 @@ Order:
 5. Internet Archive: save dashboard, ledger.json and payload.json, with
    retries, availability checks and raw-copy comparison. A failure here is a
    warning ("archive-pending"), not a failed run.
-6. Look for late receipts for earlier runs (appended, never overwritten).
+6. Look for later receipts for earlier runs (appended, never overwritten).
 7. One-time backfill of Anthropic's snapshots; monthly policy copy.
 8. Append one row to captures/capture-log.csv, whatever happened.
 
@@ -28,7 +28,7 @@ from .archive_org import ArchiveClient
 from .capture import (RunInfo, backfill_due, backfill_one, capture_policy, fetch_targets,
                       policy_due, record_archive_result, snapshot_folder_url, store_daily,
                       target_urls)
-from .late_receipts import days_without_receipt, find_late_receipts
+from .later_receipts import days_without_receipt, find_later_receipts
 from .net import CaptureError, Fetcher, RobotsDisallowed, utc_now
 from .store import Archive
 
@@ -149,12 +149,12 @@ def _run(archive, fetcher, client, base_url, run, test_mode, policy_url) -> Outc
         out.warnings.append("No Internet Archive receipt yet for: "
                             + ", ".join(ia.get("pending", [])) + ". Later runs will look again.")
 
-    # 6. late receipts for earlier runs
+    # 6. later receipts for earlier runs
     if out.exit_code != EXIT_ROBOTS:
         try:
-            notes = find_late_receipts(archive, client, run.started_utc[:10], skip_run_id=run.run_id)
+            notes = find_later_receipts(archive, client, run.started_utc[:10], skip_run_id=run.run_id)
             if notes:
-                out.messages.append(f"Appended {len(notes)} late Archive note(s) to earlier records")
+                out.messages.append(f"Appended {len(notes)} later Archive note(s) to earlier records")
         except RobotsDisallowed as e:
             out.status, out.exit_code = "stopped-robots", EXIT_ROBOTS
             out.messages.append(str(e))

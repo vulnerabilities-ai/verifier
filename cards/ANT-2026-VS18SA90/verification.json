@@ -18,13 +18,14 @@
     "printed_hash": "70c7065a7506628831667e565053165f8142abd80e67756200c4b6cb0d6c34fe0590d7f2fa655fbfd2cc36da73eeb98d23667209d18f2ca4ba3f2554e8194d1c",
     "extraction_method": null,
     "printed_hash_equals_ledger_hash": true,
-    "outcome": "unavailable",
+    "outcome": "preimage_withheld",
     "raw_bytes_match": null,
     "canonical_rebuild_match": null,
-    "reason": "no preimage",
-    "unavailable_reason": {
-      "code": "no_preimage_link",
-      "text": "the card has no preimage download link and no visible preimage text: no preimage download link or visible preimage text on the card"
+    "withheld_statement": "The preimage for this commitment is withheld: this entry's own report was withdrawn after publication, and the sealed preimage is that report. The commitment hash remains in the ledger as published.",
+    "withheld_statement_source": "the program's finding card",
+    "withheld_statement_card": {
+      "stored_at": "cards/ANT-2026-VS18SA90/card.html",
+      "sha256": "9871b67431d886c4b90ad9af3b356aa22f5122721fb7619aeabce85e35ecf589"
     }
   },
   "hash_checked_at": "2026-11-10T21:07:39Z",
@@ -48,22 +49,11 @@
     "missing_parts": [
       "timeline",
       "severities"
-    ]
+    ],
+    "withheld_statement": "The preimage for this commitment is withheld: this entry's own report was withdrawn after publication, and the sealed preimage is that report. The commitment hash remains in the ledger as published."
   },
   "notes": [
     "Parts not found on the card: timeline, severities."
   ],
-  "card_hints": {
-    "mentions_of_preimage": 3,
-    "data_addresses": 0,
-    "download_links": 0,
-    "visible_preimage_blocks": 0
-  },
-  "phase3_not_checked_yet": {
-    "ids_exist": "not_checked",
-    "fix_merged": "not_checked",
-    "intervals": "not_checked",
-    "severity_github": "not_checked",
-    "severity_nvd": "not_checked"
-  }
+  "public_records": "Rules R3, R4, R5 and R7 for this finding are in data/verification.json (raw responses under records/)."
 }

@@ -1,15 +1,24 @@
-# Weekly verification (phase 2 version).
+# Weekly verification.
 # Plain-language summary: once a week (and on demand) this fetches finding
-# cards for newly revealed findings (and re-checks known cards monthly),
-# checks each commitment hash (rule R2), rebuilds the published tables in
-# data/, and opens or updates ONE pull request for Jon to review. Nothing
-# about a specific finding reaches main until Jon merges that pull request.
+# cards for newly revealed findings (re-checking known cards monthly), checks
+# each commitment hash (rule R2), looks up public records (rules R3 and R4:
+# GitHub Advisory Database, NVD, GitHub commits and pull requests), rebuilds
+# the published tables in data/, writes the weekly report, and opens or
+# updates ONE pull request for Jon to review. Nothing about a specific finding
+# reaches main until Jon merges that pull request.
+# "sample_only" runs the lookups for 5 findings only (wolfSSL first), so the
+# real response shapes can be checked before a full run.
 name: Verify
 
 on:
   schedule:
     - cron: "41 7 * * 1" # Mondays 07:41 UTC
   workflow_dispatch:
+    inputs:
+      sample_only:
+        description: "Sample: look up public records for 5 findings only (wolfSSL first), on a separate review branch"
+        type: boolean
+        default: false
 
 permissions: {}
 
@@ -20,11 +29,13 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: write # push the review branch
       pull-requests: write # open or update the review pull request
       issues: write # open an issue if the run fails
+    env:
+      SAMPLE_ONLY: ${{ inputs.sample_only && 'true' || 'false' }}
     steps:
       - name: Check out the repository (full history, for first-seen commit times)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -39,12 +50,31 @@ jobs:
           echo "exit_code=$?" >> "${GITHUB_OUTPUT}"
           exit 0
 
-      # The next three steps may fail without stopping the run: whatever happens,
-      # the cards fetched above are committed to the review branch below.
+      # Everything below may fail without stopping the run: whatever happens,
+      # the cards and records fetched are committed to the review branch.
+      - name: Look up public records (R3, R4)
+        id: lookups
+        continue-on-error: true
+        env:
+          # The workflow's built-in token only; no other secret. Sent only to api.github.com.
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          PYTHONPATH=src python3 -m verifier records --sample-only "${SAMPLE_ONLY}" \
+            --summary-file "${RUNNER_TEMP}/records.json"
+
       - name: Rebuild data/ and the card checks
         id: build
         continue-on-error: true
         run: PYTHONPATH=src python3 -m verifier build
+
+      - name: Write the report (with the wording guard)
+        id: report
+        continue-on-error: true
+        run: |
+          kind="weekly"; if [ "${SAMPLE_ONLY}" = "true" ]; then kind="sample"; fi
+          file="reports/$(date -u +%Y-%m-%d)-${kind}.md"
+          echo "file=${file}" >> "${GITHUB_OUTPUT}"
+          PYTHONPATH=src python3 -m verifier report --date "$(date -u +%Y-%m-%d)" --out "${file}" --sample "${SAMPLE_ONLY}"
 
       - name: Tests
         id: tests
@@ -60,14 +90,18 @@ jobs:
         if: always()
         env:
           CARDS_EXIT: ${{ steps.cards.outputs.exit_code }}
+          LOOKUPS: ${{ steps.lookups.outcome }}
           BUILD: ${{ steps.build.outcome }}
+          REPORT: ${{ steps.report.outcome }}
+          REPORT_FILE: ${{ steps.report.outputs.file }}
           TESTS: ${{ steps.tests.outcome }}
           AUDIT: ${{ steps.audit.outcome }}
         run: |
           cards="success"
           if [ "${CARDS_EXIT:-1}" != "0" ]; then cards="failure (exit ${CARDS_EXIT:-unknown})"; fi
           PYTHONPATH=src python3 -m verifier review-pr \
-            --cards "${cards}" --build "${BUILD}" --tests "${TESTS}" --audit "${AUDIT}" \
+            --cards "${cards}" --lookups "${LOOKUPS}" --build "${BUILD}" --report "${REPORT}" \
+            --tests "${TESTS}" --audit "${AUDIT}" --report-file "${REPORT_FILE}" --sample "${SAMPLE_ONLY}" \
             --cards-summary "${RUNNER_TEMP}/cards.json" --date "$(date -u +%Y-%m-%d)" \
             --title-out "${RUNNER_TEMP}/title.txt" --body-out "${RUNNER_TEMP}/review.md"
           cat "${RUNNER_TEMP}/review.md" >> "${GITHUB_STEP_SUMMARY}"
@@ -79,18 +113,22 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           TITLE_FILE: ${{ runner.temp }}/title.txt
           BODY_FILE: ${{ runner.temp }}/review.md
+          REVIEW_BRANCH: ${{ inputs.sample_only && 'review/sample' || 'review/weekly' }}
         run: bash scripts/review_commit.sh
 
       - name: Fail the run if any check failed (after the evidence is committed)
         if: always()
         env:
           CARDS_EXIT: ${{ steps.cards.outputs.exit_code }}
+          LOOKUPS: ${{ steps.lookups.outcome }}
           BUILD: ${{ steps.build.outcome }}
+          REPORT: ${{ steps.report.outcome }}
           TESTS: ${{ steps.tests.outcome }}
           AUDIT: ${{ steps.audit.outcome }}
         run: |
-          if [ "${CARDS_EXIT:-1}" != "0" ] || [ "${BUILD}" != "success" ] || [ "${TESTS}" != "success" ] || [ "${AUDIT}" != "success" ]; then
-            echo "::error::Checks failed: cards exit ${CARDS_EXIT:-unknown}, build ${BUILD}, tests ${TESTS}, audit ${AUDIT}. Fetched cards were committed to review/weekly."
+          if [ "${CARDS_EXIT:-1}" != "0" ] || [ "${LOOKUPS}" != "success" ] || [ "${BUILD}" != "success" ] \
+             || [ "${REPORT}" != "success" ] || [ "${TESTS}" != "success" ] || [ "${AUDIT}" != "success" ]; then
+            echo "::error::Checks failed: cards exit ${CARDS_EXIT:-unknown}, lookups ${LOOKUPS}, build ${BUILD}, report ${REPORT}, tests ${TESTS}, audit ${AUDIT}. Fetched evidence was committed to the review branch."
             exit 1
           fi
 

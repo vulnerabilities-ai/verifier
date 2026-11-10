@@ -14,7 +14,10 @@ from pathlib import Path
 from .. import config
 from ..cards import card_tally, write_verifications
 from ..columns import check_published
-from .schema import FILES, columns, schema_doc
+from ..records_read import RecordReader
+from ..wording import check_rows
+from .phase3 import policy_source, programs_rows, severity_rows, summary_row, verification_rows
+from .schema import FILES, SUMMARY_DOC, columns, schema_doc
 from .sources import Sources
 from .tables import Builder
 
@@ -78,29 +81,48 @@ def latest_ledger(src: Sources) -> tuple[str, dict[str, str]]:
     return rel, revealed
 
 
-def build(root: Path) -> dict:
+def build(root: Path, reader=None) -> dict:
     src = Sources(root)
     ledger_rel, revealed = latest_ledger(src)
     checks = write_verifications(root, revealed, ledger_rel)
     b = Builder(src)
     tables = {
         "snapshots": b.snapshots(),
-        "commitments": b.commitments(checks),
         "events": b.events(),
         "gaps": b.gaps(),
         "withdrawals": b.withdrawals(),
     }
+    # Phase 3: per-finding verification (R2-R5, R7), from stored records only.
+    entries = {}
+    if ledger_rel:
+        for e in src.load_json_file(ledger_rel):
+            if e.get("reveal_tier") == "revealed" and e.get("ant_id"):
+                entries[e["ant_id"]] = {k: (None if v == "" else v) for k, v in e.items()}
+    reader = reader or RecordReader(root)
+    tables["verification"] = verification_rows(root, entries, checks, reader)
+    fix = {r["finding_id"]: r["fix_merged"] for r in tables["verification"]}
+    tables["commitments"] = b.commitments(checks, fix)
+    tables["severity"] = severity_rows(tables["verification"])
+    tables["programs"] = programs_rows(root, tables["snapshots"])
+    summary = summary_row(tables["snapshots"], tables["commitments"], tables["gaps"], tables["withdrawals"],
+                          tables["verification"], policy_source(root))
+    for name, rows in tables.items():
+        check_rows(rows, f"data/{name}")
+    check_rows([summary], "data/summary")
     times = [r.fetched("ledger.json") for r in src.runs] + [bf.our_fetch_utc for bf in src.backfills]
     generated = max(times) if times else None
     w = DataWriter(root)
     for name, rows in tables.items():
         cols = columns(name)
-        check_published(cols)
+        if name != "programs":
+            check_published(cols)
         w.write_text(f"{name}.csv", to_csv(rows, cols))
         w.write_text(f"{name}.json", to_json(rows, generated))
         w.write_text(f"schema/{name}.json", json.dumps(schema_doc(name), indent=2, ensure_ascii=False) + "\n")
+    w.write_text("summary.json", to_json([summary], generated))
+    w.write_text("schema/summary.json", json.dumps(SUMMARY_DOC, indent=2, ensure_ascii=False) + "\n")
     return {"generated_utc": generated, "rows": {k: len(v) for k, v in tables.items()},
-            "cards": card_tally(checks, revealed), "tables": tables}
+            "cards": card_tally(checks, revealed), "tables": tables, "summary": summary}
 
 
 __all__ = ["build", "FILES", "DataWriter", "to_csv", "to_json", "latest_ledger"]

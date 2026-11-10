@@ -1,6 +1,6 @@
 """Archive integrity check: anyone can run this to confirm the archive is intact.
 
-For captures/ and cards/:
+For captures/, cards/ and records/:
 - every file a manifest says is stored exists, and its SHA-256 matches;
 - every raw file is accounted for by some manifest.
 """
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .store import METADATA_NAMES, iter_file_entries
 
-AREAS = ("captures", "cards")
+AREAS = ("captures", "cards", "records")
 
 
 def audit(root: Path) -> list[str]:
@@ -46,7 +46,7 @@ def audit(root: Path) -> list[str]:
         if not base.exists():
             continue
         for f in sorted(base.rglob("*")):
-            if f.is_file() and f.name not in METADATA_NAMES and f.name != ".gitkeep":
+            if f.is_file() and f.name not in METADATA_NAMES and f.name not in (".gitkeep", "README.md"):
                 rel = f.relative_to(root).as_posix()
                 if rel not in referenced:
                     problems.append(f"{rel} is not listed in any manifest")

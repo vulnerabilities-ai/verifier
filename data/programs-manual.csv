@@ -1,0 +1,8 @@
+program,name,operator,status,per_finding_record,publishes_summary,as_of
+anthropic-cvd,Anthropic coordinated vulnerability disclosure program,Anthropic,Dashboard last updated 2026-11-02 (revision 40),"yes, for revealed findings","A dashboard with totals, a ledger of hash commitments, identifier records and finding cards",2026-11-02
+project-glasswing,Project Glasswing,Anthropic,Now part of the Cyber Verification Program since 2026-10-06,none found,Totals in Anthropic's announcements,2026-10-06
+openai-daybreak,OpenAI Daybreak,OpenAI,Daybreak Blue and Daybreak Red tiers since 2026-08-10,none found,Aggregate totals and benchmark results in OpenAI's announcements,2026-08-10
+project-quiltworks,Project QuiltWorks,CrowdStrike,Extended to small and mid-size businesses on 2026-08-13,none found,Partner lists and partner-network counts in CrowdStrike's releases,2026-08-13
+gold-eagle,Gold Eagle Initiative,U.S. Department of the Treasury,Announced 2026-07-14,none found,A White House release and Executive Order 14409,2026-07-14
+akrites,Akrites,Linux Foundation,Launched 2026-06-25,none found,A launch announcement and its founding members,2026-06-25
+athena,Athena,Chainguard,Announced 2026-06-15; expanded and joined Akrites 2026-07-07,none found,Announcements and processed-findings counts,2026-07-07

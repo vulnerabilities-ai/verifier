@@ -18,13 +18,14 @@
     "printed_hash": "f3a842104e12d90649407d9cfb8f18a25de1dbb9f0b7139ce9f9beb561c08d4a2e4b0f109c130805f2421face4266272f28650823d154d76e40d22bf7f3b5c4f",
     "extraction_method": null,
     "printed_hash_equals_ledger_hash": true,
-    "outcome": "unavailable",
+    "outcome": "preimage_withheld",
     "raw_bytes_match": null,
     "canonical_rebuild_match": null,
-    "reason": "no preimage",
-    "unavailable_reason": {
-      "code": "no_preimage_link",
-      "text": "the card has no preimage download link and no visible preimage text: no preimage download link or visible preimage text on the card"
+    "withheld_statement": "The preimage for this commitment is withheld: the report was withdrawn after publication, and the sealed preimage is that report. The commitment hash remains in the ledger as published.",
+    "withheld_statement_source": "the program's finding card",
+    "withheld_statement_card": {
+      "stored_at": "cards/ANT-2026-CN7KX43N/card.html",
+      "sha256": "a27e48d6f5c6c59c80716c90087fd79760e99b9a2d16260a03492a592fd1de2e"
     }
   },
   "hash_checked_at": "2026-11-10T21:05:45Z",
@@ -48,22 +49,11 @@
     "missing_parts": [
       "timeline",
       "severities"
-    ]
+    ],
+    "withheld_statement": "The preimage for this commitment is withheld: the report was withdrawn after publication, and the sealed preimage is that report. The commitment hash remains in the ledger as published."
   },
   "notes": [
     "Parts not found on the card: timeline, severities."
   ],
-  "card_hints": {
-    "mentions_of_preimage": 3,
-    "data_addresses": 0,
-    "download_links": 0,
-    "visible_preimage_blocks": 0
-  },
-  "phase3_not_checked_yet": {
-    "ids_exist": "not_checked",
-    "fix_merged": "not_checked",
-    "intervals": "not_checked",
-    "severity_github": "not_checked",
-    "severity_nvd": "not_checked"
-  }
+  "public_records": "Rules R3, R4, R5 and R7 for this finding are in data/verification.json (raw responses under records/)."
 }

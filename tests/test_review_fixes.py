@@ -28,7 +28,7 @@ from verifier.r2 import extract_preimage, sha3_512
 from verifier.review import review_pr, review_summary, unavailable_cards
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTCOMES = {"match", "mismatch", "unavailable", "not_checked"}
+OUTCOMES = {"match", "mismatch", "preimage_withheld", "unavailable", "not_checked"}
 
 
 def assert_invariants(tc: unittest.TestCase, result: dict, root: Path):
@@ -40,7 +40,8 @@ def assert_invariants(tc: unittest.TestCase, result: dict, root: Path):
     tc.assertEqual(set(r["hash_check"] for r in revealed) - OUTCOMES, set())
     tc.assertEqual({r["hash_check"] for r in rows if r["tier"] != "revealed"} - {"not_applicable"}, set())
     card = result["cards"]
-    tc.assertEqual(card["match"] + card["mismatch"] + card["unavailable"] + card["not_checked"], card["revealed"])
+    tc.assertEqual(card["match"] + card["mismatch"] + card["preimage_withheld"] + card["unavailable"]
+                   + card["not_checked"], card["revealed"])
     # a mismatch is a recorded fact, never labelled an error
     for v in (root / "cards").glob("*/verification.json"):
         rec = json.loads(v.read_text())
@@ -65,6 +66,10 @@ class LiveArchiveInvariants(unittest.TestCase):
             root = Path(t)
             shutil.copytree(ROOT / "captures", root / "captures")
             shutil.copytree(ROOT / "cards", root / "cards")
+            if (ROOT / "records").exists():
+                shutil.copytree(ROOT / "records", root / "records")
+            (root / "data").mkdir()
+            shutil.copy(ROOT / "data" / "programs-manual.csv", root / "data" / "programs-manual.csv")
             assert_invariants(self, build(root), root)
 
 
@@ -154,7 +159,7 @@ class UnavailableReasons(unittest.TestCase):
             body = b"<!doctype html><html><body>ANT-X</body></html>"
             (d / "card.html").write_bytes(body)
             (d / "MANIFEST.json").write_text(json.dumps({"fetches": [{
-                "fetched_utc": "2026-11-11T00:00:00Z", "url": "u", "sha256": sha256(body),
+                "fetched_utc": "2026-01-01T00:00:00Z", "url": "u", "sha256": sha256(body),
                 "stored_at": "cards/ANT-X/card.html"}], "unavailable": [], "preimages": []}))
             write_verifications(root, {"ANT-X": "a" * 128}, "ledger")
             v = json.loads((d / "verification.json").read_text())
@@ -273,7 +278,7 @@ class ReviewCommitScript(unittest.TestCase):
         (self.repo / "README.md").write_text("changed\n")
         r = self.run_script(build="failure")
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("outside cards/ and data/", r.stdout + r.stderr)
+        self.assertIn("outside cards/, data/, records/ and reports/", r.stdout + r.stderr)
         self.assertEqual(self.remote_file("cards/B/card.html"), "")  # nothing pushed
 
 

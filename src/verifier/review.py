@@ -27,11 +27,13 @@ def unavailable_cards(root: Path) -> list[tuple[str, str]]:
     return out
 
 
-CHECK_NAMES = {"cards": "Card fetch", "build": "Rebuild of data/", "tests": "Tests", "audit": "Archive audit"}
+CHECK_NAMES = {"cards": "Card fetch", "lookups": "Public-record lookups", "build": "Rebuild of data/",
+               "report": "Report and wording guard", "tests": "Tests", "audit": "Archive audit"}
 
 
 def review_pr(root: Path, outcomes: dict[str, str], date: str,
-              cards_fetch: dict | None = None) -> tuple[str, str]:
+              cards_fetch: dict | None = None, report_file: str | None = None,
+              sample: bool = False) -> tuple[str, str]:
     """Title and description for the weekly review pull request.
 
     outcomes: check name -> "success" or anything else (failure, skipped, cancelled).
@@ -39,7 +41,8 @@ def review_pr(root: Path, outcomes: dict[str, str], date: str,
     description starts with what failed. If the rebuild failed, only the raw
     card fetch is in the pull request (data/ is left as it is on main)."""
     failed = [k for k in CHECK_NAMES if outcomes.get(k, "success") != "success"]
-    title = f"Weekly review {date}" + (" (checks failed)" if failed else "")
+    title = (f"Sample lookups (5 findings) {date}" if sample else f"Weekly review {date}") + (
+        " (checks failed)" if failed else "")
     head = []
     if failed:
         head = ["## Checks failed", "",
@@ -52,7 +55,14 @@ def review_pr(root: Path, outcomes: dict[str, str], date: str,
                  "The rebuild ran, so `data/` is included, but the checks above failed."),
                 "", "**Do not merge until the failure is understood.** Write \"hold\" in a comment and ask Claude Code.",
                 "", "---", ""]
-    if outcomes.get("build", "success") == "success" and (Path(root) / "data" / "snapshots.json").exists():
+    rpath = Path(root) / report_file if report_file else None
+    if rpath and rpath.exists() and outcomes.get("report", "success") == "success":
+        from .report import top_section
+        body = top_section(rpath.read_text(encoding="utf-8"), report_file)
+        unav = unavailable_cards(root)
+        if unav:
+            body += "\nCards whose hash could not be checked, and why:\n\n" + "".join(f"- {f}: {w}\n" for f, w in unav)
+    elif outcomes.get("build", "success") == "success" and (Path(root) / "data" / "snapshots.json").exists():
         body = review_summary(root, cards_fetch)
     else:
         body = "## Weekly review (phase 2 tally)\n\nNo rebuilt tables in this run.\n"
@@ -87,6 +97,7 @@ def review_summary(root: Path, cards_fetch: dict | None = None) -> str:
               f"- Revealed findings: {sum(checks.values())}",
               f"- Hash check match: {checks.get('match', 0)}",
               f"- Hash check mismatch: {checks.get('mismatch', 0)}",
+              f"- Preimage withheld by the program: {checks.get('preimage_withheld', 0)}",
               f"- Card or preimage unavailable: {checks.get('unavailable', 0)}",
               f"- Not checked yet: {checks.get('not_checked', 0)}"]
     unavailable = unavailable_cards(root)

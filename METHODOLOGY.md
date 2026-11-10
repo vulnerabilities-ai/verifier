@@ -49,8 +49,8 @@ The receipts are an outside check on our own fetch times. Our own archive does n
   - **Earlier mismatches.** Those recorded before the diagnostic existed are diagnosed by a later run, as an appended `archive-raw-diagnostic` note.
 - **Reused snapshots.** Save Page Now often returns an existing recent snapshot instead of making a new one. This happened on October 30, 2026 and in the November 8 and 9 runs. The pipeline records the timestamp exactly as returned. When it is earlier than our fetch, the receipt is marked `reused_existing_snapshot` with a negative `seconds_after_our_fetch`. A reused snapshot shows what the Archive held at its own timestamp. It is not a copy of our fetch, and the raw-copy check shows whether the bytes are the same.
 - **Receipt window.** A snapshot found through the availability API counts as a receipt for our fetch only if it is dated no more than 24 hours after our fetch.
-- **Late receipts.** Each run looks back 7 days for earlier runs still waiting for a receipt and asks the availability API again. It also retries raw-copy checks that were unavailable. Anything found is appended to that day's MANIFEST.json under `appended_notes`, with the date it was found. What was already written is never changed.
-- **When it alerts.** An Archive problem alone never fails a run. An issue opens only if the capture itself failed, or if there has been no Archive receipt at all for 3 consecutive capture days. Late receipts count.
+- **Later receipts.** Each run looks back 7 days for earlier runs still waiting for a receipt and asks the availability API again. It also retries raw-copy checks that were unavailable. Anything found is appended to that day's MANIFEST.json under `appended_notes`, with the date it was found. What was already written is never changed. Notes written from 2026-11-10 have the type `later-archive-receipt` (or `later-raw-check`); notes written earlier keep the type they were recorded with, because raw records are never edited, and the code reads both.
+- **When it alerts.** An Archive problem alone never fails a run. An issue opens only if the capture itself failed, or if there has been no Archive receipt at all for 3 consecutive capture days. Later receipts count.
 
 ### Backfill of Anthropic's own archive
 
@@ -106,6 +106,83 @@ The published tables in `data/` are rebuilt by `python -m verifier build` from `
 
   A base64 `data:` link is decoded before hashing.
 - **Review before main.** Card results reach main only through the weekly review pull request. The fetched raw cards are committed to the review branch even when the rebuild, tests or audit fail afterwards, so fetched evidence is never lost. The pull request title then says "checks failed", and its description begins with what failed. If the rebuild failed, `data/` and the cards' `verification.json` are left as they are on main.
+
+## Phase 3: public records, intervals, severities, report and publishing
+
+### R2: preimages withheld by the program
+
+When a finding card says the preimage is withheld (a paragraph the program marks `preimage-withheld-banner`), the result is `preimage_withheld`. We quote the card's sentence verbatim, decoding only HTML entities, and attribute it to the card (its stored path and SHA-256). This is neither a mismatch nor an error. `unavailable` is kept for real fetch or read failures. On 2026-11-10, five cards were in this state: ANT-2026-7DG11TPA, A5580GNM, BRQZSDGZ, CN7KX43N and VS18SA90. When a card is re-checked and later carries the preimage, the hash is checked as usual.
+
+### R3 and R4: public records
+
+- **What is looked up.** For each CVE and GHSA ID on a revealed finding's ledger entry or card:
+  - the GitHub Advisory Database (global advisories API), by GHSA ID and by CVE ID;
+  - NVD (CVE API 2.0).
+- **What is recorded for R3:**
+  - whether the record exists;
+  - published and updated dates;
+  - severity, and CVSS version and score;
+  - CWE and GitHub's review status;
+  - references and credits.
+
+  The ledger's project and bug class are compared with the advisory's source and CWE, and differences are recorded without judgement.
+- **R4: fix merged.** From the card's fix commit and pull request links, using GitHub's repository, commit, pull request and compare endpoints. "Fix merged" means the fix's pull request is merged into the project's default branch, or the commit is on the default branch. The date is the pull request's merge time. A fix not on GitHub is recorded `not_checked`, with its address.
+- **Storage.** Raw responses are kept under `records/` exactly as received, with every attempt in a MANIFEST. `records/README.md` names each source and its published terms. Jon will have counsel confirm those terms.
+- **Exemption from robots.txt (Jon's decision, 2026-11-10).** Exactly two documented APIs are exempt: `api.github.com` and `services.nvd.nist.gov`. Their robots.txt files are written for web crawlers, not for API clients, so the pipeline follows their published API rules instead:
+  - GitHub is used with the workflow's built-in token, within its rate limits;
+  - NVD is used at no more than 5 requests in any 30 seconds, without a key unless Jon approves one;
+  - both receive the identifying User-Agent;
+  - no new secret is used without asking Jon.
+
+  Every other host (red.anthropic.com, www.anthropic.com, the Internet Archive) keeps the robots.txt check, and a test proves it.
+- **Rate limits.** The pipeline reads GitHub's rate-limit headers and spreads calls over the time remaining. It stops cleanly when fewer than 50 requests remain, or when GitHub answers that the limit is reached. Lookups not made are recorded `rate_limited`, the run does not fail, and the next run starts with them.
+- **Tolerance.** A response with an unexpected shape, a missing field, a body that is not JSON, or an unexpected status never stops the run. It is kept as received, and the result is `lookup_unreadable` with a plain reason. Before the first full run, a `sample_only` run looks up 5 findings (wolfSSL first) so the real response shapes can be checked.
+- **NVD notice.** *This product uses data from the NVD API but is not endorsed or certified by the NVD.*
+
+### Fully checked
+
+A finding counts as **fully checked** only when all three hold:
+- its hash check is conclusive (`match`, `mismatch` or `preimage_withheld`);
+- its identifiers are confirmed in public records, or it has none (`ids_exist` is `verified` or `not_applicable`);
+- whether its fix was merged has been determined (`fix_merged` is `yes` or `no`).
+
+A finding whose fix was not checked (`not_checked`, including fixes not on GitHub), or whose lookups were rate-limited or unreadable, is never counted as fully checked. A finding with no CVE or GHSA identifiers has `lookup_status` `no_identifiers`, not `ok`, because there was nothing to look up. The summary's `checked_n` of `checked_of` uses this definition. On 2026-11-10, before the first real lookups, it is 0 of 237.
+
+### R5: intervals
+
+- **The intervals.** From each card's timeline:
+  - report = "Sent to maintainer";
+  - patch = "Patch released";
+  - reveal = "Publicly revealed";
+  - merge = the R4 merge date.
+
+  The days published are report to patch, patch to reveal, report to reveal, and report to merge.
+- **The comparison.** Each interval is compared with a reference:
+  - 90 days for report to patch, and 45 days for patch to reveal, from the policy page (our monthly dated copy is cited);
+  - 135 days for report to reveal, from the program's April post.
+
+  The comparison is published only as counts "within" (at or under) and "above". It is descriptive only: no finding is ever labelled overdue or in violation.
+
+### R7: severity by source
+
+Model, firm and maintainer severities come from the card; GitHub and NVD severities come from R3. They are never merged. `data/severity.csv` is the monthly count matrix (month of reveal × source × severity).
+
+### The weekly report and the wording guard
+
+`reports/YYYY-MM-DD-weekly.md` is written by deterministic templates. No language model writes any part of it.
+
+- **Needs human review.** Every difference from the program's own figures is listed there, written "The dashboard states X. Public records show Y.", with links and as-of dates. Where both figures come from the program, both sources are named; for example, its data file states 235 revealed and its ledger lists 237, and both are recorded as found.
+- **The wording guard.** The build fails if our own text says "overdue", "late" or "violation", or states intent, competence or motive. Our own text means the report, the review pull request text, and published text fields. Verbatim quotations of the program are marked as quotes and exempt.
+
+### Published files and where they go
+
+- **Files.** `verification`, `severity`, `summary` (JSON only) and `programs` join the phase 2 files. Their columns are in `data/schema/` and `docs/data-contract-additions-phase3.md`.
+- **Programs.** `programs` is kept by hand in `data/programs-manual.csv`, except anthropic-cvd's status and as_of, which come from the latest snapshot.
+- **Publishing.** After each merge to main that changes `data/`, the Publish workflow:
+  - mirrors `data/` to GitHub Pages, the public citation address;
+  - builds `site-data.zip` (the files plus a SHA-256 manifest), which is attached to the run.
+
+  The website bundles its own reviewed copy from the zip, and never fetches from Pages while it runs. Only merged data is published.
 
 ## Verification labels
 
