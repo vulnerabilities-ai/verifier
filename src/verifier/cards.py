@@ -19,7 +19,8 @@ from urllib.parse import urljoin
 from . import config
 from .capture import file_entry, time_suffix, validate
 from .net import CaptureError, Fetcher, RobotsDisallowed, sha256_hex, utc_now
-from .r2 import extract_preimage, parse_card, patch_before_discovery, r2_check
+from .r2 import (UNAVAILABLE_REASONS, card_hints, extract_preimage, parse_card,
+                 patch_before_discovery, r2_check)
 from .store import Archive
 
 RECHECK_DAYS = 30
@@ -58,7 +59,8 @@ def fetch_cards(root: Path, revealed: dict[str, str], fetcher: Fetcher,
     """Fetch new or due cards. revealed: finding ID -> ledger hash. Returns a tally."""
     store = Archive(root, area="cards")
     now = now or utc_now()
-    tally = {"fetched": 0, "new_copies": 0, "unchanged": 0, "unavailable": [], "not_due": 0}
+    tally = {"fetched": 0, "new_copies": 0, "unchanged": 0, "unavailable": [], "unavailable_reasons": {},
+             "not_due": 0}
     for fid in sorted(revealed):
         rel = _manifest_rel(fid)
         manifest = store.load_json(rel)
@@ -89,6 +91,7 @@ def fetch_cards(root: Path, revealed: dict[str, str], fetcher: Fetcher,
             manifest["unavailable"].append({"checked_utc": utc_now(), "attempts": attempts})
             store.save_json(rel, manifest)
             tally["unavailable"].append(fid)
+            tally["unavailable_reasons"][fid] = fetch_failure_text(attempts)
             continue
         blobs = store.known_blobs()
         stored_at, new = store.store(folder, "card.html", got.body, blobs, time_suffix(got.fetched_utc))
@@ -109,6 +112,19 @@ def fetch_cards(root: Path, revealed: dict[str, str], fetcher: Fetcher,
     return tally
 
 
+def fetch_failure_text(attempts: list[dict]) -> str:
+    parts = []
+    for a in attempts:
+        what = f"HTTP {a['status']}" if a.get("status") is not None else "no response"
+        parts.append(f"{a['url']} ({what}: {a.get('error', '')})".replace(": )", ")"))
+    return "the card could not be fetched; addresses tried: " + "; ".join(parts)
+
+
+def unavailable_reason(code: str, detail: str | None = None) -> dict:
+    text = UNAVAILABLE_REASONS[code]
+    return {"code": code, "text": f"{text}: {detail}" if detail and detail != text else text}
+
+
 def write_verifications(root: Path, revealed: dict[str, str], ledger_source: str) -> dict[str, dict]:
     """(Re)write cards/<ID>/verification.json for every revealed finding that has a
     card folder. Deterministic. Returns finding ID -> {"outcome", "card_url"}."""
@@ -125,7 +141,11 @@ def write_verifications(root: Path, revealed: dict[str, str], ledger_source: str
                "ledger_source": ledger_source}
         fetches = manifest.get("fetches", [])
         if not fetches:
-            rec.update(card=None, r2=r2_check(None, ledger_hash, None), hash_checked_at=None,
+            attempts = (manifest.get("unavailable") or [{}])[-1].get("attempts", [])
+            r2 = r2_check(None, ledger_hash, None)
+            r2["unavailable_reason"] = unavailable_reason(
+                "card_not_fetched", fetch_failure_text(attempts).split("; ", 1)[-1] if attempts else None)
+            rec.update(card=None, r2=r2, hash_checked_at=None,
                        card_facts=None, notes=["No copy of the card could be fetched; see MANIFEST.json."])
         else:
             card = fetches[-1]
@@ -152,14 +172,19 @@ def write_verifications(root: Path, revealed: dict[str, str], ledger_source: str
                 r2=r2_check(pre.get("bytes"), ledger_hash, facts["printed_hash"], method),
                 hash_checked_at=card.get("fetched_utc"),
                 card_facts=facts, notes=notes)
-            if pre.get("bytes") is None:
-                rec["r2"]["reason"] = pre.get("error")
+            if pre.get("note"):
+                rec["notes"].append(pre["note"])
+            if rec["r2"]["outcome"] == "unavailable":
+                code = "no_ledger_hash" if not ledger_hash else pre.get("code", "no_preimage_link")
+                rec["r2"]["unavailable_reason"] = unavailable_reason(code, pre.get("error"))
+                rec["card_hints"] = card_hints(body)
         rec["phase3_not_checked_yet"] = {
             "ids_exist": "not_checked", "fix_merged": "not_checked", "intervals": "not_checked",
             "severity_github": "not_checked", "severity_nvd": "not_checked"}
         store.save_json(f"cards/{fid}/verification.json", rec)
         url = (rec.get("card") or {}).get("url")
-        out[fid] = {"outcome": rec["r2"]["outcome"], "card_url": url}
+        out[fid] = {"outcome": rec["r2"]["outcome"], "card_url": url,
+                    "unavailable_reason": rec["r2"].get("unavailable_reason")}
     return out
 
 

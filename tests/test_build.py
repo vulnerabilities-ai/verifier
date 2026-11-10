@@ -10,6 +10,8 @@ import unittest
 from collections import Counter
 from pathlib import Path
 
+from helpers import frozen_archive
+
 from verifier.build import build
 from verifier.build.schema import FILES, columns, schema_doc
 from verifier.build.sources import MANUAL_BASIS, MANUAL_BOUND_UTC, Sources
@@ -23,8 +25,7 @@ NOV8_LEDGER_FETCH = None  # read from the manifest below
 
 
 def _copy_archive(dst: Path):
-    shutil.copytree(ROOT / "captures", dst / "captures")
-    shutil.copytree(ROOT / "cards", dst / "cards")
+    frozen_archive(dst)  # fixed inputs: never the live archive's growing state
 
 
 class RealArchive(unittest.TestCase):
@@ -35,7 +36,7 @@ class RealArchive(unittest.TestCase):
         _copy_archive(cls.root)
         cls.result = build(cls.root)
         cls.t = cls.result["tables"]
-        m = json.loads((ROOT / "captures/2026/11/08/MANIFEST.json").read_text())
+        m = json.loads((cls.root / "captures/2026/11/08/MANIFEST.json").read_text())
         files = {f["name"]: f for f in m["runs"][0]["files"]}
         cls.nov8_ledger = files["ledger.json"]["fetched_utc"]
         cls.nov8_payload = files["payload.json"]["fetched_utc"]

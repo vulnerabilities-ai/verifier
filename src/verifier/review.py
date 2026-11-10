@@ -15,6 +15,56 @@ def _rows(root: Path, name: str) -> list[dict]:
     return json.loads((root / "data" / f"{name}.json").read_text(encoding="utf-8"))["rows"]
 
 
+def unavailable_cards(root: Path) -> list[tuple[str, str]]:
+    """(finding ID, plain reason) for every card whose R2 result is unavailable."""
+    out = []
+    for v in sorted((Path(root) / "cards").glob("*/verification.json")):
+        rec = json.loads(v.read_text(encoding="utf-8"))
+        r2 = rec.get("r2") or {}
+        if r2.get("outcome") == "unavailable":
+            reason = (r2.get("unavailable_reason") or {}).get("text") or "no reason was recorded"
+            out.append((rec.get("finding_id", v.parent.name), reason))
+    return out
+
+
+CHECK_NAMES = {"cards": "Card fetch", "build": "Rebuild of data/", "tests": "Tests", "audit": "Archive audit"}
+
+
+def review_pr(root: Path, outcomes: dict[str, str], date: str,
+              cards_fetch: dict | None = None) -> tuple[str, str]:
+    """Title and description for the weekly review pull request.
+
+    outcomes: check name -> "success" or anything else (failure, skipped, cancelled).
+    When any check did not succeed, the title says "checks failed" and the
+    description starts with what failed. If the rebuild failed, only the raw
+    card fetch is in the pull request (data/ is left as it is on main)."""
+    failed = [k for k in CHECK_NAMES if outcomes.get(k, "success") != "success"]
+    title = f"Weekly review {date}" + (" (checks failed)" if failed else "")
+    head = []
+    if failed:
+        head = ["## Checks failed", "",
+                "These checks did not pass in this run: "
+                + ", ".join(f"{CHECK_NAMES[k]} ({outcomes.get(k)})" for k in failed) + ".", "",
+                "The raw finding cards fetched in this run are committed here so they are not lost.",
+                ("The rebuild failed, so `data/` and the cards' `verification.json` files are left as they are on "
+                 "main; only the raw card files and their manifests are included."
+                 if outcomes.get("build", "success") != "success" else
+                 "The rebuild ran, so `data/` is included, but the checks above failed."),
+                "", "**Do not merge until the failure is understood.** Write \"hold\" in a comment and ask Claude Code.",
+                "", "---", ""]
+    if outcomes.get("build", "success") == "success" and (Path(root) / "data" / "snapshots.json").exists():
+        body = review_summary(root, cards_fetch)
+    else:
+        body = "## Weekly review (phase 2 tally)\n\nNo rebuilt tables in this run.\n"
+        if cards_fetch:
+            body += (f"\n- Cards fetched: {cards_fetch.get('fetched', 0)} "
+                     f"({cards_fetch.get('new_copies', 0)} new copies, {cards_fetch.get('unchanged', 0)} unchanged).\n")
+            for fid in cards_fetch.get("unavailable", []):
+                why = (cards_fetch.get("unavailable_reasons") or {}).get(fid, "no reason was recorded")
+                body += f"- {fid}: {why}\n"
+    return title, "\n".join(head) + body
+
+
 def review_summary(root: Path, cards_fetch: dict | None = None) -> str:
     root = Path(root)
     snaps = _rows(root, "snapshots")
@@ -39,8 +89,12 @@ def review_summary(root: Path, cards_fetch: dict | None = None) -> str:
               f"- Hash check mismatch: {checks.get('mismatch', 0)}",
               f"- Card or preimage unavailable: {checks.get('unavailable', 0)}",
               f"- Not checked yet: {checks.get('not_checked', 0)}"]
+    unavailable = unavailable_cards(root)
+    if unavailable:
+        lines += ["", "Cards whose hash could not be checked, and why:", ""]
+        lines += [f"- {fid}: {why}" for fid, why in unavailable]
     if cards_fetch:
-        lines += [f"- This run fetched {cards_fetch.get('fetched', 0)} card(s) "
+        lines += ["", f"- This run fetched {cards_fetch.get('fetched', 0)} card(s) "
                   f"({cards_fetch.get('new_copies', 0)} new copies, {cards_fetch.get('unchanged', 0)} unchanged); "
                   f"could not fetch: {', '.join(cards_fetch.get('unavailable', [])) or 'none'}."]
     if events:

@@ -36,57 +36,62 @@ jobs:
         run: |
           set +e
           PYTHONPATH=src python3 -m verifier cards --summary-file "${RUNNER_TEMP}/cards.json"
-          code=$?
-          echo "exit_code=${code}" >> "${GITHUB_OUTPUT}"
-          exit "${code}"
+          echo "exit_code=$?" >> "${GITHUB_OUTPUT}"
+          exit 0
 
+      # The next three steps may fail without stopping the run: whatever happens,
+      # the cards fetched above are committed to the review branch below.
       - name: Rebuild data/ and the card checks
+        id: build
+        continue-on-error: true
         run: PYTHONPATH=src python3 -m verifier build
 
-      - name: Tests and archive integrity
-        run: |
-          PYTHONPATH=src:tests python3 -m unittest discover -s tests
-          PYTHONPATH=src python3 -m verifier audit
+      - name: Tests
+        id: tests
+        continue-on-error: true
+        run: PYTHONPATH=src:tests python3 -m unittest discover -s tests
 
-      - name: Write the review summary
+      - name: Archive integrity
+        id: audit
+        continue-on-error: true
+        run: PYTHONPATH=src python3 -m verifier audit
+
+      - name: Write the review title and description
+        if: always()
+        env:
+          CARDS_EXIT: ${{ steps.cards.outputs.exit_code }}
+          BUILD: ${{ steps.build.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
         run: |
-          PYTHONPATH=src python3 -m verifier review-summary \
-            --cards-summary "${RUNNER_TEMP}/cards.json" --out "${RUNNER_TEMP}/review.md"
+          cards="success"
+          if [ "${CARDS_EXIT:-1}" != "0" ]; then cards="failure (exit ${CARDS_EXIT:-unknown})"; fi
+          PYTHONPATH=src python3 -m verifier review-pr \
+            --cards "${cards}" --build "${BUILD}" --tests "${TESTS}" --audit "${AUDIT}" \
+            --cards-summary "${RUNNER_TEMP}/cards.json" --date "$(date -u +%Y-%m-%d)" \
+            --title-out "${RUNNER_TEMP}/title.txt" --body-out "${RUNNER_TEMP}/review.md"
           cat "${RUNNER_TEMP}/review.md" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Commit to the review branch and open or update the pull request
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          TITLE_FILE: ${{ runner.temp }}/title.txt
+          BODY_FILE: ${{ runner.temp }}/review.md
+        run: bash scripts/review_commit.sh
+
+      - name: Fail the run if any check failed (after the evidence is committed)
+        if: always()
+        env:
+          CARDS_EXIT: ${{ steps.cards.outputs.exit_code }}
+          BUILD: ${{ steps.build.outcome }}
+          TESTS: ${{ steps.tests.outcome }}
+          AUDIT: ${{ steps.audit.outcome }}
         run: |
-          set -euo pipefail
-          outside=$(git ls-files --modified --deleted --others --exclude-standard | grep -vE '^(cards|data)/' || true)
-          if [ -n "${outside}" ]; then
-            echo "::error::The run changed files outside cards/ and data/. Refusing to commit: ${outside}"
+          if [ "${CARDS_EXIT:-1}" != "0" ] || [ "${BUILD}" != "success" ] || [ "${TESTS}" != "success" ] || [ "${AUDIT}" != "success" ]; then
+            echo "::error::Checks failed: cards exit ${CARDS_EXIT:-unknown}, build ${BUILD}, tests ${TESTS}, audit ${AUDIT}. Fetched cards were committed to review/weekly."
             exit 1
-          fi
-          deleted=$(git ls-files --deleted)
-          if [ -n "${deleted}" ]; then
-            echo "::error::A file was deleted. Refusing to commit: ${deleted}"
-            exit 1
-          fi
-          git switch -C review/weekly
-          git add cards data
-          if git diff --cached --quiet; then
-            echo "Nothing changed since main; no pull request needed."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "Weekly review $(date -u +%Y-%m-%d) (run ${GITHUB_RUN_ID})"
-          git push -q --force origin review/weekly
-          title="Weekly review $(date -u +%Y-%m-%d)"
-          existing=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head review/weekly --state open \
-            --json number --jq '.[0].number // empty')
-          if [ -n "${existing}" ]; then
-            gh pr edit "${existing}" --repo "${GITHUB_REPOSITORY}" --title "${title}" --body-file "${RUNNER_TEMP}/review.md"
-          else
-            gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head review/weekly \
-              --title "${title}" --body-file "${RUNNER_TEMP}/review.md"
           fi
 
       - name: Open or update an issue

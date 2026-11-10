@@ -55,23 +55,71 @@ def _section(text: str, marker: str) -> str:
     return text[i: j if j > 0 else len(text)]
 
 
+# Plain reasons for an "unavailable" result (code -> words for people).
+UNAVAILABLE_REASONS = {
+    "card_not_fetched": "the card could not be fetched",
+    "no_preimage_link": "the card has no preimage download link and no visible preimage text",
+    "unreadable_data_link": "the card's preimage download link could not be read",
+    "unreadable_visible_text": "the card's visible preimage text is not valid JSON",
+    "no_ledger_hash": "the ledger has no hash for this finding",
+}
+
+
+def _decode_data_link(href: str) -> tuple[bytes | None, str | None]:
+    """Decode a data: address. Returns (bytes, None) or (None, why)."""
+    header, sep, payload = href.partition(",")
+    if not sep:
+        return None, "the data address has no comma separating header and content"
+    if not payload:
+        return None, "the data address is empty"
+    if ";base64" in header.lower():
+        import base64
+        import binascii
+        try:
+            return base64.b64decode(unquote_to_bytes(payload), validate=True), None
+        except (binascii.Error, ValueError) as e:
+            return None, f"the base64 content could not be decoded ({e})"
+    return unquote_to_bytes(payload), None
+
+
 def extract_preimage(card: bytes) -> dict:
-    """Return {"bytes": ..., "method": ...} or {"bytes": None, "error": ...}."""
+    """Return {"bytes", "method"} or {"bytes": None, "code", "error"}.
+    A note is added when the download link could not be read but the visible text could."""
     text = card.decode("utf-8", errors="replace")
+    link_problem = None
     m = _DATA_LINK.search(text)
     if m:
-        href = html.unescape(m.group(1) or m.group(2))
-        _, _, payload = href.partition(",")
-        if payload:
-            return {"bytes": unquote_to_bytes(payload), "method": "download_link_data_address"}
+        data, why = _decode_data_link(html.unescape(m.group(1) or m.group(2)))
+        if data is not None:
+            return {"bytes": data, "method": "download_link_data_address"}
+        link_problem = why
     v = _VISIBLE.search(text)
     if v:
         try:
             obj = json.loads(html.unescape(v.group(1)))
-            return {"bytes": canonical_bytes(obj), "method": "visible_text_canonical_rebuild"}
         except json.JSONDecodeError as e:
-            return {"bytes": None, "error": f"visible preimage text is not valid JSON ({e})"}
-    return {"bytes": None, "error": "no preimage download link or visible preimage text on the card"}
+            if link_problem:
+                return {"bytes": None, "code": "unreadable_data_link",
+                        "error": f"{link_problem}; the visible preimage text is not valid JSON either ({e})"}
+            return {"bytes": None, "code": "unreadable_visible_text",
+                    "error": f"the visible preimage text is not valid JSON ({e})"}
+        out = {"bytes": canonical_bytes(obj), "method": "visible_text_canonical_rebuild"}
+        if link_problem:
+            out["note"] = f"The download link could not be read ({link_problem}); the visible text was used."
+        return out
+    if link_problem:
+        return {"bytes": None, "code": "unreadable_data_link", "error": link_problem}
+    return {"bytes": None, "code": "no_preimage_link",
+            "error": "no preimage download link or visible preimage text on the card"}
+
+
+def card_hints(card: bytes) -> dict:
+    """Plain counts that help a person see why a preimage could not be read."""
+    text = card.decode("utf-8", errors="replace")
+    return {"mentions_of_preimage": text.lower().count("preimage"),
+            "data_addresses": text.count('href="data:'),
+            "download_links": text.count("download="),
+            "visible_preimage_blocks": len(_VISIBLE.findall(text))}
 
 
 def parse_card(card: bytes) -> dict:
