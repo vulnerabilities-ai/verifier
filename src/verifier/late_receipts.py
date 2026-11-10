@@ -14,6 +14,7 @@ consecutive capture days, which is the only Archive problem that opens an issue.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 
 from . import config
@@ -23,6 +24,7 @@ from .store import Archive
 
 NOTE_RECEIPT = "late-archive-receipt"
 NOTE_RAW = "late-raw-check"
+NOTE_DIAG = "archive-raw-diagnostic"
 
 
 def day_manifests(archive: Archive) -> list[tuple[str, str]]:
@@ -110,14 +112,56 @@ def find_late_receipts(archive: Archive, client: ArchiveClient, today: str,
                 if (rc and rc.get("result") == "unavailable"
                         and not _resolved(notes, rid, name, NOTE_RAW)):
                     check = client.raw_check(item["url"], item["receipt"]["snapshot_timestamp"],
-                                             item["our_sha256"])
+                                             item["our_sha256"], name)
                     if check["result"] != "unavailable":
                         new.append({"note_type": NOTE_RAW, "appended_utc": utc_now(),
                                     "run_id": rid, "name": name, "raw_check": check})
+        new += _diagnose_earlier_mismatches(m, notes, client, skip_run_id)
         if new:
             append_notes(archive, rel, new)
             appended += new
     return appended
+
+
+def _mismatches_without_diagnostic(m: dict, notes: list[dict]):
+    """(run_id, name, snapshot_ts, where) for every recorded raw-copy mismatch
+    that has no diagnostic yet, in the run records or in appended notes."""
+    for run in m.get("runs", []):
+        for item in run_items(run):
+            r = item.get("receipt") or {}
+            rc = r.get("raw_check") or {}
+            if rc.get("result") == "mismatch" and "diagnostic" not in rc:
+                yield run.get("run_id"), item["name"], r.get("snapshot_timestamp"), "run record"
+    for n in notes:
+        rc = (n.get("receipt") or {}).get("raw_check") or n.get("raw_check") or {}
+        ts = (n.get("receipt") or {}).get("snapshot_timestamp")
+        if ts is None and rc.get("raw_url"):
+            mt = re.search(r"/web/(\d{14})id_/", rc["raw_url"])
+            ts = mt.group(1) if mt else None
+        if rc.get("result") == "mismatch" and "diagnostic" not in rc:
+            yield n.get("run_id"), n.get("name"), ts, f"appended note ({n.get('note_type')})"
+
+
+def _diagnose_earlier_mismatches(m: dict, notes: list[dict], client: ArchiveClient,
+                                 skip_run_id: str | None) -> list[dict]:
+    if client.on_mismatch is None:
+        return []
+    items = {(run.get("run_id"), i["name"]): i for run in m.get("runs", []) for i in run_items(run)}
+    new, seen = [], set()
+    for rid, name, ts, where in _mismatches_without_diagnostic(m, notes):
+        key = (rid, name, ts)
+        if (rid == skip_run_id or key in seen or not ts or (rid, name) not in items
+                or any(n.get("note_type") == NOTE_DIAG and n.get("run_id") == rid
+                       and n.get("name") == name and n.get("snapshot_timestamp") == ts
+                       for n in notes)):
+            continue
+        seen.add(key)
+        item = items[(rid, name)]
+        check = client.raw_check(item["url"], ts, item["our_sha256"], name)
+        new.append({"note_type": NOTE_DIAG, "appended_utc": utc_now(), "run_id": rid,
+                    "name": name, "snapshot_timestamp": ts, "mismatch_recorded_in": where,
+                    "raw_check": check})
+    return new
 
 
 def day_has_receipt(m: dict) -> bool:

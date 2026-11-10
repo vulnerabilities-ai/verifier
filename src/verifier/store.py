@@ -20,7 +20,7 @@ from pathlib import Path, PurePosixPath
 
 from .net import sha256_hex
 
-METADATA_NAMES = {"MANIFEST.json", "capture-log.csv", "latest.json"}
+METADATA_NAMES = {"MANIFEST.json", "capture-log.csv", "latest.json", "verification.json"}
 
 LOG_COLUMNS = [
     "run_utc", "finished_utc", "run_id", "trigger", "mode", "status",
@@ -33,18 +33,21 @@ class PathOutsideCaptures(Exception):
 
 
 class Archive:
-    def __init__(self, root: Path):
+    """A write-guarded area of the repository: captures/ by default, or cards/."""
+
+    def __init__(self, root: Path, area: str = "captures"):
         self.root = Path(root).resolve()
-        self.captures = self.root / "captures"
+        self.area = area
+        self.captures = self.root / area
 
     # -- path safety ------------------------------------------------------
     def _resolve(self, rel: str) -> Path:
         p = PurePosixPath(rel)
-        if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0] != "captures":
-            raise PathOutsideCaptures(f"Refusing to write outside captures/: {rel}")
+        if p.is_absolute() or ".." in p.parts or not p.parts or p.parts[0] != self.area:
+            raise PathOutsideCaptures(f"Refusing to write outside {self.area}/: {rel}")
         full = (self.root / Path(*p.parts)).resolve()
         if self.captures not in full.parents:
-            raise PathOutsideCaptures(f"Refusing to write outside captures/: {rel}")
+            raise PathOutsideCaptures(f"Refusing to write outside {self.area}/: {rel}")
         return full
 
     def write_raw(self, rel: str, data: bytes) -> str:
@@ -136,10 +139,15 @@ class Archive:
         return list(csv.DictReader(io.StringIO(full.read_text(encoding="utf-8"))))
 
 
-def iter_file_entries(manifest: dict):
-    """Yield every file entry in a manifest, whatever its kind."""
-    for f in manifest.get("files", []) or []:
-        yield f
-    for run in manifest.get("runs", []) or []:
-        for f in run.get("files", []) or []:
-            yield f
+def iter_file_entries(manifest):
+    """Yield every stored-file record anywhere in a manifest: any object that
+    has both "stored_at" and "sha256" (capture files, card copies, preimages,
+    and saved Internet Archive raw copies)."""
+    if isinstance(manifest, dict):
+        if "stored_at" in manifest and "sha256" in manifest:
+            yield manifest
+        for v in manifest.values():
+            yield from iter_file_entries(v)
+    elif isinstance(manifest, list):
+        for v in manifest:
+            yield from iter_file_entries(v)

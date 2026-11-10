@@ -1,0 +1,6 @@
+program,capture_utc,revision,source_kind,program_snapshot_label,patched_claimed,patched_itemized,cves_claimed,cves_itemized,ghsas_claimed,ghsas_itemized,reported_claimed,reported_flagged_in_ledger,revealed_itemized,revealed_payload_count,withdrawn_flag,withdrawn_status,merged_status,merged_with_target,label
+anthropic-cvd,2026-11-08T23:18:11Z,1,program_archive_backfill,2026-05-22-1027,97,27,28,18,60,14,1596,1596,27,27,,0,0,0,Independently verified (our count from the program's published files)
+anthropic-cvd,2026-11-08T23:18:14Z,32,program_archive_backfill,2026-08-26-1155,421,202,177,81,285,69,2300,2300,214,212,243,245,2,2,Independently verified (our count from the program's published files)
+anthropic-cvd,2026-10-30T23:59:59Z,35,our_capture,,516,218,219,102,365,82,6157,6154,237,235,243,246,2,2,Independently verified (our count from the program's published files)
+anthropic-cvd,2026-11-08T23:18:17Z,35,program_archive_backfill,2026-10-02-1947,516,218,219,102,365,82,6157,6154,237,235,243,246,2,2,Independently verified (our count from the program's published files)
+anthropic-cvd,2026-11-08T23:16:45Z,40,our_capture,,629,217,230,102,503,82,5087,5084,237,235,415,419,1654,2,Independently verified (our count from the program's published files)

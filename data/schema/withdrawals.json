@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "file": "withdrawals",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per snapshot, view and reason: three views of withdrawals, none treated as an error.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "capture_utc",
+      "type": "time",
+      "meaning": "As in snapshots.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "revision",
+      "type": "integer",
+      "meaning": "The program's revision number.",
+      "source_field": "revision",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "source_kind",
+      "type": "string",
+      "meaning": "As in snapshots.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "program_snapshot_label",
+      "type": "string",
+      "meaning": "As in snapshots.",
+      "source_field": "snapshots/<label>",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "view",
+      "type": "string",
+      "meaning": "by_flag (entries with the withdrawn flag), by_status (entries with status withdrawn) or by_reason_all_entries (every entry with a withdrawal reason, including merged entries). Three views of the same ledger; none is an error.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "reason",
+      "type": "string",
+      "meaning": "The program's withdrawal reason. Empty when the entry has none.",
+      "source_field": "withdrawn_reason",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "count",
+      "type": "integer",
+      "meaning": "Number of ledger entries.",
+      "source_field": null,
+      "label": "Independently verified (our count from the program's published files)"
+    }
+  ]
+}

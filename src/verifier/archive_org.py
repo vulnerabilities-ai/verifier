@@ -68,6 +68,9 @@ class ArchiveClient:
         self.window = window
         self.sleep, self.clock = sleep, clock
         self._last_save: float | None = None
+        # Optional callable(name, snapshot_ts, our_sha256, archive_bytes) -> dict,
+        # set by the runner to save and describe raw-copy mismatches.
+        self.on_mismatch = None
 
     def __repr__(self) -> str:  # never show credentials
         return f"<ArchiveClient mode={self.mode}>"
@@ -194,7 +197,7 @@ class ArchiveClient:
             return {**rec, "result": "found_after_our_fetch", "seconds_after_our_fetch": delay}
         return {**rec, "result": "none_after_our_fetch", "seconds_after_our_fetch": delay}
 
-    def raw_check(self, url: str, ts: str, our_sha256: str) -> dict:
+    def raw_check(self, url: str, ts: str, our_sha256: str, name: str | None = None) -> dict:
         raw = self.raw_url(ts, url)
         rec = {"raw_url": raw, "checked_utc": utc_now()}
         try:
@@ -208,6 +211,13 @@ class ArchiveClient:
             return {**rec, "result": "unavailable", "error": f"HTTP {resp.status}"}
         sha = sha256_hex(resp.body)
         rec.update(raw_sha256=sha, result="match" if sha == our_sha256 else "mismatch")
+        if sha != our_sha256 and self.on_mismatch is not None:
+            # Detail only: the result above stays "mismatch" whatever this finds.
+            try:
+                rec["diagnostic"] = self.on_mismatch(name or url.rstrip("/").rsplit("/", 1)[-1],
+                                                     ts, our_sha256, resp.body)
+            except Exception as e:  # noqa: BLE001 - a diagnostic must never break a run
+                rec["diagnostic"] = {"error": f"{type(e).__name__}: {e}"}
         m = _WAYBACK_TS.search(resp.final_url or "")
         if m and m.group(1) != ts:
             rec["note"] = f"The Archive served its copy dated {m.group(1)} instead."
@@ -227,7 +237,7 @@ class ArchiveClient:
             rec["note"] = ("The Archive returned a snapshot dated before our fetch (it reuses "
                            "recent snapshots). It shows what the Archive held then; the raw "
                            "check shows whether it has the same bytes as our copy.")
-        rec["raw_check"] = self.raw_check(item["url"], ts, item["our_sha256"])
+        rec["raw_check"] = self.raw_check(item["url"], ts, item["our_sha256"], item.get("name"))
         return rec
 
     # -- the whole archive step for one capture ----------------------------------

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "finding_id": "ANT-2026-87DJGDRB",
+  "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
+  "fetches": [
+    {
+      "source": "manual copy by Jon, saved with the October 30, 2026 fixtures; fetch time, address and headers not recorded",
+      "fetched_utc": null,
+      "url": null,
+      "final_url": null,
+      "status": null,
+      "headers": "not recorded",
+      "size_bytes": 14205,
+      "sha256": "4f6512fe6e9cbb84ecef5a8c456839b86eeb5c9280984291b308342316c7d925",
+      "stored_at": "cards/ANT-2026-87DJGDRB/card.html",
+      "newly_stored": true
+    }
+  ],
+  "unavailable": [],
+  "preimages": [
+    {
+      "source": "manual copy by Jon (the card's \"download preimage.json\" file)",
+      "extracted_from": null,
+      "method": "manual download",
+      "size_bytes": 1398,
+      "sha256": "27f00fcb09b205a5d7bffed36c0a2805485f5b41425d9f321e844e29a282501c",
+      "sha3_512": "f35e4f410ec58dab28431670e173e03fd1e5105f8afefc79c7edd5117d684d3aa377d218762d2f1ab70c6262e31227885bacaf2062958b077e305e5aebc6c37d",
+      "stored_at": "cards/ANT-2026-87DJGDRB/preimage.json",
+      "newly_stored": true
+    }
+  ]
+}

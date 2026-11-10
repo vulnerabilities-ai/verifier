@@ -1,0 +1,221 @@
+{
+  "schema_version": 1,
+  "file": "snapshots",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per snapshot: each distinct data file in our own daily captures, plus each backfilled copy of the program's own archive.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "capture_utc",
+      "type": "time",
+      "meaning": "When we captured the dashboard page for this snapshot (first capture containing it). For backfill rows, when we copied the program's archived snapshot. For Jon's manual capture of 2026-10-30, the end-of-day bound 2026-10-30T23:59:59Z.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "source_sha256",
+      "type": "string",
+      "meaning": "SHA-256 of the captured dashboard page (index.html for backfill rows).",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "as_of_utc",
+      "type": "time",
+      "meaning": "The 'last updated' time the program shows, to the second.",
+      "source_field": "as_of",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "revision",
+      "type": "integer",
+      "meaning": "The program's revision number.",
+      "source_field": "revision",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "candidates",
+      "type": "integer",
+      "meaning": "Findings the program's models flagged before triage.",
+      "source_field": "headline.analyzed",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "reviewed_by_firms",
+      "type": "integer",
+      "meaning": "Findings reviewed by external firms.",
+      "source_field": "headline.triaged",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "confirmed_valid",
+      "type": "integer",
+      "meaning": "Findings the firms confirmed valid.",
+      "source_field": "headline.verified",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "true_positive_pct",
+      "type": "number",
+      "meaning": "The program's true-positive percentage.",
+      "source_field": "headline.tpr_pct",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "reported_after_triage",
+      "type": "integer",
+      "meaning": "Reported to maintainers after firm review.",
+      "source_field": "headline.confirmed_reported",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "reported_without_review",
+      "type": "integer",
+      "meaning": "Reported to maintainers without firm review.",
+      "source_field": "headline.reported_without_review",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "reported_total",
+      "type": "integer",
+      "meaning": "Total reported to maintainers ('disclosed').",
+      "source_field": "headline.disclosed",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "acknowledged",
+      "type": "integer",
+      "meaning": "Acknowledged by a maintainer.",
+      "source_field": "headline.acknowledged",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "patched_lab_count",
+      "type": "integer",
+      "meaning": "Patched, by the program's own 'to our knowledge' count.",
+      "source_field": "headline.fixed_in_response",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "advisories",
+      "type": "integer",
+      "meaning": "Identifiers assigned, as the program counts them.",
+      "source_field": "headline.advisories",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "cves",
+      "type": "integer",
+      "meaning": "CVE records, as the program counts them.",
+      "source_field": "headline.cves",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "ghsas",
+      "type": "integer",
+      "meaning": "GitHub Security Advisories, as the program counts them.",
+      "source_field": "headline.ghsas",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "projects_reported",
+      "type": "integer",
+      "meaning": "Projects with reported findings.",
+      "source_field": "project_count",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "ledger_entries",
+      "type": "integer",
+      "meaning": "Commitments in the ledger (our count of payload.json ledger entries).",
+      "source_field": "len(ledger)",
+      "label": "Independently verified"
+    },
+    {
+      "name": "revealed_entries",
+      "type": "integer",
+      "meaning": "Ledger entries in the revealed tier (our count).",
+      "source_field": "ledger[].reveal_tier",
+      "label": "Independently verified"
+    },
+    {
+      "name": "severity_agreement_n",
+      "type": "integer",
+      "meaning": "Number of findings in the program's model-versus-firm severity comparison.",
+      "source_field": "severity_matrix.n_vendor",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "severity_exact_agreement_pct",
+      "type": "number",
+      "meaning": "Exact severity agreement, model versus firm, as the program reports it.",
+      "source_field": "severity_matrix.exact_pct_vendor",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "severity_within_one_band_pct",
+      "type": "number",
+      "meaning": "Agreement within one severity band, as the program reports it.",
+      "source_field": "severity_matrix.within_one_pct_vendor",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "program_fix_rate_pct",
+      "type": "number",
+      "meaning": "The 'fix rate' in the program's data file: fixed findings as a share of REVEALED findings (program_revealed_count), not of all reported findings. Never show it without that denominator.",
+      "source_field": "fix_rate_pct (anthropic_fix_rate_pct in R-B)",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "program_revealed_count",
+      "type": "integer",
+      "meaning": "The revealed count the fix rate is based on.",
+      "source_field": "revealed.count (anthropic_revealed_count in R-B)",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "source_kind",
+      "type": "string",
+      "meaning": "our_capture (our own daily capture) or program_archive_backfill (a copy of the program's own archived snapshot; never first-seen evidence).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "program_snapshot_label",
+      "type": "string",
+      "meaning": "For backfill rows, the program's own snapshot label, for example 2026-08-26-1155. Empty otherwise.",
+      "source_field": "snapshots/<label>",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "first_seen_by_us",
+      "type": "time",
+      "meaning": "For our_capture rows, when our first capture containing this snapshot fetched its data file. Empty for backfill rows.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "meaning": "Always Lab-reported (the counts are the program's).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "note",
+      "type": "string",
+      "meaning": "Free text, for example the manual-capture note or the Aug 26, 2026 change in date conventions.",
+      "source_field": null,
+      "label": null
+    }
+  ]
+}

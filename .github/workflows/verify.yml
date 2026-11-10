@@ -1,0 +1,114 @@
+# Weekly verification (phase 2 version).
+# Plain-language summary: once a week (and on demand) this fetches finding
+# cards for newly revealed findings (and re-checks known cards monthly),
+# checks each commitment hash (rule R2), rebuilds the published tables in
+# data/, and opens or updates ONE pull request for Jon to review. Nothing
+# about a specific finding reaches main until Jon merges that pull request.
+name: Verify
+
+on:
+  schedule:
+    - cron: "41 7 * * 1" # Mondays 07:41 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: verify
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write # push the review branch
+      pull-requests: write # open or update the review pull request
+      issues: write # open an issue if the run fails
+    steps:
+      - name: Check out the repository (full history, for first-seen commit times)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Fetch new or due finding cards
+        id: cards
+        run: |
+          set +e
+          PYTHONPATH=src python3 -m verifier cards --summary-file "${RUNNER_TEMP}/cards.json"
+          code=$?
+          echo "exit_code=${code}" >> "${GITHUB_OUTPUT}"
+          exit "${code}"
+
+      - name: Rebuild data/ and the card checks
+        run: PYTHONPATH=src python3 -m verifier build
+
+      - name: Tests and archive integrity
+        run: |
+          PYTHONPATH=src:tests python3 -m unittest discover -s tests
+          PYTHONPATH=src python3 -m verifier audit
+
+      - name: Write the review summary
+        run: |
+          PYTHONPATH=src python3 -m verifier review-summary \
+            --cards-summary "${RUNNER_TEMP}/cards.json" --out "${RUNNER_TEMP}/review.md"
+          cat "${RUNNER_TEMP}/review.md" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Commit to the review branch and open or update the pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          outside=$(git ls-files --modified --deleted --others --exclude-standard | grep -vE '^(cards|data)/' || true)
+          if [ -n "${outside}" ]; then
+            echo "::error::The run changed files outside cards/ and data/. Refusing to commit: ${outside}"
+            exit 1
+          fi
+          deleted=$(git ls-files --deleted)
+          if [ -n "${deleted}" ]; then
+            echo "::error::A file was deleted. Refusing to commit: ${deleted}"
+            exit 1
+          fi
+          git switch -C review/weekly
+          git add cards data
+          if git diff --cached --quiet; then
+            echo "Nothing changed since main; no pull request needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "Weekly review $(date -u +%Y-%m-%d) (run ${GITHUB_RUN_ID})"
+          git push -q --force origin review/weekly
+          title="Weekly review $(date -u +%Y-%m-%d)"
+          existing=$(gh pr list --repo "${GITHUB_REPOSITORY}" --head review/weekly --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -n "${existing}" ]; then
+            gh pr edit "${existing}" --repo "${GITHUB_REPOSITORY}" --title "${title}" --body-file "${RUNNER_TEMP}/review.md"
+          else
+            gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head review/weekly \
+              --title "${title}" --body-file "${RUNNER_TEMP}/review.md"
+          fi
+
+      - name: Open or update an issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXIT_CODE: ${{ steps.cards.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ "${EXIT_CODE:-}" = "3" ]; then
+            title="Verify stopped: robots.txt disallows a path (decision needed)"
+            next="A robots.txt file now disallows a finding-card page. The pipeline stopped and will not fetch it. Jon decides what to do next."
+          else
+            title="Verify failed"
+            next="The weekly verification did not complete. Forward the GitHub email to Jon, or ask Claude Code to look at the run."
+          fi
+          body=$(printf '%s\n\n**Run:** %s\n\n_Opened automatically by the verify workflow._' "${next}" "${run_url}")
+          existing=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --limit 100 \
+            --json number,title --jq ".[] | select(.title == \"${title}\") | .number" | head -n1)
+          if [ -n "${existing}" ]; then
+            gh issue comment "${existing}" --repo "${GITHUB_REPOSITORY}" --body "${body}"
+          else
+            gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
+          fi

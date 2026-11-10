@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "file": "gaps",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per snapshot: claimed against itemized counts, with no commentary.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "capture_utc",
+      "type": "time",
+      "meaning": "As in snapshots.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "revision",
+      "type": "integer",
+      "meaning": "The program's revision number.",
+      "source_field": "revision",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "source_kind",
+      "type": "string",
+      "meaning": "As in snapshots.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "program_snapshot_label",
+      "type": "string",
+      "meaning": "As in snapshots.",
+      "source_field": "snapshots/<label>",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "patched_claimed",
+      "type": "integer",
+      "meaning": "The program's patched figure.",
+      "source_field": "headline.fixed_in_response",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "patched_itemized",
+      "type": "integer",
+      "meaning": "Ledger entries flagged fixed in response.",
+      "source_field": "ledger[].is_fixed_in_response",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "cves_claimed",
+      "type": "integer",
+      "meaning": "CVE records claimed.",
+      "source_field": "headline.cves",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "cves_itemized",
+      "type": "integer",
+      "meaning": "Unique CVE IDs on ledger entries (cve_ids and corrected_cve_ids).",
+      "source_field": "ledger[].cve_ids",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "ghsas_claimed",
+      "type": "integer",
+      "meaning": "GHSAs claimed.",
+      "source_field": "headline.ghsas",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "ghsas_itemized",
+      "type": "integer",
+      "meaning": "Unique GHSA IDs on ledger entries (ghsa_ids and corrected_ghsa_ids).",
+      "source_field": "ledger[].ghsa_ids",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "reported_claimed",
+      "type": "integer",
+      "meaning": "Reported to maintainers ('disclosed').",
+      "source_field": "headline.disclosed",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "reported_flagged_in_ledger",
+      "type": "integer",
+      "meaning": "Ledger entries flagged disclosed.",
+      "source_field": "ledger[].was_disclosed",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "revealed_itemized",
+      "type": "integer",
+      "meaning": "Ledger entries in the revealed tier.",
+      "source_field": "ledger[].reveal_tier",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "revealed_payload_count",
+      "type": "integer",
+      "meaning": "The revealed count in the program's data file.",
+      "source_field": "revealed.count",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "withdrawn_flag",
+      "type": "integer",
+      "meaning": "Ledger entries with the withdrawn flag (empty if the snapshot has no such field).",
+      "source_field": "ledger[].withdrawn",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "withdrawn_status",
+      "type": "integer",
+      "meaning": "Ledger entries with status withdrawn.",
+      "source_field": "ledger[].status",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "merged_status",
+      "type": "integer",
+      "meaning": "Ledger entries with status merged.",
+      "source_field": "ledger[].status",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "merged_with_target",
+      "type": "integer",
+      "meaning": "Merged entries that name the finding they were merged into.",
+      "source_field": "ledger[].merged_into",
+      "label": "Independently verified (our count from the program's published files)"
+    },
+    {
+      "name": "label",
+      "type": "string",
+      "meaning": "Always 'Independently verified (our count from the program's published files)'.",
+      "source_field": null,
+      "label": null
+    }
+  ]
+}

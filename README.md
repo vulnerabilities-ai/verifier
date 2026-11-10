@@ -22,9 +22,11 @@ Raw captures are never edited or deleted. Git history keeps every version. Corre
 captures/YYYY/MM/DD/         raw files from our daily capture, plus MANIFEST.json
 captures/anthropic-archive/  copies of Anthropic's own dated snapshots (not first-seen evidence)
 captures/policy/YYYY-MM/     monthly copy of Anthropic's disclosure policy page
+captures/archive-raw/        Internet Archive raw copies that differed from ours (kept for diagnosis)
 captures/capture-log.csv     one row per run
-cards/                       revealed finding cards and preimages
-data/                        published open data (CC BY 4.0)
+cards/<ID>/                  revealed finding cards, preimages and each card's verification.json (rule R2)
+data/                        published open data (CC BY 4.0): snapshots, commitments, events, gaps, withdrawals
+data/schema/                 the meaning and source of every published column
 docs/                        the build spec and the data contract
 src/verifier/  tests/        pipeline code and tests
 ```

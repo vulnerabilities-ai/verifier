@@ -11,7 +11,7 @@ import json
 import re
 
 from . import config
-from .columns import SNAPSHOT_COLUMNS, check_published
+from .columns import SNAPSHOT_HEADLINE_COLUMNS, check_published
 
 
 class FormatChanged(Exception):
@@ -73,7 +73,7 @@ def parse_headline(payload: bytes | dict, *, capture_utc: str | None,
         "label": "Lab-reported",
         "note": note,
     }
-    assert list(row) == SNAPSHOT_COLUMNS
+    assert list(row) == SNAPSHOT_HEADLINE_COLUMNS
     check_published(list(row))
     return row
 

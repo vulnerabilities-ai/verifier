@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "file": "events",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per change between consecutive snapshots in our own daily captures.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "capture_utc",
+      "type": "time",
+      "meaning": "When we first captured the newer snapshot (its ledger.json fetch time).",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "meaning": "new_commitment, removed_commitment, revealed, withdrawn, merged, status_change, headline_change or field_change.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "hash_or_finding_id",
+      "type": "string",
+      "meaning": "The finding ID when revealed, otherwise the hash. Empty for headline_change.",
+      "source_field": "ant_id / hash",
+      "label": null
+    },
+    {
+      "name": "field",
+      "type": "string",
+      "meaning": "The published name of the field that changed (for example status, tier, model_severity, or a snapshots column for headline_change). Empty for new_commitment and removed_commitment.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "old_value",
+      "type": "string",
+      "meaning": "Value in the earlier snapshot (empty for none).",
+      "source_field": null,
+      "label": "Lab-reported"
+    },
+    {
+      "name": "new_value",
+      "type": "string",
+      "meaning": "Value in the newer snapshot (empty for none).",
+      "source_field": null,
+      "label": "Lab-reported"
+    }
+  ]
+}
