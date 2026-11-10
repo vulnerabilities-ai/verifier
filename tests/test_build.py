@@ -19,6 +19,8 @@ from verifier.columns import SNAPSHOT_HEADLINE_COLUMNS
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_DOC = ROOT / "docs/data-contract-additions-phase2.md"
+CONTRACT_DOC3 = ROOT / "docs/data-contract-additions-phase3.md"
+PHASE2_FILES = ("snapshots", "commitments", "events", "gaps", "withdrawals")
 R_B = ROOT / "docs/design-handoff/claude-design-R-B-02-data-contract.md"
 R_E = ROOT / "docs/design-handoff/claude-design-R-E-02-data-contract-additions.md"
 NOV8_LEDGER_FETCH = None  # read from the manifest below
@@ -251,7 +253,8 @@ class Neutrality(unittest.TestCase):
 class ContractDocument(unittest.TestCase):
     def test_every_new_column_is_documented(self):
         known = set(re.findall(r"\b[a-z][a-z0-9_]+\b", R_B.read_text() + R_E.read_text()))
-        doc = CONTRACT_DOC.read_text()
+        doc = CONTRACT_DOC.read_text() + CONTRACT_DOC3.read_text()
+        known |= set(re.findall(r"\b[a-z][a-z0-9_]+\b", CONTRACT_DOC3.read_text()))
         for name in FILES:
             for c in columns(name):
                 if c not in known or name == "withdrawals":

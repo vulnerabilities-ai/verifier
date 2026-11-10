@@ -221,7 +221,7 @@ class Builder:
                 f"at build time: {git_part}; {a}.")
 
     # -- commitments --------------------------------------------------------------------------
-    def commitments(self, card_checks: dict[str, dict]) -> list[dict]:
+    def commitments(self, card_checks: dict[str, dict], fix_merged: dict[str, str] | None = None) -> list[dict]:
         latest: dict[str, dict] = {}
         for st in self.states:
             for e in self.src.load_json_file(st["first_run"].files["ledger.json"]["stored_at"]):
@@ -250,7 +250,7 @@ class Builder:
                 "revealed_at": e.get("revealed_at") if rev else None,
                 "card_url": ((check or {}).get("card_url") or f"{config.BASE_URL}findings/{fid}.html") if rev else None,
                 "hash_check": (check or {}).get("outcome", "not_checked") if rev else "not_applicable",
-                "fix_merged": "not_checked" if rev else "not_applicable",
+                "fix_merged": ((fix_merged or {}).get(fid) or "not_checked") if rev else "not_applicable",
             })
         rows.sort(key=lambda r: (r["committed_at"] or "", r["hash"]), reverse=True)
         return [{c: r[c] for c in columns("commitments")} for r in rows]

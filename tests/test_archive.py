@@ -134,9 +134,9 @@ class ArchiveAnonymous(CaptureCase):
         self.assertEqual(after["runs"][0], before["runs"][0])  # first run untouched
         notes = after["appended_notes"]
         self.assertEqual({n["name"] for n in notes}, set(config.ARCHIVE_FILES))
-        self.assertTrue(all(n["note_type"] == "late-archive-receipt" and n["run_id"] == "r1"
+        self.assertTrue(all(n["note_type"] == "later-archive-receipt" and n["run_id"] == "r1"
                             for n in notes))
-        self.assertTrue(any("late Archive note" in m for m in out.messages))
+        self.assertTrue(any("later Archive note" in m for m in out.messages))
         # A third run does not add the same notes again.
         self.capture(run_id="r3")
         self.assertEqual(len(json.loads(path.read_text())["appended_notes"]), 3)

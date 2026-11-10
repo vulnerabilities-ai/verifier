@@ -23,6 +23,7 @@ _TIMELINE = re.compile(
 _SEV_ITEM = re.compile(
     r'<span class="sev-compare-item">\s*([^<]+?)\s*<span class="sev-chip[^"]*">([^<]*)</span>', re.S)
 _HREF = re.compile(r'<a\b[^>]*\bhref="(https?://[^"]+)"')
+_WITHHELD = re.compile(r'<p class="[^"]*\bpreimage-withheld-banner\b[^"]*">(.*?)</p>', re.S)
 _KICKER = re.compile(r'<p class="kicker">\s*(Committed|Revealed)\s+([^<]+?)\s*</p>')
 
 # Card label -> our neutral key (the card's own label is kept alongside).
@@ -163,16 +164,32 @@ def parse_card(card: bytes) -> dict:
             "ghsa": sorted({u for u in all_links if "github.com/advisories/" in u}),
         },
         "missing_parts": missing,
+        "withheld_statement": withheld_statement(card),
     }
 
 
+def withheld_statement(card: bytes) -> str | None:
+    """The card's own sentence saying the preimage is withheld, verbatim (only HTML
+    entities are decoded; tags, if any, are removed). None if the card has none."""
+    m = _WITHHELD.search(card.decode("utf-8", errors="replace"))
+    if not m:
+        return None
+    text = html.unescape(re.sub(r"<[^>]+>", "", m.group(1)))
+    return text.strip() or None
+
+
 def r2_check(preimage: bytes | None, ledger_hash: str | None, printed_hash: str | None,
-             method: str | None = None) -> dict:
+             method: str | None = None, withheld: str | None = None) -> dict:
     """Compare SHA-3-512 of the preimage with the ledger hash and the card's printed hash."""
     rec = {"rule": "R2", "algorithm": "SHA-3-512", "ledger_hash": ledger_hash,
            "printed_hash": printed_hash, "extraction_method": method,
            "printed_hash_equals_ledger_hash": (printed_hash == ledger_hash)
            if printed_hash and ledger_hash else None}
+    if preimage is None and withheld:
+        rec.update(outcome="preimage_withheld", raw_bytes_match=None, canonical_rebuild_match=None,
+                   withheld_statement=withheld,
+                   withheld_statement_source="the program's finding card")
+        return rec
     if preimage is None or not ledger_hash:
         rec.update(outcome="unavailable", raw_bytes_match=None, canonical_rebuild_match=None,
                    reason="no preimage" if preimage is None else "no ledger hash")

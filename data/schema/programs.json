@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "file": "programs",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per tracked program. Kept by hand, except anthropic-cvd's status and as_of.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "meaning": "The program's own name.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "operator",
+      "type": "string",
+      "meaning": "The organization that runs it.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "meaning": "A short, dated statement of where the program stands. For anthropic-cvd it is filled from the latest snapshot; the others are kept by hand.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "per_finding_record",
+      "type": "string",
+      "meaning": "'yes, for revealed findings' or 'none found'.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "publishes_summary",
+      "type": "string",
+      "meaning": "What the program publishes.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "as_of",
+      "type": "date",
+      "meaning": "Date of the most recent source behind the status.",
+      "source_field": null,
+      "label": null
+    }
+  ]
+}

@@ -54,7 +54,7 @@ ARCHIVE_POLL_TIMEOUT_SECONDS = 180
 # after our fetch (or, if the Archive reused an older snapshot, see METHODOLOGY).
 ARCHIVE_RECEIPT_WINDOW_SECONDS = 24 * 3600
 # Look back this many days for earlier runs still waiting for a receipt.
-LATE_RECEIPT_LOOKBACK_DAYS = 7
+LATER_RECEIPT_LOOKBACK_DAYS = 7
 # Open an issue when this many consecutive capture days have no receipt.
 ARCHIVE_STALE_DAYS = 3
 
@@ -62,3 +62,17 @@ ARCHIVE_STALE_DAYS = 3
 MIN_INTERVAL_SECONDS = 1.0
 TIMEOUT_SECONDS = 60
 SPN_TIMEOUT_SECONDS = 180
+
+# Public records (rules R3 and R4).
+GITHUB_API = "https://api.github.com"
+NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+# Jon's decision of 2026-11-10: these two documented APIs are exempt from the
+# robots.txt check (their robots.txt is written for crawlers). They are used
+# under their own published rules instead: GitHub with the workflow's built-in
+# token within its rate limits; NVD at no more than 5 requests per 30 seconds,
+# with no key unless Jon approves one. Every other host keeps the robots check.
+API_ROBOTS_EXEMPT = frozenset({"api.github.com", "services.nvd.nist.gov"})
+NVD_MAX_REQUESTS = 5
+NVD_WINDOW_SECONDS = 30
+GITHUB_STOP_BELOW = 50  # stop GitHub lookups when fewer requests than this remain
+SAMPLE_FINDINGS = 5

@@ -1,0 +1,283 @@
+{
+  "schema_version": 1,
+  "file": "summary",
+  "formats": [
+    "json"
+  ],
+  "rows": "One row of derived counts for the Ledger and Commitments pages.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "anthropic-cvd.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "capture_utc",
+      "type": "time",
+      "meaning": "Our first capture of the latest snapshot.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "as_of_utc",
+      "type": "time",
+      "meaning": "The program's 'last updated' time.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "revision",
+      "type": "integer",
+      "meaning": "The program's revision.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "commitments_total",
+      "type": "integer",
+      "meaning": "Rows in commitments.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "by_tier",
+      "type": "object",
+      "meaning": "Commitments per tier.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "revealed",
+      "type": "integer",
+      "meaning": "Ledger entries in the revealed tier (our count). Recorded as found.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "program_revealed_count",
+      "type": "integer",
+      "meaning": "The revealed count in the program's data file. Recorded as found; it can differ from revealed.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "projects_with_revealed_findings",
+      "type": "integer",
+      "meaning": "Distinct projects among revealed entries.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawn",
+      "type": "integer",
+      "meaning": "Alias of withdrawn_by_status (the data contract's field).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawal_reasons",
+      "type": "object",
+      "meaning": "Alias of withdrawal_reasons_by_status.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawn_by_flag",
+      "type": "integer",
+      "meaning": "Entries with the withdrawn flag.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawal_reasons_by_flag",
+      "type": "object",
+      "meaning": "Their reasons.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawn_by_status",
+      "type": "integer",
+      "meaning": "Entries with status withdrawn.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "withdrawal_reasons_by_status",
+      "type": "object",
+      "meaning": "Their reasons ('none' when an entry has no reason).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "merged",
+      "type": "integer",
+      "meaning": "Entries with status merged.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "merged_with_target",
+      "type": "integer",
+      "meaning": "Merged entries that name a target.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "earliest_commitment",
+      "type": "date",
+      "meaning": "Earliest committed_at.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "latest_commitment",
+      "type": "date",
+      "meaning": "Latest committed_at.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "checked_n",
+      "type": "integer",
+      "meaning": "Verification rows with checked = yes.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "checked_of",
+      "type": "integer",
+      "meaning": "Verification rows (revealed findings).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_matches",
+      "type": "integer",
+      "meaning": "R2 match.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_mismatches",
+      "type": "integer",
+      "meaning": "R2 mismatch (recorded, not an error).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_preimage_withheld",
+      "type": "integer",
+      "meaning": "R2 preimage_withheld (the program's card says the preimage is withheld).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_unavailable",
+      "type": "integer",
+      "meaning": "R2 unavailable (fetch or read failure).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_not_checked",
+      "type": "integer",
+      "meaning": "Revealed findings without a card check yet.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "reported_total",
+      "type": "integer",
+      "meaning": "The program's reported figure (denominator of two shares).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "patched_lab_count",
+      "type": "integer",
+      "meaning": "The program's patched figure (denominator of one share).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fixed_itemized",
+      "type": "integer",
+      "meaning": "Ledger entries flagged fixed in response.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "revealed_share_of_reported_pct",
+      "type": "number",
+      "meaning": "revealed / reported_total x 100.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "itemized_share_of_reported_pct",
+      "type": "number",
+      "meaning": "Exact alias of revealed_share_of_reported_pct (data contract name).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fixed_itemized_share_of_patched_claimed_pct",
+      "type": "number",
+      "meaning": "fixed_itemized / patched_lab_count x 100.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fixed_itemized_share_of_reported_pct",
+      "type": "number",
+      "meaning": "fixed_itemized / reported_total x 100.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fix_merged",
+      "type": "object",
+      "meaning": "Verification rows per fix_merged value.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "ids_exist",
+      "type": "object",
+      "meaning": "Verification rows per ids_exist value.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "lookups",
+      "type": "object",
+      "meaning": "Verification rows per lookup_status.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "interval_comparisons",
+      "type": "object",
+      "meaning": "For each interval: the reference in days (90 report-to-patch and 45 patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts within (at or under) and above. Descriptive only.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "policy_source",
+      "type": "string",
+      "meaning": "Our dated copy of the policy page the references come from.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "archive_began",
+      "type": "date",
+      "meaning": "The first day of our archive.",
+      "source_field": null,
+      "label": null
+    }
+  ]
+}

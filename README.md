@@ -25,13 +25,23 @@ captures/policy/YYYY-MM/     monthly copy of Anthropic's disclosure policy page
 captures/archive-raw/        Internet Archive raw copies that differed from ours (kept for diagnosis)
 captures/capture-log.csv     one row per run
 cards/<ID>/                  revealed finding cards, preimages and each card's verification.json (rule R2)
-data/                        published open data (CC BY 4.0): snapshots, commitments, events, gaps, withdrawals
+records/                     public-record responses (GitHub Advisory Database, NVD, GitHub), as received
+reports/                     weekly review reports
+data/                        published open data (CC BY 4.0): snapshots, commitments, events, gaps, withdrawals,
+                             verification, severity, summary, programs
 data/schema/                 the meaning and source of every published column
 docs/                        the build spec and the data contract
 src/verifier/  tests/        pipeline code and tests
 ```
 
 To save space, a file whose bytes are identical to a copy already in the archive is not stored again. The day's `MANIFEST.json` still records the fetch, and its `stored_at` field points to the identical copy. The matching SHA-256 proves the two are the same.
+
+## Getting the data
+
+- **Public mirror and citation address:** after each reviewed merge, `data/` is published at `https://vulnerabilities-ai.github.io/verifier/data/` (for example `.../data/commitments.json`). It comes with `site-data.zip` and its SHA-256 manifest.
+- **For a website:** bundle a reviewed copy from `site-data.zip`, rather than fetching from the mirror while the site runs.
+- **Column meanings:** `data/schema/`.
+- **NVD:** this product uses data from the NVD API but is not endorsed or certified by the NVD.
 
 ## Check it yourself
 

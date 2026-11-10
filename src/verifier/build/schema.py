@@ -81,9 +81,10 @@ COMMITMENT_META = [
     ("patched_at", "date", "Patch date from the ledger (revealed rows only).", "patched_at", LR),
     ("revealed_at", "date", "Reveal date from the ledger (revealed rows only).", "revealed_at", LR),
     ("card_url", "string", "The finding card's address (revealed rows only).", None, None),
-    ("hash_check", "string", "R2 result: match, mismatch, unavailable (no card or preimage could be read), not_checked "
-     "(revealed, no card yet) or not_applicable (not revealed).", None, IV),
-    ("fix_merged", "string", "not_checked (revealed) or not_applicable. Filled in phase 3.", None, IV),
+    ("hash_check", "string", "R2 result: match, mismatch, preimage_withheld (the program's card says the preimage is "
+     "withheld), unavailable (no card or preimage could be fetched or read), not_checked (revealed, no card yet) or "
+     "not_applicable (not revealed). None of these is an error.", None, IV),
+    ("fix_merged", "string", "R4, as in verification.fix_merged (revealed rows); not_applicable otherwise.", None, IV),
 ]
 
 EVENT_META = [
@@ -135,6 +136,134 @@ WITHDRAWAL_META = [
 ]
 
 
+LDV = "Lab-reported dates, merge date independently verified"
+PUBLIC = "Each source's own"
+
+VERIFICATION_META = [
+    _PROGRAM,
+    ("finding_id", "string", "The finding ID.", "ant_id", LR),
+    ("hash", "string", "The commitment hash from the ledger.", "hash", IV),
+    ("project", "string", "Project, from the ledger.", "project", LR),
+    ("bug_class", "string", "Bug class, from the ledger.", "bug_class", LR),
+    ("hash_check", "string", "R2: match, mismatch, preimage_withheld (the program's card says the preimage is withheld; "
+     "see withheld_statement), unavailable (the card or its preimage could not be fetched or read) or not_checked. "
+     "None of these is an error.", None, IV),
+    ("hash_checked_at", "time", "When the card used for the check was fetched.", None, IV),
+    ("withheld_statement", "string", "Only for preimage_withheld: the card's own sentence, quoted verbatim. "
+     "Attributed to the program's finding card.", "finding card (preimage-withheld banner)", LR),
+    ("cve_ids", "list", "CVE IDs on the ledger entry and the card.", "cve_ids", LR),
+    ("ghsa_ids", "list", "GHSA IDs on the ledger entry and the card.", "ghsa_ids", LR),
+    ("ids_exist", "string", "R3: verified (every ID found in the GitHub Advisory Database or NVD), not_found (an ID "
+     "found in neither, both read), not_applicable (no IDs), rate_limited, lookup_unreadable or not_checked.", None, IV),
+    ("ids_exist_detail", "object", "Per ID and source: exists, not_found or the lookup status.", None, IV),
+    ("advisory_published", "date", "Publication date of the GitHub advisory.", "GitHub: published_at", PUBLIC),
+    ("nvd_published", "date", "Publication date of the NVD record.", "NVD: published", PUBLIC),
+    ("fix_merged", "string", "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not "
+     "looked up yet), not_applicable, rate_limited or lookup_unreadable.", None, IV),
+    ("fix_merged_at", "time", "Merge time of the fix (from the merged pull request).", "GitHub: merged_at", IV),
+    ("fix_url", "string", "The fix pull request or commit.", None, None),
+    ("fix_merge_base", "string", "The branch the pull request was merged into.", "GitHub: base.ref", IV),
+    ("report_date", "date", "The card's 'Sent to maintainer' date.", "finding card timeline", LR),
+    ("patch_released_date", "date", "The card's 'Patch released' date.", "finding card timeline", LR),
+    ("reveal_date", "date", "The card's 'Publicly revealed' date.", "finding card timeline", LR),
+    ("discovered_or_logged_date", "date", "The card's 'Discovered or logged' date.", "finding card timeline", LR),
+    ("days_report_to_patch", "integer", "Days from report to patch (R5). Descriptive only.", None, LDV),
+    ("days_patch_to_reveal", "integer", "Days from patch to reveal (R5). Descriptive only.", None, LDV),
+    ("days_report_to_reveal", "integer", "Days from report to reveal (R5). Descriptive only.", None, LDV),
+    ("days_report_to_merge", "integer", "Days from report to the fix's merge (R5). Descriptive only.", None, LDV),
+    ("severity_model", "string", "The program's model's rating, from the card.", "card: Claude severity", PUBLIC),
+    ("severity_firm", "string", "The external firm's rating, from the card.", "card: security research firm", PUBLIC),
+    ("severity_maintainer", "string", "The maintainer's rating, from the card.", "card: maintainer", PUBLIC),
+    ("severity_github", "string", "GitHub advisory severity, as the API gives it (GitHub's website shows 'medium' as "
+     "'Moderate').", "GitHub: severity", PUBLIC),
+    ("severity_nvd", "string", "NVD base severity.", "NVD: baseSeverity", PUBLIC),
+    ("cvss_github_score", "number", "CVSS score in the GitHub advisory.", "GitHub: cvss_severities / cvss", PUBLIC),
+    ("cvss_github_version", "string", "CVSS version of that score.", "GitHub: vector_string", PUBLIC),
+    ("cvss_nvd_score", "number", "CVSS base score in NVD.", "NVD: cvssData.baseScore", PUBLIC),
+    ("cvss_nvd_version", "string", "CVSS version of that score.", "NVD: cvssData.version", PUBLIC),
+    ("cwe_github", "list", "CWE IDs in the GitHub advisory.", "GitHub: cwes", PUBLIC),
+    ("cwe_nvd", "list", "CWE IDs in NVD.", "NVD: weaknesses", PUBLIC),
+    ("advisory_review_status", "string", "GitHub's review status for the advisory (reviewed or unreviewed).", "GitHub: type", PUBLIC),
+    ("advisory_packages", "list", "Packages the GitHub advisory names (ecosystem:name).", "GitHub: vulnerabilities", PUBLIC),
+    ("lookup_status", "string", "ok, rate_limited (resumes next run), lookup_unreadable (reason in notes), "
+     "network_error or not_checked.", None, None),
+    ("checked", "string", "yes when the hash check is final (match, mismatch or preimage_withheld) and every lookup "
+     "that can run has been read.", None, None),
+    ("method", "string", "How the row was checked.", None, None),
+    ("label_hash_check", "string", "Label for hash_check.", None, None),
+    ("label_ids_exist", "string", "Label for ids_exist.", None, None),
+    ("label_fix_merged", "string", "Label for fix_merged.", None, None),
+    ("label_dates", "string", "Label for the four dates.", None, None),
+    ("label_intervals", "string", "Label for the four intervals.", None, None),
+    ("label_severity", "string", "Label for the severities.", None, None),
+    ("notes", "string", "Plain notes: differences between the ledger and public records (recorded, not judged), "
+     "lookup reasons, and card notes.", None, None),
+]
+
+SEVERITY_META = [
+    _PROGRAM,
+    ("month", "string", "Month of the card's reveal date (YYYY-MM).", "finding card timeline", LR),
+    ("source", "string", "model, firm, maintainer, github or nvd. Sources are never merged.", None, None),
+    ("severity", "string", "The source's own rating, lower-cased; not_available when that source has none.", None, PUBLIC),
+    ("count", "integer", "Number of revealed findings.", None, IV),
+]
+
+PROGRAMS_META = [
+    ("program", "string", "The program's ID.", None, None),
+    ("name", "string", "The program's own name.", None, None),
+    ("operator", "string", "The organization that runs it.", None, None),
+    ("status", "string", "A short, dated statement of where the program stands. For anthropic-cvd it is filled from "
+     "the latest snapshot; the others are kept by hand.", None, None),
+    ("per_finding_record", "string", "'yes, for revealed findings' or 'none found'.", None, None),
+    ("publishes_summary", "string", "What the program publishes.", None, None),
+    ("as_of", "date", "Date of the most recent source behind the status.", None, None),
+]
+
+SUMMARY_FIELDS = [
+    ("program", "string", "anthropic-cvd."),
+    ("capture_utc", "time", "Our first capture of the latest snapshot."),
+    ("as_of_utc", "time", "The program's 'last updated' time."),
+    ("revision", "integer", "The program's revision."),
+    ("commitments_total", "integer", "Rows in commitments."),
+    ("by_tier", "object", "Commitments per tier."),
+    ("revealed", "integer", "Ledger entries in the revealed tier (our count). Recorded as found."),
+    ("program_revealed_count", "integer", "The revealed count in the program's data file. Recorded as found; it can differ from revealed."),
+    ("projects_with_revealed_findings", "integer", "Distinct projects among revealed entries."),
+    ("withdrawn", "integer", "Alias of withdrawn_by_status (the data contract's field)."),
+    ("withdrawal_reasons", "object", "Alias of withdrawal_reasons_by_status."),
+    ("withdrawn_by_flag", "integer", "Entries with the withdrawn flag."),
+    ("withdrawal_reasons_by_flag", "object", "Their reasons."),
+    ("withdrawn_by_status", "integer", "Entries with status withdrawn."),
+    ("withdrawal_reasons_by_status", "object", "Their reasons ('none' when an entry has no reason)."),
+    ("merged", "integer", "Entries with status merged."),
+    ("merged_with_target", "integer", "Merged entries that name a target."),
+    ("earliest_commitment", "date", "Earliest committed_at."),
+    ("latest_commitment", "date", "Latest committed_at."),
+    ("checked_n", "integer", "Verification rows with checked = yes."),
+    ("checked_of", "integer", "Verification rows (revealed findings)."),
+    ("hash_matches", "integer", "R2 match."),
+    ("hash_mismatches", "integer", "R2 mismatch (recorded, not an error)."),
+    ("hash_preimage_withheld", "integer", "R2 preimage_withheld (the program's card says the preimage is withheld)."),
+    ("hash_unavailable", "integer", "R2 unavailable (fetch or read failure)."),
+    ("hash_not_checked", "integer", "Revealed findings without a card check yet."),
+    ("reported_total", "integer", "The program's reported figure (denominator of two shares)."),
+    ("patched_lab_count", "integer", "The program's patched figure (denominator of one share)."),
+    ("fixed_itemized", "integer", "Ledger entries flagged fixed in response."),
+    ("revealed_share_of_reported_pct", "number", "revealed / reported_total x 100."),
+    ("itemized_share_of_reported_pct", "number", "Exact alias of revealed_share_of_reported_pct (data contract name)."),
+    ("fixed_itemized_share_of_patched_claimed_pct", "number", "fixed_itemized / patched_lab_count x 100."),
+    ("fixed_itemized_share_of_reported_pct", "number", "fixed_itemized / reported_total x 100."),
+    ("fix_merged", "object", "Verification rows per fix_merged value."),
+    ("ids_exist", "object", "Verification rows per ids_exist value."),
+    ("lookups", "object", "Verification rows per lookup_status."),
+    ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "
+     "patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts "
+     "within (at or under) and above. Descriptive only."),
+    ("policy_source", "string", "Our dated copy of the policy page the references come from."),
+    ("archive_began", "date", "The first day of our archive."),
+]
+
+
 def _cols(meta: list[tuple]) -> list[dict]:
     return [{"name": n, "type": t, "meaning": m, "source_field": s, "label": l} for n, t, m, s, l in meta]
 
@@ -155,7 +284,17 @@ FILES = {
     "gaps": ("One row per snapshot: claimed against itemized counts, with no commentary.", lambda: GAP_META),
     "withdrawals": ("One row per snapshot, view and reason: three views of withdrawals, none treated as an error.",
                     lambda: WITHDRAWAL_META),
+    "verification": ("One row per revealed finding: rules R2, R3, R4, R5 and R7.", lambda: VERIFICATION_META),
+    "severity": ("One row per month of reveal, source and severity: the R7 count matrix. Sources are never merged.",
+                 lambda: SEVERITY_META),
+    "programs": ("One row per tracked program. Kept by hand, except anthropic-cvd's status and as_of.",
+                 lambda: PROGRAMS_META),
 }
+
+SUMMARY_DOC = {"schema_version": 1, "file": "summary", "formats": ["json"],
+               "rows": "One row of derived counts for the Ledger and Commitments pages.",
+               "columns": [{"name": n, "type": t, "meaning": m, "source_field": None, "label": None}
+                           for n, t, m in SUMMARY_FIELDS]}
 
 
 def columns(file: str) -> list[str]:

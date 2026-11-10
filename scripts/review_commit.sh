@@ -13,12 +13,15 @@
 #   GITHUB_RUN_ID, GITHUB_REPOSITORY   as set by GitHub Actions
 #   GH              the GitHub CLI command (default: gh)
 #   PUSH_REMOTE     remote to push to (default: origin)
-# Rule kept from before: only files under cards/ and data/ may change.
+#   REVIEW_BRANCH   review/weekly (default) or review/sample
+# Rule: only files under cards/, data/, records/ and reports/ may change.
+# Raw evidence (cards/, records/) is always kept; derived files (data/,
+# cards/*/verification.json, reports/) are put back if the rebuild failed.
 set -euo pipefail
 
 GH="${GH:-gh}"
 PUSH_REMOTE="${PUSH_REMOTE:-origin}"
-BRANCH="review/weekly"
+BRANCH="${REVIEW_BRANCH:-review/weekly}"
 
 if [ "${BUILD_OUTCOME:-success}" != "success" ]; then
   echo "Rebuild did not succeed: keeping only the raw card fetch."
@@ -26,11 +29,13 @@ if [ "${BUILD_OUTCOME:-success}" != "success" ]; then
   git clean -fdq -- data
   git ls-files --modified -- 'cards/*/verification.json' | xargs -r git checkout -q --
   git ls-files --others --exclude-standard -- 'cards/*/verification.json' | xargs -r rm -f
+  git checkout -q -- reports 2>/dev/null || true
+  git clean -fdq -- reports 2>/dev/null || true
 fi
 
-outside=$(git ls-files --modified --deleted --others --exclude-standard | grep -vE '^(cards|data)/' || true)
+outside=$(git ls-files --modified --deleted --others --exclude-standard | grep -vE '^(cards|data|records|reports)/' || true)
 if [ -n "${outside}" ]; then
-  echo "::error::The run changed files outside cards/ and data/. Refusing to commit: ${outside}"
+  echo "::error::The run changed files outside cards/, data/, records/ and reports/. Refusing to commit: ${outside}"
   exit 1
 fi
 deleted=$(git ls-files --deleted)
@@ -50,7 +55,9 @@ if [ -z "${body_file}" ] || [ ! -s "${body_file}" ]; then
 fi
 
 git switch -q -C "${BRANCH}"
-git add cards data
+for d in cards data records reports; do
+  if [ -e "${d}" ]; then git add -A -- "${d}"; fi
+done
 if git diff --cached --quiet; then
   echo "Nothing changed since main; no pull request needed."
   exit 0

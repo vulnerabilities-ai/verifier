@@ -1,0 +1,60 @@
+# Publish the reviewed data after each merge to main.
+# Plain-language summary: when data/ changes on main (that is, after Jon merges
+# a review pull request), this copies data/ to the GitHub Pages site, the
+# public mirror and citation address, and builds site-data.zip: the same files,
+# laid out like the website's data folder, with a SHA-256 manifest. The zip is
+# also attached to the run as an artifact, to hand to the website designer with
+# each export. The website itself never fetches from Pages while it runs.
+# Only data merged into main is ever published.
+name: Publish
+
+on:
+  push:
+    branches: [main]
+    paths: ["data/**"]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the site and site-data.zip
+        run: PYTHONPATH=src python3 -m verifier site --out _site --commit "${GITHUB_SHA}"
+      - name: Attach site-data.zip to this run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-data
+          path: |
+            _site/site-data.zip
+            _site/MANIFEST.sha256.json
+      - name: Prepare the Pages upload
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write # publish to GitHub Pages
+      id-token: write # required by GitHub Pages deployment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

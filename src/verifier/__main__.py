@@ -46,8 +46,10 @@ def main(argv: list[str] | None = None) -> int:
     rp = sub.add_parser("review-pr", help="write the review pull request's title and description")
     rp.add_argument("--root", default=".")
     rp.add_argument("--cards-summary", default="")
-    for k in ("cards", "build", "tests", "audit"):
+    for k in ("cards", "lookups", "build", "report", "tests", "audit"):
         rp.add_argument(f"--{k}", default="success", help=f"outcome of the {k} step")
+    rp.add_argument("--report-file", default="")
+    rp.add_argument("--sample", default="false")
     rp.add_argument("--date", required=True)
     rp.add_argument("--title-out", required=True)
     rp.add_argument("--body-out", required=True)
@@ -56,6 +58,22 @@ def main(argv: list[str] | None = None) -> int:
     rs.add_argument("--root", default=".")
     rs.add_argument("--cards-summary", default="")
     rs.add_argument("--out", default="")
+
+    rc = sub.add_parser("records", help="look up public records for rules R3 and R4 (network)")
+    rc.add_argument("--root", default=".")
+    rc.add_argument("--sample-only", default="false", help="true: only 5 findings (wolfSSL first)")
+    rc.add_argument("--summary-file", default="")
+
+    rpt = sub.add_parser("report", help="write the weekly review report from data/")
+    rpt.add_argument("--root", default=".")
+    rpt.add_argument("--date", required=True, help="the run's date, YYYY-MM-DD")
+    rpt.add_argument("--out", required=True)
+    rpt.add_argument("--sample", default="false")
+
+    st = sub.add_parser("site", help="build the GitHub Pages site and site-data.zip from data/")
+    st.add_argument("--root", default=".")
+    st.add_argument("--out", required=True)
+    st.add_argument("--commit", default="")
 
     a = sub.add_parser("audit")
     a.add_argument("--root", default=".")
@@ -117,8 +135,9 @@ def main(argv: list[str] | None = None) -> int:
         from .review import review_pr
         cards_fetch = (json.loads(Path(args.cards_summary).read_text(encoding="utf-8"))
                        if args.cards_summary and Path(args.cards_summary).exists() else None)
-        outcomes = {k: getattr(args, k) for k in ("cards", "build", "tests", "audit")}
-        title, body = review_pr(Path(args.root), outcomes, args.date, cards_fetch)
+        outcomes = {k: getattr(args, k) for k in ("cards", "lookups", "build", "report", "tests", "audit")}
+        title, body = review_pr(Path(args.root), outcomes, args.date, cards_fetch,
+                                report_file=args.report_file or None, sample=args.sample == "true")
         Path(args.title_out).write_text(title, encoding="utf-8")
         Path(args.body_out).write_text(body, encoding="utf-8")
         print(title)
@@ -133,6 +152,41 @@ def main(argv: list[str] | None = None) -> int:
         if args.out:
             Path(args.out).write_text(text, encoding="utf-8")
         print(text)
+        return 0
+
+    if args.cmd == "records":
+        from .build import latest_ledger
+        from .build.phase3 import finding_inputs
+        from .build.sources import Sources
+        from .cards import write_verifications
+        from .records import RecordFetcher, run_lookups
+        root = Path(args.root)
+        ledger_rel, revealed = latest_ledger(Sources(root))
+        write_verifications(root, revealed, ledger_rel)  # card facts give the fix links
+        entries = {e["ant_id"]: e for e in Sources(root).load_json_file(ledger_rel)
+                   if e.get("reveal_tier") == "revealed" and e.get("ant_id")} if ledger_rel else {}
+        # The workflow's built-in token only (no other secret); sent only to api.github.com.
+        rf = RecordFetcher(root, token=os.environ.get("GITHUB_TOKEN") or None)
+        tally = run_lookups(root, finding_inputs(root, entries), rf, sample_only=args.sample_only == "true")
+        text = json.dumps(tally, indent=2)
+        print(text)
+        if args.summary_file:
+            Path(args.summary_file).write_text(text, encoding="utf-8")
+        return 0
+
+    if args.cmd == "report":
+        from .report import weekly_report
+        text = weekly_report(Path(args.root), args.date, sample=args.sample == "true")
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        print(f"Wrote {out}")
+        return 0
+
+    if args.cmd == "site":
+        from .sitepub import build_site
+        man = build_site(Path(args.root), Path(args.out), args.commit or None)
+        print(f"Built {args.out}: {len(man['files'])} data files")
         return 0
 
     if args.cmd == "audit":

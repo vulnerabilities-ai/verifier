@@ -117,7 +117,8 @@ class Fetcher:
     def __init__(self, user_agent: str = config.USER_AGENT,
                  min_interval: float = config.MIN_INTERVAL_SECONDS,
                  timeout: float = config.TIMEOUT_SECONDS,
-                 credential_destinations: frozenset[str] | None = None):
+                 credential_destinations: frozenset[str] | None = None,
+                 robots_exempt_hosts: frozenset[str] = frozenset()):
         self.user_agent = user_agent
         self.min_interval = min_interval
         self.timeout = timeout
@@ -126,6 +127,9 @@ class Fetcher:
         if credential_destinations is None:
             credential_destinations = frozenset(f"https://{h}" for h in CREDENTIAL_HOSTS)
         self.credential_destinations = frozenset(credential_destinations)
+        # Hosts whose robots.txt is not read: only the documented APIs Jon exempted
+        # (config.API_ROBOTS_EXEMPT), and only on fetchers made for those lookups.
+        self.robots_exempt_hosts = frozenset(h.lower() for h in robots_exempt_hosts)
         self.redirects = CredentialSafeRedirectHandler(self.credential_destinations)
         self.opener = urllib.request.build_opener(self.redirects)
 
@@ -211,6 +215,8 @@ class Fetcher:
     # -- fetching ---------------------------------------------------------
     def get(self, url: str, timeout: float | None = None, *, method: str = "GET",
             data: bytes | None = None, headers: dict[str, str] | None = None) -> Response:
+        if urlsplit(url).netloc.lower() in self.robots_exempt_hosts:
+            return self._raw_get(url, timeout, method=method, data=data, headers=headers)
         rp, result = self._robots_for(url)
         if not rp.can_fetch(config.UA_TOKEN, url):
             raise RobotsDisallowed(f"robots.txt disallows {url}. Jon must decide how to proceed.")

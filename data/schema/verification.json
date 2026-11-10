@@ -1,0 +1,354 @@
+{
+  "schema_version": 1,
+  "file": "verification",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per revealed finding: rules R2, R3, R4, R5 and R7.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "finding_id",
+      "type": "string",
+      "meaning": "The finding ID.",
+      "source_field": "ant_id",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "meaning": "The commitment hash from the ledger.",
+      "source_field": "hash",
+      "label": "Independently verified"
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "meaning": "Project, from the ledger.",
+      "source_field": "project",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "bug_class",
+      "type": "string",
+      "meaning": "Bug class, from the ledger.",
+      "source_field": "bug_class",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "hash_check",
+      "type": "string",
+      "meaning": "R2: match, mismatch, preimage_withheld (the program's card says the preimage is withheld; see withheld_statement), unavailable (the card or its preimage could not be fetched or read) or not_checked. None of these is an error.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "hash_checked_at",
+      "type": "time",
+      "meaning": "When the card used for the check was fetched.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "withheld_statement",
+      "type": "string",
+      "meaning": "Only for preimage_withheld: the card's own sentence, quoted verbatim. Attributed to the program's finding card.",
+      "source_field": "finding card (preimage-withheld banner)",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "cve_ids",
+      "type": "list",
+      "meaning": "CVE IDs on the ledger entry and the card.",
+      "source_field": "cve_ids",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "ghsa_ids",
+      "type": "list",
+      "meaning": "GHSA IDs on the ledger entry and the card.",
+      "source_field": "ghsa_ids",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "ids_exist",
+      "type": "string",
+      "meaning": "R3: verified (every ID found in the GitHub Advisory Database or NVD), not_found (an ID found in neither, both read), not_applicable (no IDs), rate_limited, lookup_unreadable or not_checked.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "ids_exist_detail",
+      "type": "object",
+      "meaning": "Per ID and source: exists, not_found or the lookup status.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "advisory_published",
+      "type": "date",
+      "meaning": "Publication date of the GitHub advisory.",
+      "source_field": "GitHub: published_at",
+      "label": "Each source's own"
+    },
+    {
+      "name": "nvd_published",
+      "type": "date",
+      "meaning": "Publication date of the NVD record.",
+      "source_field": "NVD: published",
+      "label": "Each source's own"
+    },
+    {
+      "name": "fix_merged",
+      "type": "string",
+      "meaning": "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not looked up yet), not_applicable, rate_limited or lookup_unreadable.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "fix_merged_at",
+      "type": "time",
+      "meaning": "Merge time of the fix (from the merged pull request).",
+      "source_field": "GitHub: merged_at",
+      "label": "Independently verified"
+    },
+    {
+      "name": "fix_url",
+      "type": "string",
+      "meaning": "The fix pull request or commit.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fix_merge_base",
+      "type": "string",
+      "meaning": "The branch the pull request was merged into.",
+      "source_field": "GitHub: base.ref",
+      "label": "Independently verified"
+    },
+    {
+      "name": "report_date",
+      "type": "date",
+      "meaning": "The card's 'Sent to maintainer' date.",
+      "source_field": "finding card timeline",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "patch_released_date",
+      "type": "date",
+      "meaning": "The card's 'Patch released' date.",
+      "source_field": "finding card timeline",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "reveal_date",
+      "type": "date",
+      "meaning": "The card's 'Publicly revealed' date.",
+      "source_field": "finding card timeline",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "discovered_or_logged_date",
+      "type": "date",
+      "meaning": "The card's 'Discovered or logged' date.",
+      "source_field": "finding card timeline",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "days_report_to_patch",
+      "type": "integer",
+      "meaning": "Days from report to patch (R5). Descriptive only.",
+      "source_field": null,
+      "label": "Lab-reported dates, merge date independently verified"
+    },
+    {
+      "name": "days_patch_to_reveal",
+      "type": "integer",
+      "meaning": "Days from patch to reveal (R5). Descriptive only.",
+      "source_field": null,
+      "label": "Lab-reported dates, merge date independently verified"
+    },
+    {
+      "name": "days_report_to_reveal",
+      "type": "integer",
+      "meaning": "Days from report to reveal (R5). Descriptive only.",
+      "source_field": null,
+      "label": "Lab-reported dates, merge date independently verified"
+    },
+    {
+      "name": "days_report_to_merge",
+      "type": "integer",
+      "meaning": "Days from report to the fix's merge (R5). Descriptive only.",
+      "source_field": null,
+      "label": "Lab-reported dates, merge date independently verified"
+    },
+    {
+      "name": "severity_model",
+      "type": "string",
+      "meaning": "The program's model's rating, from the card.",
+      "source_field": "card: Claude severity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_firm",
+      "type": "string",
+      "meaning": "The external firm's rating, from the card.",
+      "source_field": "card: security research firm",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_maintainer",
+      "type": "string",
+      "meaning": "The maintainer's rating, from the card.",
+      "source_field": "card: maintainer",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_github",
+      "type": "string",
+      "meaning": "GitHub advisory severity, as the API gives it (GitHub's website shows 'medium' as 'Moderate').",
+      "source_field": "GitHub: severity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd",
+      "type": "string",
+      "meaning": "NVD base severity.",
+      "source_field": "NVD: baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_github_score",
+      "type": "number",
+      "meaning": "CVSS score in the GitHub advisory.",
+      "source_field": "GitHub: cvss_severities / cvss",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_github_version",
+      "type": "string",
+      "meaning": "CVSS version of that score.",
+      "source_field": "GitHub: vector_string",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_score",
+      "type": "number",
+      "meaning": "CVSS base score in NVD.",
+      "source_field": "NVD: cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_version",
+      "type": "string",
+      "meaning": "CVSS version of that score.",
+      "source_field": "NVD: cvssData.version",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cwe_github",
+      "type": "list",
+      "meaning": "CWE IDs in the GitHub advisory.",
+      "source_field": "GitHub: cwes",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cwe_nvd",
+      "type": "list",
+      "meaning": "CWE IDs in NVD.",
+      "source_field": "NVD: weaknesses",
+      "label": "Each source's own"
+    },
+    {
+      "name": "advisory_review_status",
+      "type": "string",
+      "meaning": "GitHub's review status for the advisory (reviewed or unreviewed).",
+      "source_field": "GitHub: type",
+      "label": "Each source's own"
+    },
+    {
+      "name": "advisory_packages",
+      "type": "list",
+      "meaning": "Packages the GitHub advisory names (ecosystem:name).",
+      "source_field": "GitHub: vulnerabilities",
+      "label": "Each source's own"
+    },
+    {
+      "name": "lookup_status",
+      "type": "string",
+      "meaning": "ok, rate_limited (resumes next run), lookup_unreadable (reason in notes), network_error or not_checked.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "checked",
+      "type": "string",
+      "meaning": "yes when the hash check is final (match, mismatch or preimage_withheld) and every lookup that can run has been read.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "method",
+      "type": "string",
+      "meaning": "How the row was checked.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_hash_check",
+      "type": "string",
+      "meaning": "Label for hash_check.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_ids_exist",
+      "type": "string",
+      "meaning": "Label for ids_exist.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_fix_merged",
+      "type": "string",
+      "meaning": "Label for fix_merged.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_dates",
+      "type": "string",
+      "meaning": "Label for the four dates.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_intervals",
+      "type": "string",
+      "meaning": "Label for the four intervals.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "label_severity",
+      "type": "string",
+      "meaning": "Label for the severities.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "notes",
+      "type": "string",
+      "meaning": "Plain notes: differences between the ledger and public records (recorded, not judged), lookup reasons, and card notes.",
+      "source_field": null,
+      "label": null
+    }
+  ]
+}

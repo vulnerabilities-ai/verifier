@@ -71,14 +71,9 @@
       ],
       "ghsa": []
     },
-    "missing_parts": []
+    "missing_parts": [],
+    "withheld_statement": null
   },
   "notes": [],
-  "phase3_not_checked_yet": {
-    "ids_exist": "not_checked",
-    "fix_merged": "not_checked",
-    "intervals": "not_checked",
-    "severity_github": "not_checked",
-    "severity_nvd": "not_checked"
-  }
+  "public_records": "Rules R3, R4, R5 and R7 for this finding are in data/verification.json (raw responses under records/)."
 }

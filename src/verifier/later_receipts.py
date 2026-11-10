@@ -1,4 +1,4 @@
-"""Receipts found after the run that asked for them.
+"""Later receipts: Internet Archive receipts found after the run that asked for them.
 
 When an earlier run is still waiting for an Internet Archive receipt, later
 runs ask the availability API whether a snapshot dated after that run's fetch
@@ -22,8 +22,13 @@ from .archive_org import ArchiveClient
 from .net import utc_now
 from .store import Archive
 
-NOTE_RECEIPT = "late-archive-receipt"
-NOTE_RAW = "late-raw-check"
+# Note types written from now on. Notes written before 2026-11-10 used the
+# older names below; raw records are never edited, so both are read.
+NOTE_RECEIPT = "later-archive-receipt"
+NOTE_RAW = "later-raw-check"
+RECEIPT_TYPES = frozenset({NOTE_RECEIPT, "late-archive-receipt"})
+RAW_TYPES = frozenset({NOTE_RAW, "late-raw-check"})
+TYPE_GROUPS = {NOTE_RECEIPT: RECEIPT_TYPES, NOTE_RAW: RAW_TYPES}
 NOTE_DIAG = "archive-raw-diagnostic"
 
 
@@ -61,7 +66,8 @@ def run_items(run: dict) -> list[dict]:
 
 
 def _resolved(notes: list[dict], run_id: str, name: str, kind: str) -> bool:
-    return any(n.get("note_type") == kind and n.get("run_id") == run_id and n.get("name") == name
+    kinds = TYPE_GROUPS.get(kind, {kind})
+    return any(n.get("note_type") in kinds and n.get("run_id") == run_id and n.get("name") == name
                for n in notes)
 
 
@@ -77,9 +83,9 @@ def append_notes(archive: Archive, manifest_rel: str, new_notes: list[dict]) -> 
     archive.save_json(manifest_rel, m)
 
 
-def find_late_receipts(archive: Archive, client: ArchiveClient, today: str,
+def find_later_receipts(archive: Archive, client: ArchiveClient, today: str,
                        skip_run_id: str | None = None,
-                       lookback_days: int = config.LATE_RECEIPT_LOOKBACK_DAYS) -> list[dict]:
+                       lookback_days: int = config.LATER_RECEIPT_LOOKBACK_DAYS) -> list[dict]:
     """Look for receipts for earlier runs still pending. Returns the notes appended."""
     cutoff = (date.fromisoformat(today) - timedelta(days=lookback_days)).isoformat()
     appended: list[dict] = []
@@ -139,7 +145,9 @@ def _mismatches_without_diagnostic(m: dict, notes: list[dict]):
             mt = re.search(r"/web/(\d{14})id_/", rc["raw_url"])
             ts = mt.group(1) if mt else None
         if rc.get("result") == "mismatch" and "diagnostic" not in rc:
-            yield n.get("run_id"), n.get("name"), ts, f"appended note ({n.get('note_type')})"
+            kind = ("later Archive receipt" if n.get("note_type") in RECEIPT_TYPES
+                    else "later raw check" if n.get("note_type") in RAW_TYPES else "note")
+            yield n.get("run_id"), n.get("name"), ts, f"appended note ({kind})"
 
 
 def _diagnose_earlier_mismatches(m: dict, notes: list[dict], client: ArchiveClient,
@@ -168,7 +176,7 @@ def day_has_receipt(m: dict) -> bool:
     for run in m.get("runs", []):
         if any(i.get("status") == "receipt" for i in run_items(run)):
             return True
-    return any(n.get("note_type") == NOTE_RECEIPT for n in m.get("appended_notes", []))
+    return any(n.get("note_type") in RECEIPT_TYPES for n in m.get("appended_notes", []))
 
 
 def days_without_receipt(archive: Archive) -> int:

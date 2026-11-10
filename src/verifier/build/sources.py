@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from ..late_receipts import NOTE_DIAG, NOTE_RAW, NOTE_RECEIPT, day_manifests, run_items
+from ..later_receipts import NOTE_DIAG, RAW_TYPES, RECEIPT_TYPES, day_manifests, run_items
 from ..store import Archive
 
 # Jon's manual capture: no time of day was recorded (decision of 2026-11-10).
@@ -135,13 +135,13 @@ class Sources:
             if item["name"] == name and item.get("status") == "receipt":
                 receipt = item.get("receipt")
         for n in run.notes:
-            if n.get("note_type") == NOTE_RECEIPT and n.get("name") == name and receipt is None:
+            if n.get("note_type") in RECEIPT_TYPES and n.get("name") == name and receipt is None:
                 receipt = n.get("receipt")
         if not receipt or not receipt.get("snapshot_timestamp"):
             return None
         result = (receipt.get("raw_check") or {}).get("result")
         for n in run.notes:
-            if n.get("name") == name and n.get("note_type") in (NOTE_RAW, NOTE_DIAG):
+            if n.get("name") == name and n.get("note_type") in RAW_TYPES | {NOTE_DIAG}:
                 if n.get("note_type") == NOTE_DIAG and n.get("snapshot_timestamp") not in (
                         None, receipt.get("snapshot_timestamp")):
                     continue

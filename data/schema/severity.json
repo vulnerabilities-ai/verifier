@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "file": "severity",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per month of reveal, source and severity: the R7 count matrix. Sources are never merged.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "month",
+      "type": "string",
+      "meaning": "Month of the card's reveal date (YYYY-MM).",
+      "source_field": "finding card timeline",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "meaning": "model, firm, maintainer, github or nvd. Sources are never merged.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "severity",
+      "type": "string",
+      "meaning": "The source's own rating, lower-cased; not_available when that source has none.",
+      "source_field": null,
+      "label": "Each source's own"
+    },
+    {
+      "name": "count",
+      "type": "integer",
+      "meaning": "Number of revealed findings.",
+      "source_field": null,
+      "label": "Independently verified"
+    }
+  ]
+}
