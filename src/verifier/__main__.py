@@ -36,6 +36,18 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--summary-file", default="",
                    help="Write a plain-language result here (used for failure issues).")
 
+    cd = sub.add_parser("cards", help="fetch new or due finding cards (network)")
+    cd.add_argument("--root", default=".")
+    cd.add_argument("--summary-file", default="")
+
+    b = sub.add_parser("build", help="rebuild data/ and cards/*/verification.json (no network)")
+    b.add_argument("--root", default=".")
+
+    rs = sub.add_parser("review-summary", help="write the plain-language tally for the review PR")
+    rs.add_argument("--root", default=".")
+    rs.add_argument("--cards-summary", default="")
+    rs.add_argument("--out", default="")
+
     a = sub.add_parser("audit")
     a.add_argument("--root", default=".")
 
@@ -68,6 +80,39 @@ def main(argv: list[str] | None = None) -> int:
         if args.summary_file:
             Path(args.summary_file).write_text(text, encoding="utf-8")
         return out.exit_code
+
+    if args.cmd == "cards":
+        from .build import latest_ledger
+        from .build.sources import Sources
+        from .cards import fetch_cards
+        from .net import RobotsDisallowed
+        _, revealed = latest_ledger(Sources(Path(args.root)))
+        try:
+            tally = fetch_cards(Path(args.root), revealed, Fetcher())
+            code = 0
+        except RobotsDisallowed as e:
+            tally, code = {"stopped": str(e)}, 3
+        text = json.dumps(tally, indent=2)
+        print(text)
+        if args.summary_file:
+            Path(args.summary_file).write_text(text, encoding="utf-8")
+        return code
+
+    if args.cmd == "build":
+        from .build import build
+        r = build(Path(args.root))
+        print(json.dumps({"generated_utc": r["generated_utc"], "rows": r["rows"], "cards": r["cards"]}, indent=2))
+        return 0
+
+    if args.cmd == "review-summary":
+        from .review import review_summary
+        cards_fetch = (json.loads(Path(args.cards_summary).read_text(encoding="utf-8"))
+                       if args.cards_summary and Path(args.cards_summary).exists() else None)
+        text = review_summary(Path(args.root), cards_fetch)
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+        print(text)
+        return 0
 
     if args.cmd == "audit":
         problems = audit(Path(args.root))

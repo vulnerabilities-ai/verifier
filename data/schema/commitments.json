@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "file": "commitments",
+  "formats": [
+    "csv",
+    "json"
+  ],
+  "rows": "One row per commitment hash, newest commitment first.",
+  "columns": [
+    {
+      "name": "program",
+      "type": "string",
+      "meaning": "The program's ID. anthropic-cvd for every row today.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash",
+      "type": "string",
+      "meaning": "The SHA-3-512 commitment hash.",
+      "source_field": "hash",
+      "label": "Independently verified"
+    },
+    {
+      "name": "hash_short",
+      "type": "string",
+      "meaning": "First 12 characters of the hash.",
+      "source_field": "hash",
+      "label": null
+    },
+    {
+      "name": "committed_at",
+      "type": "date",
+      "meaning": "The commitment date, from the program's ledger.",
+      "source_field": "committed_at",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "first_seen_by_us",
+      "type": "time",
+      "meaning": "Our earliest daily capture containing the hash (its ledger.json fetch time). For Jon's manual capture, the end-of-day bound 2026-10-30T23:59:59Z. Backfill copies never count.",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "first_seen_basis",
+      "type": "string",
+      "meaning": "How to read first_seen_by_us, including the earliest independent evidence available when the data was built: the GitHub commit time of that capture, and the Internet Archive receipt for ledger.json when one exists.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "tier",
+      "type": "string",
+      "meaning": "discovered, sent, acknowledged_by_maintainer or revealed.",
+      "source_field": "reveal_tier",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "meaning": "disclosed, fixed, withdrawn, merged or empty.",
+      "source_field": "status",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "withdrawn",
+      "type": "boolean",
+      "meaning": "The program's withdrawn flag (it can differ from status; both are published as found).",
+      "source_field": "withdrawn",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "withdrawn_reason",
+      "type": "string",
+      "meaning": "The program's withdrawal reason, as found (also set on merged entries).",
+      "source_field": "withdrawn_reason",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "merged_into",
+      "type": "string",
+      "meaning": "The revealed finding a merged commitment was folded into, when the program names one. Withheld unless it names a revealed finding.",
+      "source_field": "merged_into",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "model_severity",
+      "type": "string",
+      "meaning": "The program's model's own severity rating.",
+      "source_field": "claude_severity",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "revealed",
+      "type": "boolean",
+      "meaning": "True once the program has revealed the finding.",
+      "source_field": "revealed",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "finding_id",
+      "type": "string",
+      "meaning": "The finding ID (revealed rows only).",
+      "source_field": "ant_id",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "project",
+      "type": "string",
+      "meaning": "Project (revealed rows only).",
+      "source_field": "project",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "bug_class",
+      "type": "string",
+      "meaning": "Bug class (revealed rows only).",
+      "source_field": "bug_class",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "cve_ids",
+      "type": "list",
+      "meaning": "CVE IDs (revealed rows only).",
+      "source_field": "cve_ids",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "ghsa_ids",
+      "type": "list",
+      "meaning": "GHSA IDs (revealed rows only).",
+      "source_field": "ghsa_ids",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "fixed_in_response",
+      "type": "boolean",
+      "meaning": "The program's 'fixed in response' flag (revealed rows only).",
+      "source_field": "is_fixed_in_response",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "patched_at",
+      "type": "date",
+      "meaning": "Patch date from the ledger (revealed rows only).",
+      "source_field": "patched_at",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "revealed_at",
+      "type": "date",
+      "meaning": "Reveal date from the ledger (revealed rows only).",
+      "source_field": "revealed_at",
+      "label": "Lab-reported"
+    },
+    {
+      "name": "card_url",
+      "type": "string",
+      "meaning": "The finding card's address (revealed rows only).",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "hash_check",
+      "type": "string",
+      "meaning": "R2 result: match, mismatch, unavailable (no card or preimage could be read), not_checked (revealed, no card yet) or not_applicable (not revealed).",
+      "source_field": null,
+      "label": "Independently verified"
+    },
+    {
+      "name": "fix_merged",
+      "type": "string",
+      "meaning": "not_checked (revealed) or not_applicable. Filled in phase 3.",
+      "source_field": null,
+      "label": "Independently verified"
+    }
+  ]
+}

@@ -43,6 +43,10 @@ The receipts are an outside check on our own fetch times. Our own archive does n
 - **Retries.** Requests that fail are retried in rounds after 1, 3 and 10 minutes, within a 30-minute budget. HTTP 429 is recorded as "Archive busy". Every attempt is recorded with its time and outcome.
 - **Availability check.** After any failed or ambiguous request, the pipeline asks the Archive's availability API (`archive.org/wayback/available`) whether a snapshot dated at or after our fetch exists, and records the answer. This matters because a request can fail on our side while the Archive still makes the capture. On November 8, 2026, a snapshot was created two seconds after a request that returned an error.
 - **Raw-copy check.** For every receipt, the pipeline fetches the Archive's raw copy (the `id_` form of the snapshot address, which serves the bytes as captured) and compares its SHA-256 with ours. It records `match`, `mismatch` or `unavailable`, plus the Archive's hash. A mismatch is recorded as a fact, not judged. For example, the Archive may have captured a different version of the page.
+- **Mismatch diagnostic.** When the raw-copy check says `mismatch`, the pipeline adds detail. Reporting does not change: the result stays `mismatch`, and warnings and statuses are the same.
+  - **Saved copy.** The Archive's raw bytes are saved under `captures/archive-raw/YYYY/MM/DD/`, never overwriting anything. Identical bytes already saved are referenced instead.
+  - **What is recorded:** both sizes; the first differing byte position; whether both parse as JSON and are semantically identical; and whether the difference is only line endings, only whitespace, or only an encoding (byte-order mark, gzip, deflate, Brotli where available, Latin-1 or Windows-1252). A one-word summary sums it up.
+  - **Earlier mismatches.** Those recorded before the diagnostic existed are diagnosed by a later run, as an appended `archive-raw-diagnostic` note.
 - **Reused snapshots.** Save Page Now often returns an existing recent snapshot instead of making a new one. This happened on October 30, 2026 and in the November 8 and 9 runs. The pipeline records the timestamp exactly as returned. When it is earlier than our fetch, the receipt is marked `reused_existing_snapshot` with a negative `seconds_after_our_fetch`. A reused snapshot shows what the Archive held at its own timestamp. It is not a copy of our fetch, and the raw-copy check shows whether the bytes are the same.
 - **Receipt window.** A snapshot found through the availability API counts as a receipt for our fetch only if it is dated no more than 24 hours after our fetch.
 - **Late receipts.** Each run looks back 7 days for earlier runs still waiting for a receipt and asks the availability API again. It also retries raw-copy checks that were unavailable. Anything found is appended to that day's MANIFEST.json under `appended_notes`, with the date it was found. What was already written is never changed.
@@ -74,6 +78,27 @@ Once a month, the pipeline saves a dated copy of `https://www.anthropic.com/coor
 - the cron time a run was scheduled for.
 
 Our archive begins with Jon's manual capture on October 30, 2026, whose exact fetch time and headers were not recorded.
+
+## Phase 2: tables, cards and rule R2
+
+The published tables in `data/` are rebuilt by `python -m verifier build` from `captures/` and `cards/`. The build is deterministic: the same archive and git history give the same files, and `generated_utc` is the latest capture time used, not the clock. The column definitions are in `data/schema/`, and the additions to the design team's data contract are in `docs/data-contract-additions-phase2.md`.
+
+- **Snapshots.** A snapshot is either a distinct version of the program's data file in our own daily captures, or our copy of one of the program's own archived snapshots (`source_kind`). Copies of the program's archive never count as first-seen evidence.
+- **First seen by us** (see above) is computed per hash from our own captures only. `first_seen_basis` also states the earliest independent evidence available at build time:
+  - the GitHub commit time of the capture that first contained the hash (the first commit that introduced those exact bytes, read from the full git history; "not available" in a shallow or missing checkout);
+  - the earliest Internet Archive snapshot of a `ledger.json` containing the hash, when one exists. When the raw-copy check for it says `mismatch` or `unavailable`, the text says the byte comparison is unresolved.
+- **Events** are the changes between consecutive snapshots in our own captures, dated by our capture time. Changes in copies of the program's archive are not events. Changes to the project, bug class or IDs of entries that are not revealed are never listed.
+- **Withdrawals** are published in three views (by flag, by status, and by reason across all entries), with counts only. None is an error (see Known quirks).
+- **Redaction.** No published file shows the project, bug class, finding ID or advisory IDs of an entry that is not revealed.
+
+### Rule R2: commitment hashes (finding cards)
+
+- **Which cards.** Cards are fetched only for revealed findings with no card yet, and known cards are re-checked every 30 days. Addresses tried, in order: `findings/<ID>.html`, `findings/<ID>/`, `findings/<ID>`. If none works, the attempts are recorded and the card is `unavailable`.
+- **Fetch rules.** The same as for captures: robots.txt read first, at most one request per second, store-only-when-changed. Raw cards are never edited, and a changed card is stored as a new time-suffixed copy.
+- **The preimage** comes from the card's download link (`data:` address, percent-decoded UTF-8). The fallback is the visible preimage text, re-serialized canonically: sorted keys, no whitespace between tokens, UTF-8, non-ASCII left unescaped (escaping it changes the hash).
+- **The check.** SHA-3-512 of the preimage is compared with the ledger hash (from our latest capture) and with the hash printed on the card. The pipeline records the raw-bytes match, the canonical-rebuild match, and the outcome `match`, `mismatch` or `unavailable`, with its inputs.
+- **`cards/<ID>/verification.json`** also records the card's timeline as printed, the severities by source, and the links. When the patch date is earlier than "Discovered or logged", it adds a neutral note (quirk 6).
+- **Review before main.** Card results reach main only through the weekly review pull request.
 
 ## Verification labels
 

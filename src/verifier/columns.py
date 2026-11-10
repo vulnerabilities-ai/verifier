@@ -24,7 +24,7 @@ RENAMES: dict[str, str] = {
 # Names that must never appear as a published column.
 FORBIDDEN_PUBLISHED = frozenset(RENAMES)
 
-SNAPSHOT_COLUMNS: list[str] = [
+SNAPSHOT_HEADLINE_COLUMNS: list[str] = [
     "program",
     "capture_utc",
     "source_sha256",
@@ -53,6 +53,14 @@ SNAPSHOT_COLUMNS: list[str] = [
     "label",
     "note",
 ]
+
+# Full published snapshots row: the headline columns, with three phase 2
+# additions placed before label and note (see docs/data-contract-additions-phase2.md).
+SNAPSHOT_COLUMNS: list[str] = (
+    SNAPSHOT_HEADLINE_COLUMNS[:-2]
+    + ["source_kind", "program_snapshot_label", "first_seen_by_us"]
+    + SNAPSHOT_HEADLINE_COLUMNS[-2:]
+)
 
 # Where each snapshot column comes from in Anthropic's payload.json.
 SNAPSHOT_SOURCES: dict[str, str] = {

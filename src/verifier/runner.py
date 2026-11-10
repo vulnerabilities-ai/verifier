@@ -23,6 +23,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 from . import config
+from .archive_diag import MismatchDiagnoser
 from .archive_org import ArchiveClient
 from .capture import (RunInfo, backfill_due, backfill_one, capture_policy, fetch_targets,
                       policy_due, record_archive_result, snapshot_folder_url, store_daily,
@@ -73,6 +74,8 @@ def run(root: Path, *, base_url: str = config.BASE_URL, run: RunInfo | None = No
     fetcher = fetcher or Fetcher()
     client = client or ArchiveClient(fetcher)
     test_mode = run.mode == "test"
+    if not test_mode and client.on_mismatch is None:
+        client.on_mismatch = MismatchDiagnoser(archive)
     out = _run(archive, fetcher, client, base_url, run, test_mode, policy_url)
     if test_mode:
         out.status = "failed-test" if out.exit_code else "passed-test"
