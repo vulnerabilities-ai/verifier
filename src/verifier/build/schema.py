@@ -183,19 +183,28 @@ VERIFICATION_META = [
      "GitHub: cvss_severities.cvss_v4", PUBLIC),
     ("cvss_github_entries", "list", "Every CVSS entry in the GitHub advisory that has a vector string: field, "
      "version, score and vector. Placeholders are left out.", "GitHub: cvss_severities, cvss", PUBLIC),
-    ("cvss_nvd_v31_score", "number", "CVSS 3.1 base score in the NVD record: NVD's own (Primary) entry if the record "
-     "has one, otherwise the record's only 3.1 entry. Empty when absent, never 0.0. All entries are in "
-     "cvss_nvd_entries.", "NVD: metrics.cvssMetricV31[].cvssData.baseScore", PUBLIC),
-    ("severity_nvd_v31", "string", "The base severity of that CVSS 3.1 entry, as NVD gives it.",
-     "NVD: cvssMetricV31[].cvssData.baseSeverity", PUBLIC),
-    ("cvss_nvd_v31_source", "string", "Who gave that CVSS 3.1 entry, and NVD's type for it (Primary or Secondary).",
-     "NVD: cvssMetricV31[].source, type", PUBLIC),
-    ("cvss_nvd_v40_score", "number", "CVSS 4.0 base score in the NVD record, chosen the same way as 3.1. "
-     "Empty when absent, never 0.0.", "NVD: metrics.cvssMetricV40[].cvssData.baseScore", PUBLIC),
-    ("severity_nvd_v40", "string", "The base severity of that CVSS 4.0 entry, as NVD gives it.",
-     "NVD: cvssMetricV40[].cvssData.baseSeverity", PUBLIC),
-    ("cvss_nvd_v40_source", "string", "Who gave that CVSS 4.0 entry, and NVD's type for it.",
-     "NVD: cvssMetricV40[].source, type", PUBLIC),
+    ("cvss_nvd_primary_v31_score", "number", "NIST's own CVSS 3.1 base score in the NVD record (type Primary, "
+     "source nvd@nist.gov). Empty when absent, never 0.0.", "NVD: cvssMetricV31[type=Primary].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_primary_v31", "string", "Its base severity, as NVD gives it.",
+     "NVD: cvssMetricV31[type=Primary].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_primary_v40_score", "number", "NIST's own CVSS 4.0 base score in the NVD record. Empty when absent, "
+     "never 0.0.", "NVD: cvssMetricV40[type=Primary].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_primary_v40", "string", "Its base severity, as NVD gives it.",
+     "NVD: cvssMetricV40[type=Primary].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_cna_v31_score", "number", "The reporting authority's CVSS 3.1 base score as shown in the NVD record "
+     "(type Secondary). Filled only when exactly one Secondary entry exists for 3.1; if there are several, empty "
+     "(all are in cvss_nvd_entries). Empty when absent, never 0.0.",
+     "NVD: cvssMetricV31[type=Secondary].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_cna_v31", "string", "Its base severity, as NVD gives it.",
+     "NVD: cvssMetricV31[type=Secondary].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_cna_v31_source", "string", "Who gave that entry (the reporting authority's identifier in NVD).",
+     "NVD: cvssMetricV31[type=Secondary].source", PUBLIC),
+    ("cvss_nvd_cna_v40_score", "number", "The reporting authority's CVSS 4.0 base score as shown in the NVD record, "
+     "under the same rule as 3.1. Empty when absent, never 0.0.",
+     "NVD: cvssMetricV40[type=Secondary].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_cna_v40", "string", "Its base severity, as NVD gives it.",
+     "NVD: cvssMetricV40[type=Secondary].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_cna_v40_source", "string", "Who gave that entry.", "NVD: cvssMetricV40[type=Secondary].source", PUBLIC),
     ("cvss_nvd_entries", "list", "Every CVSS entry in the NVD record (any version, including 3.0 or 2.0 if present): "
      "version, score, severity, source, type and vector.", "NVD: metrics", PUBLIC),
     ("cwe_github", "list", "CWE IDs in the GitHub advisory.", "GitHub: cwes", PUBLIC),
@@ -222,8 +231,9 @@ VERIFICATION_META = [
 SEVERITY_META = [
     _PROGRAM,
     ("month", "string", "Month of the card's reveal date (YYYY-MM).", "finding card timeline", LR),
-    ("source", "string", "model, firm, maintainer, github (GitHub's stated severity), nvd_v31 or nvd_v40 (the "
-     "severity of NVD's CVSS 3.1 or 4.0 entry). Sources and CVSS versions are never merged.", None, None),
+    ("source", "string", "model, firm, maintainer, github (GitHub's stated severity), nvd_primary_v31, "
+     "nvd_primary_v40 (NIST's own CVSS entry in NVD), nvd_cna_v31 or nvd_cna_v40 (the reporting authority's entry "
+     "in NVD). Sources and CVSS versions are never merged.", None, None),
     ("severity", "string", "The source's own rating, lower-cased; not_available when that source has none.", None, PUBLIC),
     ("count", "integer", "Number of revealed findings.", None, IV),
 ]

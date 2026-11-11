@@ -239,45 +239,73 @@
       "label": "Each source's own"
     },
     {
-      "name": "cvss_nvd_v31_score",
+      "name": "cvss_nvd_primary_v31_score",
       "type": "number",
-      "meaning": "CVSS 3.1 base score in the NVD record: NVD's own (Primary) entry if the record has one, otherwise the record's only 3.1 entry. Empty when absent, never 0.0. All entries are in cvss_nvd_entries.",
-      "source_field": "NVD: metrics.cvssMetricV31[].cvssData.baseScore",
+      "meaning": "NIST's own CVSS 3.1 base score in the NVD record (type Primary, source nvd@nist.gov). Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV31[type=Primary].cvssData.baseScore",
       "label": "Each source's own"
     },
     {
-      "name": "severity_nvd_v31",
+      "name": "severity_nvd_primary_v31",
       "type": "string",
-      "meaning": "The base severity of that CVSS 3.1 entry, as NVD gives it.",
-      "source_field": "NVD: cvssMetricV31[].cvssData.baseSeverity",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV31[type=Primary].cvssData.baseSeverity",
       "label": "Each source's own"
     },
     {
-      "name": "cvss_nvd_v31_source",
-      "type": "string",
-      "meaning": "Who gave that CVSS 3.1 entry, and NVD's type for it (Primary or Secondary).",
-      "source_field": "NVD: cvssMetricV31[].source, type",
-      "label": "Each source's own"
-    },
-    {
-      "name": "cvss_nvd_v40_score",
+      "name": "cvss_nvd_primary_v40_score",
       "type": "number",
-      "meaning": "CVSS 4.0 base score in the NVD record, chosen the same way as 3.1. Empty when absent, never 0.0.",
-      "source_field": "NVD: metrics.cvssMetricV40[].cvssData.baseScore",
+      "meaning": "NIST's own CVSS 4.0 base score in the NVD record. Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV40[type=Primary].cvssData.baseScore",
       "label": "Each source's own"
     },
     {
-      "name": "severity_nvd_v40",
+      "name": "severity_nvd_primary_v40",
       "type": "string",
-      "meaning": "The base severity of that CVSS 4.0 entry, as NVD gives it.",
-      "source_field": "NVD: cvssMetricV40[].cvssData.baseSeverity",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV40[type=Primary].cvssData.baseSeverity",
       "label": "Each source's own"
     },
     {
-      "name": "cvss_nvd_v40_source",
+      "name": "cvss_nvd_cna_v31_score",
+      "type": "number",
+      "meaning": "The reporting authority's CVSS 3.1 base score as shown in the NVD record (type Secondary). Filled only when exactly one Secondary entry exists for 3.1; if there are several, empty (all are in cvss_nvd_entries). Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_cna_v31",
       "type": "string",
-      "meaning": "Who gave that CVSS 4.0 entry, and NVD's type for it.",
-      "source_field": "NVD: cvssMetricV40[].source, type",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v31_source",
+      "type": "string",
+      "meaning": "Who gave that entry (the reporting authority's identifier in NVD).",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].source",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v40_score",
+      "type": "number",
+      "meaning": "The reporting authority's CVSS 4.0 base score as shown in the NVD record, under the same rule as 3.1. Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_cna_v40",
+      "type": "string",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v40_source",
+      "type": "string",
+      "meaning": "Who gave that entry.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].source",
       "label": "Each source's own"
     },
     {

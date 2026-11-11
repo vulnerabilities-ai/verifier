@@ -299,7 +299,8 @@ def parse_github_advisory(d) -> dict:
 
 def nvd_cvss_entries(metrics: dict) -> list[dict]:
     """Every CVSS entry in an NVD record, each with its own source and type
-    (NVD's own analysis is "Primary"; a CNA's score shown by NVD is "Secondary").
+    (NIST's own analysis is "Primary" from nvd@nist.gov; a reporting authority's
+    (CNA's) score shown by NVD is "Secondary").
     An entry without a vector string or score is absent, never 0.0."""
     out = []
     for key in sorted(metrics):
@@ -320,18 +321,24 @@ def nvd_cvss_entries(metrics: dict) -> list[dict]:
     return out
 
 
-def nvd_by_version(entries: list[dict]) -> dict:
-    """Per column version: NVD's own (Primary) entry if the record has one; otherwise the
-    record's only entry for that version; if several Secondary entries and no Primary,
-    none (all stay in the entries list, so nothing is chosen between sources)."""
-    out = {}
+NVD_PRIMARY_SOURCE = "nvd@nist.gov"
+
+
+def nvd_split(entries: list[dict]) -> dict:
+    """Per column version, NIST's own entry and the reporting authority's entry, kept apart:
+    {"primary": {"v31": e, ...}, "cna": {"v31": e, ...}}.
+    - primary: the entry with type Primary and source nvd@nist.gov (only if exactly one);
+    - cna: the Secondary entry, only if exactly one exists for that version. If there are
+      several, none is chosen: the column stays empty and all are in the entries list."""
+    out = {"primary": {}, "cna": {}}
     for ver, col in COLUMN_VERSIONS.items():
         same = [e for e in entries if e["version"] == ver]
-        primary = [e for e in same if e.get("type") == "Primary"]
+        primary = [e for e in same if e.get("type") == "Primary" and e.get("source") == NVD_PRIMARY_SOURCE]
+        secondary = [e for e in same if e.get("type") == "Secondary"]
         if len(primary) == 1:
-            out[col] = primary[0]
-        elif len(same) == 1:
-            out[col] = same[0]
+            out["primary"][col] = primary[0]
+        if len(secondary) == 1:
+            out["cna"][col] = secondary[0]
     return out
 
 
@@ -347,7 +354,7 @@ def parse_nvd(d, cve: str) -> dict:
         raise Unreadable(f"NVD returned {c.get('id')!r} instead of {cve}")
     metrics = c.get("metrics") if isinstance(c.get("metrics"), dict) else {}
     entries = nvd_cvss_entries(metrics)
-    cols = nvd_by_version(entries)
+    split = nvd_split(entries)
     cwes = []
     for w in c.get("weaknesses") or []:
         for desc in (w.get("description") or []) if isinstance(w, dict) else []:
@@ -358,8 +365,11 @@ def parse_nvd(d, cve: str) -> dict:
            "cvss_entries": entries, "cwes": sorted(set(cwes)),
            "references": [r.get("url") for r in c.get("references") or [] if isinstance(r, dict)]}
     for col in COLUMN_VERSIONS.values():
-        e = cols.get(col) or {}
-        out[f"cvss_{col}_score"] = e.get("score")
-        out[f"severity_{col}"] = e.get("severity")
-        out[f"cvss_{col}_source"] = (f"{e.get('source')} ({e.get('type')})" if e else None)
+        p_ = split["primary"].get(col) or {}
+        c_ = split["cna"].get(col) or {}
+        out[f"cvss_primary_{col}_score"] = p_.get("score")
+        out[f"severity_primary_{col}"] = p_.get("severity")
+        out[f"cvss_cna_{col}_score"] = c_.get("score")
+        out[f"severity_cna_{col}"] = c_.get("severity")
+        out[f"cvss_cna_{col}_source"] = c_.get("source")
     return out

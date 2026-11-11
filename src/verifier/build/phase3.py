@@ -28,9 +28,13 @@ LABELS = {
 POLICY = {"days_report_to_patch": 90, "days_patch_to_reveal": 45, "days_report_to_reveal": 135}
 # severity file source -> verification column (each source and CVSS version kept apart)
 SEVERITY_COLUMNS = {"model": "severity_model", "firm": "severity_firm", "maintainer": "severity_maintainer",
-                    "github": "severity_github", "nvd_v31": "severity_nvd_v31", "nvd_v40": "severity_nvd_v40"}
+                    "github": "severity_github",
+                    "nvd_primary_v31": "severity_nvd_primary_v31", "nvd_primary_v40": "severity_nvd_primary_v40",
+                    "nvd_cna_v31": "severity_nvd_cna_v31", "nvd_cna_v40": "severity_nvd_cna_v40"}
 SEVERITY_SOURCES = tuple(SEVERITY_COLUMNS)
-CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score", "cvss_nvd_v31_score", "cvss_nvd_v40_score")
+CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score",
+                "cvss_nvd_primary_v31_score", "cvss_nvd_primary_v40_score",
+                "cvss_nvd_cna_v31_score", "cvss_nvd_cna_v40_score")
 _CVE = re.compile(r"CVE-\d{4}-\d{4,}")
 _GHSA = re.compile(r"GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}")
 
@@ -169,12 +173,17 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "cvss_github_v31_score": (gh_first or {}).get("cvss_v31_score"),
             "cvss_github_v40_score": (gh_first or {}).get("cvss_v40_score"),
             "cvss_github_entries": (gh_first or {}).get("cvss_entries") or [],
-            "cvss_nvd_v31_score": (nvd_first or {}).get("cvss_v31_score"),
-            "severity_nvd_v31": (nvd_first or {}).get("severity_v31"),
-            "cvss_nvd_v31_source": (nvd_first or {}).get("cvss_v31_source"),
-            "cvss_nvd_v40_score": (nvd_first or {}).get("cvss_v40_score"),
-            "severity_nvd_v40": (nvd_first or {}).get("severity_v40"),
-            "cvss_nvd_v40_source": (nvd_first or {}).get("cvss_v40_source"),
+            # NIST's own entry (Primary, nvd@nist.gov) and the reporting authority's (Secondary), apart.
+            "cvss_nvd_primary_v31_score": (nvd_first or {}).get("cvss_primary_v31_score"),
+            "severity_nvd_primary_v31": (nvd_first or {}).get("severity_primary_v31"),
+            "cvss_nvd_primary_v40_score": (nvd_first or {}).get("cvss_primary_v40_score"),
+            "severity_nvd_primary_v40": (nvd_first or {}).get("severity_primary_v40"),
+            "cvss_nvd_cna_v31_score": (nvd_first or {}).get("cvss_cna_v31_score"),
+            "severity_nvd_cna_v31": (nvd_first or {}).get("severity_cna_v31"),
+            "cvss_nvd_cna_v31_source": (nvd_first or {}).get("cvss_cna_v31_source"),
+            "cvss_nvd_cna_v40_score": (nvd_first or {}).get("cvss_cna_v40_score"),
+            "severity_nvd_cna_v40": (nvd_first or {}).get("severity_cna_v40"),
+            "cvss_nvd_cna_v40_source": (nvd_first or {}).get("cvss_cna_v40_source"),
             "cvss_nvd_entries": (nvd_first or {}).get("cvss_entries") or [],
             "cwe_github": sorted({c for a in gh_adv for c in a.get("cwes", [])}),
             "cwe_nvd": sorted({c for n in nvd_rec for c in n.get("cwes", [])}),

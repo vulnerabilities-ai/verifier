@@ -182,10 +182,12 @@ class PublicRecords(Phase3Case):
         self.assertEqual(w["severity_github"], "medium")  # GitHub's website shows it as "Moderate"
         # both CVSS versions published, from both sources; nothing chosen between them
         self.assertEqual((w["cvss_github_v31_score"], w["cvss_github_v40_score"]), (7.5, 6.3))
-        self.assertEqual((w["cvss_nvd_v31_score"], w["severity_nvd_v31"]), (7.5, "HIGH"))
-        self.assertEqual((w["cvss_nvd_v40_score"], w["severity_nvd_v40"]), (6.3, "MEDIUM"))
-        self.assertEqual(w["cvss_nvd_v31_source"], "nvd@nist.gov (Primary)")
-        self.assertEqual(w["cvss_nvd_v40_source"], "facts@wolfssl.com (Secondary)")
+        # NIST's own entries and the reporting authority's, in separate columns
+        self.assertEqual((w["cvss_nvd_primary_v31_score"], w["severity_nvd_primary_v31"]), (7.5, "HIGH"))
+        self.assertIsNone(w["cvss_nvd_primary_v40_score"])
+        self.assertEqual((w["cvss_nvd_cna_v40_score"], w["severity_nvd_cna_v40"], w["cvss_nvd_cna_v40_source"]),
+                         (6.3, "MEDIUM", "facts@wolfssl.com"))
+        self.assertIsNone(w["cvss_nvd_cna_v31_score"])
         self.assertEqual(w["cwe_github"], ["CWE-125"])
         self.assertEqual(w["advisory_review_status"], "unreviewed")
         self.assertEqual(w["fix_merged"], "yes")
@@ -407,7 +409,8 @@ class PublishedPhase3(Phase3Case):
             self.assertEqual(v[fid]["hash_check"], "preimage_withheld")
             self.assertEqual(v[fid]["withheld_statement"], text)
         sev = r["tables"]["severity"]
-        for src in ("model", "firm", "maintainer", "github", "nvd_v31", "nvd_v40"):
+        for src in ("model", "firm", "maintainer", "github", "nvd_primary_v31", "nvd_primary_v40",
+                    "nvd_cna_v31", "nvd_cna_v40"):
             self.assertEqual(sum(x["count"] for x in sev if x["source"] == src), 237)  # never merged
         summary_doc = json.loads((self.root / "data/summary.json").read_text())
         self.assertEqual(len(summary_doc["rows"]), 1)
@@ -507,7 +510,8 @@ class FullyChecked(Phase3Case):
         self.assertTrue(real)
 
 
-CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score", "cvss_nvd_v31_score", "cvss_nvd_v40_score")
+CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score", "cvss_nvd_primary_v31_score",
+                "cvss_nvd_primary_v40_score", "cvss_nvd_cna_v31_score", "cvss_nvd_cna_v40_score")
 
 
 class CvssByVersion(Phase3Case):
@@ -552,21 +556,45 @@ class CvssByVersion(Phase3Case):
         ws = v[WIRESHARK_ID]
         self.assertEqual((ws["cvss_github_v31_score"], ws["cvss_github_v40_score"]), (3.1, None))
         self.assertEqual(ws["severity_github"], "low")
-        # NVD shows two 3.1 entries: NVD's own (Primary) and GitLab's as CNA (Secondary). Both kept.
-        self.assertEqual((ws["cvss_nvd_v31_score"], ws["severity_nvd_v31"], ws["cvss_nvd_v31_source"]),
-                         (7.5, "HIGH", "nvd@nist.gov (Primary)"))
+        # NVD shows two 3.1 entries: NIST's own (Primary) and GitLab's as reporting authority
+        # (Secondary). Each has its own column; nothing is chosen between them.
+        self.assertEqual((ws["cvss_nvd_primary_v31_score"], ws["severity_nvd_primary_v31"]), (7.5, "HIGH"))
+        self.assertEqual((ws["cvss_nvd_cna_v31_score"], ws["severity_nvd_cna_v31"], ws["cvss_nvd_cna_v31_source"]),
+                         (3.1, "LOW", "cve@gitlab.com"))
         self.assertEqual(sorted((e["source"], e["score"]) for e in ws["cvss_nvd_entries"]),
                          [("cve@gitlab.com", 3.1), ("nvd@nist.gov", 7.5)])
-        self.assertIsNone(ws["cvss_nvd_v40_score"])
+        self.assertIsNone(ws["cvss_nvd_primary_v40_score"])
+        self.assertIsNone(ws["cvss_nvd_cna_v40_score"])
         wolf = v[WOLF_ID]
         self.assertEqual((wolf["cvss_github_v31_score"], wolf["cvss_github_v40_score"]), (7.5, 6.3))
-        self.assertEqual((wolf["severity_nvd_v31"], wolf["severity_nvd_v40"]), ("HIGH", "MEDIUM"))
+        self.assertEqual((wolf["severity_nvd_primary_v31"], wolf["severity_nvd_cna_v40"]), ("HIGH", "MEDIUM"))
         sev = r["tables"]["severity"]
         self.assertEqual({x["source"] for x in sev},
-                         {"model", "firm", "maintainer", "github", "nvd_v31", "nvd_v40"})
+                         {"model", "firm", "maintainer", "github", "nvd_primary_v31", "nvd_primary_v40",
+                          "nvd_cna_v31", "nvd_cna_v40"})
         self.assertEqual(r["summary"]["cvss_scores_present"],
                          {"cvss_github_v31_score": 2, "cvss_github_v40_score": 1,
-                          "cvss_nvd_v31_score": 2, "cvss_nvd_v40_score": 1})
+                          "cvss_nvd_primary_v31_score": 2, "cvss_nvd_primary_v40_score": 0,
+                          "cvss_nvd_cna_v31_score": 1, "cvss_nvd_cna_v40_score": 1})
+
+    def test_nvd_split_rules(self):
+        from verifier.records_read import nvd_cvss_entries, nvd_split
+
+        def m(ver, score, source, typ):
+            return {"source": source, "type": typ, "cvssData": {
+                "version": ver, "vectorString": f"CVSS:{ver}/AV:N", "baseScore": score, "baseSeverity": "X"}}
+        entries = nvd_cvss_entries({"cvssMetricV31": [
+            m("3.1", 5.0, "cna-a@example.org", "Secondary"), m("3.1", 6.0, "cna-b@example.org", "Secondary"),
+            m("3.1", 7.0, "someone@example.org", "Primary")],
+            "cvssMetricV40": [m("4.0", 8.0, "nvd@nist.gov", "Primary"), m("4.0", 4.0, "cna@example.org", "Secondary"),
+                              {"source": "x", "type": "Secondary", "cvssData": {"version": "4.0", "vectorString": None,
+                                                                                "baseScore": 0.0}}]})
+        split = nvd_split(entries)
+        self.assertNotIn("v31", split["cna"])      # two Secondary entries: none chosen
+        self.assertNotIn("v31", split["primary"])  # a Primary not from nvd@nist.gov is not NIST's own
+        self.assertEqual(split["primary"]["v40"]["score"], 8.0)
+        self.assertEqual(split["cna"]["v40"]["score"], 4.0)  # the null-vector entry is absent, not 0.0
+        self.assertEqual(len(entries), 5)  # everything with a vector is kept in the entries list
 
     def test_no_cvss_column_ever_shows_zero_for_an_absent_score(self):
         r, v = self.lookups_and_build()
@@ -577,6 +605,10 @@ class CvssByVersion(Phase3Case):
                     continue
                 entries = row["cvss_github_entries"] if "github" in col else row["cvss_nvd_entries"]
                 version = "3.1" if "v31" in col else "4.0"
+                if "primary" in col:
+                    entries = [e for e in entries if e.get("type") == "Primary" and e.get("source") == "nvd@nist.gov"]
+                elif "cna" in col:
+                    entries = [e for e in entries if e.get("type") == "Secondary"]
                 self.assertTrue(any(e["version"] == version and e["score"] == val and e["vector"] for e in entries),
                                 (row["finding_id"], col, val))
         self.assertNotEqual(v[WIRESHARK_ID]["cvss_github_v40_score"], 0.0)
@@ -587,7 +619,9 @@ class CvssByVersion(Phase3Case):
         for rec in _csv.DictReader(_io.StringIO(csv_text)):
             for col in CVSS_COLUMNS:
                 self.assertNotIn(rec[col], ("0.0", "0"), (rec["finding_id"], col))
-        for old in ("cvss_github_score", "cvss_github_version", "cvss_nvd_score", "cvss_nvd_version", "severity_nvd"):
+        for old in ("cvss_github_score", "cvss_github_version", "cvss_nvd_score", "cvss_nvd_version", "severity_nvd",
+                    "cvss_nvd_v31_score", "cvss_nvd_v40_score", "severity_nvd_v31", "severity_nvd_v40",
+                    "cvss_nvd_v31_source", "cvss_nvd_v40_source"):
             self.assertNotIn(old, header)
 
 
