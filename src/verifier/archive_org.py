@@ -218,6 +218,11 @@ class ArchiveClient:
                                                      ts, our_sha256, resp.body)
             except Exception as e:  # noqa: BLE001 - a diagnostic must never break a run
                 rec["diagnostic"] = {"error": f"{type(e).__name__}: {e}"}
+            if rec["diagnostic"].get("identical_after_decoding") is True:
+                # Same content, delivered encoded (for example gzip). Real content
+                # differences stay "mismatch".
+                rec["result"] = "match_after_decoding"
+                rec["decoding_method"] = rec["diagnostic"].get("decoding_method")
         m = _WAYBACK_TS.search(resp.final_url or "")
         if m and m.group(1) != ts:
             rec["note"] = f"The Archive served its copy dated {m.group(1)} instead."

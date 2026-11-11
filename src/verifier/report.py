@@ -14,7 +14,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from .later_receipts import day_manifests, run_items
+from .later_receipts import _checks, day_manifests, final_raw_result, run_items
 from .store import Archive
 from .wording import check_text
 
@@ -25,18 +25,26 @@ def _rows(root: Path, name: str) -> list[dict]:
     return json.loads((Path(root) / "data" / f"{name}.json").read_text(encoding="utf-8"))["rows"]
 
 
-def _archive_mismatches(root: Path) -> list[str]:
-    out = []
+def _archive_raw_results(root: Path) -> tuple[list[str], list[str]]:
+    """(differences, identical_after_decompression): each Archive receipt's raw-copy result after
+    every later note. Differences are real mismatches, or mismatches not yet resolved."""
+    diff, same = [], []
     a = Archive(root)
     for day, rel in day_manifests(a):
         m = a.load_json(rel)
-        for run in m.get("runs", []):
-            for it in run_items(run):
-                rc = (it.get("receipt") or {}).get("raw_check") or {}
-                if rc.get("result") == "mismatch":
-                    summ = (rc.get("diagnostic") or {}).get("difference_summary")
-                    out.append(f"{day} {it['name']}" + (f" ({summ})" if summ else ""))
-    return out
+        seen = set()
+        for rid, name, ts, rc, where, ntype in _checks(m):
+            if (rid, name, ts) in seen:
+                continue
+            seen.add((rid, name, ts))
+            result, method = final_raw_result(m, rid, name, ts)
+            if result == "match_after_decoding":
+                same.append(f"{day} {name} ({method})")
+            elif result == "mismatch":
+                d = rc.get("diagnostic") or {}
+                summ = d.get("difference_summary")
+                diff.append(f"{day} {name}" + (f" ({summ})" if summ else " (not yet diagnosed)"))
+    return diff, same
 
 
 def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
@@ -44,6 +52,7 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
     snaps, gaps = _rows(root, "snapshots"), _rows(root, "gaps")
     ver = _rows(root, "verification")
     summary = _rows(root, "summary")[0]
+    mism, same = _archive_raw_results(root)
     ours = [s for s in snaps if s["source_kind"] == "our_capture"]
     latest = ours[-1]
     g = [x for x in gaps if x["source_kind"] == "our_capture"][-1]
@@ -64,6 +73,8 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
          + ", ".join(f"{k} {v}" for k, v in summary["lookups"].items()) + ".",
          f"- Identifiers found in public records: " + ", ".join(f"{k} {v}" for k, v in summary["ids_exist"].items()) + ".",
          f"- Fix merged into the default branch: " + ", ".join(f"{k} {v}" for k, v in summary["fix_merged"].items()) + ".",
+         f"- Internet Archive copies identical to ours after decompression: {len(same)}"
+         + (f" ({'; '.join(same[:10])}{'; ...' if len(same) > 10 else ''})" if same else "") + ".",
          f"- Fully checked: {summary['checked_n']} of {summary['checked_of']}. A finding is fully checked when "
          "its hash check is conclusive (match, mismatch or preimage withheld), its identifiers are confirmed in "
          "public records or it has none, and whether its fix was merged has been determined.", ""]
@@ -107,9 +118,9 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
                 items.append(f"{fid}: {note.rstrip('.')}.")
         if r["lookup_status"] in ("lookup_unreadable", "rate_limited", "network_error"):
             items.append(f"Lookups for {fid} are incomplete ({r['lookup_status']}): {r['notes'] or 'see records/'}.")
-    mism = _archive_mismatches(root)
     if mism:
-        items.append(f"The Internet Archive's raw copy differed from ours {len(mism)} time(s): "
+        items.append(f"The Internet Archive's raw copy differed from ours {len(mism)} time(s), with the byte "
+                     "comparison unresolved or showing a real content difference: "
                      + "; ".join(mism[:10]) + ("; ..." if len(mism) > 10 else "")
                      + ". The diagnostic for each is in that day's MANIFEST.json.")
     L += [REPORT_HEADING, "", f"{len(items)} item(s). Each needs a person to read the evidence before anything "

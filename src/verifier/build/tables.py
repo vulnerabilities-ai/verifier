@@ -180,14 +180,19 @@ class Builder:
         best: dict[str, dict] = {}
         # The same Archive snapshot can be checked by several runs (it reuses snapshots);
         # use the latest raw-check result recorded for it, in capture order.
-        latest_result: dict[str, str] = {}
+        # A later definite result replaces an earlier one; "unavailable" never replaces a definite one.
+        latest_result: dict[str, tuple] = {}
         for recs in receipts_by_ledger.values():
             for x in recs:
-                if x["raw_result"]:
-                    latest_result[x["snapshot_utc"]] = x["raw_result"]
+                if not x["raw_result"]:
+                    continue
+                prev = latest_result.get(x["snapshot_utc"])
+                if prev is None or x["raw_result"] != "unavailable":
+                    latest_result[x["snapshot_utc"]] = (x["raw_result"], x.get("raw_method"))
         for rel, recs in receipts_by_ledger.items():
             earliest = dict(min(recs, key=lambda x: x["snapshot_utc"]))
-            earliest["raw_result"] = latest_result.get(earliest["snapshot_utc"], earliest["raw_result"])
+            earliest["raw_result"], earliest["raw_method"] = latest_result.get(
+                earliest["snapshot_utc"], (earliest["raw_result"], earliest.get("raw_method")))
             for h in ledger_sets.get(rel, self._ledger_hashes(rel)):
                 if h not in best or earliest["snapshot_utc"] < best[h]["snapshot_utc"]:
                     best[h] = earliest
@@ -210,6 +215,9 @@ class Builder:
                 a += ", an existing snapshot the Archive reused, dated before our fetch"
             if rec["raw_result"] == "match":
                 a += "; its raw copy is byte-identical to ours"
+            elif rec["raw_result"] == "match_after_decoding":
+                a += (f"; the Internet Archive's copy is identical to ours after decompression "
+                      f"({rec.get('raw_method') or 'method not recorded'})")
             else:
                 a += f"; byte comparison unresolved (the raw-copy check says {rec['raw_result'] or 'not yet checked'})"
         else:

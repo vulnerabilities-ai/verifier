@@ -190,3 +190,91 @@ def days_without_receipt(archive: Archive) -> int:
             break
         streak += 1
     return streak
+
+
+# ---------------------------------------------------------------------------
+# Raw copies identical after decompression (match_after_decoding)
+# ---------------------------------------------------------------------------
+NOTE_RECLASS = "later-raw-reclassification"
+DEFINITE = frozenset({"match", "match_after_decoding", "mismatch"})
+
+
+def _ts_of(n: dict, rc: dict) -> str | None:
+    ts = (n.get("receipt") or {}).get("snapshot_timestamp") or n.get("snapshot_timestamp")
+    if ts is None and rc.get("raw_url"):
+        mt = re.search(r"/web/(\d{14})id_/", rc["raw_url"])
+        ts = mt.group(1) if mt else None
+    return ts
+
+
+def _checks(m: dict):
+    """(run_id, name, snapshot_ts, raw_check, where, note_type) for every raw-copy check recorded
+    in a day manifest, in the order written: run records first, then appended notes."""
+    for run in m.get("runs", []):
+        for item in run_items(run):
+            r = item.get("receipt") or {}
+            if r.get("raw_check"):
+                yield run.get("run_id"), item["name"], r.get("snapshot_timestamp"), r["raw_check"], "run record", None
+    for n in m.get("appended_notes", []):
+        rc = (n.get("receipt") or {}).get("raw_check") or n.get("raw_check")
+        if rc:
+            yield n.get("run_id"), n.get("name"), _ts_of(n, rc), rc, "appended note", n.get("note_type")
+
+
+def reclassification_notes(m: dict) -> list[dict]:
+    """New notes for recorded mismatches whose diagnostic found the Archive's copy identical
+    to ours after decoding. Records already written are never changed."""
+    done = {(n.get("run_id"), n.get("name"), n.get("snapshot_timestamp"))
+            for n in m.get("appended_notes", []) if n.get("note_type") == NOTE_RECLASS}
+    new = []
+    for rid, name, ts, rc, where, ntype in _checks(m):
+        d = rc.get("diagnostic") or {}
+        if rc.get("result") == "mismatch" and d.get("identical_after_decoding") is True and \
+                (rid, name, ts) not in done:
+            done.add((rid, name, ts))
+            kind = ("later Archive receipt" if ntype in RECEIPT_TYPES else "later raw check" if ntype in RAW_TYPES
+                    else "diagnostic note" if ntype == NOTE_DIAG else "note") if ntype else None
+            new.append({
+                "note_type": NOTE_RECLASS, "appended_utc": utc_now(), "run_id": rid, "name": name,
+                "snapshot_timestamp": ts, "result": "match_after_decoding",
+                "decoding_method": d.get("decoding_method"),
+                "based_on": where + (f" ({kind})" if kind else ""),
+                "reason": (f"The diagnostic found the Internet Archive's copy identical to ours after "
+                           f"decompression ({d.get('decoding_method')}). The earlier record says 'mismatch' "
+                           "and is kept as written."),
+            })
+    return new
+
+
+def reclassify_all(archive: Archive) -> list[dict]:
+    """Append reclassification notes to every day's manifest that needs them (no network)."""
+    appended = []
+    for _, rel in day_manifests(archive):
+        m = archive.load_json(rel)
+        new = reclassification_notes(m)
+        if new:
+            append_notes(archive, rel, new)
+            appended += new
+    return appended
+
+
+def final_raw_result(m: dict, run_id: str, name: str, snapshot_ts: str | None) -> tuple[str | None, str | None]:
+    """The raw-copy result for one receipt after everything recorded since: (result, method).
+    A later definite result (match, match_after_decoding, mismatch) replaces an earlier one; a
+    later 'unavailable' never replaces a definite result."""
+    result = method = None
+
+    def apply(res, meth):
+        nonlocal result, method
+        if res in DEFINITE or result is None:
+            result, method = res, meth
+    for rid, nm, ts, rc, where, ntype in _checks(m):
+        if rid == run_id and nm == name and (snapshot_ts is None or ts in (None, snapshot_ts)):
+            res = rc.get("result")
+            if res:
+                apply(res, (rc.get("diagnostic") or {}).get("decoding_method") if res == "match_after_decoding" else None)
+    for n in m.get("appended_notes", []):
+        if n.get("note_type") == NOTE_RECLASS and n.get("run_id") == run_id and n.get("name") == name and \
+                (snapshot_ts is None or n.get("snapshot_timestamp") in (None, snapshot_ts)):
+            apply("match_after_decoding", n.get("decoding_method"))
+    return result, method

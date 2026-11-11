@@ -42,7 +42,7 @@ No new columns. Two existing columns now carry real values.
   - The 6,597 hashes in Jon's manual capture of October 30, 2026 show `2026-10-30T23:59:59Z`. This is the latest possible time that day, because the time of day was not recorded. No earlier time is ever used.
 - **`first_seen_basis`** explains the value in plain words. It also gives the earliest independent evidence available when the data was built:
   - the GitHub commit time of the capture that first contained the hash;
-  - the Internet Archive snapshot of `ledger.json`, when one exists. If our check of the Archive's raw copy says `mismatch` or `unavailable`, the text says the byte comparison is unresolved.
+  - the Internet Archive snapshot of `ledger.json`, when one exists. If the Archive's raw copy is identical to ours after decompression, the text says "the Internet Archive's copy is identical to ours after decompression (gzip)" (gzip or another named method). Only if our check of the Archive's raw copy is unavailable, or shows a real or undiagnosed mismatch, does the text say the byte comparison is unresolved. Page guidance: show these words as written. Present an identical-after-decompression copy as matching evidence, not as a difference.
 - **Text for the October 30 hashes.** It begins with exactly this sentence:
   > manual capture by Jon on 2026-10-30; time not recorded and not independently timestamped; the value is the latest possible time that day. The earliest independent evidence is the repository's first commit on 2026-11-08.
 

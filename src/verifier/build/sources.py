@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
-from ..later_receipts import NOTE_DIAG, RAW_TYPES, RECEIPT_TYPES, day_manifests, run_items
+from ..later_receipts import RECEIPT_TYPES, day_manifests, final_raw_result, run_items
 from ..store import Archive
 
 # Jon's manual capture: no time of day was recorded (decision of 2026-11-10).
@@ -139,13 +139,10 @@ class Sources:
                 receipt = n.get("receipt")
         if not receipt or not receipt.get("snapshot_timestamp"):
             return None
-        result = (receipt.get("raw_check") or {}).get("result")
-        for n in run.notes:
-            if n.get("name") == name and n.get("note_type") in RAW_TYPES | {NOTE_DIAG}:
-                if n.get("note_type") == NOTE_DIAG and n.get("snapshot_timestamp") not in (
-                        None, receipt.get("snapshot_timestamp")):
-                    continue
-                result = (n.get("raw_check") or {}).get("result") or result
+        # The latest recorded result for this receipt, including later notes
+        # (raw checks, diagnostics, and match_after_decoding reclassifications).
+        result, method = final_raw_result(self.archive.load_json(run.manifest), run.run_id, name,
+                                          receipt.get("snapshot_timestamp"))
         ts = receipt["snapshot_timestamp"]
         return {"snapshot_utc": f"{ts[0:4]}-{ts[4:6]}-{ts[6:8]}T{ts[8:10]}:{ts[10:12]}:{ts[12:14]}Z",
-                "raw_result": result, "run_day": run.day, "run_id": run.run_id}
+                "raw_result": result, "raw_method": method, "run_day": run.day, "run_id": run.run_id}
