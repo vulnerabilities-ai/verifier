@@ -464,6 +464,20 @@
           "result": "mismatch"
         }
       }
+    },
+    {
+      "note_type": "archive-raw-diagnostic",
+      "appended_utc": "2026-11-11T07:51:47Z",
+      "run_id": "42534385479-1",
+      "name": "dashboard.html",
+      "snapshot_timestamp": "20261108231652",
+      "mismatch_recorded_in": "appended note (later Archive receipt)",
+      "raw_check": {
+        "raw_url": "https://web.archive.org/web/20261108231652id_/https://red.anthropic.com/2026/cvd/",
+        "checked_utc": "2026-11-11T07:50:47Z",
+        "result": "unavailable",
+        "error": "Could not reach https://web.archive.org/web/20261108231652id_/https://red.anthropic.com/2026/cvd/: TimeoutError: timed out"
+      }
     }
   ]
 }
