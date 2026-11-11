@@ -28,7 +28,7 @@ from .archive_org import ArchiveClient
 from .capture import (RunInfo, backfill_due, backfill_one, capture_policy, fetch_targets,
                       policy_due, record_archive_result, snapshot_folder_url, store_daily,
                       target_urls)
-from .later_receipts import days_without_receipt, find_later_receipts
+from .later_receipts import days_without_receipt, find_later_receipts, reclassify_all
 from .net import CaptureError, Fetcher, RobotsDisallowed, utc_now
 from .store import Archive
 
@@ -153,6 +153,7 @@ def _run(archive, fetcher, client, base_url, run, test_mode, policy_url) -> Outc
     if out.exit_code != EXIT_ROBOTS:
         try:
             notes = find_later_receipts(archive, client, run.started_utc[:10], skip_run_id=run.run_id)
+            notes += reclassify_all(archive)
             if notes:
                 out.messages.append(f"Appended {len(notes)} later Archive note(s) to earlier records")
         except RobotsDisallowed as e:
