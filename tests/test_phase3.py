@@ -40,21 +40,26 @@ STATEMENTS = {
                          "ledger as published.",
 }
 
-# Hand-built from the public advisory page, in the documented API shapes. The sample
-# run (Verify with sample_only) checks the real shapes before a full run.
-WOLF_ADVISORY = {
-    "ghsa_id": "GHSA-q349-x427-xg3w", "cve_id": "CVE-2026-12340", "type": "unreviewed", "severity": "medium",
-    "published_at": "2026-06-25T18:31:20Z", "updated_at": "2026-06-25T18:31:21Z",
-    "cvss_severities": {"cvss_v3": {"vector_string": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:N/A:L", "score": 6.3},
-                        "cvss_v4": {"vector_string": None, "score": None}},
-    "cwes": [{"cwe_id": "CWE-125", "name": "Out-of-bounds Read"}],
-    "source_code_location": "https://github.com/wolfSSL/wolfssl",
-    "vulnerabilities": [], "references": ["https://nvd.nist.gov/vuln/detail/CVE-2026-12340"], "credits": [],
-}
-WOLF_NVD = {"totalResults": 1, "vulnerabilities": [{"cve": {
-    "id": "CVE-2026-12340", "published": "2026-06-25T19:15:51.123", "lastModified": "2026-06-26T10:00:00.000",
-    "vulnStatus": "Awaiting Analysis", "metrics": {},
-    "weaknesses": [{"description": [{"lang": "en", "value": "CWE-125"}]}], "references": []}}]}
+# Real responses from the sample run (Verify with sample_only, review/sample branch),
+# for wolfSSL (ANT-2026-87DJGDRB) and Wireshark (ANT-2026-05VXN1Y6). Frozen as fixtures.
+SAMPLE = ROOT / "tests/fixtures/sample-records"
+WIRESHARK_ID = "ANT-2026-05VXN1Y6"
+
+
+def _real_routes(host: str) -> dict:
+    """path?query -> (status, real body, headers) for every sample record from one host."""
+    from urllib.parse import urlsplit
+    out = {}
+    for m in (SAMPLE / "records").rglob("MANIFEST.json"):
+        man = json.loads(m.read_text())
+        u = urlsplit(man["url"])
+        if u.netloc != host:
+            continue
+        a = [x for x in man["attempts"] if x.get("outcome") == "fetched"][-1]
+        body = (SAMPLE / a["stored_at"]).read_bytes() if a.get("stored_at") else b""
+        out[u.path + (f"?{u.query}" if u.query else "")] = (a["status"], body, {
+            "Content-Type": "application/json", "X-RateLimit-Remaining": "4000", "X-RateLimit-Reset": "0"})
+    return out
 
 
 def j(obj, status=200, headers=None):
@@ -64,23 +69,15 @@ def j(obj, status=200, headers=None):
 
 
 def github_routes(overrides=None):
-    r = {
-        "/robots.txt": (200, b"User-agent: *\nDisallow: /\n", {}),  # like api.github.com: crawlers only
-        "/advisories/GHSA-q349-x427-xg3w": j(WOLF_ADVISORY),
-        "/advisories?cve_id=CVE-2026-12340": j([WOLF_ADVISORY]),
-        "/repos/wolfSSL/wolfssl": j({"default_branch": "master", "full_name": "wolfSSL/wolfssl"}),
-        f"/repos/wolfSSL/wolfssl/commits/{SHA}": j({"sha": SHA}),
-        "/repos/wolfSSL/wolfssl/pulls/10641": j({"number": 10641, "merged": True,
-                                                 "merged_at": "2026-06-10T16:02:11Z", "base": {"ref": "master"}}),
-        f"/repos/wolfSSL/wolfssl/compare/master...{SHA}": j({"status": "behind"}),
-    }
+    r = {"/robots.txt": (200, b"User-agent: *\nDisallow: /\n", {})}  # like api.github.com: crawlers only
+    r.update(_real_routes("api.github.com"))
     r.update(overrides or {})
     return r
 
 
 def nvd_routes(overrides=None):
-    r = {"/robots.txt": (200, b"User-agent: *\nDisallow: /\n", {}),
-         "/rest/json/cves/2.0?cveId=CVE-2026-12340": j(WOLF_NVD)}
+    r = {"/robots.txt": (200, b"User-agent: *\nDisallow: /\n", {})}
+    r.update(_real_routes("services.nvd.nist.gov"))
     r.update(overrides or {})
     return r
 
@@ -183,11 +180,16 @@ class PublicRecords(Phase3Case):
         self.assertEqual(w["ids_exist"], "verified")
         self.assertEqual(w["advisory_published"], "2026-06-25")
         self.assertEqual(w["severity_github"], "medium")  # GitHub's website shows it as "Moderate"
-        self.assertEqual((w["cvss_github_score"], w["cvss_github_version"]), (6.3, "3.1"))
+        # both CVSS versions published, from both sources; nothing chosen between them
+        self.assertEqual((w["cvss_github_v31_score"], w["cvss_github_v40_score"]), (7.5, 6.3))
+        self.assertEqual((w["cvss_nvd_v31_score"], w["severity_nvd_v31"]), (7.5, "HIGH"))
+        self.assertEqual((w["cvss_nvd_v40_score"], w["severity_nvd_v40"]), (6.3, "MEDIUM"))
+        self.assertEqual(w["cvss_nvd_v31_source"], "nvd@nist.gov (Primary)")
+        self.assertEqual(w["cvss_nvd_v40_source"], "facts@wolfssl.com (Secondary)")
         self.assertEqual(w["cwe_github"], ["CWE-125"])
         self.assertEqual(w["advisory_review_status"], "unreviewed")
         self.assertEqual(w["fix_merged"], "yes")
-        self.assertEqual(w["fix_merged_at"][:10], "2026-06-10")
+        self.assertEqual(w["fix_merged_at"], "2026-06-10T22:01:21Z")
         self.assertEqual(w["fix_merge_base"], "master")
         self.assertEqual((w["days_report_to_patch"], w["days_patch_to_reveal"], w["days_report_to_reveal"],
                           w["days_report_to_merge"]), (90, 53, 143, 75))
@@ -405,7 +407,7 @@ class PublishedPhase3(Phase3Case):
             self.assertEqual(v[fid]["hash_check"], "preimage_withheld")
             self.assertEqual(v[fid]["withheld_statement"], text)
         sev = r["tables"]["severity"]
-        for src in ("model", "firm", "maintainer", "github", "nvd"):
+        for src in ("model", "firm", "maintainer", "github", "nvd_v31", "nvd_v40"):
             self.assertEqual(sum(x["count"] for x in sev if x["source"] == src), 237)  # never merged
         summary_doc = json.loads((self.root / "data/summary.json").read_text())
         self.assertEqual(len(summary_doc["rows"]), 1)
@@ -503,6 +505,90 @@ class FullyChecked(Phase3Case):
         self.assertEqual(w["checked"], "no")
         self.assertEqual(r["summary"]["checked_n"], 0)
         self.assertTrue(real)
+
+
+CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score", "cvss_nvd_v31_score", "cvss_nvd_v40_score")
+
+
+class CvssByVersion(Phase3Case):
+    """Real response shapes from the sample run; CVSS kept per version and source."""
+
+    def setUp(self):
+        super().setUp()
+        import hashlib
+        d = self.root / "cards" / WIRESHARK_ID
+        d.mkdir(parents=True)
+        body = (ROOT / "tests/fixtures/wireshark-card/card.html").read_bytes()
+        (d / "card.html").write_bytes(body)
+        (d / "MANIFEST.json").write_text(json.dumps({"fetches": [{
+            "fetched_utc": "2026-01-01T00:00:00Z", "url": "frozen fixture", "sha256": hashlib.sha256(body).hexdigest(),
+            "stored_at": f"cards/{WIRESHARK_ID}/card.html"}], "unavailable": [], "preimages": []}))
+
+    def lookups_and_build(self):
+        inp = self.inputs()
+        run_lookups(self.root, {k: inp[k] for k in (WOLF_ID, WIRESHARK_ID)}, self.record_fetcher())
+        r = build(self.root)
+        return r, {v["finding_id"]: v for v in r["tables"]["verification"]}
+
+    def test_real_github_placeholder_is_absent(self):
+        from verifier.records_read import parse_github_advisory
+        adv = json.loads((SAMPLE / "records/github/advisories-by-cve/CVE-2026-76888/response.json").read_text())[0]
+        self.assertEqual(adv["cvss_severities"]["cvss_v4"], {"vector_string": None, "score": 0.0})  # the real shape
+        a = parse_github_advisory(adv)
+        self.assertIsNone(a["cvss_v40_score"])  # absent, never 0.0
+        self.assertEqual(a["cvss_v31_score"], 3.1)
+        self.assertEqual([e["version"] for e in a["cvss_entries"]], ["3.1"])
+        self.assertEqual(a["severity"], "low")  # GitHub's own stated severity, unchanged
+
+    def test_placeholder_only_unit(self):
+        from verifier.records_read import parse_github_advisory
+        a = parse_github_advisory({"ghsa_id": "GHSA-x", "cvss_severities": {
+            "cvss_v3": {"vector_string": None, "score": 0.0}, "cvss_v4": {"vector_string": "", "score": 0.0}},
+            "cvss": {"vector_string": None, "score": None}})
+        self.assertEqual((a["cvss_v31_score"], a["cvss_v40_score"], a["cvss_entries"]), (None, None, []))
+
+    def test_wireshark_and_wolfssl_from_real_records(self):
+        r, v = self.lookups_and_build()
+        ws = v[WIRESHARK_ID]
+        self.assertEqual((ws["cvss_github_v31_score"], ws["cvss_github_v40_score"]), (3.1, None))
+        self.assertEqual(ws["severity_github"], "low")
+        # NVD shows two 3.1 entries: NVD's own (Primary) and GitLab's as CNA (Secondary). Both kept.
+        self.assertEqual((ws["cvss_nvd_v31_score"], ws["severity_nvd_v31"], ws["cvss_nvd_v31_source"]),
+                         (7.5, "HIGH", "nvd@nist.gov (Primary)"))
+        self.assertEqual(sorted((e["source"], e["score"]) for e in ws["cvss_nvd_entries"]),
+                         [("cve@gitlab.com", 3.1), ("nvd@nist.gov", 7.5)])
+        self.assertIsNone(ws["cvss_nvd_v40_score"])
+        wolf = v[WOLF_ID]
+        self.assertEqual((wolf["cvss_github_v31_score"], wolf["cvss_github_v40_score"]), (7.5, 6.3))
+        self.assertEqual((wolf["severity_nvd_v31"], wolf["severity_nvd_v40"]), ("HIGH", "MEDIUM"))
+        sev = r["tables"]["severity"]
+        self.assertEqual({x["source"] for x in sev},
+                         {"model", "firm", "maintainer", "github", "nvd_v31", "nvd_v40"})
+        self.assertEqual(r["summary"]["cvss_scores_present"],
+                         {"cvss_github_v31_score": 2, "cvss_github_v40_score": 1,
+                          "cvss_nvd_v31_score": 2, "cvss_nvd_v40_score": 1})
+
+    def test_no_cvss_column_ever_shows_zero_for_an_absent_score(self):
+        r, v = self.lookups_and_build()
+        for row in r["tables"]["verification"]:
+            for col in CVSS_COLUMNS:
+                val = row[col]
+                if val is None:
+                    continue
+                entries = row["cvss_github_entries"] if "github" in col else row["cvss_nvd_entries"]
+                version = "3.1" if "v31" in col else "4.0"
+                self.assertTrue(any(e["version"] == version and e["score"] == val and e["vector"] for e in entries),
+                                (row["finding_id"], col, val))
+        self.assertNotEqual(v[WIRESHARK_ID]["cvss_github_v40_score"], 0.0)
+        csv_text = (self.root / "data/verification.csv").read_text()
+        header = csv_text.splitlines()[0].split(",")
+        import csv as _csv
+        import io as _io
+        for rec in _csv.DictReader(_io.StringIO(csv_text)):
+            for col in CVSS_COLUMNS:
+                self.assertNotIn(rec[col], ("0.0", "0"), (rec["finding_id"], col))
+        for old in ("cvss_github_score", "cvss_github_version", "cvss_nvd_score", "cvss_nvd_version", "severity_nvd"):
+            self.assertNotIn(old, header)
 
 
 class Publishing(unittest.TestCase):

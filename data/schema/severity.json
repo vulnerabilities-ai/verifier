@@ -24,7 +24,7 @@
     {
       "name": "source",
       "type": "string",
-      "meaning": "model, firm, maintainer, github or nvd. Sources are never merged.",
+      "meaning": "model, firm, maintainer, github (GitHub's stated severity), nvd_v31 or nvd_v40 (the severity of NVD's CVSS 3.1 or 4.0 entry). Sources and CVSS versions are never merged.",
       "source_field": null,
       "label": null
     },

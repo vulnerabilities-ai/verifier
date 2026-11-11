@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/wireshark/wireshark",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-11T00:02:22Z",
+      "url": "https://api.github.com/repos/wireshark/wireshark",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-11T00:02:22Z",
+      "final_url": "https://api.github.com/repos/wireshark/wireshark",
+      "headers": {
+        "Date": "Wed, 11 Nov 2026 00:02:22 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"af1c9d5e5c24b43f1c53ff74d12160b090f214a6fb1349591ca2706f771733f4\"",
+        "Last-Modified": "Tue, 10 Nov 2026 23:03:06 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4999",
+        "X-RateLimit-Reset": "1794358942",
+        "X-RateLimit-Used": "1",
+        "X-GitHub-Request-Id": "E400:3B52B0:65C482:13D7F63:6AF3B08E"
+      },
+      "size_bytes": 6581,
+      "stored_at": "records/github/repos/wireshark/wireshark/repo/response.json",
+      "newly_stored": true,
+      "sha256": "e41dc21ebe9ad8bbc7de5354dacc2a1cb838833492dd670817a864db9e4cbfcb"
+    }
+  ]
+}

@@ -163,9 +163,18 @@ A finding whose fix was not checked (`not_checked`, including fixes not on GitHu
 
   The comparison is published only as counts "within" (at or under) and "above". It is descriptive only: no finding is ever labelled overdue or in violation.
 
+### CVSS scores: by version and by source
+
+CVSS scores are published per version and per source, never merged into one and never chosen between.
+- **GitHub.** `cvss_github_v31_score` and `cvss_github_v40_score` come from the advisory's `cvss_severities` (and `cvss`). `severity_github` is GitHub's own stated severity field, not derived from a score.
+- **NVD.** `cvss_nvd_v31_score` and `severity_nvd_v31`, and `cvss_nvd_v40_score` and `severity_nvd_v40`, come from the NVD record's metrics.
+  - An NVD record can hold more than one entry per version: NVD's own analysis ("Primary") and the reporting authority's score ("Secondary"). The version column shows NVD's own entry when there is one, otherwise the record's only entry for that version. If there are several Secondary entries and no Primary one, the column is empty. Its `_source` column names who gave it.
+  - **Every** entry (any version, including 3.0 or 2.0 if present) is kept in `cvss_nvd_entries`, and every GitHub entry in `cvss_github_entries`, so nothing is hidden.
+- **Absent means empty, never 0.0.** GitHub sends `{"vector_string": null, "score": 0.0}` for a version it has no score for. An object or entry without a vector string is a placeholder: it is absent, never a score of 0.0. A test checks that every published CVSS value has a matching entry with a vector string.
+
 ### R7: severity by source
 
-Model, firm and maintainer severities come from the card; GitHub and NVD severities come from R3. They are never merged. `data/severity.csv` is the monthly count matrix (month of reveal × source × severity).
+Model, firm and maintainer severities come from the card. GitHub's stated severity, and the severity of NVD's CVSS 3.1 and 4.0 entries, come from R3. They are never merged. `data/severity.csv` is the monthly count matrix (month of reveal × source × severity), with sources `model`, `firm`, `maintainer`, `github`, `nvd_v31` and `nvd_v40`.
 
 ### The weekly report and the wording guard
 

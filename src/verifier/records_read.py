@@ -221,21 +221,55 @@ def _cvss_version(vector: str | None) -> str | None:
     return m.group(1) if m else None
 
 
+# CVSS versions that have their own published columns. Any other version (for
+# example 3.0 or 2.0) is kept in the *_entries list, so nothing is hidden.
+COLUMN_VERSIONS = {"3.1": "v31", "4.0": "v40"}
+
+
+def _score(v):
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+def github_cvss_entries(d: dict) -> list[dict]:
+    """Every real CVSS entry in a GitHub advisory. An object without a vector
+    string is a placeholder (GitHub sends {"vector_string": null, "score": 0.0}
+    for a version it has no score for): it is absent, never a score of 0.0."""
+    out, seen = [], set()
+    sev_all = d.get("cvss_severities") if isinstance(d.get("cvss_severities"), dict) else {}
+    candidates = [(k, v) for k, v in sorted(sev_all.items())]
+    if isinstance(d.get("cvss"), dict):
+        candidates.append(("cvss", d["cvss"]))
+    for field, v in candidates:
+        if not isinstance(v, dict):
+            continue
+        vector = v.get("vector_string")
+        if not isinstance(vector, str) or not vector.strip():
+            continue  # placeholder: absent
+        version = _cvss_version(vector)
+        score = _score(v.get("score"))
+        if version is None or score is None or vector in seen:
+            continue
+        seen.add(vector)
+        out.append({"field": field, "version": version, "score": score, "vector": vector})
+    return out
+
+
+def by_version(entries: list[dict]) -> dict:
+    """{'v31': entry, 'v40': entry} for the column versions, one entry each."""
+    out = {}
+    for e in entries:
+        col = COLUMN_VERSIONS.get(e["version"])
+        if col and col not in out:
+            out[col] = e
+    return out
+
+
 def parse_github_advisory(d) -> dict:
     if not isinstance(d, dict):
         raise Unreadable(f"expected an advisory object, got {type(d).__name__}")
     ghsa = _get(d, "ghsa_id", types=str)
-    score = version = vector = None
-    sev_all = _get(d, "cvss_severities", required=False, types=dict) or {}
-    for key in ("cvss_v4", "cvss_v3"):
-        v = sev_all.get(key) if isinstance(sev_all.get(key), dict) else None
-        if v and v.get("score") is not None:
-            score, vector = v.get("score"), v.get("vector_string")
-            break
-    if score is None:
-        c = _get(d, "cvss", required=False, types=dict) or {}
-        score, vector = c.get("score"), c.get("vector_string")
-    version = _cvss_version(vector)
+    entries = github_cvss_entries(d)
+    cols = by_version(entries)
     cwes = [c.get("cwe_id") for c in (_get(d, "cwes", required=False, types=list) or [])
             if isinstance(c, dict) and c.get("cwe_id")]
     packages = []
@@ -254,11 +288,51 @@ def parse_github_advisory(d) -> dict:
         "status": "ok", "exists": True, "ghsa_id": ghsa, "cve_id": _get(d, "cve_id", required=False),
         "review_status": _get(d, "type", required=False),
         "published": _get(d, "published_at", required=False), "updated": _get(d, "updated_at", required=False),
-        "severity": _get(d, "severity", required=False),
-        "cvss_score": score, "cvss_version": version, "cwes": cwes, "packages": packages,
+        "severity": _get(d, "severity", required=False),  # GitHub's own stated severity
+        "cvss_v31_score": (cols.get("v31") or {}).get("score"),
+        "cvss_v40_score": (cols.get("v40") or {}).get("score"),
+        "cvss_entries": entries, "cwes": cwes, "packages": packages,
         "source_code_location": _get(d, "source_code_location", required=False),
         "references": [r for r in refs if r], "credits": credits,
     }
+
+
+def nvd_cvss_entries(metrics: dict) -> list[dict]:
+    """Every CVSS entry in an NVD record, each with its own source and type
+    (NVD's own analysis is "Primary"; a CNA's score shown by NVD is "Secondary").
+    An entry without a vector string or score is absent, never 0.0."""
+    out = []
+    for key in sorted(metrics):
+        lst = metrics.get(key)
+        if not isinstance(lst, list):
+            continue
+        for m in lst:
+            if not isinstance(m, dict) or not isinstance(m.get("cvssData"), dict):
+                continue
+            data = m["cvssData"]
+            vector = data.get("vectorString")
+            score = _score(data.get("baseScore"))
+            if not isinstance(vector, str) or not vector.strip() or score is None:
+                continue
+            out.append({"version": str(data.get("version") or _cvss_version(vector) or ""), "score": score,
+                        "severity": data.get("baseSeverity") or m.get("baseSeverity"),
+                        "source": m.get("source"), "type": m.get("type"), "vector": vector})
+    return out
+
+
+def nvd_by_version(entries: list[dict]) -> dict:
+    """Per column version: NVD's own (Primary) entry if the record has one; otherwise the
+    record's only entry for that version; if several Secondary entries and no Primary,
+    none (all stay in the entries list, so nothing is chosen between sources)."""
+    out = {}
+    for ver, col in COLUMN_VERSIONS.items():
+        same = [e for e in entries if e["version"] == ver]
+        primary = [e for e in same if e.get("type") == "Primary"]
+        if len(primary) == 1:
+            out[col] = primary[0]
+        elif len(same) == 1:
+            out[col] = same[0]
+    return out
 
 
 def parse_nvd(d, cve: str) -> dict:
@@ -272,20 +346,20 @@ def parse_nvd(d, cve: str) -> dict:
     if c.get("id") != cve:
         raise Unreadable(f"NVD returned {c.get('id')!r} instead of {cve}")
     metrics = c.get("metrics") if isinstance(c.get("metrics"), dict) else {}
-    score = version = sev = None
-    for key in ("cvssMetricV40", "cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
-        lst = metrics.get(key)
-        if isinstance(lst, list) and lst and isinstance(lst[0], dict):
-            data = lst[0].get("cvssData") if isinstance(lst[0].get("cvssData"), dict) else {}
-            score, version = data.get("baseScore"), data.get("version")
-            sev = data.get("baseSeverity") or lst[0].get("baseSeverity")
-            break
+    entries = nvd_cvss_entries(metrics)
+    cols = nvd_by_version(entries)
     cwes = []
     for w in c.get("weaknesses") or []:
         for desc in (w.get("description") or []) if isinstance(w, dict) else []:
             if isinstance(desc, dict) and str(desc.get("value", "")).startswith("CWE-"):
                 cwes.append(desc["value"])
-    return {"status": "ok", "exists": True, "published": c.get("published"),
-            "updated": c.get("lastModified"), "vuln_status": c.get("vulnStatus"),
-            "severity": sev, "cvss_score": score, "cvss_version": version, "cwes": sorted(set(cwes)),
-            "references": [r.get("url") for r in c.get("references") or [] if isinstance(r, dict)]}
+    out = {"status": "ok", "exists": True, "published": c.get("published"),
+           "updated": c.get("lastModified"), "vuln_status": c.get("vulnStatus"),
+           "cvss_entries": entries, "cwes": sorted(set(cwes)),
+           "references": [r.get("url") for r in c.get("references") or [] if isinstance(r, dict)]}
+    for col in COLUMN_VERSIONS.values():
+        e = cols.get(col) or {}
+        out[f"cvss_{col}_score"] = e.get("score")
+        out[f"severity_{col}"] = e.get("severity")
+        out[f"cvss_{col}_source"] = (f"{e.get('source')} ({e.get('type')})" if e else None)
+    return out

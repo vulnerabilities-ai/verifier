@@ -174,13 +174,30 @@ VERIFICATION_META = [
     ("severity_model", "string", "The program's model's rating, from the card.", "card: Claude severity", PUBLIC),
     ("severity_firm", "string", "The external firm's rating, from the card.", "card: security research firm", PUBLIC),
     ("severity_maintainer", "string", "The maintainer's rating, from the card.", "card: maintainer", PUBLIC),
-    ("severity_github", "string", "GitHub advisory severity, as the API gives it (GitHub's website shows 'medium' as "
-     "'Moderate').", "GitHub: severity", PUBLIC),
-    ("severity_nvd", "string", "NVD base severity.", "NVD: baseSeverity", PUBLIC),
-    ("cvss_github_score", "number", "CVSS score in the GitHub advisory.", "GitHub: cvss_severities / cvss", PUBLIC),
-    ("cvss_github_version", "string", "CVSS version of that score.", "GitHub: vector_string", PUBLIC),
-    ("cvss_nvd_score", "number", "CVSS base score in NVD.", "NVD: cvssData.baseScore", PUBLIC),
-    ("cvss_nvd_version", "string", "CVSS version of that score.", "NVD: cvssData.version", PUBLIC),
+    ("severity_github", "string", "GitHub's own stated severity for the advisory, as the API gives it (GitHub's "
+     "website shows 'medium' as 'Moderate'). Not derived from any CVSS score.", "GitHub: severity", PUBLIC),
+    ("cvss_github_v31_score", "number", "CVSS 3.1 score in the GitHub advisory. Empty when GitHub has none "
+     "(an object with no vector string is a placeholder and counts as absent, never 0.0).",
+     "GitHub: cvss_severities.cvss_v3 / cvss", PUBLIC),
+    ("cvss_github_v40_score", "number", "CVSS 4.0 score in the GitHub advisory. Empty when absent, never 0.0.",
+     "GitHub: cvss_severities.cvss_v4", PUBLIC),
+    ("cvss_github_entries", "list", "Every CVSS entry in the GitHub advisory that has a vector string: field, "
+     "version, score and vector. Placeholders are left out.", "GitHub: cvss_severities, cvss", PUBLIC),
+    ("cvss_nvd_v31_score", "number", "CVSS 3.1 base score in the NVD record: NVD's own (Primary) entry if the record "
+     "has one, otherwise the record's only 3.1 entry. Empty when absent, never 0.0. All entries are in "
+     "cvss_nvd_entries.", "NVD: metrics.cvssMetricV31[].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_v31", "string", "The base severity of that CVSS 3.1 entry, as NVD gives it.",
+     "NVD: cvssMetricV31[].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_v31_source", "string", "Who gave that CVSS 3.1 entry, and NVD's type for it (Primary or Secondary).",
+     "NVD: cvssMetricV31[].source, type", PUBLIC),
+    ("cvss_nvd_v40_score", "number", "CVSS 4.0 base score in the NVD record, chosen the same way as 3.1. "
+     "Empty when absent, never 0.0.", "NVD: metrics.cvssMetricV40[].cvssData.baseScore", PUBLIC),
+    ("severity_nvd_v40", "string", "The base severity of that CVSS 4.0 entry, as NVD gives it.",
+     "NVD: cvssMetricV40[].cvssData.baseSeverity", PUBLIC),
+    ("cvss_nvd_v40_source", "string", "Who gave that CVSS 4.0 entry, and NVD's type for it.",
+     "NVD: cvssMetricV40[].source, type", PUBLIC),
+    ("cvss_nvd_entries", "list", "Every CVSS entry in the NVD record (any version, including 3.0 or 2.0 if present): "
+     "version, score, severity, source, type and vector.", "NVD: metrics", PUBLIC),
     ("cwe_github", "list", "CWE IDs in the GitHub advisory.", "GitHub: cwes", PUBLIC),
     ("cwe_nvd", "list", "CWE IDs in NVD.", "NVD: weaknesses", PUBLIC),
     ("advisory_review_status", "string", "GitHub's review status for the advisory (reviewed or unreviewed).", "GitHub: type", PUBLIC),
@@ -205,7 +222,8 @@ VERIFICATION_META = [
 SEVERITY_META = [
     _PROGRAM,
     ("month", "string", "Month of the card's reveal date (YYYY-MM).", "finding card timeline", LR),
-    ("source", "string", "model, firm, maintainer, github or nvd. Sources are never merged.", None, None),
+    ("source", "string", "model, firm, maintainer, github (GitHub's stated severity), nvd_v31 or nvd_v40 (the "
+     "severity of NVD's CVSS 3.1 or 4.0 entry). Sources and CVSS versions are never merged.", None, None),
     ("severity", "string", "The source's own rating, lower-cased; not_available when that source has none.", None, PUBLIC),
     ("count", "integer", "Number of revealed findings.", None, IV),
 ]
@@ -259,6 +277,8 @@ SUMMARY_FIELDS = [
     ("fix_merged", "object", "Verification rows per fix_merged value."),
     ("ids_exist", "object", "Verification rows per ids_exist value."),
     ("lookups", "object", "Verification rows per lookup_status (no_identifiers is counted separately from ok)."),
+    ("cvss_scores_present", "object", "For each CVSS column, how many findings have a score (absent scores are "
+     "empty, never 0.0)."),
     ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "
      "patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts "
      "within (at or under) and above. Descriptive only."),
