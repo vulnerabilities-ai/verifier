@@ -213,43 +213,106 @@
     {
       "name": "severity_github",
       "type": "string",
-      "meaning": "GitHub advisory severity, as the API gives it (GitHub's website shows 'medium' as 'Moderate').",
+      "meaning": "GitHub's own stated severity for the advisory, as the API gives it (GitHub's website shows 'medium' as 'Moderate'). Not derived from any CVSS score.",
       "source_field": "GitHub: severity",
       "label": "Each source's own"
     },
     {
-      "name": "severity_nvd",
-      "type": "string",
-      "meaning": "NVD base severity.",
-      "source_field": "NVD: baseSeverity",
-      "label": "Each source's own"
-    },
-    {
-      "name": "cvss_github_score",
+      "name": "cvss_github_v31_score",
       "type": "number",
-      "meaning": "CVSS score in the GitHub advisory.",
-      "source_field": "GitHub: cvss_severities / cvss",
+      "meaning": "CVSS 3.1 score in the GitHub advisory. Empty when GitHub has none (an object with no vector string is a placeholder and counts as absent, never 0.0).",
+      "source_field": "GitHub: cvss_severities.cvss_v3 / cvss",
       "label": "Each source's own"
     },
     {
-      "name": "cvss_github_version",
-      "type": "string",
-      "meaning": "CVSS version of that score.",
-      "source_field": "GitHub: vector_string",
-      "label": "Each source's own"
-    },
-    {
-      "name": "cvss_nvd_score",
+      "name": "cvss_github_v40_score",
       "type": "number",
-      "meaning": "CVSS base score in NVD.",
-      "source_field": "NVD: cvssData.baseScore",
+      "meaning": "CVSS 4.0 score in the GitHub advisory. Empty when absent, never 0.0.",
+      "source_field": "GitHub: cvss_severities.cvss_v4",
       "label": "Each source's own"
     },
     {
-      "name": "cvss_nvd_version",
+      "name": "cvss_github_entries",
+      "type": "list",
+      "meaning": "Every CVSS entry in the GitHub advisory that has a vector string: field, version, score and vector. Placeholders are left out.",
+      "source_field": "GitHub: cvss_severities, cvss",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_primary_v31_score",
+      "type": "number",
+      "meaning": "NIST's own CVSS 3.1 base score in the NVD record (type Primary, source nvd@nist.gov). Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV31[type=Primary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_primary_v31",
       "type": "string",
-      "meaning": "CVSS version of that score.",
-      "source_field": "NVD: cvssData.version",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV31[type=Primary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_primary_v40_score",
+      "type": "number",
+      "meaning": "NIST's own CVSS 4.0 base score in the NVD record. Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV40[type=Primary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_primary_v40",
+      "type": "string",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV40[type=Primary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v31_score",
+      "type": "number",
+      "meaning": "The reporting authority's CVSS 3.1 base score as shown in the NVD record (type Secondary). Filled only when exactly one Secondary entry exists for 3.1; if there are several, empty (all are in cvss_nvd_entries). Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_cna_v31",
+      "type": "string",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v31_source",
+      "type": "string",
+      "meaning": "Who gave that entry (the reporting authority's identifier in NVD).",
+      "source_field": "NVD: cvssMetricV31[type=Secondary].source",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v40_score",
+      "type": "number",
+      "meaning": "The reporting authority's CVSS 4.0 base score as shown in the NVD record, under the same rule as 3.1. Empty when absent, never 0.0.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].cvssData.baseScore",
+      "label": "Each source's own"
+    },
+    {
+      "name": "severity_nvd_cna_v40",
+      "type": "string",
+      "meaning": "Its base severity, as NVD gives it.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].cvssData.baseSeverity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_cna_v40_source",
+      "type": "string",
+      "meaning": "Who gave that entry.",
+      "source_field": "NVD: cvssMetricV40[type=Secondary].source",
+      "label": "Each source's own"
+    },
+    {
+      "name": "cvss_nvd_entries",
+      "type": "list",
+      "meaning": "Every CVSS entry in the NVD record (any version, including 3.0 or 2.0 if present): version, score, severity, source, type and vector.",
+      "source_field": "NVD: metrics",
       "label": "Each source's own"
     },
     {

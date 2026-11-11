@@ -35,8 +35,13 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | `nvd_published` | Date NVD published the record. | `2026-06-25` |
 | `fix_merged` | `yes`, `no`, `not_checked` (not on GitHub, or not looked up yet), `not_applicable`, `rate_limited` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
 | `fix_merge_base` | The branch the fix's pull request was merged into. | `master` |
-| `cvss_github_score`, `cvss_github_version` | The GitHub advisory's CVSS score and version. | `6.3`, `3.1` |
-| `cvss_nvd_score`, `cvss_nvd_version` | NVD's CVSS base score and version. | |
+| `cvss_github_v31_score`, `cvss_github_v40_score` | The GitHub advisory's CVSS 3.1 and 4.0 scores. **Empty when GitHub has none, never 0.0.** | `7.5`, `6.3` |
+| `cvss_github_entries` | Every CVSS entry in the GitHub advisory with a vector string (field, version, score, vector). | |
+| `cvss_nvd_primary_v31_score`, `severity_nvd_primary_v31` | NIST's own CVSS 3.1 score and severity in the NVD record (type Primary, source `nvd@nist.gov`). | `7.5`, `HIGH` |
+| `cvss_nvd_primary_v40_score`, `severity_nvd_primary_v40` | NIST's own CVSS 4.0 score and severity. | (empty for wolfSSL) |
+| `cvss_nvd_cna_v31_score`, `severity_nvd_cna_v31`, `cvss_nvd_cna_v31_source` | The reporting authority's CVSS 3.1 score, severity and identifier as shown in the NVD record (type Secondary). Filled only when exactly one such entry exists; if several, empty (all are in `cvss_nvd_entries`). | `3.1`, `LOW`, `cve@gitlab.com` (Wireshark) |
+| `cvss_nvd_cna_v40_score`, `severity_nvd_cna_v40`, `cvss_nvd_cna_v40_source` | The same for CVSS 4.0. | `6.3`, `MEDIUM`, `facts@wolfssl.com` (wolfSSL) |
+| `cvss_nvd_entries` | Every CVSS entry in the NVD record, any version (including 3.0 or 2.0 if present), each with score, severity, source and type. | |
 | `cwe_github`, `cwe_nvd` | CWE IDs from each source (lists). | `["CWE-125"]` |
 | `advisory_review_status` | GitHub's `reviewed` or `unreviewed`. | `unreviewed` |
 | `advisory_packages` | Packages the GitHub advisory names, as `ecosystem:name`. | |
@@ -55,6 +60,24 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 
   A finding whose fix was not checked is never fully checked. This drives "N of 237 fully checked", which is 0 of 237 until the first real lookups.
 
+### CVSS columns: old names and new names
+
+The first version of this file had one CVSS score per source. It is replaced by one column per CVSS version, because a single column hid the other version: wolfSSL has both 4.0 (6.3, medium) and 3.1 (7.5; NVD says HIGH).
+
+| Old column (removed) | New columns |
+| --- | --- |
+| `cvss_github_score` + `cvss_github_version` | `cvss_github_v31_score`, `cvss_github_v40_score` (the version is in the name), plus `cvss_github_entries` |
+| `cvss_nvd_score` + `cvss_nvd_version` | NIST's own: `cvss_nvd_primary_v31_score`, `cvss_nvd_primary_v40_score`. Reporting authority's: `cvss_nvd_cna_v31_score`, `cvss_nvd_cna_v40_score`, with `cvss_nvd_cna_v31_source` and `cvss_nvd_cna_v40_source`. Plus `cvss_nvd_entries` |
+| `severity_nvd` | `severity_nvd_primary_v31`, `severity_nvd_primary_v40`, `severity_nvd_cna_v31`, `severity_nvd_cna_v40` |
+| `cvss_nvd_v31_score`, `cvss_nvd_v40_score`, `severity_nvd_v31`, `severity_nvd_v40`, `cvss_nvd_v31_source`, `cvss_nvd_v40_source` (only in the first draft of this change, never merged) | replaced by the primary and cna columns above, so that no entry is chosen over another |
+| `severity_github` | unchanged: GitHub's own stated severity |
+| severity file `source` = `nvd` | `nvd_primary_v31`, `nvd_primary_v40`, `nvd_cna_v31`, `nvd_cna_v40` |
+
+**Page guidance:**
+- Show each version and source separately. Never pick one score as "the" score, and never average.
+- An empty value means the source has no score for that version. Show a dash, never 0.0.
+- Label NVD scores by who gave them: "NIST (NVD)" for the primary columns, and the reporting authority named in the `_source` column for the cna columns. Show them side by side, never as one score.
+
 ## 3. severity (new file)
 
 There is one row per month of reveal, source and severity: the R7 count matrix.
@@ -63,7 +86,7 @@ There is one row per month of reveal, source and severity: the R7 count matrix.
 | --- | --- | --- |
 | `program` | As everywhere. | `anthropic-cvd` |
 | `month` | Month of the card's reveal date. | `2026-08` |
-| `source` | `model`, `firm`, `maintainer`, `github` or `nvd`. | `maintainer` |
+| `source` | `model`, `firm`, `maintainer`, `github` (GitHub's stated severity), `nvd_primary_v31` or `nvd_primary_v40` (NIST's own CVSS entry in NVD), `nvd_cna_v31` or `nvd_cna_v40` (the reporting authority's entry in NVD). | `maintainer` |
 | `severity` | That source's own rating, lower-cased. `not_available` when the source has none. | `low` |
 | `count` | Revealed findings. | `12` |
 
@@ -89,6 +112,7 @@ This file has the R-B fields. Additions and clarifications:
 | `fixed_itemized_share_of_patched_claimed_pct` | fixed_itemized ÷ patched_lab_count × 100. | `34.5` |
 | `fixed_itemized_share_of_reported_pct` | fixed_itemized ÷ reported_total × 100. | `4.27` |
 | `checked_n`, `checked_of` | Fully checked findings, and all revealed findings. Fully checked means: hash check conclusive (match, mismatch or preimage_withheld), identifiers confirmed or none, and fix_merged `yes` or `no`. | `0`, `237` |
+| `cvss_scores_present` | For each CVSS column, how many findings have a score. Absent scores are empty, never 0.0. | |
 | `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. `lookups` counts `no_identifiers` separately from `ok`. | |
 | `interval_comparisons` | For each interval, the reference in days, the rows with both dates, and counts `within` (at or under) and `above` the reference. | |
 | `policy_source` | Our dated copy of the policy page the references come from. | |

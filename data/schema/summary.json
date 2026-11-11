@@ -259,6 +259,13 @@
       "label": null
     },
     {
+      "name": "cvss_scores_present",
+      "type": "object",
+      "meaning": "For each CVSS column, how many findings have a score (absent scores are empty, never 0.0).",
+      "source_field": null,
+      "label": null
+    },
+    {
       "name": "interval_comparisons",
       "type": "object",
       "meaning": "For each interval: the reference in days (90 report-to-patch and 45 patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts within (at or under) and above. Descriptive only.",

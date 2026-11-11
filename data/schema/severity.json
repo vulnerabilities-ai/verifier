@@ -24,7 +24,7 @@
     {
       "name": "source",
       "type": "string",
-      "meaning": "model, firm, maintainer, github or nvd. Sources are never merged.",
+      "meaning": "model, firm, maintainer, github (GitHub's stated severity), nvd_primary_v31, nvd_primary_v40 (NIST's own CVSS entry in NVD), nvd_cna_v31 or nvd_cna_v40 (the reporting authority's entry in NVD). Sources and CVSS versions are never merged.",
       "source_field": null,
       "label": null
     },

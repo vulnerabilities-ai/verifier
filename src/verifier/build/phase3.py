@@ -26,7 +26,15 @@ LABELS = {
     "label_severity": "Each source's own",
 }
 POLICY = {"days_report_to_patch": 90, "days_patch_to_reveal": 45, "days_report_to_reveal": 135}
-SEVERITY_SOURCES = ("model", "firm", "maintainer", "github", "nvd")
+# severity file source -> verification column (each source and CVSS version kept apart)
+SEVERITY_COLUMNS = {"model": "severity_model", "firm": "severity_firm", "maintainer": "severity_maintainer",
+                    "github": "severity_github",
+                    "nvd_primary_v31": "severity_nvd_primary_v31", "nvd_primary_v40": "severity_nvd_primary_v40",
+                    "nvd_cna_v31": "severity_nvd_cna_v31", "nvd_cna_v40": "severity_nvd_cna_v40"}
+SEVERITY_SOURCES = tuple(SEVERITY_COLUMNS)
+CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score",
+                "cvss_nvd_primary_v31_score", "cvss_nvd_primary_v40_score",
+                "cvss_nvd_cna_v31_score", "cvss_nvd_cna_v40_score")
 _CVE = re.compile(r"CVE-\d{4}-\d{4,}")
 _GHSA = re.compile(r"GHSA(?:-[23456789cfghjmpqrvwx]{4}){3}")
 
@@ -160,11 +168,23 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "days_report_to_reveal": days(report, reveal), "days_report_to_merge": days(report, merged_at),
             "severity_model": sev.get("model"), "severity_firm": sev.get("firm"),
             "severity_maintainer": sev.get("maintainer"),
-            "severity_github": (gh_first or {}).get("severity"), "severity_nvd": (nvd_first or {}).get("severity"),
-            "cvss_github_score": (gh_first or {}).get("cvss_score"),
-            "cvss_github_version": (gh_first or {}).get("cvss_version"),
-            "cvss_nvd_score": (nvd_first or {}).get("cvss_score"),
-            "cvss_nvd_version": (nvd_first or {}).get("cvss_version"),
+            "severity_github": (gh_first or {}).get("severity"),
+            # CVSS by version and source: never merged, never chosen between; absent means empty.
+            "cvss_github_v31_score": (gh_first or {}).get("cvss_v31_score"),
+            "cvss_github_v40_score": (gh_first or {}).get("cvss_v40_score"),
+            "cvss_github_entries": (gh_first or {}).get("cvss_entries") or [],
+            # NIST's own entry (Primary, nvd@nist.gov) and the reporting authority's (Secondary), apart.
+            "cvss_nvd_primary_v31_score": (nvd_first or {}).get("cvss_primary_v31_score"),
+            "severity_nvd_primary_v31": (nvd_first or {}).get("severity_primary_v31"),
+            "cvss_nvd_primary_v40_score": (nvd_first or {}).get("cvss_primary_v40_score"),
+            "severity_nvd_primary_v40": (nvd_first or {}).get("severity_primary_v40"),
+            "cvss_nvd_cna_v31_score": (nvd_first or {}).get("cvss_cna_v31_score"),
+            "severity_nvd_cna_v31": (nvd_first or {}).get("severity_cna_v31"),
+            "cvss_nvd_cna_v31_source": (nvd_first or {}).get("cvss_cna_v31_source"),
+            "cvss_nvd_cna_v40_score": (nvd_first or {}).get("cvss_cna_v40_score"),
+            "severity_nvd_cna_v40": (nvd_first or {}).get("severity_cna_v40"),
+            "cvss_nvd_cna_v40_source": (nvd_first or {}).get("cvss_cna_v40_source"),
+            "cvss_nvd_entries": (nvd_first or {}).get("cvss_entries") or [],
             "cwe_github": sorted({c for a in gh_adv for c in a.get("cwes", [])}),
             "cwe_nvd": sorted({c for n in nvd_rec for c in n.get("cwes", [])}),
             "advisory_review_status": (gh_first or {}).get("review_status"),
@@ -212,7 +232,7 @@ def severity_rows(ver: list[dict]) -> list[dict]:
     for r in ver:
         month = (r.get("reveal_date") or "")[:7] or None
         for src in SEVERITY_SOURCES:
-            val = r.get(f"severity_{src}")
+            val = r.get(SEVERITY_COLUMNS[src])
             c[(month, src, (val.lower() if isinstance(val, str) and val else "not_available"))] += 1
     rows = [{"program": PROGRAM, "month": m, "source": s, "severity": sev, "count": n}
             for (m, s, sev), n in c.items()]
@@ -270,6 +290,7 @@ def summary_row(snapshots: list[dict], commitments: list[dict], gaps: list[dict]
         "fix_merged": dict(sorted(Counter(r["fix_merged"] for r in ver).items())),
         "ids_exist": dict(sorted(Counter(r["ids_exist"] for r in ver).items())),
         "lookups": dict(sorted(Counter(r["lookup_status"] for r in ver).items())),
+        "cvss_scores_present": {c: sum(1 for r in ver if r.get(c) is not None) for c in CVSS_COLUMNS},
         "interval_comparisons": intervals, "policy_source": policy_source,
         "archive_began": MANUAL_DAY,
     }

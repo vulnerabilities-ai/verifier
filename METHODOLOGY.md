@@ -163,9 +163,19 @@ A finding whose fix was not checked (`not_checked`, including fixes not on GitHu
 
   The comparison is published only as counts "within" (at or under) and "above". It is descriptive only: no finding is ever labelled overdue or in violation.
 
+### CVSS scores: by version and by source
+
+CVSS scores are published per version and per source, never merged into one and never chosen between.
+- **GitHub.** `cvss_github_v31_score` and `cvss_github_v40_score` come from the advisory's `cvss_severities` (and `cvss`). `severity_github` is GitHub's own stated severity field, not derived from a score.
+- **NVD.** An NVD record can hold more than one entry per version: NIST's own analysis (type Primary, source `nvd@nist.gov`) and the reporting authority's score (type Secondary). They are published in separate columns, so nothing is chosen between them:
+  - **NIST's own:** `cvss_nvd_primary_v31_score` and `severity_nvd_primary_v31`, and `cvss_nvd_primary_v40_score` and `severity_nvd_primary_v40`.
+  - **The reporting authority's:** `cvss_nvd_cna_v31_score`, `severity_nvd_cna_v31` and `cvss_nvd_cna_v31_source`, and the same for 4.0. A reporting-authority column is filled only when exactly one Secondary entry exists for that version. If there are several, it stays empty.
+  - **Every** entry (any version, including 3.0 or 2.0 if present) is kept in `cvss_nvd_entries`, and every GitHub entry in `cvss_github_entries`, so nothing is hidden.
+- **Absent means empty, never 0.0.** GitHub sends `{"vector_string": null, "score": 0.0}` for a version it has no score for. An object or entry without a vector string is a placeholder: it is absent, never a score of 0.0. A test checks that every published CVSS value has a matching entry with a vector string.
+
 ### R7: severity by source
 
-Model, firm and maintainer severities come from the card; GitHub and NVD severities come from R3. They are never merged. `data/severity.csv` is the monthly count matrix (month of reveal × source × severity).
+Model, firm and maintainer severities come from the card. GitHub's stated severity, and the severities of NIST's own and the reporting authority's CVSS 3.1 and 4.0 entries in NVD, come from R3. They are never merged. `data/severity.csv` is the monthly count matrix (month of reveal × source × severity), with sources `model`, `firm`, `maintainer`, `github`, `nvd_primary_v31`, `nvd_primary_v40`, `nvd_cna_v31` and `nvd_cna_v40`.
 
 ### The weekly report and the wording guard
 
