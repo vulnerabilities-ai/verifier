@@ -163,9 +163,22 @@ def parse_card(card: bytes) -> dict:
             "nvd": sorted({u for u in all_links if "nvd.nist.gov" in u}),
             "ghsa": sorted({u for u in all_links if "github.com/advisories/" in u}),
         },
+        "outside_links": outside_links(all_links),
         "missing_parts": missing,
         "withheld_statement": withheld_statement(card),
     }
+
+
+def outside_links(links: list[str]) -> list[str]:
+    """Every http(s) link on the card that leaves the program's own site (anthropic.com)."""
+    from urllib.parse import urlsplit
+    out = set()
+    for u in links:
+        host = urlsplit(u).hostname or ""
+        if host == "anthropic.com" or host.endswith(".anthropic.com"):
+            continue
+        out.add(u)
+    return sorted(out)
 
 
 def withheld_statement(card: bytes) -> str | None:

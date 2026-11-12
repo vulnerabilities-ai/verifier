@@ -24,6 +24,20 @@ REAL_404 = (DIAG / "advisories-unauthenticated/GHSA-85fq-fc5f-7j7g/response.json
 JETTY = (DIAG / "repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g/response.json").read_bytes()
 FREERDP = (DIAG / "repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v/response.json").read_bytes()
 REPO_403 = (DIAG / "repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f/response.json").read_bytes()
+
+
+def synthetic(name: str) -> tuple[int, bytes]:
+    """A SYNTHETIC response from tests/fixtures/synthetic/ (invented for tests, not captured)."""
+    f = json.loads((ROOT / "tests/fixtures/synthetic" / name).read_text(encoding="utf-8"))
+    assert name.startswith("SYNTHETIC-") and f["_note"].startswith("SYNTHETIC")
+    return f["status"], json.dumps(f["body"]).encode("utf-8")
+
+
+# SYNTHETIC: GitHub's answers WITHOUT the token for these two repository advisories were never
+# requested in the diagnose_403 run, so these two responses are invented (kept apart from the
+# real captured fixtures, in tests/fixtures/synthetic/).
+SYNTHETIC_HERMES_NO_TOKEN = synthetic("SYNTHETIC-facebook-hermes-repo-advisory-no-token-404.json")
+SYNTHETIC_PHP_NO_TOKEN = synthetic("SYNTHETIC-php-src-repo-advisory-no-token-403.json")
 H = {"Content-Type": "application/json", "X-RateLimit-Remaining": "4800", "X-RateLimit-Reset": "0"}
 UH = {"Content-Type": "application/json", "X-RateLimit-Remaining": "58", "X-RateLimit-Reset": "0"}
 
@@ -56,17 +70,17 @@ class RepoAdvisories(Phase3Case):
         self.gh.routes["/repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g"] = (200, JETTY, H)
         self.gh.routes["/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v"] = (200, FREERDP, H)
 
-        def hermes(req):  # real 403 with the token; without the token (not in the run): 404
+        def hermes(req):  # with the token: the REAL 403; without it: the SYNTHETIC 404
             if "Authorization" in req.headers:
                 return (403, REPO_403, H)
             self.unauth_paths.append(req.path)
-            return (404, REAL_404, UH)
+            return (*SYNTHETIC_HERMES_NO_TOKEN, UH)
 
-        def php(req):  # real 403 with the token; without the token (not in the run): 403 again
+        def php(req):  # with the token: the REAL 403; without it: the SYNTHETIC 403
             if "Authorization" in req.headers:
                 return (403, REPO_403, H)
             self.unauth_paths.append(req.path)
-            return (403, b'{"message": "Must have admin rights to Repository."}', UH)
+            return (*SYNTHETIC_PHP_NO_TOKEN, UH)
         self.gh.routes["/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f"] = hermes
         self.gh.routes["/repos/php/php-src/security-advisories/GHSA-mh9x-w77w-65xw"] = php
 
@@ -158,6 +172,19 @@ class RepoAdvisories(Phase3Case):
         run_lookups(self.root, findings(), rf)
         rr = RecordReader(self.root)
         self.assertTrue(all(rr.github_advisory(g)["status"] == "not_in_global_database" for g, _ in FINDINGS.values()))
+
+    def test_synthetic_fixtures_are_labelled_and_apart(self):
+        syn = ROOT / "tests/fixtures/synthetic"
+        files = sorted(f.name for f in syn.glob("*.json"))
+        self.assertEqual(files, ["SYNTHETIC-facebook-hermes-repo-advisory-no-token-404.json",
+                                 "SYNTHETIC-php-src-repo-advisory-no-token-403.json"])
+        for name in files:
+            self.assertIn("not captured", json.loads((syn / name).read_text())["_note"])
+        self.assertIn("invented for tests", (syn / "README.md").read_text())
+        # no SYNTHETIC file among the real captured fixtures, and none outside its folder
+        for f in (ROOT / "tests/fixtures").rglob("*"):
+            if "SYNTHETIC" in f.name:
+                self.assertEqual(f.parent, syn, f)
 
     def test_only_api_github_used(self):
         self.assertEqual(config.GITHUB_API, "https://api.github.com")

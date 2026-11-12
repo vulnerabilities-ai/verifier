@@ -165,6 +165,14 @@ VERIFICATION_META = [
     ("nvd_published", "date", "Publication date of the NVD record.", "NVD: published", PUBLIC),
     ("fix_merged", "string", "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not "
      "looked up yet), not_applicable, rate_limited, github_refused_token or lookup_unreadable.", None, IV),
+    ("fix_check_reason", "string", "Only when fix_merged is not_checked: the plain reason, read from the finding "
+     "card. One of: 'the card links no fix commit or pull request (the card has no outside links)'; '... (its only "
+     "outside links are NVD records)'; 'the card's links are not GitHub commits or pull requests (it links GitHub, "
+     "but not to a commit or pull request)'; 'the card's fix link is not on GitHub'; 'the card's links are not "
+     "GitHub commits or pull requests'; 'the card links a GitHub fix, which has not been looked up yet'; 'no copy "
+     "of the finding card is available'; 'the card's links were not recorded when it was read'. Empty for every "
+     "other fix_merged value. Fix commits are never inferred from advisories or NVD references.",
+     "finding card links", None),
     ("fix_merged_at", "time", "Merge time of the fix (from the merged pull request).", "GitHub: merged_at", IV),
     ("fix_url", "string", "The fix pull request or commit.", None, None),
     ("fix_merge_base", "string", "The branch the pull request was merged into.", "GitHub: base.ref", IV),
@@ -317,6 +325,8 @@ SUMMARY_FIELDS = [
     ("lookups", "object", "Verification rows per lookup_status (no_identifiers is counted separately from ok)."),
     ("ghsa_ids", "object", "GHSA IDs on revealed findings: total, per global-database status (exists, "
      "not_in_global_database, ...), and per repository-advisory status for those looked up there."),
+    ("fix_check_reasons", "object", "For findings whose fix_merged is not_checked: how many have each "
+     "fix_check_reason."),
     ("cvss_scores_present", "object", "For each CVSS column, how many findings have a score (absent scores are "
      "empty, never 0.0)."),
     ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "

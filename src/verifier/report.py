@@ -84,6 +84,9 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
          f"- Identifiers found in public records: " + ", ".join(f"{k} {v}" for k, v in summary["ids_exist"].items()) + ".",
          ghsa_line(summary),
          f"- Fix merged into the default branch: " + ", ".join(f"{k} {v}" for k, v in summary["fix_merged"].items()) + ".",
+         *([f"- Fixes not checked, by reason (read from the card): "
+            + "; ".join(f"{v}: {k}" for k, v in summary["fix_check_reasons"].items()) + "."]
+           if summary.get("fix_check_reasons") else []),
          f"- Internet Archive copies identical to ours after decompression: {len(same)}"
          + (f" ({'; '.join(same[:10])}{'; ...' if len(same) > 10 else ''})" if same else "") + ".",
          f"- Fully checked: {summary['checked_n']} of {summary['checked_of']}. A finding is fully checked when "

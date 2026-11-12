@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from .. import config
-from ..records import card_repository
+from ..records import card_repository, fix_targets
 from ..records_read import RecordReader
 from .sources import MANUAL_DAY
 
@@ -159,6 +159,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             notes.append(f"Fix: {fix['note'].strip()}.")
         if fix.get("address"):
             notes.append(f"Fix address (not on GitHub, not checked): {fix['address']}.")
+        reason = fix_check_reason(v, inp, fix["fix_merged"])
 
         # Differences recorded without judgement
         gh_first = sorted(gh_adv, key=lambda a: a.get("published") or "")[0] if gh_adv else None
@@ -183,6 +184,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "advisory_published": (gh_first or {}).get("published", "")[:10] or None,
             "nvd_published": (nvd_first or {}).get("published", "")[:10] or None,
             "fix_merged": fix["fix_merged"], "fix_merged_at": merged_at, "fix_url": fix.get("fix_url"),
+            "fix_check_reason": reason[1] if reason else None,
             "fix_merge_base": fix.get("merge_base"),
             "report_date": report, "patch_released_date": patch, "reveal_date": reveal,
             "discovered_or_logged_date": dates.get("discovered_or_logged_date"),
@@ -231,6 +233,52 @@ FIX_CONCLUSIVE = frozenset({"yes", "no"})
 
 def fully_checked(hash_check: str, ids_exist: str, fix_merged: str) -> bool:
     return hash_check in FINAL_HASH and ids_exist in IDS_CONCLUSIVE and fix_merged in FIX_CONCLUSIVE
+
+
+# Why a fix could not be checked (fix_merged = not_checked): read from the card only.
+# Fix commits are never inferred from advisories or NVD references here.
+FIX_CHECK_REASONS = {
+    "no_card": "no copy of the finding card is available",
+    "no_outside_links": "the card links no fix commit or pull request (the card has no outside links)",
+    "only_nvd_links": "the card links no fix commit or pull request (its only outside links are NVD records)",
+    "github_not_commit_or_pull": "the card's links are not GitHub commits or pull requests (it links GitHub, "
+                                 "but not to a commit or pull request)",
+    "fix_not_on_github": "the card's fix link is not on GitHub",  # its fix section links another host
+    "other_links": "the card's links are not GitHub commits or pull requests",
+    "not_looked_up_yet": "the card links a GitHub fix, which has not been looked up yet",
+    "links_not_recorded": "the card's links were not recorded when it was read",
+}
+
+
+def fix_check_reason(v: dict | None, inp: dict, fix_merged: str) -> tuple[str, str] | None:
+    """(code, plain reason) when fix_merged is not_checked; None otherwise."""
+    if fix_merged != "not_checked":
+        return None
+    facts = (v or {}).get("card_facts")
+    if not facts:
+        return "no_card", FIX_CHECK_REASONS["no_card"]
+    t = fix_targets(inp.get("fix_links", []), inp.get("advisory_links", []))
+    if t["commit"] or t["pull"]:
+        return "not_looked_up_yet", FIX_CHECK_REASONS["not_looked_up_yet"]
+    links = facts.get("outside_links")
+    if links is None:  # the build re-reads every stored card, so this only happens with hand-made files
+        return "links_not_recorded", FIX_CHECK_REASONS["links_not_recorded"]
+    if not links:
+        return "no_outside_links", FIX_CHECK_REASONS["no_outside_links"]
+    hosts = {_host(u) for u in links}
+    if hosts == {"nvd.nist.gov"}:
+        return "only_nvd_links", FIX_CHECK_REASONS["only_nvd_links"]
+    if "github.com" in hosts:  # e.g. a release tag, a repository advisory or the repository itself
+        return "github_not_commit_or_pull", FIX_CHECK_REASONS["github_not_commit_or_pull"]
+    if any(_host(u) not in ("github.com", "nvd.nist.gov") for u in t["not_on_github"]):
+        return "fix_not_on_github", FIX_CHECK_REASONS["fix_not_on_github"]
+    return "other_links", FIX_CHECK_REASONS["other_links"]
+
+
+def _host(url: str) -> str:
+    from urllib.parse import urlsplit
+    h = (urlsplit(url).hostname or "").lower()
+    return h[4:] if h.startswith("www.") else h
 
 
 def _repo_columns(repo_adv: list[dict]) -> dict:
@@ -333,6 +381,8 @@ def summary_row(snapshots: list[dict], commitments: list[dict], gaps: list[dict]
         "lookups": dict(sorted(Counter(r["lookup_status"] for r in ver).items())),
         "cvss_scores_present": {c: sum(1 for r in ver if r.get(c) is not None) for c in CVSS_COLUMNS},
         "ghsa_ids": _ghsa_counts(ver),
+        "fix_check_reasons": dict(sorted(Counter(r["fix_check_reason"] for r in ver
+                                                 if r.get("fix_check_reason")).items())),
         "interval_comparisons": intervals, "policy_source": policy_source,
         "archive_began": MANUAL_DAY,
     }
