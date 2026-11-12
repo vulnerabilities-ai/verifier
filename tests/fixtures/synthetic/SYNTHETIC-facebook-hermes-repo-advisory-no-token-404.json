@@ -1,0 +1,9 @@
+{
+  "_note": "SYNTHETIC test response, not captured from GitHub. Invented for tests: the diagnose_403 run did not request facebook/hermes's repository advisory without the token.",
+  "status": 404,
+  "body": {
+    "message": "Not Found",
+    "documentation_url": "https://docs.github.com/rest/security-advisories/global-advisories#get-a-global-security-advisory",
+    "status": "404"
+  }
+}

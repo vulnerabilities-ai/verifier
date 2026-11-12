@@ -208,7 +208,8 @@ class RecordReader:
         if not t["commit"] and not t["pull"]:
             if t["not_on_github"]:
                 return {"status": "not_checked", "fix_merged": "not_checked",
-                        "reason": "the fix is not on GitHub", "address": t["not_on_github"][0]}
+                        "reason": "the card links no GitHub commit or pull request as the fix",
+                        "address": t["not_on_github"][0]}
             return {"status": "not_checked", "fix_merged": "not_checked", "reason": "the card names no fix"}
         o, r = (t["pull"] or t["commit"])[:2]
         repo = self.json_of(repo_keys(o, r, self.github_api))

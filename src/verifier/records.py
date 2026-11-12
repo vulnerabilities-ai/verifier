@@ -32,6 +32,7 @@ from .store import Archive
 
 GH_COMMIT = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/commit/([0-9a-fA-F]{7,40})")
 GH_PULL = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/pull/(\d+)")
+GH_RELEASE_TAG = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/releases/tag/")
 GH_REPO_ADVISORY = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/security/advisories/(GHSA-[\w-]+)")
 
 
@@ -68,7 +69,10 @@ def keys_for_ids(cves: list[str], ghsas: list[str], github_api: str = config.GIT
 
 
 def fix_targets(fix_links: list[str], advisory_links: list[str]) -> dict:
-    """GitHub commit and pull request named on the card, and anything not on GitHub."""
+    """The GitHub commit (fix section only) and pull request named on the card. not_on_github lists the
+    card's other fix and advisory links (any host) when there is neither; despite its name it includes
+    GitHub release tags, repository advisories and NVD pages. A commit under the advisory heading is
+    never used as the fix."""
     commit = next((GH_COMMIT.match(u) for u in fix_links if GH_COMMIT.match(u)), None)
     pull = next((GH_PULL.match(u) for u in advisory_links + fix_links if GH_PULL.match(u)), None)
     other = [u for u in fix_links + advisory_links

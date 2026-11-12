@@ -33,7 +33,9 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | `ids_exist` | `verified` (every ID has an entry in the GitHub global advisory database, NVD, or the repository's own advisory), `not_found` (in neither the GitHub Advisory Database nor NVD, both read), `not_applicable` (no IDs), `rate_limited`, `github_refused_token`, `no_repository_known`, `lookup_unreadable` or `not_checked`. (R-B had only `verified` and `not_checked`.) | `verified` |
 | `ids_exist_detail` | Per ID and source (`github` = the global database, `nvd`, `repository_advisory`): `exists`, `not_found`, `not_in_global_database` (GitHub's global advisory database has no entry for this ID), `no_repository_known`, or the lookup status. | `{"GHSA-85fq-fc5f-7j7g": {"github": "not_in_global_database", "repository_advisory": "exists"}}` |
 | `nvd_published` | Date NVD published the record. | `2026-06-25` |
-| `fix_merged` | `yes`, `no`, `not_checked` (not on GitHub, or not looked up yet), `not_applicable`, `rate_limited`, `github_refused_token` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
+| `fix_merged` | `yes`, `no`, `not_checked` (the card links no GitHub fix commit or pull request, or it was not looked up yet; see `fix_check_reason`), `not_applicable`, `rate_limited`, `github_refused_token` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
+| `fix_check_reason` | **New.** Only when `fix_merged` is `not_checked`: why, in plain words, read from the finding card's own links. Empty otherwise. The values are listed in section 8. | `the card's links are not GitHub commits or pull requests (it links GitHub, but not to a commit or pull request)` |
+| `fix_link_type_not_checked` | **New.** When the card's fix or advisory section gives a link that is not a GitHub commit or pull request (and none that is): its kind. One of `GitHub release tag`, `GitHub repository advisory`, `GitHub advisory`, `NVD page`, `other`. That link is not checked as the fix; `notes` says so with the address. | `GitHub release tag` |
 | `fix_merge_base` | The branch the fix's pull request was merged into. | `master` |
 | `cvss_github_v31_score`, `cvss_github_v40_score` | The GitHub advisory's CVSS 3.1 and 4.0 scores. **Empty when GitHub has none, never 0.0.** | `7.5`, `6.3` |
 | `cvss_github_entries` | Every CVSS entry in the GitHub advisory with a vector string (field, version, score, vector). | |
@@ -116,6 +118,8 @@ This file has the R-B fields. Additions and clarifications:
 | `ghsa_ids` | GHSA IDs on revealed findings: `total`; per global-database status (`exists`, `not_in_global_database`, ...); and, for those looked up there, per repository-advisory status (`exists`, `not_found`, `no_repository_known`, ...). | |
 | `cvss_scores_present` | For each CVSS column, how many findings have a score. Absent scores are empty, never 0.0. | |
 | `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. `lookups` counts `no_identifiers` separately from `ok`. | |
+| `fix_check_reasons` | **New.** For findings whose `fix_merged` is `not_checked`: how many have each `fix_check_reason` (the plain reason text is the key). | `{"the card links no fix commit or pull request (the card has no outside links)": 28}` |
+| `fix_links_not_checked_by_type` | **New.** How many findings have each `fix_link_type_not_checked`. | `{"GitHub release tag": 4, "GitHub repository advisory": 3, "NVD page": 2}` |
 | `interval_comparisons` | For each interval, the reference in days, the rows with both dates, and counts `within` (at or under) and `above` the reference. | |
 | `policy_source` | Our dated copy of the policy page the references come from. | |
 
@@ -149,3 +153,28 @@ Such an ID can still exist as the repository's own security advisory. It is then
 - Show the repository advisory under its own heading, for example "Repository advisory (owner/repo)".
 - Never fill the GitHub global-database fields from it.
 - `no_repository_known` means the card links no GitHub repository, so the repository advisory could not be looked up. Show it as "could not be checked".
+
+## 8. Why a fix was not checked (`fix_check_reason`)
+
+When `fix_merged` is `not_checked`, `fix_check_reason` gives the reason, read only from the links printed on the finding card. "Outside links" means every web link on the card that leaves the program's own site (anthropic.com).
+
+| Reason (exact text) | When |
+|---|---|
+| the card links no fix commit or pull request (the card has no outside links) | The card has no outside links at all. |
+| the card links no fix commit or pull request (its only outside links are NVD records) | Every outside link is an NVD record. |
+| the card has no separate fix link; its advisory link is a GitHub commit, which is not used as the fix link | The card has no fix section link, and the link under its ADVISORY heading is a GitHub commit. That commit is **not** checked as the fix. |
+| the card's fix link is not a GitHub commit or pull request; its advisory link is a GitHub commit, which is not used as the fix link | As above, but the card also has a fix link of another kind. |
+| the card has no fix or advisory link that is a GitHub commit or pull request; it links a GitHub commit or pull request only in its text, which is not used as the fix link | For example, the card's analysis names an earlier fix that it calls incomplete. |
+| the card's links are not GitHub commits or pull requests (it links GitHub, but not to a commit or pull request) | The card links GitHub (for example a release tag, a repository advisory, a global advisory, a source file or the repository itself), but no commit or pull request anywhere. |
+| the card's fix link is not on GitHub | The card links nothing on GitHub, and its fix section links another host (for example GitLab). These are not looked up. |
+| the card's links are not GitHub commits or pull requests | The card has outside links, none on GitHub and not only NVD, and no fix link elsewhere. |
+| the card links a GitHub fix, which has not been looked up yet | A GitHub commit or pull request is linked but no lookup has been made yet. |
+| no copy of the finding card is available | No card could be fetched. |
+| the card's links were not recorded when it was read | The card's stored reading has no list of links (not expected after a rebuild). |
+
+**The note on links not checked.** When the card's fix or advisory section gives a link that is not a commit or pull request, `notes` names its kind, for example: *"The card's advisory link is a GitHub release tag, not a commit or pull request; it was not checked as the fix: https://github.com/libjxl/libjxl/releases/tag/v0.12.0."* (This replaces the earlier note "Fix address (not on GitHub, not checked)", which was wrong for GitHub links.)
+
+**We never infer a fix commit from a GitHub advisory or an NVD reference, or from a commit the card does not give as its fix link.** A reference there is not shown as the fix. That may be added later as a separate, labelled column.
+
+**Page guidance:** show the reason next to "Fix merged: not checked", and show `summary.fix_check_reasons` and `summary.fix_links_not_checked_by_type` as small tables of counts.
+

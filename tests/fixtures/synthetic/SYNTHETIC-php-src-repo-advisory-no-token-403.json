@@ -1,0 +1,7 @@
+{
+  "_note": "SYNTHETIC test response, not captured from GitHub. Invented for tests: the diagnose_403 run did not request php/php-src's repository advisory without the token.",
+  "status": 403,
+  "body": {
+    "message": "Must have admin rights to Repository."
+  }
+}
