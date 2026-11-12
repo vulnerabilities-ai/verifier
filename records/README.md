@@ -17,6 +17,14 @@ These records are kept as evidence for the checks. They are not republished as a
   - REST API rate limits and usage: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api
   - The advisory database's own licence, as GitHub states it in its public repository: https://github.com/github/advisory-database (see its LICENSE file).
 
+### Requests without the token, and repository advisories
+
+- **Folders:**
+  - `github/advisories-unauthenticated/`: the global-advisory request made without the token, for IDs where GitHub refused the token. A 404 there means GitHub's global advisory database has no entry for the ID.
+  - `github/repos/<owner>/<repository>/security-advisories/<ID>/`: the repository's own security advisory, with the token.
+  - `.../unauthenticated/`: the same repository advisory request without the token, made only if the token was refused there.
+- **Source:** the GitHub REST API (api.github.com only). Requests without the token are made one per 70 seconds, and stop at the first rate-limit answer.
+
 ### National Vulnerability Database (NVD), NIST
 
 - **Folders:** `nvd/cves/`.

@@ -23,7 +23,8 @@ import re
 from pathlib import Path
 
 from . import config
-from .records import Key, fix_keys, fix_targets, keys_for_ids, repo_keys
+from .records import (Key, fix_keys, fix_targets, global_unauth_key, keys_for_ids, repo_advisory_key,
+                      repo_keys)
 from .store import Archive
 
 
@@ -85,15 +86,19 @@ class RecordReader:
             return r
         hs = r.get("http_status")
         base = {"as_of": r.get("as_of"), "stored_at": r.get("stored_at"), "url": r.get("url")}
+        msg = _message(r.get("body")) if hs not in ok_statuses else None
+        if msg:
+            base["message"] = msg  # the response's own message, exactly as sent
         if hs in not_found:
-            return {**base, "status": "not_found", "reason": f"HTTP {hs}"}
+            return {**base, "status": "not_found", "http_status": hs,
+                    "reason": f"HTTP {hs}" + (f', message "{msg}"' if msg else "")}
         if hs == 403 and key.source == "github":
-            msg = _message(r.get("body"))
             if msg and config.GITHUB_REFUSED_MESSAGE.lower() in msg.lower():
                 # Not a rate limit: GitHub refused the built-in token for this resource.
                 return {**base, "status": "github_refused_token", "reason": msg, "http_status": 403}
         if hs not in ok_statuses:
-            return {**base, "status": "lookup_unreadable", "reason": f"unexpected HTTP {hs}"}
+            return {**base, "status": "lookup_unreadable", "http_status": hs,
+                    "reason": f"unexpected HTTP {hs}" + (f', message "{msg}"' if msg else "")}
         if not r.get("body"):
             return {**base, "status": "lookup_unreadable", "reason": "empty response"}
         try:
@@ -102,15 +107,72 @@ class RecordReader:
             return {**base, "status": "lookup_unreadable", "reason": f"response is not JSON ({e.__class__.__name__})"}
 
     # -- R3 parsers -------------------------------------------------------------------
+    def global_token_status(self, ghsa: str) -> str:
+        """The status of the global-advisory request WITH the token, before any follow-up."""
+        return self.json_of(keys_for_ids([], [ghsa], self.github_api, self.nvd_api)[0])["status"]
+
     def github_advisory(self, ghsa: str) -> dict:
         k = keys_for_ids([], [ghsa], self.github_api, self.nvd_api)[0]
         r = self.json_of(k)
+        if r["status"] == "github_refused_token":
+            # GitHub refused the token. The same request without the token tells whether
+            # the global database has an entry at all.
+            u = self.json_of(global_unauth_key(ghsa, self.github_api), not_found=(404,))
+            refused = f'with the token: HTTP 403, message "{r.get("reason")}"'
+            if u["status"] == "not_found":
+                return {**_strip(u), "status": "not_in_global_database",
+                        "reason": config.NOT_IN_GLOBAL_DATABASE,
+                        "evidence": f"{refused}; without the token: {u.get('reason')}"}
+            if u["status"] == "ok":
+                try:
+                    return {**_strip(u), **parse_github_advisory(u["data"]), "read_with": "no token"}
+                except Unreadable as e:
+                    return {**_strip(u), "status": "lookup_unreadable", "reason": str(e)}
+            if u["status"] in ("not_checked", "rate_limited"):
+                return {**r, "reason": f'{r.get("reason")} (confirmation without the token: {u["status"]})'}
+            return {**_strip(u), "status": "lookup_unreadable",
+                    "reason": f"{refused}; without the token: {u.get('reason')}"}
         if r["status"] != "ok":
             return r
         try:
-            return {**_strip(r), **parse_github_advisory(r["data"])}
+            return {**_strip(r), **parse_github_advisory(r["data"]), "read_with": "token"}
         except Unreadable as e:
             return {**_strip(r), "status": "lookup_unreadable", "reason": str(e)}
+
+    def repo_token_status(self, owner: str, repo: str, ghsa: str) -> str:
+        return self.json_of(repo_advisory_key(owner, repo, ghsa, self.github_api), not_found=(404,))["status"]
+
+    def repo_advisory(self, repository: tuple[str, str] | None, ghsa: str) -> dict:
+        """The repository's own advisory (a separate source from the global database).
+        Read with the token; if GitHub refuses the token, read again without it."""
+        if not repository:
+            return {"status": "no_repository_known",
+                    "reason": "no repository known: the finding card links no GitHub repository"}
+        o, r_ = repository
+        base = {"repository": f"{o}/{r_}"}
+        r = self.json_of(repo_advisory_key(o, r_, ghsa, self.github_api), not_found=(404,))
+        tried = []
+        for route, res in (("token", r),) + ((("no token", self.json_of(
+                repo_advisory_key(o, r_, ghsa, self.github_api, unauthenticated=True), not_found=(404,))),)
+                if r["status"] == "github_refused_token" else ()):
+            if res["status"] == "ok":
+                try:
+                    return {**base, **_strip(res), **parse_repo_advisory(res["data"]), "read_with": route}
+                except Unreadable as e:
+                    return {**base, **_strip(res), "status": "lookup_unreadable", "reason": str(e)}
+            if res["status"] == "not_found":
+                return {**base, **_strip(res), "status": "not_found", "read_with": route,
+                        "reason": f'HTTP 404 at the repository advisory endpoint ({route})'}
+            if res["status"] in ("not_checked", "rate_limited") and route == "no token":
+                return {**base, "status": "github_refused_token",
+                        "reason": f'with the token: HTTP 403, message "{r.get("reason")}" '
+                                  f"(retry without the token: {res['status']})"}
+            tried.append(f"{'with' if route == 'token' else 'without'} the token: "
+                         + (f'HTTP 403, message "{res.get("reason")}"'
+                            if res["status"] == "github_refused_token" else str(res.get("reason") or res["status"])))
+        if r["status"] in ("not_checked", "rate_limited", "network_error"):
+            return {**base, "status": r["status"], "reason": r.get("reason")}
+        return {**base, "status": "lookup_unreadable", "reason": "; ".join(tried)}
 
     def github_advisories_for_cve(self, cve: str) -> dict:
         k = keys_for_ids([cve], [], self.github_api, self.nvd_api)[0]
@@ -360,6 +422,22 @@ def nvd_split(entries: list[dict]) -> dict:
         if len(secondary) == 1:
             out["cna"][col] = secondary[0]
     return out
+
+
+def parse_repo_advisory(d) -> dict:
+    """A repository security advisory: its own fields, never merged with the global database."""
+    if not isinstance(d, dict):
+        raise Unreadable(f"expected an advisory object, got {type(d).__name__}")
+    _get(d, "ghsa_id", types=str)
+    cols = by_version(github_cvss_entries(d))
+    cwes = d.get("cwe_ids") if isinstance(d.get("cwe_ids"), list) else [
+        c.get("cwe_id") for c in d.get("cwes") or [] if isinstance(c, dict) and c.get("cwe_id")]
+    return {"status": "ok", "exists": True, "ghsa_id": d.get("ghsa_id"), "cve_id": d.get("cve_id"),
+            "published": d.get("published_at"), "severity": d.get("severity"), "state": d.get("state"),
+            "cwes": sorted(c for c in cwes if isinstance(c, str)),
+            "cvss_v31_score": (cols.get("v31") or {}).get("score"),
+            "cvss_v40_score": (cols.get("v40") or {}).get("score"),
+            "cvss_entries": github_cvss_entries(d), "html_url": d.get("html_url")}
 
 
 def parse_nvd(d, cve: str) -> dict:

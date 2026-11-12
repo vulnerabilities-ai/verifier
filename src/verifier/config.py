@@ -84,5 +84,13 @@ GITHUB_REFUSED_MESSAGE = "Resource not accessible by integration"
 # diagnose_403: unauthenticated GitHub requests, at most one per 70 seconds.
 DIAG_UNAUTH_GAP_SECONDS = 70.0
 DIAG_MAX_IDS = 5
+# Weekly run (Jon, 2026-11-12): requests made WITHOUT the token, to confirm that an
+# ID has no global-database entry and to retry a repository advisory refused for the
+# token. One per 70 seconds, stopping at the first rate-limit answer, resumed across
+# runs; at most this long per run, then the rest wait for the next run.
+UNAUTH_GAP_SECONDS = 70.0
+UNAUTH_BUDGET_SECONDS = 45 * 60
+UNAUTH_RECHECK_DAYS = 30
+NOT_IN_GLOBAL_DATABASE = "GitHub's global advisory database has no entry for this ID"
 GITHUB_STOP_BELOW = 50  # stop GitHub lookups when fewer requests than this remain
 SAMPLE_FINDINGS = 5

@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 from . import config
 from .net import Fetcher
-from .records import GH_COMMIT, GH_PULL, Key, RecordFetcher
+from .records import Key, RecordFetcher, card_repository
 from .records_read import RecordReader, _message
 from .wording import check_text
 
@@ -34,7 +34,7 @@ def refused_ids(root: Path) -> list[str]:
     base = Path(root) / "records" / "github" / "advisories"
     out = []
     for d in sorted(base.glob("GHSA-*")) if base.exists() else []:
-        if reader.github_advisory(d.name).get("status") == "github_refused_token":
+        if reader.global_token_status(d.name) == "github_refused_token":
             out.append(d.name)
     return out
 
@@ -49,24 +49,20 @@ def choose_ids(root: Path, spec: str) -> list[str]:
 
 
 def repository_for(findings: dict[str, dict], ghsa: str) -> tuple[str, str] | None:
-    """owner/repo for a GHSA ID, from the card's GitHub fix links, else the ledger project."""
+    """owner/repo for a GHSA ID from the finding card's GitHub links only. None means no
+    repository known (the card gives none)."""
     for f in findings.values():
-        if ghsa not in f.get("ghsa_ids", []):
-            continue
-        for u in f.get("fix_links", []) + f.get("advisory_links", []):
-            m = GH_COMMIT.match(u) or GH_PULL.match(u)
-            if m:
-                return m.group(1), m.group(2).removesuffix(".git")
-        proj = f.get("project") or ""
-        if proj.count("/") == 1:
-            o, r = proj.split("/")
-            return o, r
+        if ghsa in f.get("ghsa_ids", []):
+            repo = card_repository(f.get("fix_links", []), f.get("advisory_links", []))
+            if repo:
+                return repo
     return None
 
 
 def _outcome(rf: RecordFetcher, key: Key, attempt: dict) -> dict:
     out = {"url": key.url, "outcome": attempt.get("outcome"), "status": attempt.get("status"),
-           "stored_at": attempt.get("stored_at"), "reason": attempt.get("reason")}
+           "stored_at": attempt.get("stored_at"), "reason": attempt.get("reason"),
+           "own_folder": f"records/{key.path}/"}
     if attempt.get("stored_at"):
         body = rf.store.read_bytes(attempt["stored_at"])
         msg = _message(body)
@@ -113,7 +109,7 @@ def diagnose(root: Path, ghsa_ids: list[str], findings: dict[str, dict], *, toke
         else:
             row["repository"] = None
             row["repository_advisory_with_token"] = {"outcome": "not_attempted",
-                                                     "reason": "no GitHub repository known for this advisory"}
+                                                     "reason": "no repository known (the finding card links none)"}
         results.append(row)
     return results
 
@@ -132,7 +128,11 @@ def _describe(o: dict) -> str:
     if o.get("message"):
         text += f', message "{o["message"]}"'
     if o.get("stored_at"):
-        text += f" (raw response: `{o['stored_at']}`)"
+        if o.get("own_folder") and not o["stored_at"].startswith(o["own_folder"]):
+            # Store-only-when-changed: the same bytes were already kept for another row.
+            text += f" (identical to `{o['stored_at']}`)"
+        else:
+            text += f" (raw response: `{o['stored_at']}`)"
     return text
 
 

@@ -12,6 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from .. import config
+from ..records import card_repository
 from ..records_read import RecordReader
 from .sources import MANUAL_DAY
 
@@ -32,7 +33,8 @@ SEVERITY_COLUMNS = {"model": "severity_model", "firm": "severity_firm", "maintai
                     "nvd_primary_v31": "severity_nvd_primary_v31", "nvd_primary_v40": "severity_nvd_primary_v40",
                     "nvd_cna_v31": "severity_nvd_cna_v31", "nvd_cna_v40": "severity_nvd_cna_v40"}
 SEVERITY_SOURCES = tuple(SEVERITY_COLUMNS)
-CVSS_COLUMNS = ("cvss_github_v31_score", "cvss_github_v40_score",
+CVSS_COLUMNS = ("repo_advisory_cvss_v31_score", "repo_advisory_cvss_v40_score",
+                "cvss_github_v31_score", "cvss_github_v40_score",
                 "cvss_nvd_primary_v31_score", "cvss_nvd_primary_v40_score",
                 "cvss_nvd_cna_v31_score", "cvss_nvd_cna_v40_score")
 _CVE = re.compile(r"CVE-\d{4}-\d{4,}")
@@ -53,7 +55,9 @@ def days(a: str | None, b: str | None) -> int | None:
     return (y - x).days if x and y else None
 
 
-PENDING = ("rate_limited", "github_refused_token", "lookup_unreadable", "network_error", "not_checked")
+PENDING = ("rate_limited", "github_refused_token", "lookup_unreadable", "network_error", "no_repository_known",
+           "not_checked")
+ABSENT = ("not_found", "not_in_global_database")  # a source that was read and has no entry
 
 
 def _worst(statuses: list[str]) -> str:
@@ -100,18 +104,31 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
         lookup_statuses, notes = [], list(v.get("notes") or [])
 
         # R3: identifiers
-        detail, gh_adv, nvd_rec = {}, [], []
+        detail, gh_adv, nvd_rec, repo_adv = {}, [], [], []
+        repository = card_repository(inp["fix_links"], inp["advisory_links"])
         for g in inp["ghsa_ids"]:
             a = reader.github_advisory(g)
             detail[g] = {"github": a.get("status") if a.get("status") != "ok" else "exists"}
             lookup_statuses.append(a["status"] if a["status"] in PENDING else "ok")
             if a.get("status") == "ok":
                 gh_adv.append(a)
+            elif a.get("status") == "not_in_global_database":
+                notes.append(f"{g}: {config.NOT_IN_GLOBAL_DATABASE} ({a.get('evidence')}).")
             elif a.get("status") == "github_refused_token":
                 notes.append(f"Lookup of {g} in the GitHub Advisory Database: GitHub refused the built-in token "
                              f"(HTTP 403, message \"{a['reason']}\").")
             elif a.get("reason") and a["status"] != "not_found":
                 notes.append(f"Lookup of {g} in the GitHub Advisory Database: {a['reason']}.")
+            if a.get("status") in ("not_in_global_database", "github_refused_token"):
+                # The repository's own advisory: a separate source, never merged with the global fields.
+                ra = reader.repo_advisory(repository, g)
+                detail[g]["repository_advisory"] = "exists" if ra["status"] == "ok" else ra["status"]
+                lookup_statuses.append(ra["status"] if ra["status"] in PENDING else "ok")
+                if ra["status"] == "ok":
+                    repo_adv.append(ra)
+                elif ra.get("reason"):
+                    notes.append(f"{g} repository advisory"
+                                 + (f" ({ra['repository']})" if ra.get("repository") else "") + f": {ra['reason']}.")
         for c in inp["cve_ids"]:
             a = reader.github_advisories_for_cve(c)
             n = reader.nvd_cve(c)
@@ -193,6 +210,8 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "cwe_github": sorted({c for a in gh_adv for c in a.get("cwes", [])}),
             "cwe_nvd": sorted({c for n in nvd_rec for c in n.get("cwes", [])}),
             "advisory_review_status": (gh_first or {}).get("review_status"),
+            # Repository advisories (GitHub's per-repository advisories), their own source.
+            **_repo_columns(repo_adv),
             "advisory_packages": sorted({p for a in gh_adv for p in a.get("packages", [])}),
             "lookup_status": status,
             "checked": "yes" if fully_checked(hash_check, ids_exist, fix["fix_merged"]) else "no",
@@ -214,7 +233,24 @@ def fully_checked(hash_check: str, ids_exist: str, fix_merged: str) -> bool:
     return hash_check in FINAL_HASH and ids_exist in IDS_CONCLUSIVE and fix_merged in FIX_CONCLUSIVE
 
 
+def _repo_columns(repo_adv: list[dict]) -> dict:
+    first = sorted(repo_adv, key=lambda a: a.get("published") or "")[0] if repo_adv else {}
+    return {
+        "repo_advisory_repository": first.get("repository"),
+        "repo_advisory_published": (first.get("published") or "")[:10] or None,
+        "repo_advisory_severity": first.get("severity"),
+        "repo_advisory_cve_id": first.get("cve_id"),
+        "repo_advisory_cwes": first.get("cwes") or [],
+        "repo_advisory_cvss_v31_score": first.get("cvss_v31_score"),
+        "repo_advisory_cvss_v40_score": first.get("cvss_v40_score"),
+        "repo_advisory_state": first.get("state"),
+        "repo_advisory_read_with": first.get("read_with"),
+    }
+
+
 def _ids_exist(detail: dict) -> str:
+    """verified: every ID has an entry in at least one source (global database, NVD, or the
+    repository's own advisory). not_found: some ID was read in every source and none has it."""
     if not detail:
         return "not_applicable"
     states = []
@@ -222,10 +258,10 @@ def _ids_exist(detail: dict) -> str:
         vals = list(d.values())
         if "exists" in vals:
             states.append("exists")
-        elif vals and all(x == "not_found" for x in vals):
+        elif vals and all(x in ABSENT for x in vals):
             states.append("not_found")
         else:
-            states.append(_worst([x for x in vals if x not in ("exists", "not_found")]))
+            states.append(_worst([x for x in vals if x not in ("exists",) + ABSENT]))
     if "not_found" in states:
         return "not_found"
     pending = [s for s in states if s != "exists"]
@@ -296,10 +332,27 @@ def summary_row(snapshots: list[dict], commitments: list[dict], gaps: list[dict]
         "ids_exist": dict(sorted(Counter(r["ids_exist"] for r in ver).items())),
         "lookups": dict(sorted(Counter(r["lookup_status"] for r in ver).items())),
         "cvss_scores_present": {c: sum(1 for r in ver if r.get(c) is not None) for c in CVSS_COLUMNS},
+        "ghsa_ids": _ghsa_counts(ver),
         "interval_comparisons": intervals, "policy_source": policy_source,
         "archive_began": MANUAL_DAY,
     }
     return row
+
+
+def _ghsa_counts(ver: list[dict]) -> dict:
+    """Per GHSA ID on revealed findings: global database status and repository-advisory status."""
+    glob, repo = Counter(), Counter()
+    seen = set()
+    for r in ver:
+        for g, d in (r.get("ids_exist_detail") or {}).items():
+            if not g.startswith("GHSA-") or g in seen:
+                continue
+            seen.add(g)
+            glob[d.get("github")] += 1
+            if "repository_advisory" in d:
+                repo[d["repository_advisory"]] += 1
+    return {"total": len(seen), "global_database": dict(sorted(glob.items())),
+            "repository_advisory": dict(sorted(repo.items()))}
 
 
 def policy_source(root: Path) -> str | None:

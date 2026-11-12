@@ -47,6 +47,16 @@ def _archive_raw_results(root: Path) -> tuple[list[str], list[str]]:
     return diff, same
 
 
+def ghsa_line(summary: dict) -> str:
+    g = summary.get("ghsa_ids") or {}
+    glob, repo = g.get("global_database", {}), g.get("repository_advisory", {})
+    return (f"- GHSA IDs on revealed findings: {g.get('total', 0)}. In GitHub's global advisory database: "
+            f"{glob.get('exists', 0)}. With no entry there (confirmed without the token): "
+            f"{glob.get('not_in_global_database', 0)}; of these, found as the repository's own advisory: "
+            f"{repo.get('exists', 0)}, not found there: {repo.get('not_found', 0)}, no repository known: "
+            f"{repo.get('no_repository_known', 0)}, not readable: {repo.get('lookup_unreadable', 0)}.")
+
+
 def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
     root = Path(root)
     snaps, gaps = _rows(root, "snapshots"), _rows(root, "gaps")
@@ -72,6 +82,7 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
          f"- Public-record lookups (rules R3 and R4), per finding: "
          + ", ".join(f"{k} {v}" for k, v in summary["lookups"].items()) + ".",
          f"- Identifiers found in public records: " + ", ".join(f"{k} {v}" for k, v in summary["ids_exist"].items()) + ".",
+         ghsa_line(summary),
          f"- Fix merged into the default branch: " + ", ".join(f"{k} {v}" for k, v in summary["fix_merged"].items()) + ".",
          f"- Internet Archive copies identical to ours after decompression: {len(same)}"
          + (f" ({'; '.join(same[:10])}{'; ...' if len(same) > 10 else ''})" if same else "") + ".",
