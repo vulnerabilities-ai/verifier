@@ -941,6 +941,28 @@
           }
         }
       }
+    },
+    {
+      "note_type": "later-raw-reclassification",
+      "appended_utc": "2026-11-12T08:00:50Z",
+      "run_id": "42694845658-1",
+      "name": "ledger.json",
+      "snapshot_timestamp": "20261109204038",
+      "result": "match_after_decoding",
+      "decoding_method": "gzip",
+      "based_on": "appended note (later raw check)",
+      "reason": "The diagnostic found the Internet Archive's copy identical to ours after decompression (gzip). The earlier record says 'mismatch' and is kept as written."
+    },
+    {
+      "note_type": "later-raw-reclassification",
+      "appended_utc": "2026-11-12T08:00:50Z",
+      "run_id": "42694845658-1",
+      "name": "payload.json",
+      "snapshot_timestamp": "20261109204517",
+      "result": "match_after_decoding",
+      "decoding_method": "gzip",
+      "based_on": "appended note (diagnostic note)",
+      "reason": "The diagnostic found the Internet Archive's copy identical to ours after decompression (gzip). The earlier record says 'mismatch' and is kept as written."
     }
   ]
 }

@@ -400,5 +400,29 @@
         ]
       }
     }
+  ],
+  "appended_notes": [
+    {
+      "note_type": "later-raw-reclassification",
+      "appended_utc": "2026-11-12T08:00:50Z",
+      "run_id": "42981029552-1",
+      "name": "dashboard.html",
+      "snapshot_timestamp": "20261111041608",
+      "result": "match_after_decoding",
+      "decoding_method": "gzip",
+      "based_on": "run record",
+      "reason": "The diagnostic found the Internet Archive's copy identical to ours after decompression (gzip). The earlier record says 'mismatch' and is kept as written."
+    },
+    {
+      "note_type": "later-raw-reclassification",
+      "appended_utc": "2026-11-12T08:00:50Z",
+      "run_id": "42981029552-1",
+      "name": "ledger.json",
+      "snapshot_timestamp": "20261111074135",
+      "result": "match_after_decoding",
+      "decoding_method": "gzip",
+      "based_on": "run record",
+      "reason": "The diagnostic found the Internet Archive's copy identical to ours after decompression (gzip). The earlier record says 'mismatch' and is kept as written."
+    }
   ]
 }
