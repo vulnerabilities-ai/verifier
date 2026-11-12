@@ -154,12 +154,13 @@ VERIFICATION_META = [
     ("cve_ids", "list", "CVE IDs on the ledger entry and the card.", "cve_ids", LR),
     ("ghsa_ids", "list", "GHSA IDs on the ledger entry and the card.", "ghsa_ids", LR),
     ("ids_exist", "string", "R3: verified (every ID found in the GitHub Advisory Database or NVD), not_found (an ID "
-     "found in neither, both read), not_applicable (no IDs), rate_limited, lookup_unreadable or not_checked.", None, IV),
+     "found in neither, both read), not_applicable (no IDs), rate_limited, github_refused_token, lookup_unreadable "
+     "or not_checked.", None, IV),
     ("ids_exist_detail", "object", "Per ID and source: exists, not_found or the lookup status.", None, IV),
     ("advisory_published", "date", "Publication date of the GitHub advisory.", "GitHub: published_at", PUBLIC),
     ("nvd_published", "date", "Publication date of the NVD record.", "NVD: published", PUBLIC),
     ("fix_merged", "string", "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not "
-     "looked up yet), not_applicable, rate_limited or lookup_unreadable.", None, IV),
+     "looked up yet), not_applicable, rate_limited, github_refused_token or lookup_unreadable.", None, IV),
     ("fix_merged_at", "time", "Merge time of the fix (from the merged pull request).", "GitHub: merged_at", IV),
     ("fix_url", "string", "The fix pull request or commit.", None, None),
     ("fix_merge_base", "string", "The branch the pull request was merged into.", "GitHub: base.ref", IV),
@@ -212,7 +213,9 @@ VERIFICATION_META = [
     ("advisory_review_status", "string", "GitHub's review status for the advisory (reviewed or unreviewed).", "GitHub: type", PUBLIC),
     ("advisory_packages", "list", "Packages the GitHub advisory names (ecosystem:name).", "GitHub: vulnerabilities", PUBLIC),
     ("lookup_status", "string", "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so "
-     "there was nothing to look up), rate_limited (resumes next run), lookup_unreadable (reason in notes), "
+     "there was nothing to look up), rate_limited (resumes next run), github_refused_token (GitHub answered HTTP 403 "
+     "'Resource not accessible by integration' for the built-in token; the exact message is in notes), "
+     "lookup_unreadable (reason in notes), "
      "network_error or not_checked.", None, None),
     ("checked", "string", "Fully checked: yes only when ALL of these hold: the hash check is conclusive (match, "
      "mismatch or preimage_withheld); the identifiers are confirmed or there are none (ids_exist verified or "

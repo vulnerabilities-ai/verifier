@@ -75,6 +75,12 @@ def main(argv: list[str] | None = None) -> int:
     st.add_argument("--out", required=True)
     st.add_argument("--commit", default="")
 
+    dg = sub.add_parser("diagnose-403", help="try other ways to read GitHub advisories refused for the token")
+    dg.add_argument("--root", default=".")
+    dg.add_argument("--ids", required=True, help="'auto' (first 5 refused) or comma-separated GHSA IDs (max 5)")
+    dg.add_argument("--date", required=True, help="the run's date, YYYY-MM-DD")
+    dg.add_argument("--out", required=True)
+
     a = sub.add_parser("audit")
     a.add_argument("--root", default=".")
 
@@ -187,6 +193,32 @@ def main(argv: list[str] | None = None) -> int:
         from .sitepub import build_site
         man = build_site(Path(args.root), Path(args.out), args.commit or None)
         print(f"Built {args.out}: {len(man['files'])} data files")
+        return 0
+
+    if args.cmd == "diagnose-403":
+        from .build import latest_ledger
+        from .build.phase3 import finding_inputs
+        from .build.sources import Sources
+        from .diagnose403 import choose_ids, diagnose, report
+        root = Path(args.root)
+        src = Sources(root)
+        ledger_rel, _ = latest_ledger(src)
+        entries = {e["ant_id"]: e for e in src.load_json_file(ledger_rel)
+                   if e.get("reveal_tier") == "revealed" and e.get("ant_id")} if ledger_rel else {}
+        findings = finding_inputs(root, entries)
+        for fid, f in findings.items():
+            f["project"] = entries[fid].get("project")
+        ids = choose_ids(root, args.ids)
+        if not ids:
+            print("No GHSA IDs to diagnose.")
+            return 1
+        # The workflow's built-in token only; sent only to api.github.com.
+        results = diagnose(root, ids, findings, token=os.environ.get("GITHUB_TOKEN") or None)
+        text = report(results, args.date)
+        out = Path(args.out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        print(text)
         return 0
 
     if args.cmd == "audit":

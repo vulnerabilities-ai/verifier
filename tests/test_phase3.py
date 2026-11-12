@@ -226,7 +226,7 @@ class PublicRecords(Phase3Case):
         finally:
             other.close()
 
-    def test_nvd_pacing_five_per_thirty_seconds(self):
+    def test_nvd_pacing_one_per_eight_seconds(self):
         cves = [f"CVE-2026-{n}" for n in range(10000, 10007)]
         for c in cves:
             self.nvd.routes[f"/rest/json/cves/2.0?cveId={c}"] = j({"totalResults": 0, "vulnerabilities": []})
@@ -241,8 +241,8 @@ class PublicRecords(Phase3Case):
         rf._pace_nvd = spy
         run_lookups(self.root, {"X": {"cve_ids": cves, "ghsa_ids": [], "fix_links": [], "advisory_links": []}}, rf)
         self.assertEqual(len(stamps), 7)
-        for i in range(len(stamps) - 5):
-            self.assertGreaterEqual(stamps[i + 5] - stamps[i], 30)
+        for i in range(len(stamps) - 1):
+            self.assertGreaterEqual(stamps[i + 1] - stamps[i], 8)  # one request every 8 seconds
 
     def test_not_on_github_and_commit_without_pull(self):
         t = fix_targets(["https://gitlab.com/x/y/-/commit/abc1234"], [])
