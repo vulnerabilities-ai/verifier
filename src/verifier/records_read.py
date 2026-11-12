@@ -11,6 +11,9 @@ Statuses for one lookup:
   rate_limited       the last attempt was stopped by a rate limit (none stored yet)
   not_checked        never attempted
   network_error      the source could not be reached (reason given)
+  github_refused_token  GitHub answered HTTP 403 "Resource not accessible by integration":
+                     it refused the workflow's built-in token for this resource (not a
+                     rate limit; the exact message is kept as the reason)
 """
 
 from __future__ import annotations
@@ -84,6 +87,11 @@ class RecordReader:
         base = {"as_of": r.get("as_of"), "stored_at": r.get("stored_at"), "url": r.get("url")}
         if hs in not_found:
             return {**base, "status": "not_found", "reason": f"HTTP {hs}"}
+        if hs == 403 and key.source == "github":
+            msg = _message(r.get("body"))
+            if msg and config.GITHUB_REFUSED_MESSAGE.lower() in msg.lower():
+                # Not a rate limit: GitHub refused the built-in token for this resource.
+                return {**base, "status": "github_refused_token", "reason": msg, "http_status": 403}
         if hs not in ok_statuses:
             return {**base, "status": "lookup_unreadable", "reason": f"unexpected HTTP {hs}"}
         if not r.get("body"):
@@ -203,13 +211,25 @@ class RecordReader:
         if unreadable:
             statuses = " ".join(unreadable)
             kind = "rate_limited" if "rate limit" in statuses.lower() else (
-                "not_checked" if "never looked up" in statuses else "lookup_unreadable")
+                "github_refused_token" if config.GITHUB_REFUSED_MESSAGE.lower() in statuses.lower() else (
+                    "not_checked" if "never looked up" in statuses else "lookup_unreadable"))
             return {**res, "status": kind, "fix_merged": kind, "reason": "; ".join(unreadable)}
         return {**res, "status": "ok", "fix_merged": "no", "evidence": res.get("note")}
 
 
 def _pending(status: str) -> str:
-    return {"rate_limited": "rate_limited", "not_checked": "not_checked"}.get(status, "lookup_unreadable")
+    return {"rate_limited": "rate_limited", "not_checked": "not_checked",
+            "github_refused_token": "github_refused_token"}.get(status, "lookup_unreadable")
+
+
+def _message(body: bytes | None) -> str | None:
+    """The 'message' field of a GitHub error response, exactly as sent, if there is one."""
+    try:
+        d = json.loads((body or b"").decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    m = d.get("message") if isinstance(d, dict) else None
+    return m if isinstance(m, str) else None
 
 
 def _strip(r: dict) -> dict:

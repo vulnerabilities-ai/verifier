@@ -30,10 +30,10 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | Field | Meaning | Example |
 | --- | --- | --- |
 | `withheld_statement` | Only for `preimage_withheld`: the card's sentence, verbatim. It is a quotation of the program. | "The preimage for this commitment is withheld: ..." |
-| `ids_exist` | `verified`, `not_found` (in neither the GitHub Advisory Database nor NVD, both read), `not_applicable` (no IDs), `rate_limited`, `lookup_unreadable` or `not_checked`. (R-B had only `verified` and `not_checked`.) | `verified` |
+| `ids_exist` | `verified`, `not_found` (in neither the GitHub Advisory Database nor NVD, both read), `not_applicable` (no IDs), `rate_limited`, `github_refused_token`, `lookup_unreadable` or `not_checked`. (R-B had only `verified` and `not_checked`.) | `verified` |
 | `ids_exist_detail` | Per ID and source: `exists`, `not_found`, or the lookup status. | `{"CVE-2026-12340": {"github": "exists", "nvd": "exists"}}` |
 | `nvd_published` | Date NVD published the record. | `2026-06-25` |
-| `fix_merged` | `yes`, `no`, `not_checked` (not on GitHub, or not looked up yet), `not_applicable`, `rate_limited` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
+| `fix_merged` | `yes`, `no`, `not_checked` (not on GitHub, or not looked up yet), `not_applicable`, `rate_limited`, `github_refused_token` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
 | `fix_merge_base` | The branch the fix's pull request was merged into. | `master` |
 | `cvss_github_v31_score`, `cvss_github_v40_score` | The GitHub advisory's CVSS 3.1 and 4.0 scores. **Empty when GitHub has none, never 0.0.** | `7.5`, `6.3` |
 | `cvss_github_entries` | Every CVSS entry in the GitHub advisory with a vector string (field, version, score, vector). | |
@@ -45,7 +45,7 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | `cwe_github`, `cwe_nvd` | CWE IDs from each source (lists). | `["CWE-125"]` |
 | `advisory_review_status` | GitHub's `reviewed` or `unreviewed`. | `unreviewed` |
 | `advisory_packages` | Packages the GitHub advisory names, as `ecosystem:name`. | |
-| `lookup_status` | `ok` (every lookup read), `no_identifiers` (the finding has no CVE or GHSA ID, so there was nothing to look up; not the same as `ok`), `rate_limited` (resumes next run), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
+| `lookup_status` | `ok` (every lookup read), `no_identifiers` (the finding has no CVE or GHSA ID, so there was nothing to look up; not the same as `ok`), `rate_limited` (resumes next run), `github_refused_token` (GitHub answered HTTP 403 "Resource not accessible by integration" for the built-in token; not a rate limit; the exact message is in `notes`), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
 | `label_hash_check`, `label_ids_exist`, `label_fix_merged`, `label_dates`, `label_intervals`, `label_severity` | The verification label for each metric, from METHODOLOGY. | `Independently verified` |
 | `notes` | Plain notes: differences between the ledger and public records (recorded, not judged), lookup reasons, card notes. | |
 

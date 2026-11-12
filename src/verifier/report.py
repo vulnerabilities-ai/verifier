@@ -116,7 +116,7 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
         for note in (r["notes"] or "").split(". "):
             if note.startswith("The ledger names project"):
                 items.append(f"{fid}: {note.rstrip('.')}.")
-        if r["lookup_status"] in ("lookup_unreadable", "rate_limited", "network_error"):
+        if r["lookup_status"] in ("lookup_unreadable", "rate_limited", "network_error", "github_refused_token"):
             items.append(f"Lookups for {fid} are incomplete ({r['lookup_status']}): {r['notes'] or 'see records/'}.")
     if mism:
         items.append(f"The Internet Archive's raw copy differed from ours {len(mism)} time(s), with the byte "

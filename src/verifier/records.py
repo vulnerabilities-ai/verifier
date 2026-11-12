@@ -7,7 +7,8 @@ records_read.py during the build, which never touches the network.
 Sources:
 - GitHub REST API (api.github.com): global security advisories, repositories,
   commits, pull requests. Uses the workflow's built-in token only.
-- NVD CVE API 2.0 (services.nvd.nist.gov): no key; at most 5 requests per 30 s.
+- NVD CVE API 2.0 (services.nvd.nist.gov): no key; one request every 8 seconds, and on
+  HTTP 429 a 35-second wait and up to 3 retries before recording rate_limited.
 
 Both are documented APIs exempt from the robots.txt check (Jon, 2026-11-10);
 every other host keeps it. Nothing here ever aborts a run: a failure is
@@ -20,7 +21,6 @@ from __future__ import annotations
 import json
 import re
 import time
-from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote, urlsplit
@@ -117,7 +117,8 @@ class RecordFetcher:
                  github_api: str = config.GITHUB_API, nvd_api: str = config.NVD_API,
                  sleep=time.sleep, clock=time.monotonic, wall=time.time,
                  stop_below: int = config.GITHUB_STOP_BELOW,
-                 nvd_max: int = config.NVD_MAX_REQUESTS, nvd_window: float = config.NVD_WINDOW_SECONDS):
+                 nvd_gap: float = config.NVD_MIN_GAP_SECONDS,
+                 nvd_retry_wait: float = config.NVD_RETRY_WAIT_SECONDS, nvd_retries: int = config.NVD_RETRIES):
         self.store = Archive(root, area="records")
         gh_host = urlsplit(github_api).netloc
         nvd_host = urlsplit(nvd_api).netloc
@@ -128,8 +129,8 @@ class RecordFetcher:
         self._token = token or None
         self.sleep, self.clock, self.wall = sleep, clock, wall
         self.stop_below = stop_below
-        self.nvd_max, self.nvd_window = nvd_max, nvd_window
-        self._nvd_times: deque = deque()
+        self.nvd_gap, self.nvd_retry_wait, self.nvd_retries = nvd_gap, nvd_retry_wait, nvd_retries
+        self._nvd_last: float | None = None
         self.github_stopped: str | None = None
         self.nvd_stopped: str | None = None
         self.gh_remaining: int | None = None
@@ -155,17 +156,14 @@ class RecordFetcher:
                 self.sleep(min(gap, 30.0))
 
     def _pace_nvd(self) -> None:
+        """At most one NVD request every nvd_gap seconds (8 s)."""
         if self.nvd_stopped:
             raise RateLimited(self.nvd_stopped)
-        now = self.clock()
-        while self._nvd_times and now - self._nvd_times[0] >= self.nvd_window:
-            self._nvd_times.popleft()
-        if len(self._nvd_times) >= self.nvd_max:
-            self.sleep(self.nvd_window - (now - self._nvd_times[0]) + 0.01)
-            now = self.clock()
-            while self._nvd_times and now - self._nvd_times[0] >= self.nvd_window:
-                self._nvd_times.popleft()
-        self._nvd_times.append(self.clock())
+        if self._nvd_last is not None:
+            gap = self.clock() - self._nvd_last
+            if gap < self.nvd_gap:
+                self.sleep(self.nvd_gap - gap)
+        self._nvd_last = self.clock()
 
     def _read_github_limits(self, resp: Response) -> None:
         try:
@@ -195,12 +193,36 @@ class RecordFetcher:
                 if self._token:
                     headers["Authorization"] = f"Bearer {self._token}"
                 resp = self.fetcher.get(key.url, headers=headers)
-                self._read_github_limits(resp)
+                try:
+                    self._read_github_limits(resp)
+                except RateLimited as e:
+                    # A real rate-limit response came back: keep it as received, and record
+                    # the lookup as rate_limited so the next run resumes it first.
+                    attempt.update(outcome="rate_limited", reason=str(e), status=resp.status,
+                                   fetched_utc=resp.fetched_utc, headers=_safe_headers(resp.headers))
+                    if resp.body:
+                        stored_at, new = self.store.store(f"records/{key.path}", "response.json", resp.body,
+                                                          self.store.known_blobs(), time_suffix(resp.fetched_utc))
+                        attempt.update(stored_at=stored_at, newly_stored=new, sha256=sha256_hex(resp.body),
+                                       size_bytes=len(resp.body))
+                    self.tally["rate_limited"] += 1
+                    self._record(key, attempt)
+                    return attempt
             else:
-                self._pace_nvd()
-                resp = self.fetcher.get(key.url)
+                retries = 0
+                while True:
+                    self._pace_nvd()
+                    resp = self.fetcher.get(key.url)
+                    if resp.status == 429 and retries < self.nvd_retries:
+                        retries += 1  # NVD busy: wait 35 s and try again (up to 3 times)
+                        self.sleep(self.nvd_retry_wait)
+                        continue
+                    break
+                if retries:
+                    attempt["retries_after_429"] = retries
                 if resp.status in (403, 429):
-                    self.nvd_stopped = f"NVD rate limit reached (HTTP {resp.status})"
+                    self.nvd_stopped = (f"NVD rate limit reached (HTTP {resp.status}"
+                                        + (f" after {retries} retries" if retries else "") + ")")
                     raise RateLimited(self.nvd_stopped)
         except RateLimited as e:
             attempt.update(outcome="rate_limited", reason=str(e))
@@ -297,11 +319,13 @@ def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
     def priority(k):
         last = rf.last_attempt(k)
         ok = rf.last_ok(k)
+        if last and last.get("outcome") == "rate_limited":
+            return (0, k.path)          # stopped by a rate limit last time: resume these first
         if ok is None:
-            return (0, k.path)          # never fetched (or only failed): first
+            return (1, k.path)          # never fetched (or only failed)
         if last and last.get("outcome") != "fetched":
-            return (1, k.path)          # rate-limited or failed last time
-        return (2, ok.get("fetched_utc") or "", k.path)  # refresh, oldest first
+            return (2, k.path)          # failed last time
+        return (3, ok.get("fetched_utc") or "", k.path)  # refresh, oldest first
     planned.sort(key=priority)
     # repositories first within each priority group, so compares can follow
     planned.sort(key=lambda k: (priority(k)[0], k.kind != "repo"))

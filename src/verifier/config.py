@@ -69,10 +69,20 @@ NVD_API = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 # Jon's decision of 2026-11-10: these two documented APIs are exempt from the
 # robots.txt check (their robots.txt is written for crawlers). They are used
 # under their own published rules instead: GitHub with the workflow's built-in
-# token within its rate limits; NVD at no more than 5 requests per 30 seconds,
-# with no key unless Jon approves one. Every other host keeps the robots check.
+# token within its rate limits; NVD without a key (none unless Jon approves one).
+# Every other host keeps the robots check.
 API_ROBOTS_EXEMPT = frozenset({"api.github.com", "services.nvd.nist.gov"})
-NVD_MAX_REQUESTS = 5
-NVD_WINDOW_SECONDS = 30
+# NVD limits by address, and GitHub's runner addresses are shared, so the first
+# full run met HTTP 429 at 5 requests per 30 s (Jon, 2026-11-12): one request
+# every 8 seconds; on a 429, wait 35 seconds and retry up to 3 times, then
+# record rate_limited (resumed first on the next run).
+NVD_MIN_GAP_SECONDS = 8.0
+NVD_RETRY_WAIT_SECONDS = 35.0
+NVD_RETRIES = 3
+# GitHub's answer when the built-in token may not read a global advisory.
+GITHUB_REFUSED_MESSAGE = "Resource not accessible by integration"
+# diagnose_403: unauthenticated GitHub requests, at most one per 70 seconds.
+DIAG_UNAUTH_GAP_SECONDS = 70.0
+DIAG_MAX_IDS = 5
 GITHUB_STOP_BELOW = 50  # stop GitHub lookups when fewer requests than this remain
 SAMPLE_FINDINGS = 5

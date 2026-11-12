@@ -53,8 +53,11 @@ def days(a: str | None, b: str | None) -> int | None:
     return (y - x).days if x and y else None
 
 
+PENDING = ("rate_limited", "github_refused_token", "lookup_unreadable", "network_error", "not_checked")
+
+
 def _worst(statuses: list[str]) -> str:
-    for s in ("rate_limited", "lookup_unreadable", "network_error", "not_checked"):
+    for s in PENDING:
         if s in statuses:
             return s
     return "ok"
@@ -101,10 +104,12 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
         for g in inp["ghsa_ids"]:
             a = reader.github_advisory(g)
             detail[g] = {"github": a.get("status") if a.get("status") != "ok" else "exists"}
-            lookup_statuses.append(a["status"] if a["status"] in ("rate_limited", "lookup_unreadable",
-                                                                  "network_error", "not_checked") else "ok")
+            lookup_statuses.append(a["status"] if a["status"] in PENDING else "ok")
             if a.get("status") == "ok":
                 gh_adv.append(a)
+            elif a.get("status") == "github_refused_token":
+                notes.append(f"Lookup of {g} in the GitHub Advisory Database: GitHub refused the built-in token "
+                             f"(HTTP 403, message \"{a['reason']}\").")
             elif a.get("reason") and a["status"] != "not_found":
                 notes.append(f"Lookup of {g} in the GitHub Advisory Database: {a['reason']}.")
         for c in inp["cve_ids"]:
@@ -113,7 +118,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             detail[c] = {"github": "exists" if a.get("status") == "ok" else a.get("status"),
                          "nvd": "exists" if n.get("status") == "ok" else n.get("status")}
             for x, src in ((a, "GitHub Advisory Database"), (n, "NVD")):
-                if x["status"] in ("rate_limited", "lookup_unreadable", "network_error", "not_checked"):
+                if x["status"] in PENDING:
                     lookup_statuses.append(x["status"])
                     if x.get("reason") and x["status"] != "not_checked":
                         notes.append(f"Lookup of {c} in {src}: {x['reason']}.")
@@ -127,7 +132,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
 
         # R4: fix merged
         fix = reader.fix_merged(inp["fix_links"], inp["advisory_links"])
-        if fix["fix_merged"] in ("rate_limited", "lookup_unreadable", "network_error"):
+        if fix["fix_merged"] in ("rate_limited", "github_refused_token", "lookup_unreadable", "network_error"):
             lookup_statuses.append(fix["fix_merged"])
             notes.append(f"Fix lookup: {fix.get('reason')}.")
         elif fix.get("reason") == "never looked up" or (fix["fix_merged"] == "not_checked"

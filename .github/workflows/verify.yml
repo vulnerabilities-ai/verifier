@@ -19,6 +19,11 @@ on:
         description: "Sample: look up public records for 5 findings only (wolfSSL first), on a separate review branch"
         type: boolean
         default: false
+      diagnose_403:
+        description: "Diagnostic only: 'auto' (the first 5 GHSA IDs GitHub refused for the token) or up to 5 comma-separated GHSA IDs. Leave EMPTY for a normal run."
+        type: string
+        required: false
+        default: ""
 
 permissions: {}
 
@@ -28,6 +33,7 @@ concurrency:
 
 jobs:
   verify:
+    if: ${{ !inputs.diagnose_403 }}
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     permissions:
@@ -155,3 +161,39 @@ jobs:
           else
             gh issue create --repo "${GITHUB_REPOSITORY}" --title "${title}" --body "${body}"
           fi
+
+  # GitHub 403 diagnostic: only when diagnose_403 is given. Uses api.github.com only,
+  # with the built-in token for the repository endpoint and no token for the global one.
+  diagnose:
+    if: ${{ inputs.diagnose_403 }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write # push the diagnostic branch
+      pull-requests: write # open the diagnostic pull request
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Try other ways to read the refused advisories
+        id: diag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          IDS: ${{ inputs.diagnose_403 }}
+        run: |
+          file="reports/$(date -u +%Y-%m-%d)-diagnose-403.md"
+          PYTHONPATH=src python3 -m verifier diagnose-403 --ids "${IDS}" --date "$(date -u +%Y-%m-%d)" --out "${file}"
+          printf 'GitHub 403 diagnostic %s\n' "$(date -u +%Y-%m-%d)" > "${RUNNER_TEMP}/title.txt"
+          cp "${file}" "${RUNNER_TEMP}/review.md"
+          cat "${file}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Commit to the diagnostic branch and open or update the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE_FILE: ${{ runner.temp }}/title.txt
+          BODY_FILE: ${{ runner.temp }}/review.md
+          REVIEW_BRANCH: review/diagnose-403
+        run: bash scripts/review_commit.sh
