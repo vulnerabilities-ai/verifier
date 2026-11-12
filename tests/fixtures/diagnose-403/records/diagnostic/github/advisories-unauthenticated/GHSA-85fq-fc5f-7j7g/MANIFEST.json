@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory_unauthenticated",
+  "url": "https://api.github.com/advisories/GHSA-85fq-fc5f-7j7g",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T17:24:58Z",
+      "url": "https://api.github.com/advisories/GHSA-85fq-fc5f-7j7g",
+      "outcome": "fetched",
+      "status": 404,
+      "fetched_utc": "2026-11-12T17:24:58Z",
+      "final_url": "https://api.github.com/advisories/GHSA-85fq-fc5f-7j7g",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 17:24:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "59",
+        "X-RateLimit-Used": "1",
+        "X-RateLimit-Reset": "1794507898",
+        "X-GitHub-Request-Id": "1DA0:B92CD:111F08:186C22:6AF5F66A"
+      },
+      "size_bytes": 158,
+      "stored_at": "records/diagnostic/github/advisories-unauthenticated/GHSA-85fq-fc5f-7j7g/response.json",
+      "newly_stored": true,
+      "sha256": "2218b50c8a811e2f609d256cc18fa9a5c1ecabca78a58f10ea7977e8a8392684"
+    }
+  ]
+}

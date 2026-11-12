@@ -30,8 +30,8 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | Field | Meaning | Example |
 | --- | --- | --- |
 | `withheld_statement` | Only for `preimage_withheld`: the card's sentence, verbatim. It is a quotation of the program. | "The preimage for this commitment is withheld: ..." |
-| `ids_exist` | `verified`, `not_found` (in neither the GitHub Advisory Database nor NVD, both read), `not_applicable` (no IDs), `rate_limited`, `github_refused_token`, `lookup_unreadable` or `not_checked`. (R-B had only `verified` and `not_checked`.) | `verified` |
-| `ids_exist_detail` | Per ID and source: `exists`, `not_found`, or the lookup status. | `{"CVE-2026-12340": {"github": "exists", "nvd": "exists"}}` |
+| `ids_exist` | `verified` (every ID has an entry in the GitHub global advisory database, NVD, or the repository's own advisory), `not_found` (in neither the GitHub Advisory Database nor NVD, both read), `not_applicable` (no IDs), `rate_limited`, `github_refused_token`, `no_repository_known`, `lookup_unreadable` or `not_checked`. (R-B had only `verified` and `not_checked`.) | `verified` |
+| `ids_exist_detail` | Per ID and source (`github` = the global database, `nvd`, `repository_advisory`): `exists`, `not_found`, `not_in_global_database` (GitHub's global advisory database has no entry for this ID), `no_repository_known`, or the lookup status. | `{"GHSA-85fq-fc5f-7j7g": {"github": "not_in_global_database", "repository_advisory": "exists"}}` |
 | `nvd_published` | Date NVD published the record. | `2026-06-25` |
 | `fix_merged` | `yes`, `no`, `not_checked` (not on GitHub, or not looked up yet), `not_applicable`, `rate_limited`, `github_refused_token` or `lookup_unreadable`. (R-B had `yes`, `no`, `not_checked` and `not_applicable`.) | `yes` |
 | `fix_merge_base` | The branch the fix's pull request was merged into. | `master` |
@@ -45,7 +45,8 @@ This file has the R-B columns, with neutral names (`finding_id`, `severity_model
 | `cwe_github`, `cwe_nvd` | CWE IDs from each source (lists). | `["CWE-125"]` |
 | `advisory_review_status` | GitHub's `reviewed` or `unreviewed`. | `unreviewed` |
 | `advisory_packages` | Packages the GitHub advisory names, as `ecosystem:name`. | |
-| `lookup_status` | `ok` (every lookup read), `no_identifiers` (the finding has no CVE or GHSA ID, so there was nothing to look up; not the same as `ok`), `rate_limited` (resumes next run), `github_refused_token` (GitHub answered HTTP 403 "Resource not accessible by integration" for the built-in token; not a rate limit; the exact message is in `notes`), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
+| `repo_advisory_repository`, `repo_advisory_published`, `repo_advisory_severity`, `repo_advisory_cve_id`, `repo_advisory_cwes`, `repo_advisory_cvss_v31_score`, `repo_advisory_cvss_v40_score`, `repo_advisory_state`, `repo_advisory_read_with` | For a GHSA ID that GitHub's global advisory database has no entry for: the repository's own security advisory (repository taken from the card's links). **A separate source.** Never merge it with the GitHub global-database columns. CVSS is empty when absent, never 0.0. `read_with` is `token` or `no token`. | `jetty/jetty.project`, `2026-09-16`, `high`, `CVE-2026-19204`, `["CWE-770","CWE-789"]`, (empty), `8.7`, `published`, `token` |
+| `lookup_status` | `ok` (every lookup read), `no_identifiers` (the finding has no CVE or GHSA ID, so there was nothing to look up; not the same as `ok`), `rate_limited` (resumes next run), `no_repository_known` (a GHSA ID has no global entry and the card links no repository), `github_refused_token` (GitHub answered HTTP 403 "Resource not accessible by integration" for the built-in token; not a rate limit; the exact message is in `notes`), `lookup_unreadable` (reason in `notes`), `network_error` or `not_checked`. | `ok` |
 | `label_hash_check`, `label_ids_exist`, `label_fix_merged`, `label_dates`, `label_intervals`, `label_severity` | The verification label for each metric, from METHODOLOGY. | `Independently verified` |
 | `notes` | Plain notes: differences between the ledger and public records (recorded, not judged), lookup reasons, card notes. | |
 
@@ -112,6 +113,7 @@ This file has the R-B fields. Additions and clarifications:
 | `fixed_itemized_share_of_patched_claimed_pct` | fixed_itemized ÷ patched_lab_count × 100. | `34.5` |
 | `fixed_itemized_share_of_reported_pct` | fixed_itemized ÷ reported_total × 100. | `4.27` |
 | `checked_n`, `checked_of` | Fully checked findings, and all revealed findings. Fully checked means: hash check conclusive (match, mismatch or preimage_withheld), identifiers confirmed or none, and fix_merged `yes` or `no`. | `0`, `237` |
+| `ghsa_ids` | GHSA IDs on revealed findings: `total`; per global-database status (`exists`, `not_in_global_database`, ...); and, for those looked up there, per repository-advisory status (`exists`, `not_found`, `no_repository_known`, ...). | |
 | `cvss_scores_present` | For each CVSS column, how many findings have a score. Absent scores are empty, never 0.0. | |
 | `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. `lookups` counts `no_identifiers` separately from `ok`. | |
 | `interval_comparisons` | For each interval, the reference in days, the rows with both dates, and counts `within` (at or under) and `above` the reference. | |
@@ -136,3 +138,14 @@ This file has the R-B fields. Additions and clarifications:
   - `MANIFEST.sha256.json`, with each file's SHA-256 and the source commit.
 - **Where to find the zip:** on the Pages site (`site-data.zip`), and attached to each Publish run.
 - **NVD notice.** Pages showing NVD-derived values must carry: *This product uses data from the NVD API but is not endorsed or certified by the NVD.*
+
+## 7. GHSA IDs with no entry in GitHub's global advisory database
+
+When GitHub refuses the workflow's token for a global advisory, the same request without the token tells whether the database has the ID. A 404 there gives `not_in_global_database`, which pages should show as the plain statement: **"GitHub's global advisory database has no entry for this ID."**
+
+Such an ID can still exist as the repository's own security advisory. It is then confirmed through the `repo_advisory_*` columns, which are a separate source.
+
+**Page guidance:**
+- Show the repository advisory under its own heading, for example "Repository advisory (owner/repo)".
+- Never fill the GitHub global-database fields from it.
+- `no_repository_known` means the card links no GitHub repository, so the repository advisory could not be looked up. Show it as "could not be checked".

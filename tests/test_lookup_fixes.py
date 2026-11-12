@@ -19,6 +19,14 @@ ROOT = Path(__file__).resolve().parents[1]
 REAL_403 = (ROOT / "tests/fixtures/github-403/response.json").read_bytes()  # the real response
 REFUSED = (403, REAL_403, {"Content-Type": "application/json", "X-RateLimit-Limit": "5000",
                            "X-RateLimit-Remaining": "4871", "X-RateLimit-Reset": "0"})
+NOT_FOUND_UNAUTH = (404, (ROOT / "tests/fixtures/diagnose-403/records/diagnostic/github/advisories-unauthenticated/"
+                          "GHSA-85fq-fc5f-7j7g/response.json").read_bytes(),
+                    {"Content-Type": "application/json", "X-RateLimit-Remaining": "58", "X-RateLimit-Reset": "0"})
+
+
+def refused_with_token(req):
+    """As GitHub answered in the real run: 403 with the token, 404 without it."""
+    return REFUSED if "Authorization" in req.headers else NOT_FOUND_UNAUTH
 CVES = [f"CVE-2026-{n}" for n in range(20000, 20003)]
 
 
@@ -96,17 +104,22 @@ class NvdPacingAndRetry(Phase3Case):
 
 class GithubRefusedToken(Phase3Case):
     def test_real_403_is_github_refused_token_with_exact_message(self):
-        self.gh.routes["/advisories/GHSA-q349-x427-xg3w"] = REFUSED
+        # With the token GitHub refuses; the confirmation without the token has not been made
+        # yet (its own rate limit), so the status stays github_refused_token, pending.
+        self.gh.routes["/advisories/GHSA-q349-x427-xg3w"] = lambda req: REFUSED if "Authorization" in req.headers \
+            else (403, b'{"message": "API rate limit exceeded"}', {"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "0"})
         rf = self.record_fetcher()
         run_lookups(self.root, self.wolf_only(), rf)
-        self.assertIsNone(rf.github_stopped)  # not a rate limit: lookups carry on
-        a = RecordReader(self.root).github_advisory("GHSA-q349-x427-xg3w")
+        self.assertIsNone(rf.github_stopped)  # not a rate limit: lookups with the token carry on
+        rr = RecordReader(self.root)
+        self.assertEqual(rr.global_token_status("GHSA-q349-x427-xg3w"), "github_refused_token")
+        a = rr.github_advisory("GHSA-q349-x427-xg3w")
         self.assertEqual(a["status"], "github_refused_token")
-        self.assertEqual(a["reason"], "Resource not accessible by integration")  # exactly as GitHub sent it
+        self.assertTrue(a["reason"].startswith("Resource not accessible by integration"))  # exactly as sent
         r = build(self.root)
         w = next(v for v in r["tables"]["verification"] if v["finding_id"] == WOLF_ID)
         self.assertEqual(w["lookup_status"], "github_refused_token")
-        self.assertIn('message "Resource not accessible by integration"', w["notes"])
+        self.assertIn('message "Resource not accessible by integration', w["notes"])
         self.assertNotIn("lookup_unreadable", json.dumps(w))
         self.assertEqual(w["fix_merged"], "yes")  # the other lookups still ran
         self.assertEqual(w["checked"], "no")
@@ -122,7 +135,7 @@ class GithubRefusedToken(Phase3Case):
 class Diagnose403(Phase3Case):
     def setUp(self):
         super().setUp()
-        self.gh.routes["/advisories/GHSA-q349-x427-xg3w"] = REFUSED
+        self.gh.routes["/advisories/GHSA-q349-x427-xg3w"] = refused_with_token
         run_lookups(self.root, self.wolf_only(), self.record_fetcher())
 
     def test_choose_ids(self):

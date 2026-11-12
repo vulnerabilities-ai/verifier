@@ -153,10 +153,14 @@ VERIFICATION_META = [
      "Attributed to the program's finding card.", "finding card (preimage-withheld banner)", LR),
     ("cve_ids", "list", "CVE IDs on the ledger entry and the card.", "cve_ids", LR),
     ("ghsa_ids", "list", "GHSA IDs on the ledger entry and the card.", "ghsa_ids", LR),
-    ("ids_exist", "string", "R3: verified (every ID found in the GitHub Advisory Database or NVD), not_found (an ID "
-     "found in neither, both read), not_applicable (no IDs), rate_limited, github_refused_token, lookup_unreadable "
-     "or not_checked.", None, IV),
-    ("ids_exist_detail", "object", "Per ID and source: exists, not_found or the lookup status.", None, IV),
+    ("ids_exist", "string", "R3: verified (every ID has an entry in the GitHub Advisory Database, NVD or the "
+     "repository's own security advisory), not_found (an ID was read in every source and none has it; "
+     "not_in_global_database counts as read), not_applicable (no IDs), rate_limited, github_refused_token, "
+     "no_repository_known, lookup_unreadable or not_checked.", None, IV),
+    ("ids_exist_detail", "object", "Per ID and source (github = the global database, nvd, repository_advisory): "
+     "exists, not_found, not_in_global_database (GitHub's global advisory database has no entry for this ID: "
+     "the token was refused and the same request without the token returned 404), no_repository_known, or the "
+     "lookup status.", None, IV),
     ("advisory_published", "date", "Publication date of the GitHub advisory.", "GitHub: published_at", PUBLIC),
     ("nvd_published", "date", "Publication date of the NVD record.", "NVD: published", PUBLIC),
     ("fix_merged", "string", "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not "
@@ -212,8 +216,29 @@ VERIFICATION_META = [
     ("cwe_nvd", "list", "CWE IDs in NVD.", "NVD: weaknesses", PUBLIC),
     ("advisory_review_status", "string", "GitHub's review status for the advisory (reviewed or unreviewed).", "GitHub: type", PUBLIC),
     ("advisory_packages", "list", "Packages the GitHub advisory names (ecosystem:name).", "GitHub: vulnerabilities", PUBLIC),
+    ("repo_advisory_repository", "string", "For a GHSA ID the global database has no entry for (or refused for the "
+     "token): the repository whose own security advisory was read, taken from the finding card's links. A "
+     "separate source from the global database; never merged with its fields.", None, None),
+    ("repo_advisory_published", "date", "Publication date of the repository's advisory.",
+     "GitHub repository advisory: published_at", PUBLIC),
+    ("repo_advisory_severity", "string", "The repository advisory's own stated severity.",
+     "GitHub repository advisory: severity", PUBLIC),
+    ("repo_advisory_cve_id", "string", "The CVE ID the repository advisory names.",
+     "GitHub repository advisory: cve_id", PUBLIC),
+    ("repo_advisory_cwes", "list", "CWE IDs in the repository advisory.", "GitHub repository advisory: cwe_ids", PUBLIC),
+    ("repo_advisory_cvss_v31_score", "number", "CVSS 3.1 score in the repository advisory. Empty when absent "
+     "(a placeholder without a vector string counts as absent), never 0.0.",
+     "GitHub repository advisory: cvss_severities.cvss_v3", PUBLIC),
+    ("repo_advisory_cvss_v40_score", "number", "CVSS 4.0 score in the repository advisory. Empty when absent, never 0.0.",
+     "GitHub repository advisory: cvss_severities.cvss_v4", PUBLIC),
+    ("repo_advisory_state", "string", "The repository advisory's state, as GitHub gives it (for example published).",
+     "GitHub repository advisory: state", PUBLIC),
+    ("repo_advisory_read_with", "string", "token (the workflow's built-in token) or no token (read without the "
+     "token after GitHub refused the token).", None, None),
     ("lookup_status", "string", "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so "
-     "there was nothing to look up), rate_limited (resumes next run), github_refused_token (GitHub answered HTTP 403 "
+     "there was nothing to look up), rate_limited (resumes next run), no_repository_known (a GHSA ID has no global "
+     "entry and the card links no repository, so its repository advisory could not be looked up), "
+     "github_refused_token (GitHub answered HTTP 403 "
      "'Resource not accessible by integration' for the built-in token; the exact message is in notes), "
      "lookup_unreadable (reason in notes), "
      "network_error or not_checked.", None, None),
@@ -290,6 +315,8 @@ SUMMARY_FIELDS = [
     ("fix_merged", "object", "Verification rows per fix_merged value."),
     ("ids_exist", "object", "Verification rows per ids_exist value."),
     ("lookups", "object", "Verification rows per lookup_status (no_identifiers is counted separately from ok)."),
+    ("ghsa_ids", "object", "GHSA IDs on revealed findings: total, per global-database status (exists, "
+     "not_in_global_database, ...), and per repository-advisory status for those looked up there."),
     ("cvss_scores_present", "object", "For each CVSS column, how many findings have a score (absent scores are "
      "empty, never 0.0)."),
     ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "

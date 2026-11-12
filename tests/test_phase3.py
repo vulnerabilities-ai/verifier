@@ -575,7 +575,8 @@ class CvssByVersion(Phase3Case):
         self.assertEqual(r["summary"]["cvss_scores_present"],
                          {"cvss_github_v31_score": 2, "cvss_github_v40_score": 1,
                           "cvss_nvd_primary_v31_score": 2, "cvss_nvd_primary_v40_score": 0,
-                          "cvss_nvd_cna_v31_score": 1, "cvss_nvd_cna_v40_score": 1})
+                          "cvss_nvd_cna_v31_score": 1, "cvss_nvd_cna_v40_score": 1,
+                          "repo_advisory_cvss_v31_score": 0, "repo_advisory_cvss_v40_score": 0})
 
     def test_nvd_split_rules(self):
         from verifier.records_read import nvd_cvss_entries, nvd_split

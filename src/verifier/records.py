@@ -32,6 +32,7 @@ from .store import Archive
 
 GH_COMMIT = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/commit/([0-9a-fA-F]{7,40})")
 GH_PULL = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/pull/(\d+)")
+GH_REPO_ADVISORY = re.compile(r"^https?://github\.com/([^/\s]+)/([^/\s]+)/security/advisories/(GHSA-[\w-]+)")
 
 
 class RateLimited(Exception):
@@ -79,6 +80,30 @@ def fix_targets(fix_links: list[str], advisory_links: list[str]) -> dict:
     }
 
 
+def card_repository(fix_links: list[str], advisory_links: list[str]) -> tuple[str, str] | None:
+    """owner/repo named by the finding card's GitHub links (fix commit, pull request or
+    repository advisory). None when the card gives no GitHub repository."""
+    for u in advisory_links + fix_links:
+        m = GH_REPO_ADVISORY.match(u) or GH_COMMIT.match(u) or GH_PULL.match(u)
+        if m:
+            return m.group(1), m.group(2).removesuffix(".git")
+    return None
+
+
+def global_unauth_key(ghsa: str, github_api: str = config.GITHUB_API) -> Key:
+    """The global-advisory request made WITHOUT the token, to confirm a 403."""
+    return Key("github", "advisory_unauthenticated", f"github/advisories-unauthenticated/{ghsa}",
+               f"{github_api}/advisories/{quote(ghsa)}")
+
+
+def repo_advisory_key(owner: str, repo: str, ghsa: str, github_api: str = config.GITHUB_API,
+                      unauthenticated: bool = False) -> Key:
+    path = f"github/repos/{owner}/{repo}/security-advisories/{ghsa}"
+    return Key("github", "repo_advisory_unauthenticated" if unauthenticated else "repo_advisory",
+               path + ("/unauthenticated" if unauthenticated else ""),
+               f"{github_api}/repos/{owner}/{repo}/security-advisories/{quote(ghsa)}")
+
+
 def repo_keys(owner: str, repo: str, github_api: str = config.GITHUB_API) -> Key:
     return Key("github", "repo", f"github/repos/{owner}/{repo}/repo", f"{github_api}/repos/{owner}/{repo}")
 
@@ -118,7 +143,8 @@ class RecordFetcher:
                  sleep=time.sleep, clock=time.monotonic, wall=time.time,
                  stop_below: int = config.GITHUB_STOP_BELOW,
                  nvd_gap: float = config.NVD_MIN_GAP_SECONDS,
-                 nvd_retry_wait: float = config.NVD_RETRY_WAIT_SECONDS, nvd_retries: int = config.NVD_RETRIES):
+                 nvd_retry_wait: float = config.NVD_RETRY_WAIT_SECONDS, nvd_retries: int = config.NVD_RETRIES,
+                 spread: bool = True):
         self.store = Archive(root, area="records")
         gh_host = urlsplit(github_api).netloc
         nvd_host = urlsplit(nvd_api).netloc
@@ -130,6 +156,7 @@ class RecordFetcher:
         self.sleep, self.clock, self.wall = sleep, clock, wall
         self.stop_below = stop_below
         self.nvd_gap, self.nvd_retry_wait, self.nvd_retries = nvd_gap, nvd_retry_wait, nvd_retries
+        self.spread = spread  # spread GitHub calls over the rate-limit window (off when the caller paces)
         self._nvd_last: float | None = None
         self.github_stopped: str | None = None
         self.nvd_stopped: str | None = None
@@ -152,7 +179,7 @@ class RecordFetcher:
                 raise RateLimited(self.github_stopped)
             window = max(0.0, self.gh_reset - self.wall())
             gap = window / spare
-            if gap > 1.0:  # spread the remaining calls over the time to reset
+            if self.spread and gap > 1.0:  # spread the remaining calls over the time to reset
                 self.sleep(min(gap, 30.0))
 
     def _pace_nvd(self) -> None:
@@ -296,7 +323,7 @@ def choose_sample(finding_ids: list[str], must_include: str = "ANT-2026-87DJGDRB
 
 
 def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
-                sample_only: bool = False) -> dict:
+                sample_only: bool = False, unauth_rf: RecordFetcher | None = None) -> dict:
     """findings: finding ID -> {"cve_ids", "ghsa_ids", "fix_links", "advisory_links"}.
     Looks up never-fetched and rate-limited keys first, then refreshes the rest.
     Returns a tally; never raises."""
@@ -342,6 +369,85 @@ def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
                 if k.kind == "compare" and k.path not in seen:
                     seen.add(k.path)
                     rf.fetch(k)
+    unauth_tally = refused_followups(root, {i: findings[i] for i in ids}, rf, unauth_rf)
     return {**rf.tally, "findings": len(ids), "sample_only": sample_only,
             "sample_ids": ids if sample_only else None,
-            "github_stopped": rf.github_stopped, "nvd_stopped": rf.nvd_stopped}
+            "github_stopped": rf.github_stopped, "nvd_stopped": rf.nvd_stopped, "without_token": unauth_tally}
+
+
+def unauthenticated_fetcher(root: Path, rf: RecordFetcher) -> RecordFetcher:
+    """A RecordFetcher that never sends a token: its fetcher may send credentials nowhere."""
+    return RecordFetcher(root, token=None, github_api=rf.github_api, nvd_api=rf.nvd_api, sleep=rf.sleep,
+                         clock=rf.clock, wall=rf.wall, stop_below=0, spread=False,
+                         fetcher=Fetcher(credential_destinations=frozenset(),  # never sends a token
+                                         robots_exempt_hosts=rf.fetcher.robots_exempt_hosts,
+                                         min_interval=rf.fetcher.min_interval))
+
+
+def _fresh(rf: RecordFetcher, key: Key, days: int) -> bool:
+    ok = rf.last_ok(key)
+    if not ok or not ok.get("fetched_utc"):
+        return False
+    from datetime import datetime, timedelta
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    try:
+        then = datetime.strptime(ok["fetched_utc"], fmt)
+        now = datetime.strptime(utc_now(), fmt)
+    except ValueError:
+        return False
+    return now - then < timedelta(days=days)
+
+
+def refused_followups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
+                      unauth_rf: RecordFetcher | None = None) -> dict:
+    """For GHSA IDs whose global-advisory lookup GitHub refused for the token (HTTP 403):
+    1. the repository advisory, with the token, for the repository the card links to;
+    2. WITHOUT the token, one request per 70 s, stopping at the first rate-limit answer and
+       resumed on the next run: the global request (to confirm there is no global entry), and
+       the repository advisory again where the token was refused there too."""
+    from .records_read import RecordReader
+    reader = RecordReader(root, rf.github_api, rf.nvd_api)
+    unauth_rf = unauth_rf or unauthenticated_fetcher(root, rf)
+    refused, repo_of = [], {}
+    for f in findings.values():
+        repo = card_repository(f.get("fix_links", []), f.get("advisory_links", []))
+        for g in f.get("ghsa_ids", []):
+            if reader.global_token_status(g) == "github_refused_token" and g not in repo_of:
+                refused.append(g)
+                repo_of[g] = repo
+    refused.sort()
+    # 1. repository advisories with the token (normal pacing)
+    for g in refused:
+        if repo_of[g]:
+            rf.fetch(repo_advisory_key(*repo_of[g], g, rf.github_api))
+    # 2. requests without the token, rate-limited first, then never made, then due again
+    todo = []
+    for g in refused:
+        k = global_unauth_key(g, rf.github_api)
+        if not _fresh(unauth_rf, k, config.UNAUTH_RECHECK_DAYS):
+            todo.append(k)
+        if repo_of[g] and reader.repo_token_status(*repo_of[g], g) == "github_refused_token":
+            k2 = repo_advisory_key(*repo_of[g], g, rf.github_api, unauthenticated=True)
+            if not _fresh(unauth_rf, k2, config.UNAUTH_RECHECK_DAYS):
+                todo.append(k2)
+
+    def prio(k):
+        last = unauth_rf.last_attempt(k)
+        return (0 if last and last.get("outcome") == "rate_limited" else 1 if not unauth_rf.last_ok(k) else 2, k.path)
+    todo.sort(key=prio)
+    start, last, made = rf.clock(), None, 0
+    for k in todo:
+        if unauth_rf.github_stopped:
+            unauth_rf.fetch(k)  # recorded as rate_limited, resumed first next run
+            continue
+        if rf.clock() - start > config.UNAUTH_BUDGET_SECONDS:
+            break  # the rest wait for the next run
+        if last is not None:
+            wait = config.UNAUTH_GAP_SECONDS - (rf.clock() - last)
+            if wait > 0:
+                rf.sleep(wait)
+        last = rf.clock()
+        unauth_rf.fetch(k)
+        made += 1
+    return {"refused_global": len(refused), "requests_made": made, "planned": len(todo),
+            "stopped": unauth_rf.github_stopped}
