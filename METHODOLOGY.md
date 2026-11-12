@@ -126,7 +126,21 @@ When a finding card says the preimage is withheld (a paragraph the program marks
   - references and credits.
 
   The ledger's project and bug class are compared with the advisory's source and CWE, and differences are recorded without judgement.
-- **R4: fix merged.** From the card's fix commit and pull request links, using GitHub's repository, commit, pull request and compare endpoints. "Fix merged" means the fix's pull request is merged into the project's default branch, or the commit is on the default branch. The date is the pull request's merge time. A fix not on GitHub is recorded `not_checked`, with its address. Every `not_checked` row has a `fix_check_reason`, read only from the links printed on the finding card: the card has no outside links; its only outside links are NVD records; it links GitHub but not to a commit or pull request; its fix is not on GitHub; its links are elsewhere; a GitHub fix is linked but not yet looked up; or no card is available. The summary and the weekly report count findings per reason. We do not infer a fix commit from a GitHub advisory's or NVD record's references: a reference there may be a fix, a related change or something else, and reading it as the fix would be a guess.
+- **R4: fix merged.** From the card's fix commit and pull request links, using GitHub's repository, commit, pull request and compare endpoints. "Fix merged" means the fix's pull request is merged into the project's default branch, or the commit is on the default branch. The date is the pull request's merge time. Only a GitHub commit in the card's fix section, or a GitHub pull request in its fix or advisory section, is checked as the fix. Anything else is recorded `not_checked`:
+  - A commit under the card's advisory heading is not used as the fix link, and neither is a commit or pull request that the card mentions only in its text (for example, an earlier fix it calls incomplete).
+  - When the fix or advisory section gives another kind of link, `fix_link_type_not_checked` names its kind (GitHub release tag, GitHub repository advisory, GitHub advisory, NVD page, or other). `notes` then says, for example: "The card's advisory link is a GitHub release tag, not a commit or pull request; it was not checked as the fix: <address>."
+  - Every `not_checked` row has a `fix_check_reason`, read only from the links printed on the finding card. The reasons:
+    - the card has no outside links;
+    - its only outside links are NVD records;
+    - it has no separate fix link and its advisory link is a GitHub commit;
+    - it links a GitHub commit or pull request only in its text;
+    - it links GitHub, but not a commit or pull request;
+    - its fix is on another host;
+    - its links are elsewhere;
+    - a GitHub fix is linked but not yet looked up;
+    - no card is available.
+  - The summary and the weekly report count findings per reason and per link kind.
+  - We do not infer a fix commit from a GitHub advisory's or NVD record's references, or from a commit the card does not give as its fix: such a link may be the fix, a related change or something else, and reading it as the fix would be a guess.
 - **Storage.** Raw responses are kept under `records/` exactly as received, with every attempt in a MANIFEST. `records/README.md` names each source and its published terms. Jon will have counsel confirm those terms.
 - **Exemption from robots.txt (Jon's decision, 2026-11-10).** Exactly two documented APIs are exempt: `api.github.com` and `services.nvd.nist.gov`. Their robots.txt files are written for web crawlers, not for API clients, so the pipeline follows their published API rules instead:
   - GitHub is used with the workflow's built-in token, within its rate limits;
@@ -154,7 +168,7 @@ A finding counts as **fully checked** only when all three hold:
 - its identifiers are confirmed in public records, or it has none (`ids_exist` is `verified` or `not_applicable`);
 - whether its fix was merged has been determined (`fix_merged` is `yes` or `no`).
 
-A finding whose fix was not checked (`not_checked`, including fixes not on GitHub), or whose lookups were rate-limited or unreadable, is never counted as fully checked. A finding with no CVE or GHSA identifiers has `lookup_status` `no_identifiers`, not `ok`, because there was nothing to look up. The summary's `checked_n` of `checked_of` uses this definition. On 2026-11-10, before the first real lookups, it is 0 of 237.
+A finding whose fix was not checked (`not_checked`, including findings whose card links no GitHub fix commit or pull request), or whose lookups were rate-limited or unreadable, is never counted as fully checked. A finding with no CVE or GHSA identifiers has `lookup_status` `no_identifiers`, not `ok`, because there was nothing to look up. The summary's `checked_n` of `checked_of` uses this definition. On 2026-11-10, before the first real lookups, it is 0 of 237.
 
 ### R5: intervals
 

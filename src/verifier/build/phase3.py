@@ -12,7 +12,7 @@ from datetime import date
 from pathlib import Path
 
 from .. import config
-from ..records import card_repository, fix_targets
+from ..records import GH_COMMIT, GH_PULL, GH_RELEASE_TAG, GH_REPO_ADVISORY, card_repository, fix_targets
 from ..records_read import RecordReader
 from .sources import MANUAL_DAY
 
@@ -158,7 +158,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
         if fix.get("note"):
             notes.append(f"Fix: {fix['note'].strip()}.")
         if fix.get("address"):
-            notes.append(f"Fix address (not on GitHub, not checked): {fix['address']}.")
+            notes.append(unchecked_link_note(fix["address"], inp["fix_links"]))
         reason = fix_check_reason(v, inp, fix["fix_merged"])
 
         # Differences recorded without judgement
@@ -185,6 +185,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
             "nvd_published": (nvd_first or {}).get("published", "")[:10] or None,
             "fix_merged": fix["fix_merged"], "fix_merged_at": merged_at, "fix_url": fix.get("fix_url"),
             "fix_check_reason": reason[1] if reason else None,
+            "fix_link_type_not_checked": link_type(fix["address"]) if fix.get("address") else None,
             "fix_merge_base": fix.get("merge_base"),
             "report_date": report, "patch_released_date": patch, "reveal_date": reveal,
             "discovered_or_logged_date": dates.get("discovered_or_logged_date"),
@@ -246,6 +247,12 @@ FIX_CHECK_REASONS = {
     "fix_not_on_github": "the card's fix link is not on GitHub",  # its fix section links another host
     "other_links": "the card's links are not GitHub commits or pull requests",
     "not_looked_up_yet": "the card links a GitHub fix, which has not been looked up yet",
+    "advisory_commit_no_fix_link": "the card has no separate fix link; its advisory link is a GitHub commit, "
+                                   "which is not used as the fix link",
+    "advisory_commit_other_fix_link": "the card's fix link is not a GitHub commit or pull request; its advisory "
+                                      "link is a GitHub commit, which is not used as the fix link",
+    "commit_in_text_only": "the card has no fix or advisory link that is a GitHub commit or pull request; it links "
+                           "a GitHub commit or pull request only in its text, which is not used as the fix link",
     "links_not_recorded": "the card's links were not recorded when it was read",
 }
 
@@ -265,14 +272,44 @@ def fix_check_reason(v: dict | None, inp: dict, fix_merged: str) -> tuple[str, s
         return "links_not_recorded", FIX_CHECK_REASONS["links_not_recorded"]
     if not links:
         return "no_outside_links", FIX_CHECK_REASONS["no_outside_links"]
+    fix_links, adv_links = inp.get("fix_links", []), inp.get("advisory_links", [])
+    if any(GH_COMMIT.match(u) for u in adv_links):  # never looked up as the fix
+        return (("advisory_commit_other_fix_link", FIX_CHECK_REASONS["advisory_commit_other_fix_link"]) if fix_links
+                else ("advisory_commit_no_fix_link", FIX_CHECK_REASONS["advisory_commit_no_fix_link"]))
+    if any(GH_COMMIT.match(u) or GH_PULL.match(u) for u in links):
+        return "commit_in_text_only", FIX_CHECK_REASONS["commit_in_text_only"]
     hosts = {_host(u) for u in links}
     if hosts == {"nvd.nist.gov"}:
         return "only_nvd_links", FIX_CHECK_REASONS["only_nvd_links"]
-    if "github.com" in hosts:  # e.g. a release tag, a repository advisory or the repository itself
+    if "github.com" in hosts:  # e.g. a release tag, an advisory, a file or the repository itself
         return "github_not_commit_or_pull", FIX_CHECK_REASONS["github_not_commit_or_pull"]
     if any(_host(u) not in ("github.com", "nvd.nist.gov") for u in t["not_on_github"]):
         return "fix_not_on_github", FIX_CHECK_REASONS["fix_not_on_github"]
     return "other_links", FIX_CHECK_REASONS["other_links"]
+
+
+# The kind of link a card gives in place of a fix commit or pull request (none is ever checked as the fix).
+LINK_TYPES = ("GitHub release tag", "GitHub repository advisory", "GitHub advisory", "NVD page", "other")
+
+
+def link_type(url: str) -> str:
+    if GH_RELEASE_TAG.match(url):
+        return "GitHub release tag"
+    if GH_REPO_ADVISORY.match(url):
+        return "GitHub repository advisory"
+    if _host(url) == "github.com" and "/advisories/" in url:
+        return "GitHub advisory"
+    if _host(url) == "nvd.nist.gov":
+        return "NVD page"
+    return "other"
+
+
+def unchecked_link_note(url: str, fix_links: list[str]) -> str:
+    section = "fix" if url in fix_links else "advisory"
+    kind = link_type(url)
+    what = {"other": "a link of another kind", "NVD page": "an NVD page"}.get(kind, f"a {kind}")
+    return (f"The card's {section} link is {what}, not a commit or pull request; it was not checked as the fix: "
+            f"{url}.")
 
 
 def _host(url: str) -> str:
@@ -383,6 +420,8 @@ def summary_row(snapshots: list[dict], commitments: list[dict], gaps: list[dict]
         "ghsa_ids": _ghsa_counts(ver),
         "fix_check_reasons": dict(sorted(Counter(r["fix_check_reason"] for r in ver
                                                  if r.get("fix_check_reason")).items())),
+        "fix_links_not_checked_by_type": dict(sorted(Counter(r["fix_link_type_not_checked"] for r in ver
+                                                             if r.get("fix_link_type_not_checked")).items())),
         "interval_comparisons": intervals, "policy_source": policy_source,
         "archive_began": MANUAL_DAY,
     }

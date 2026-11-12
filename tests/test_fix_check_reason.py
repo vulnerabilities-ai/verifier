@@ -9,12 +9,20 @@ from pathlib import Path
 from test_phase3 import Phase3Case
 
 from verifier.build import build
-from verifier.build.phase3 import FIX_CHECK_REASONS, fix_check_reason
+from verifier.build.phase3 import FIX_CHECK_REASONS, fix_check_reason, link_type, unchecked_link_note
+from verifier.records import fix_targets
 from verifier.r2 import outside_links, parse_card
 from verifier.report import weekly_report
 from verifier.wording import find
 
 ROOT = Path(__file__).resolve().parents[1]
+REAL = ROOT / "tests/fixtures/fix-link-cards"  # real captured cards (see its README)
+WITHHELD = ROOT / "tests/fixtures/withheld-cards"
+
+
+def real(fid: str):
+    f = parse_card(((REAL if (REAL / f"{fid}.html").exists() else WITHHELD) / f"{fid}.html").read_bytes())
+    return {"card_facts": f}, {"fix_links": f["links"]["fix"], "advisory_links": f["links"]["advisory"]}
 
 
 def card(links, fix=(), advisory=()):
@@ -84,6 +92,84 @@ class Reasons(unittest.TestCase):
                 self.assertIn(u, facts["outside_links"])
 
 
+class RealCards(unittest.TestCase):
+    """Frozen copies of real cards (tests/fixtures/fix-link-cards/, withheld-cards/)."""
+
+    ADVISORY_COMMIT = {
+        "ANT-2026-19SGCVZZ": "https://github.com/alembic/alembic/commit/3f1745ae657b1ce79d39dc7a4bbc03441d2ebcd1",
+        "ANT-2026-8DRZW7VM": "https://github.com/Cisco-Talos/clamav/commit/a0b1531c6368347a79c15fb69d508171c55cc8cf",
+        "ANT-2026-B4Z27MGE": "https://github.com/gpac/gpac/commit/5db36afe0f20a02ea2344d42521e687820096cf4",
+        "ANT-2026-D7FC4YDQ": "https://github.com/alanxz/rabbitmq-c/commit/4777d0b5c58cb02966a04a85832436bd66ed5d1f",
+        "ANT-2026-VVPEMVDE": "https://github.com/Cisco-Talos/clamav/commit/ca39e3843b47f298c3315996df30cf937c20c4ee",
+        "ANT-2026-Z477W54M": "https://github.com/Cisco-Talos/clamav/commit/9532b0687a8d6b66bb32c1d0b51ff0430750457b",
+    }
+
+    def test_advisory_commit_is_its_own_reason_and_never_the_fix(self):
+        for fid, commit in self.ADVISORY_COMMIT.items():
+            v, inp = real(fid)
+            self.assertEqual(inp["fix_links"], [], fid)
+            self.assertIn(commit, inp["advisory_links"], fid)
+            self.assertEqual(fix_check_reason(v, inp, "not_checked")[1],
+                             "the card has no separate fix link; its advisory link is a GitHub commit, which is "
+                             "not used as the fix link", fid)
+            t = fix_targets(inp["fix_links"], inp["advisory_links"])
+            self.assertEqual((t["commit"], t["pull"], t["not_on_github"]), (None, None, []), fid)  # not looked up
+
+    def test_commit_only_in_the_card_text(self):
+        # K8YY7WWS has no fix or advisory section; its analysis text links an earlier wolfSSL commit
+        v, inp = real("ANT-2026-K8YY7WWS")
+        self.assertEqual((inp["fix_links"], inp["advisory_links"]), ([], []))
+        self.assertIn("https://github.com/wolfSSL/wolfssl/commit/e5ab7fa7457d82294bafcfb6c103a9e79b4aa213",
+                      v["card_facts"]["outside_links"])
+        self.assertEqual(code(v, inp), "commit_in_text_only")
+
+    def test_other_real_reasons(self):
+        self.assertEqual(code(*real("ANT-2026-1ZNMP148")), "github_not_commit_or_pull")
+        self.assertEqual(code(*real("ANT-2026-3CJT2BP4")), "github_not_commit_or_pull")  # release tag
+        self.assertEqual(code(*real("ANT-2026-9VJ9JJXQ")), "github_not_commit_or_pull")  # repository advisory
+        self.assertEqual(code(*real("ANT-2026-09SNWQBT")), "no_outside_links")
+        self.assertEqual(code(*real("ANT-2026-0HC68EK6")), "only_nvd_links")
+        self.assertEqual(code(*real("ANT-2026-CN7KX43N")), "only_nvd_links")  # its fix link is an NVD page
+        self.assertEqual(code(*real("ANT-2026-5WVCAVEA")), "other_links")
+        for fid in ("ANT-2026-1ZNMP148", "ANT-2026-3CJT2BP4", "ANT-2026-9VJ9JJXQ"):
+            from verifier.records import GH_COMMIT, GH_PULL
+            self.assertFalse(any(GH_COMMIT.match(u) or GH_PULL.match(u)
+                                 for u in real(fid)[0]["card_facts"]["outside_links"]), fid)
+
+    def test_unchecked_link_notes_name_the_real_link_type(self):
+        expected = {
+            "ANT-2026-3CJT2BP4": "The card's advisory link is a GitHub release tag, not a commit or pull request; it "
+                                 "was not checked as the fix: https://github.com/libjxl/libjxl/releases/tag/v0.12.0.",
+            "ANT-2026-9VJ9JJXQ": "The card's advisory link is a GitHub repository advisory, not a commit or pull "
+                                 "request; it was not checked as the fix: "
+                                 "https://github.com/junrar/junrar/security/advisories/GHSA-j273-m5qq-6825.",
+            "ANT-2026-CN7KX43N": "The card's fix link is an NVD page, not a commit or pull request; it was not "
+                                 "checked as the fix: https://nvd.nist.gov/vuln/detail/CVE-2026-7474.",
+        }
+        for fid, note in expected.items():
+            _, inp = real(fid)
+            t = fix_targets(inp["fix_links"], inp["advisory_links"])
+            self.assertEqual(unchecked_link_note(t["not_on_github"][0], inp["fix_links"]), note)
+            self.assertNotIn("not on GitHub", note)
+            self.assertEqual(find(note), [])
+
+    def test_link_types(self):
+        self.assertEqual(link_type("https://github.com/kjur/jsrsasign/releases/tag/11.1.2"), "GitHub release tag")
+        self.assertEqual(link_type("https://github.com/o/r/security/advisories/GHSA-aaaa-bbbb-cccc"),
+                         "GitHub repository advisory")
+        self.assertEqual(link_type("https://github.com/advisories/GHSA-aaaa-bbbb-cccc"), "GitHub advisory")
+        self.assertEqual(link_type("https://nvd.nist.gov/vuln/detail/CVE-2026-1"), "NVD page")
+        self.assertEqual(link_type("https://gitlab.com/o/r/-/commit/abc"), "other")
+        self.assertIn("a link of another kind", unchecked_link_note("https://gitlab.com/o/r/-/commit/abc",
+                                                                     ["https://gitlab.com/o/r/-/commit/abc"]))
+
+    def test_frozen_copies_match_their_manifests(self):
+        import hashlib
+        readme = (REAL / "README.md").read_text()
+        for f in REAL.glob("*.html"):
+            self.assertIn(hashlib.sha256(f.read_bytes()).hexdigest(), readme, f.name)
+
+
 class InPublishedFiles(Phase3Case):
     def test_column_summary_and_report(self):
         r = build(self.root)  # no lookups made here
@@ -104,6 +190,27 @@ class InPublishedFiles(Phase3Case):
         for reason, count in s.items():
             self.assertIn(f"{count}: {reason}", text)
         self.assertEqual(find(text), [])
+
+    def test_note_and_link_type_in_published_rows(self):
+        from unittest import mock
+        from verifier.build import phase3
+
+        def release_tag(self_, *a):
+            return {"status": "not_checked", "fix_merged": "not_checked",
+                    "reason": "the card links no GitHub commit or pull request as the fix",
+                    "address": "https://github.com/libjxl/libjxl/releases/tag/v0.12.0"}
+        with mock.patch.object(phase3.RecordReader, "fix_merged", release_tag):
+            r = build(self.root)
+        rows = r["tables"]["verification"]  # the mocked lookup answers for every finding
+        self.assertTrue(rows)
+        for v in rows:
+            self.assertEqual(v["fix_link_type_not_checked"], "GitHub release tag")
+            self.assertIn("is a GitHub release tag, not a commit or pull request; it was not checked as the fix",
+                          v["notes"])
+            self.assertNotIn("not on GitHub", v["notes"] or "")
+        self.assertEqual(r["summary"]["fix_links_not_checked_by_type"], {"GitHub release tag": len(rows)})
+        text = weekly_report(self.root, "2026-01-01")
+        self.assertIn("by kind (not checked as the fix): GitHub release tag", text)
 
 
 if __name__ == "__main__":
