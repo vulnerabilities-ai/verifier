@@ -1,4 +1,4 @@
-{"schema_version": 1, "generated_utc": "2026-11-12T07:41:38Z", "source": "https://red.anthropic.com/2026/cvd/ (the program's published dashboard and data files), as captured by the vulnerabilities.ai verifier; see captures/ and METHODOLOGY.md", "sample_data": false, "rows": [
+{"schema_version": 1, "generated_utc": "2026-11-13T07:40:17Z", "source": "https://red.anthropic.com/2026/cvd/ (the program's published dashboard and data files), as captured by the vulnerabilities.ai verifier; see captures/ and METHODOLOGY.md", "sample_data": false, "rows": [
 {"program":"anthropic-cvd","month":null,"source":"model","severity":"not_available","count":5},
 {"program":"anthropic-cvd","month":null,"source":"firm","severity":"not_available","count":5},
 {"program":"anthropic-cvd","month":null,"source":"maintainer","severity":"not_available","count":5},

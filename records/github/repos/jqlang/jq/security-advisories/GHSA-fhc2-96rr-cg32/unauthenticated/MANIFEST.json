@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory_unauthenticated",
+  "url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-fhc2-96rr-cg32",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-13T21:15:44Z",
+      "url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-fhc2-96rr-cg32",
+      "outcome": "fetched",
+      "status": 404,
+      "fetched_utc": "2026-11-13T21:15:44Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-fhc2-96rr-cg32",
+      "headers": {
+        "Date": "Fri, 13 Nov 2026 21:15:44 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "56",
+        "X-RateLimit-Used": "4",
+        "X-RateLimit-Reset": "1794607864",
+        "X-GitHub-Request-Id": "6040:2A9C47:1E9CCD3:603908F:6AF77E00"
+      },
+      "size_bytes": 166,
+      "stored_at": "records/github/repos/langchain-ai/deepagentsjs/security-advisories/GHSA-h4jf-rhmw-rjfw/unauthenticated/response.json",
+      "newly_stored": false,
+      "sha256": "790eded25807b4eba5072a42f10b85b0dfc1712aaadb2e4b4fb39d0e3026223f"
+    }
+  ]
+}
