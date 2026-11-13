@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory_unauthenticated",
+  "url": "https://api.github.com/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-13T21:23:54Z",
+      "url": "https://api.github.com/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f",
+      "outcome": "fetched",
+      "status": 404,
+      "fetched_utc": "2026-11-13T21:23:54Z",
+      "final_url": "https://api.github.com/repositories/154201259/security-advisories/GHSA-9qm2-7vmf-h64f",
+      "headers": {
+        "Date": "Fri, 13 Nov 2026 21:23:54 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "50",
+        "X-RateLimit-Used": "10",
+        "X-RateLimit-Reset": "1794607864",
+        "X-GitHub-Request-Id": "6041:DF15A:1FAAD6B:637E288:6AF77FEA"
+      },
+      "size_bytes": 166,
+      "stored_at": "records/github/repos/langchain-ai/deepagentsjs/security-advisories/GHSA-h4jf-rhmw-rjfw/unauthenticated/response.json",
+      "newly_stored": false,
+      "sha256": "790eded25807b4eba5072a42f10b85b0dfc1712aaadb2e4b4fb39d0e3026223f"
+    }
+  ]
+}

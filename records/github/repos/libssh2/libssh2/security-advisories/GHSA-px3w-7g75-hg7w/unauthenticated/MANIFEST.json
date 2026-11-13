@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory_unauthenticated",
+  "url": "https://api.github.com/repos/libssh2/libssh2/security-advisories/GHSA-px3w-7g75-hg7w",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-13T21:20:24Z",
+      "url": "https://api.github.com/repos/libssh2/libssh2/security-advisories/GHSA-px3w-7g75-hg7w",
+      "outcome": "fetched",
+      "status": 404,
+      "fetched_utc": "2026-11-13T21:20:24Z",
+      "final_url": "https://api.github.com/repos/libssh2/libssh2/security-advisories/GHSA-px3w-7g75-hg7w",
+      "headers": {
+        "Date": "Fri, 13 Nov 2026 21:20:24 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "58",
+        "X-RateLimit-Used": "2",
+        "X-RateLimit-Reset": "1794605483",
+        "X-GitHub-Request-Id": "6040:265753:16FA1EA:490A1C7:6AF77F18"
+      },
+      "size_bytes": 166,
+      "stored_at": "records/github/repos/langchain-ai/deepagentsjs/security-advisories/GHSA-h4jf-rhmw-rjfw/unauthenticated/response.json",
+      "newly_stored": false,
+      "sha256": "790eded25807b4eba5072a42f10b85b0dfc1712aaadb2e4b4fb39d0e3026223f"
+    }
+  ]
+}
