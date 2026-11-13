@@ -91,6 +91,10 @@ DIAG_MAX_IDS = 5
 UNAUTH_GAP_SECONDS = 70.0
 UNAUTH_BUDGET_SECONDS = 45 * 60
 UNAUTH_RECHECK_DAYS = 30
+# A lookup with a conclusive answer (found, not found, or the token refused) is not asked again
+# until it is this many days old: the weekly refresh. Unfinished lookups (rate-limited,
+# network error, unreadable, never made) are always asked first.
+LOOKUP_REFRESH_DAYS = 7
 NOT_IN_GLOBAL_DATABASE = "GitHub's global advisory database has no entry for this ID"
 GITHUB_STOP_BELOW = 50  # stop GitHub lookups when fewer requests than this remain
 SAMPLE_FINDINGS = 5

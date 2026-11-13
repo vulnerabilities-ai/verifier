@@ -48,6 +48,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A run started before the previous review pull request is merged keeps that run's
+      # lookups (records/ only) instead of making the same requests again.
+      - name: Carry over lookups from an unmerged review branch
+        env:
+          REVIEW_BRANCH: ${{ inputs.sample_only && 'review/sample' || 'review/weekly' }}
+        continue-on-error: true # never stops the run; the lookups are then simply made again
+        run: bash scripts/carry_over_records.sh
+
       - name: Fetch new or due finding cards
         id: cards
         run: |
