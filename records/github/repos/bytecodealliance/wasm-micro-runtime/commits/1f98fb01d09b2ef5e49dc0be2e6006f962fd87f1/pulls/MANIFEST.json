@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime/commits/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:18Z",
+      "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime/commits/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:18Z",
+      "final_url": "https://api.github.com/repositories/184654298/commits/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:18 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e36b2f43b290a68a59d82b0c743e4ed0847615b9a462bba7dc1d85e8df81a0e7\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4752",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "248",
+        "X-GitHub-Request-Id": "B80A:68E0F:178A4EF:49FB6B6:6AF6448A"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

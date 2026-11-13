@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-7p85-w9px-jpjp"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-7p85-w9px-jpjp",
+      "https://github.com/twigphp/Twig/commit/e9ff55f6910832428e48a35b2e0748189ad49ae3",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-46633"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

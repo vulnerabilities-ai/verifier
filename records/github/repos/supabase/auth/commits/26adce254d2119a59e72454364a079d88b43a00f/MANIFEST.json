@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/supabase/auth/commits/26adce254d2119a59e72454364a079d88b43a00f",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:59:28Z",
+      "url": "https://api.github.com/repos/supabase/auth/commits/26adce254d2119a59e72454364a079d88b43a00f",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:59:29Z",
+      "final_url": "https://api.github.com/repos/supabase/auth/commits/26adce254d2119a59e72454364a079d88b43a00f",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:59:29 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e9fc127078ed3c8bdc22a7a31d2a192aba409ef7562bb28675ca148ea774325b\"",
+        "Last-Modified": "Mon, 01 Jun 2026 11:51:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4679",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "321",
+        "X-GitHub-Request-Id": "B80D:FF026:17C4233:4AF734B:6AF644D1"
+      },
+      "size_bytes": 13236,
+      "stored_at": "records/github/repos/supabase/auth/commits/26adce254d2119a59e72454364a079d88b43a00f/response.json",
+      "newly_stored": true,
+      "sha256": "bb86e2203a894666ba5ce5df82f0bca6fee9ade5b2f6bea0b378837db1d7784b"
+    }
+  ]
+}

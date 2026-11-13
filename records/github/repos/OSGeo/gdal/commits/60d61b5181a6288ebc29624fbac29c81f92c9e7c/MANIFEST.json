@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/OSGeo/gdal/commits/60d61b5181a6288ebc29624fbac29c81f92c9e7c",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:57:51Z",
+      "url": "https://api.github.com/repos/OSGeo/gdal/commits/60d61b5181a6288ebc29624fbac29c81f92c9e7c",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:57:52Z",
+      "final_url": "https://api.github.com/repos/OSGeo/gdal/commits/60d61b5181a6288ebc29624fbac29c81f92c9e7c",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:57:52 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"bc88d94ea22512f0f39afce6ba8a61bfd44035ae02038805011bedc3bb833568\"",
+        "Last-Modified": "Mon, 11 May 2026 17:16:02 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4780",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "220",
+        "X-GitHub-Request-Id": "B80A:68E0F:1782220:49E1C3D:6AF64470"
+      },
+      "size_bytes": 8335,
+      "stored_at": "records/github/repos/OSGeo/gdal/commits/60d61b5181a6288ebc29624fbac29c81f92c9e7c/response.json",
+      "newly_stored": true,
+      "sha256": "0457063c2b62d69e2cb0144de9337a66296f076d713a39b72680af83d285e458"
+    }
+  ]
+}

@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FreeRDP/FreeRDP/commit/0adf5e30d01be84e190a359a7bdd37bc51d740cc",
+      "https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-vv64-95pc-vj9v",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-73242"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

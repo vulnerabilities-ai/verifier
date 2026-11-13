@@ -71,6 +71,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/openmrs/openmrs-module-fhir2",
+      "https://github.com/openmrs/openmrs-module-fhir2/commit/601800edad0ab469af1e4bc9758dba1a732472d2"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

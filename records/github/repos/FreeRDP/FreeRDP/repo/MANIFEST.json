@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:34Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:35Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:36 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"75ed0ac0a349721c4684447a1048d2a0ee4c07082bdbe46295522e0e190247e3\"",
+        "Last-Modified": "Thu, 12 Nov 2026 16:56:05 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4995",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "5",
+        "X-GitHub-Request-Id": "B80B:330D48:1642E41:45699F9:6AF64333"
+      },
+      "size_bytes": 6334,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/repo/response.json",
+      "newly_stored": true,
+      "sha256": "c5a892b6deea3aa3ec2b7fdf617dd12f5557a864283853317ecfade1480f5362"
+    }
+  ]
+}

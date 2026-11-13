@@ -73,6 +73,10 @@
         "https://github.com/advisories/GHSA-j273-m5qq-6825"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-j273-m5qq-6825",
+      "https://github.com/junrar/junrar/security/advisories/GHSA-j273-m5qq-6825"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

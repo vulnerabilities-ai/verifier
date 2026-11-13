@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "pull",
+  "url": "https://api.github.com/repos/dloebl/cgif/pulls/84",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:26Z",
+      "url": "https://api.github.com/repos/dloebl/cgif/pulls/84",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:27Z",
+      "final_url": "https://api.github.com/repos/dloebl/cgif/pulls/84",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "Date": "Thu, 12 Nov 2026 22:58:27 GMT",
+        "ETag": "\"d2145b86ed8739b62c884621461e1026139ec903dc7d7930ac1b72f08a054e59\"",
+        "Last-Modified": "Sun, 26 Apr 2026 15:12:33 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4743",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "257",
+        "X-GitHub-Request-Id": "B80B:330D48:16D6562:4734E20:6AF64493"
+      },
+      "size_bytes": 18989,
+      "stored_at": "records/github/repos/dloebl/cgif/pulls/84/response.json",
+      "newly_stored": true,
+      "sha256": "7e38c031a28b2d2e4e0de38a5c2fb97458aa69bace09581e2e773ef6a6e9897e"
+    }
+  ]
+}

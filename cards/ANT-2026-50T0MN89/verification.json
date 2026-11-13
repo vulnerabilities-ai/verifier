@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/u-boot/u-boot/commit/bc82aa5b4145eba47f57e6f7148e0fa45bc16f51"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

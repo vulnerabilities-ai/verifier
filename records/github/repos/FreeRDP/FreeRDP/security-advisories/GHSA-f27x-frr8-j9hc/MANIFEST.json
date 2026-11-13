@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-f27x-frr8-j9hc",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:40Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-f27x-frr8-j9hc",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:40Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-f27x-frr8-j9hc",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:41 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"eddda78e32c38d63c246c1e8f5fb51f0108138bf4014b149a9cfaef66810d0bf\"",
+        "Last-Modified": "Mon, 06 Jul 2026 08:42:04 GMT",
+        "X-GitHub-Request-Id": "B809:1158B1:B85BCB:24562AC:6AF64914",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4883",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "117"
+      },
+      "size_bytes": 17835,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-f27x-frr8-j9hc/response.json",
+      "newly_stored": true,
+      "sha256": "b04d90b5bce259bbf0fb87028ec6fb5a2f11524806a43277a8e3d627d99b2279"
+    }
+  ]
+}

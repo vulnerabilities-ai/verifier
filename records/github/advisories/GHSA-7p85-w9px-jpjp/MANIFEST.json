@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-7p85-w9px-jpjp",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:25Z",
+      "url": "https://api.github.com/advisories/GHSA-7p85-w9px-jpjp",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:25Z",
+      "final_url": "https://api.github.com/advisories/GHSA-7p85-w9px-jpjp",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:26 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"7844d64167b7ea3da20d6401e89883f58935c9afd5aae5d2f788d2d84405107e\"",
+        "Last-Modified": "Wed, 04 Nov 2026 00:00:33 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4926",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "74",
+        "X-GitHub-Request-Id": "B808:68277:154AEFC:424F3FF:6AF643DD"
+      },
+      "size_bytes": 5200,
+      "stored_at": "records/github/advisories/GHSA-7p85-w9px-jpjp/response.json",
+      "newly_stored": true,
+      "sha256": "01b1950e785f608423d0936d7ea2615a0d4dfc2522dc54543373e0f7214bac45"
+    }
+  ]
+}

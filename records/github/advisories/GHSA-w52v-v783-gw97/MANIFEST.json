@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-w52v-v783-gw97",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:25Z",
+      "url": "https://api.github.com/advisories/GHSA-w52v-v783-gw97",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:26Z",
+      "final_url": "https://api.github.com/advisories/GHSA-w52v-v783-gw97",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:27 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"2bbe68e52302aad8b39b66a6ae89996c3d30d2290f694a01206f506728fd5ca1\"",
+        "Last-Modified": "Mon, 08 Jun 2026 23:22:35 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4865",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "135",
+        "X-GitHub-Request-Id": "B80C:36EA69:1610506:44D82D0:6AF6441A"
+      },
+      "size_bytes": 2938,
+      "stored_at": "records/github/advisories/GHSA-w52v-v783-gw97/response.json",
+      "newly_stored": true,
+      "sha256": "a82b2154fa29f1f3d2fac365e022b9608ecbc0d9c2905b5ca369fca16a07451a"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/libass/libass/security-advisories/GHSA-pjjp-65r7-ppgm",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:46Z",
+      "url": "https://api.github.com/repos/libass/libass/security-advisories/GHSA-pjjp-65r7-ppgm",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:47Z",
+      "final_url": "https://api.github.com/repos/libass/libass/security-advisories/GHSA-pjjp-65r7-ppgm",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:48 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"f25eb8f41af5f95d15dfaeb00ef20a7fe1aaa8e0336b74c7e2081b1b864f6667\"",
+        "Last-Modified": "Fri, 10 Jul 2026 18:27:01 GMT",
+        "X-GitHub-Request-Id": "B809:1158B1:B88184:245D97C:6AF6491B",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4876",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "124"
+      },
+      "size_bytes": 3624,
+      "stored_at": "records/github/repos/libass/libass/security-advisories/GHSA-pjjp-65r7-ppgm/response.json",
+      "newly_stored": true,
+      "sha256": "4b3348d1e13c1aee73aaa420bc30aa93e5e95ef4ce382864f5fbea05d7d052fe"
+    }
+  ]
+}

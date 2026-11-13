@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/ava-labs/libevm/commit/63a0b4c93a12787bfaa60da768b176d3a8a6cd79"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

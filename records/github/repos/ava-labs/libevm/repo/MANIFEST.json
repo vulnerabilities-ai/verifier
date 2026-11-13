@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/ava-labs/libevm",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:44Z",
+      "url": "https://api.github.com/repos/ava-labs/libevm",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:44Z",
+      "final_url": "https://api.github.com/repos/ava-labs/libevm",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:45 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"543dd9cb374f24da4cece3852ebbb4fe094f53ba5e100b6339588d99b6e84be5\"",
+        "Last-Modified": "Wed, 11 Nov 2026 12:11:58 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4986",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "14",
+        "X-GitHub-Request-Id": "B808:68277:1507B27:417FD37:6AF6433C"
+      },
+      "size_bytes": 17065,
+      "stored_at": "records/github/repos/ava-labs/libevm/repo/response.json",
+      "newly_stored": true,
+      "sha256": "09471fa7c613d952f068d97aa69337b3ec3851fad3610f4f3aa6518ade937b22"
+    }
+  ]
+}

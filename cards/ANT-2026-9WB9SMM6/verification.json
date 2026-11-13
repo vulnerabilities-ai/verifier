@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libass/libass/commit/f2ef59755292bc4bb950ef22710e18a5487c399d",
+      "https://github.com/libass/libass/security/advisories/GHSA-pjjp-65r7-ppgm",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-61627"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

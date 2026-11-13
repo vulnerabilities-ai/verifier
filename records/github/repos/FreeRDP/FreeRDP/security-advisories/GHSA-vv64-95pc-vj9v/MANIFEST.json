@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:56Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:56Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:57 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cc8334926a24cbdb571154d999ec284ccd3bc9d1d03537fe320946ed7acac9db\"",
+        "Last-Modified": "Tue, 11 Aug 2026 19:48:48 GMT",
+        "X-GitHub-Request-Id": "B808:3DA0D0:C02BF6:25ACBB2:6AF64924",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4866",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "134"
+      },
+      "size_bytes": 21220,
+      "stored_at": "records/diagnostic/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v/response.json",
+      "newly_stored": false,
+      "sha256": "cb7a4232557634a70cac796e2fb8e9b9d2eee6888f0e3ec8ff56d032bb07269f"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/craftcms/cms",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:48Z",
+      "url": "https://api.github.com/repos/craftcms/cms",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:48Z",
+      "final_url": "https://api.github.com/repos/craftcms/cms",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:49 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"46a7b969c07670cac07037339ef5c22b90a96237c13db406eff3df3d24d9ef99\"",
+        "Last-Modified": "Thu, 12 Nov 2026 12:59:01 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4981",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "19",
+        "X-GitHub-Request-Id": "B80C:36EA69:15B4F13:43BC63F:6AF64340"
+      },
+      "size_bytes": 6139,
+      "stored_at": "records/github/repos/craftcms/cms/repo/response.json",
+      "newly_stored": true,
+      "sha256": "ade516545ff7f828a559a4a516f8eab55588a28041b22a70952aebff54d18433"
+    }
+  ]
+}

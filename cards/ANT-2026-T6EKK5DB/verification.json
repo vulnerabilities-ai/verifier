@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/openssh/openssh-portable/commit/073faa6beceea162eeeb7963c7352a6c851e507a"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -73,6 +73,10 @@
         "https://github.com/advisories/GHSA-c2q7-642g-3vwr"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-c2q7-642g-3vwr",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-6772"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

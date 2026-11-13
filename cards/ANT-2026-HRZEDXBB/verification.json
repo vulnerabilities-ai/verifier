@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/ArtifexSoftware/ghostpdl/commit/d1f809e46a1a8564d15d8b2501314bf22b412e7d"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

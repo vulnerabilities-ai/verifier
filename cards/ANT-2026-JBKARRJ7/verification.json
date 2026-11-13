@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libvips/libvips/commit/91ebd4d35341a8353ea490392d556d582e4b846f",
+      "https://github.com/libvips/libvips/security/advisories/GHSA-jmwm-wc68-mhwm",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-35590"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

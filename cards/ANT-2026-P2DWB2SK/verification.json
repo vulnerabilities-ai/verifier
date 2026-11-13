@@ -75,6 +75,13 @@
         "https://github.com/advisories/GHSA-chgx-jx3p-rf73"
       ]
     },
+    "outside_links": [
+      "https://caddyserver.com/",
+      "https://github.com/advisories/GHSA-chgx-jx3p-rf73",
+      "https://github.com/mastodon/mastodon/security/advisories/GHSA-chgx-jx3p-rf73",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-46349",
+      "https://www.w3.org/TR/json-ld/#named-graphs"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

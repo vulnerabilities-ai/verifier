@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:30Z",
+      "url": "https://api.github.com/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:30Z",
+      "final_url": "https://api.github.com/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:30 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"3abaf8c8d03cc72eb90834a8bcfd8429d952c3b6f8f6e70fced94ca2b755b561\"",
+        "Last-Modified": "Thu, 26 Mar 2026 01:11:54 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4738",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "262",
+        "X-GitHub-Request-Id": "B808:68277:1595C92:4338C02:6AF64496"
+      },
+      "size_bytes": 8223,
+      "stored_at": "records/github/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206/response.json",
+      "newly_stored": true,
+      "sha256": "dd67871ee20e7f7e9bceeeb053bbe47412cd7c1bb6a6e2797d987e743b02d76c"
+    }
+  ]
+}

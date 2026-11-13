@@ -71,6 +71,11 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/jetty/jetty.project/commit/b5bdc24629cac46ed51c12de11afd7a068cb3b48",
+      "https://github.com/jetty/jetty.project/security/advisories/GHSA-85fq-fc5f-7j7g",
+      "https://github.com/user-attachments/files/29643513/Harness.java"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

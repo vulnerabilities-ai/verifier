@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/GitoxideLabs/gitoxide/commits/e3ca1e64b0bcd627c7c5d3620f891cc22d1d03c7/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:57:24Z",
+      "url": "https://api.github.com/repos/GitoxideLabs/gitoxide/commits/e3ca1e64b0bcd627c7c5d3620f891cc22d1d03c7/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:57:25Z",
+      "final_url": "https://api.github.com/repos/GitoxideLabs/gitoxide/commits/e3ca1e64b0bcd627c7c5d3620f891cc22d1d03c7/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:57:25 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ef80dea0b999b645a7afddb3ed25e265d0458575a24deec3639f4c03d0c9090a\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4807",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "193",
+        "X-GitHub-Request-Id": "B80A:68E0F:1779C79:49C79F9:6AF64455"
+      },
+      "size_bytes": 18440,
+      "stored_at": "records/github/repos/GitoxideLabs/gitoxide/commits/e3ca1e64b0bcd627c7c5d3620f891cc22d1d03c7/pulls/response.json",
+      "newly_stored": true,
+      "sha256": "4d4795ee8b91bb0b67b5a81a4233c8d0e8c9f750692dd1ee809befc69d1341a1"
+    }
+  ]
+}

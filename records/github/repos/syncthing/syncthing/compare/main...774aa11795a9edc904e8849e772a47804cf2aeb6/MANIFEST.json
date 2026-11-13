@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/syncthing/syncthing/compare/main...774aa11795a9edc904e8849e772a47804cf2aeb6",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:52Z",
+      "url": "https://api.github.com/repos/syncthing/syncthing/compare/main...774aa11795a9edc904e8849e772a47804cf2aeb6",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:53Z",
+      "final_url": "https://api.github.com/repos/syncthing/syncthing/compare/main...774aa11795a9edc904e8849e772a47804cf2aeb6",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"10ab943bd8a5922fc5f12bf46ae948d8af07d657d2b49a7fc0ca2cd18380e062\"",
+        "Last-Modified": "Mon, 09 Nov 2026 03:48:13 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4548",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "452",
+        "X-GitHub-Request-Id": "B809:38E5BE:2110105:6711625:6AF648A9"
+      },
+      "size_bytes": 9041,
+      "stored_at": "records/github/repos/syncthing/syncthing/compare/main...774aa11795a9edc904e8849e772a47804cf2aeb6/response.json",
+      "newly_stored": true,
+      "sha256": "9979d3e0d72bcad9131fe63cfabfa0a9213f5fc52f8e942bd24b27b4e1e84e15"
+    }
+  ]
+}

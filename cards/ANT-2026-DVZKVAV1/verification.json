@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/OISF/suricata/commit/73bee2f4fd375b973717f6b45365ed29c058f8a0"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

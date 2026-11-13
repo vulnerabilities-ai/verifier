@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/jqlang/jq",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:59Z",
+      "url": "https://api.github.com/repos/jqlang/jq",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:59Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:00 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"3ddae5ee03788f3ac2df79ab31429dffec62440ea69a633fbd6b610c2e2f0dc6\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:18:47 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4969",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "31",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EB66EE:5FB63B8:6AF6434B"
+      },
+      "size_bytes": 5807,
+      "stored_at": "records/github/repos/jqlang/jq/repo/response.json",
+      "newly_stored": true,
+      "sha256": "e627f06a69513ddb9f76fe0fc56594f90b7edb5e883e99d7b070d4541d33e4a3"
+    }
+  ]
+}

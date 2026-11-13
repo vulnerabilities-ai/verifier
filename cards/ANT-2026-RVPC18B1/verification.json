@@ -69,6 +69,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libgit2/libgit2/security/advisories/GHSA-wfx7-g85r-q6vw"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/asterisk/asterisk/security-advisories/GHSA-589g-qgf8-m6mx",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:29Z",
+      "url": "https://api.github.com/repos/asterisk/asterisk/security-advisories/GHSA-589g-qgf8-m6mx",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:30Z",
+      "final_url": "https://api.github.com/repos/asterisk/asterisk/security-advisories/GHSA-589g-qgf8-m6mx",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:31 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"7603a6184c7834be5d726c4f0b2f7aa3e7b67b1c2068b75996cc6d3604f48a68\"",
+        "Last-Modified": "Thu, 25 Jun 2026 15:55:54 GMT",
+        "X-GitHub-Request-Id": "B80D:1645D6:B16E0E:22D39DC:6AF6490A",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4894",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "106"
+      },
+      "size_bytes": 11633,
+      "stored_at": "records/github/repos/asterisk/asterisk/security-advisories/GHSA-589g-qgf8-m6mx/response.json",
+      "newly_stored": true,
+      "sha256": "619641076f3806bae0dc64f3477a2b08235a64081ea74e08831494da26c23553"
+    }
+  ]
+}

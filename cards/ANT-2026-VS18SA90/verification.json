@@ -46,6 +46,9 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-27654"
+    ],
     "missing_parts": [
       "timeline",
       "severities"

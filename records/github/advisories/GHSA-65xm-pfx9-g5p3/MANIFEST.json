@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-65xm-pfx9-g5p3",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:19Z",
+      "url": "https://api.github.com/advisories/GHSA-65xm-pfx9-g5p3",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:19Z",
+      "final_url": "https://api.github.com/advisories/GHSA-65xm-pfx9-g5p3",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:20 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"f58b584c436895ca4c612b477192cdb79a29ef78156c1121a8c5c1e09dee72e5\"",
+        "Last-Modified": "Mon, 27 Apr 2026 18:32:02 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4932",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "68",
+        "X-GitHub-Request-Id": "B808:68277:154856C:4247198:6AF643D7"
+      },
+      "size_bytes": 1892,
+      "stored_at": "records/github/advisories/GHSA-65xm-pfx9-g5p3/response.json",
+      "newly_stored": true,
+      "sha256": "7d94de47e8426ee790cd205a352111e11187350d83ce9b64339d9677863b0305"
+    }
+  ]
+}

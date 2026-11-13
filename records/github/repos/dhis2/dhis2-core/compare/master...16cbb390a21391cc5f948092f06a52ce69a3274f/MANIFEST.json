@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:16:13Z",
+      "url": "https://api.github.com/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:13Z",
+      "final_url": "https://api.github.com/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:13 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"6d4c388739896840464977bcd687c28740f91a5be5fb4cbb073687299dfa4686\"",
+        "Last-Modified": "Thu, 12 Nov 2026 13:08:10 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4528",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "472",
+        "X-GitHub-Request-Id": "B809:38E5BE:2118905:672C055:6AF648BD"
+      },
+      "size_bytes": 9325,
+      "stored_at": "records/github/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f/response.json",
+      "newly_stored": true,
+      "sha256": "5ea91221046623d3af2b1635c71ce82d13ecbee8eb765b8abf5bb581ccf0347e"
+    }
+  ]
+}

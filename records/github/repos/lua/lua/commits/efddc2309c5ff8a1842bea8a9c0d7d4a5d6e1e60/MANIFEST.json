@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:59:04Z",
+      "url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:59:05Z",
+      "final_url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:59:05 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"b8d086511f6c18808ac64cf7b72f7d491c26d09c4432f2f0cad2b9fba69b8fca\"",
+        "Last-Modified": "Wed, 01 Apr 2026 18:01:58 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4703",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "297",
+        "X-GitHub-Request-Id": "B808:68277:15A3D36:43646CA:6AF644B9"
+      },
+      "size_bytes": 5595,
+      "stored_at": "records/github/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60/response.json",
+      "newly_stored": true,
+      "sha256": "1fa29d25501ae8751798f842fe1e4e93aa95cb38ad4b248f2ed232e879ef054f"
+    }
+  ]
+}

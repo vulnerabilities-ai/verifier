@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/jqlang/jq/commit/e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "https://github.com/jqlang/jq/security/advisories/GHSA-q3h9-m34w-h76f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-32316"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -66,6 +66,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/WebKit/WebKit/commit/eba64ef44de395091d66bdfdf1c2b1f0f4983c56"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

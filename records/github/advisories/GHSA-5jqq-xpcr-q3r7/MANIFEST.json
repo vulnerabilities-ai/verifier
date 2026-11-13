@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-5jqq-xpcr-q3r7",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:17Z",
+      "url": "https://api.github.com/advisories/GHSA-5jqq-xpcr-q3r7",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:18Z",
+      "final_url": "https://api.github.com/advisories/GHSA-5jqq-xpcr-q3r7",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:19 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ba37e1eb83c82374479c121aa444e68dd43be6da5c75d3f224e35a7869ec74ff\"",
+        "Last-Modified": "Wed, 29 Apr 2026 15:30:36 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4933",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "67",
+        "X-GitHub-Request-Id": "B80D:23F3F4:1528028:41FF213:6AF643D6"
+      },
+      "size_bytes": 1755,
+      "stored_at": "records/github/advisories/GHSA-5jqq-xpcr-q3r7/response.json",
+      "newly_stored": true,
+      "sha256": "d0cf049893b53cea4f72c7312591758302163c829de02e5ee38c035eb2c2195f"
+    }
+  ]
+}

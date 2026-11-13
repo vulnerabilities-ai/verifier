@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-rjvx-x4g3-vr6w"
       ]
     },
+    "outside_links": [
+      "https://github.com/Cisco-Talos/clamav/commit/ca39e3843b47f298c3315996df30cf937c20c4ee",
+      "https://github.com/advisories/GHSA-rjvx-x4g3-vr6w",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-20213"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

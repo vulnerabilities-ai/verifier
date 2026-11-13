@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/openmeterio/openmeter",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:12Z",
+      "url": "https://api.github.com/repos/openmeterio/openmeter",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:12Z",
+      "final_url": "https://api.github.com/repos/openmeterio/openmeter",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:13 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"b361649d3f360d40092af2ac5d96659bfefd9780862b03ec9ee8877159a0bde6\"",
+        "Last-Modified": "Thu, 12 Nov 2026 18:28:30 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4956",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "44",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EBC440:5FC84BB:6AF64358"
+      },
+      "size_bytes": 6761,
+      "stored_at": "records/github/repos/openmeterio/openmeter/repo/response.json",
+      "newly_stored": true,
+      "sha256": "c036389bed384e22b1e58baca511ff8a558bb29b85871177ffe430df0ac338b2"
+    }
+  ]
+}

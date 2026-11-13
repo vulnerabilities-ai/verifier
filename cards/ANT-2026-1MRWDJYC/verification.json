@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/ermig1979/Simd/releases/tag/v7.1.161"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

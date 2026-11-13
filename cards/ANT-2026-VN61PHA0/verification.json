@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-rh79-75qm-gwjr"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-rh79-75qm-gwjr",
+      "https://github.com/go-gitea/gitea/commit/66a3723cbb1d2224be9dc62483902b6b2df226c0",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-58435"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -71,6 +71,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/CESNET/libyang/commit/2ee5746c5fa779fe76275075dda5a73d6d7c1fa0",
+      "https://github.com/CESNET/libyang/security/advisories/GHSA-44h9-v855-6rj3"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

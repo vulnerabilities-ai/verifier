@@ -80,14 +80,14 @@
     {
       "name": "ids_exist",
       "type": "string",
-      "meaning": "R3: verified (every ID found in the GitHub Advisory Database or NVD), not_found (an ID found in neither, both read), not_applicable (no IDs), rate_limited, lookup_unreadable or not_checked.",
+      "meaning": "R3: verified (every ID has an entry in the GitHub Advisory Database, NVD or the repository's own security advisory), not_found (an ID was read in every source and none has it; not_in_global_database counts as read), not_applicable (no IDs), rate_limited, github_refused_token, no_repository_known, lookup_unreadable or not_checked.",
       "source_field": null,
       "label": "Independently verified"
     },
     {
       "name": "ids_exist_detail",
       "type": "object",
-      "meaning": "Per ID and source: exists, not_found or the lookup status.",
+      "meaning": "Per ID and source (github = the global database, nvd, repository_advisory): exists, not_found, not_in_global_database (GitHub's global advisory database has no entry for this ID: the token was refused and the same request without the token returned 404), no_repository_known, or the lookup status.",
       "source_field": null,
       "label": "Independently verified"
     },
@@ -108,9 +108,23 @@
     {
       "name": "fix_merged",
       "type": "string",
-      "meaning": "R4: yes (merged into the project's default branch), no, not_checked (not on GitHub, or not looked up yet), not_applicable, rate_limited or lookup_unreadable.",
+      "meaning": "R4: yes (merged into the project's default branch), no, not_checked (the card links no GitHub fix commit or pull request, or it was not looked up yet; see fix_check_reason), not_applicable, rate_limited, github_refused_token or lookup_unreadable.",
       "source_field": null,
       "label": "Independently verified"
+    },
+    {
+      "name": "fix_check_reason",
+      "type": "string",
+      "meaning": "Only when fix_merged is not_checked: the plain reason, read only from the finding card's links. One of: 'the card links no fix commit or pull request (the card has no outside links)'; 'the card links no fix commit or pull request (its only outside links are NVD records)'; 'the card has no separate fix link; its advisory link is a GitHub commit, which is not used as the fix link'; 'the card's fix link is not a GitHub commit or pull request; its advisory link is a GitHub commit, which is not used as the fix link'; 'the card has no fix or advisory link that is a GitHub commit or pull request; it links a GitHub commit or pull request only in its text, which is not used as the fix link'; 'the card's links are not GitHub commits or pull requests (it links GitHub, but not to a commit or pull request)'; 'the card's fix link is not on GitHub'; 'the card's links are not GitHub commits or pull requests'; 'the card links a GitHub fix, which has not been looked up yet'; 'no copy of the finding card is available'; 'the card's links were not recorded when it was read'. Empty for every other fix_merged value. A commit under the card's advisory heading or in its text is never checked as the fix, and fix commits are never inferred from advisories or NVD references.",
+      "source_field": "finding card links",
+      "label": null
+    },
+    {
+      "name": "fix_link_type_not_checked",
+      "type": "string",
+      "meaning": "When the card's fix or advisory section gives a link that is not a GitHub commit or pull request (and none that is): its kind, one of 'GitHub release tag', 'GitHub repository advisory', 'GitHub advisory', 'NVD page' or 'other'. That link is not checked as the fix; notes says so with the address.",
+      "source_field": "finding card links",
+      "label": null
     },
     {
       "name": "fix_merged_at",
@@ -344,9 +358,72 @@
       "label": "Each source's own"
     },
     {
+      "name": "repo_advisory_repository",
+      "type": "string",
+      "meaning": "For a GHSA ID the global database has no entry for (or refused for the token): the repository whose own security advisory was read, taken from the finding card's links. A separate source from the global database; never merged with its fields.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "repo_advisory_published",
+      "type": "date",
+      "meaning": "Publication date of the repository's advisory.",
+      "source_field": "GitHub repository advisory: published_at",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_severity",
+      "type": "string",
+      "meaning": "The repository advisory's own stated severity.",
+      "source_field": "GitHub repository advisory: severity",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_cve_id",
+      "type": "string",
+      "meaning": "The CVE ID the repository advisory names.",
+      "source_field": "GitHub repository advisory: cve_id",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_cwes",
+      "type": "list",
+      "meaning": "CWE IDs in the repository advisory.",
+      "source_field": "GitHub repository advisory: cwe_ids",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_cvss_v31_score",
+      "type": "number",
+      "meaning": "CVSS 3.1 score in the repository advisory. Empty when absent (a placeholder without a vector string counts as absent), never 0.0.",
+      "source_field": "GitHub repository advisory: cvss_severities.cvss_v3",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_cvss_v40_score",
+      "type": "number",
+      "meaning": "CVSS 4.0 score in the repository advisory. Empty when absent, never 0.0.",
+      "source_field": "GitHub repository advisory: cvss_severities.cvss_v4",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_state",
+      "type": "string",
+      "meaning": "The repository advisory's state, as GitHub gives it (for example published).",
+      "source_field": "GitHub repository advisory: state",
+      "label": "Each source's own"
+    },
+    {
+      "name": "repo_advisory_read_with",
+      "type": "string",
+      "meaning": "token (the workflow's built-in token) or no token (read without the token after GitHub refused the token).",
+      "source_field": null,
+      "label": null
+    },
+    {
       "name": "lookup_status",
       "type": "string",
-      "meaning": "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so there was nothing to look up), rate_limited (resumes next run), lookup_unreadable (reason in notes), network_error or not_checked.",
+      "meaning": "ok (every lookup read), no_identifiers (the finding has no CVE or GHSA ID, so there was nothing to look up), rate_limited (resumes next run), no_repository_known (a GHSA ID has no global entry and the card links no repository, so its repository advisory could not be looked up), github_refused_token (GitHub answered HTTP 403 'Resource not accessible by integration' for the built-in token; the exact message is in notes), lookup_unreadable (reason in notes), network_error or not_checked.",
       "source_field": null,
       "label": null
     },

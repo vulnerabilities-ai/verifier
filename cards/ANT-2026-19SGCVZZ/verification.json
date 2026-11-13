@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/alembic/alembic/commit/3f1745ae657b1ce79d39dc7a4bbc03441d2ebcd1"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

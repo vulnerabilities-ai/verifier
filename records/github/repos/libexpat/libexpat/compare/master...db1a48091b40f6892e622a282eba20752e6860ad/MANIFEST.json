@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/libexpat/libexpat/compare/master...db1a48091b40f6892e622a282eba20752e6860ad",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:14Z",
+      "url": "https://api.github.com/repos/libexpat/libexpat/compare/master...db1a48091b40f6892e622a282eba20752e6860ad",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:14Z",
+      "final_url": "https://api.github.com/repos/libexpat/libexpat/compare/master...db1a48091b40f6892e622a282eba20752e6860ad",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:15 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ca0a849e83a1c722cdaa0526b97ef7bcea446972451fafe581ecc5353d2a2e05\"",
+        "Last-Modified": "Thu, 12 Nov 2026 17:08:29 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4468",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "532",
+        "X-GitHub-Request-Id": "B80E:1158B1:B7CFB2:243A48F:6AF648FA"
+      },
+      "size_bytes": 10328,
+      "stored_at": "records/github/repos/libexpat/libexpat/compare/master...db1a48091b40f6892e622a282eba20752e6860ad/response.json",
+      "newly_stored": true,
+      "sha256": "e8d8de40b0e916617d3ddffec16f99fdeab37a373867c41c05996844557708c0"
+    }
+  ]
+}

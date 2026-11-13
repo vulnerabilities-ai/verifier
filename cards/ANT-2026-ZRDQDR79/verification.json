@@ -77,6 +77,11 @@
         "https://github.com/advisories/GHSA-qpmf-9p9c-455w"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-qpmf-9p9c-455w",
+      "https://github.com/util-linux/util-linux/commit/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-13595"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/wireshark/wireshark/commit/178939f126d5eeb442d96e10b0ea4c1cfc6920e9",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-76891"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

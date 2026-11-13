@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-mm6w-gr99-p3jj"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-mm6w-gr99-p3jj",
+      "https://github.com/twigphp/Twig/commit/3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-46639"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

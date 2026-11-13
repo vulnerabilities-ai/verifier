@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/kjur/jsrsasign/releases/tag/11.1.2"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/wireshark/wireshark/commit/4a597d797cef5b1e256056f6e0feb15fcf3a56e0"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

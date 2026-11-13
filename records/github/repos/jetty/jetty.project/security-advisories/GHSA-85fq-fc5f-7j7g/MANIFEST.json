@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:34Z",
+      "url": "https://api.github.com/repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:34Z",
+      "final_url": "https://api.github.com/repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:35 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"d3ee33466f6e01593707b7d2b455e93830d41c337d8f76e5d6cfd3ddbecf78a7\"",
+        "Last-Modified": "Wed, 16 Sep 2026 07:03:37 GMT",
+        "X-GitHub-Request-Id": "B809:1158B1:B83C2C:244FE59:6AF6490E",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4890",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "110"
+      },
+      "size_bytes": 16778,
+      "stored_at": "records/diagnostic/github/repos/jetty/jetty.project/security-advisories/GHSA-85fq-fc5f-7j7g/response.json",
+      "newly_stored": false,
+      "sha256": "f2e6b4a8df051b7b24c2ae6af80dacb63ef2921f07ffac46a2be36e82b502dd6"
+    }
+  ]
+}

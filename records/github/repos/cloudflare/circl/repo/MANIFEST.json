@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/cloudflare/circl",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:46Z",
+      "url": "https://api.github.com/repos/cloudflare/circl",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:46Z",
+      "final_url": "https://api.github.com/repos/cloudflare/circl",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:46 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cb8dff378f8e1b8e69604d460df81d8fb3480485c40f7214ec7ca0bd3e7be871\"",
+        "Last-Modified": "Thu, 12 Nov 2026 15:17:43 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4983",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "17",
+        "X-GitHub-Request-Id": "B80F:B7263:156F9F3:42CF67F:6AF6433E"
+      },
+      "size_bytes": 6465,
+      "stored_at": "records/github/repos/cloudflare/circl/repo/response.json",
+      "newly_stored": true,
+      "sha256": "4ee16682d309346273ed36740efe9e0abb40a642794b74c53deda850c298338a"
+    }
+  ]
+}

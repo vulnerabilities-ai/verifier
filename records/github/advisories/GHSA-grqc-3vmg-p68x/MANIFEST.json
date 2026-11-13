@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-grqc-3vmg-p68x",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:43Z",
+      "url": "https://api.github.com/advisories/GHSA-grqc-3vmg-p68x",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:44Z",
+      "final_url": "https://api.github.com/advisories/GHSA-grqc-3vmg-p68x",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:45 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ce6c16045f8b5ae7dbc296babc0b9e084122afd4b57726c72629e2cec9ed8285\"",
+        "Last-Modified": "Mon, 27 Apr 2026 18:33:06 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4907",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "93",
+        "X-GitHub-Request-Id": "B80D:1645D6:9428D7:1D0E05D:6AF643F0"
+      },
+      "size_bytes": 2143,
+      "stored_at": "records/github/advisories/GHSA-grqc-3vmg-p68x/response.json",
+      "newly_stored": true,
+      "sha256": "8d002876f5c84c7a8962675ab4b3f0099d09ced7466f59ca57c3536f6e7062fb"
+    }
+  ]
+}

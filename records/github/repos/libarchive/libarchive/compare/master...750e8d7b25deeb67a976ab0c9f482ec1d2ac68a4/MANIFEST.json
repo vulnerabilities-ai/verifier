@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/libarchive/libarchive/compare/master...750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:16:49Z",
+      "url": "https://api.github.com/repos/libarchive/libarchive/compare/master...750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:49Z",
+      "final_url": "https://api.github.com/repos/libarchive/libarchive/compare/master...750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:50 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0104ae42078927bcb10a041d3a70cb0d75e28f95a68a8230cae1016c542b95ea\"",
+        "Last-Modified": "Thu, 12 Nov 2026 18:52:51 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4493",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "507",
+        "X-GitHub-Request-Id": "B80D:1645D6:B09180:22A8063:6AF648E1"
+      },
+      "size_bytes": 8697,
+      "stored_at": "records/github/repos/libarchive/libarchive/compare/master...750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4/response.json",
+      "newly_stored": true,
+      "sha256": "4651de57dbf63846723add953080f19358e328b0ebf4d6feef0b3eab9f075269"
+    }
+  ]
+}

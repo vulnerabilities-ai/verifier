@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/45278542816cab5e8dcb120f9bd62e43ab2857bd/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:54Z",
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/45278542816cab5e8dcb120f9bd62e43ab2857bd/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:55Z",
+      "final_url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/45278542816cab5e8dcb120f9bd62e43ab2857bd/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:55 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e36b2f43b290a68a59d82b0c743e4ed0847615b9a462bba7dc1d85e8df81a0e7\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4837",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "163",
+        "X-GitHub-Request-Id": "B808:2D62CE:2D85C11:8F6A1DF:6AF64437"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

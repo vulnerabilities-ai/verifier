@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:42Z",
+      "url": "https://api.github.com/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:43Z",
+      "final_url": "https://api.github.com/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:44 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"21095d5ffed4737d2e27300828083750bc8461e8e4f9a85c6697abe2883b3685\"",
+        "Last-Modified": "Tue, 09 Jun 2026 00:52:05 GMT",
+        "X-GitHub-Request-Id": "B80D:1645D6:B1B47E:22E17D9:6AF64917",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4880",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "120"
+      },
+      "size_bytes": 9596,
+      "stored_at": "records/github/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v/response.json",
+      "newly_stored": true,
+      "sha256": "6e97dc68edd14ef40bb045d237c735215e3c03c201dfa88e82d181ae42a75e2f"
+    }
+  ]
+}

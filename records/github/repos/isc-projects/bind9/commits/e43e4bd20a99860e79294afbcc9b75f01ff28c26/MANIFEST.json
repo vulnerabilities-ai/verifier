@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/isc-projects/bind9/commits/e43e4bd20a99860e79294afbcc9b75f01ff28c26",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:41Z",
+      "url": "https://api.github.com/repos/isc-projects/bind9/commits/e43e4bd20a99860e79294afbcc9b75f01ff28c26",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:42Z",
+      "final_url": "https://api.github.com/repos/isc-projects/bind9/commits/e43e4bd20a99860e79294afbcc9b75f01ff28c26",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:42 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"b4c9e7706f51babbfb51cda15f4c04e00f5d8efffa6ebd763bca321d1559bb31\"",
+        "Last-Modified": "Fri, 10 Apr 2026 05:45:01 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4726",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "274",
+        "X-GitHub-Request-Id": "B80A:68E0F:179191E:4A1216E:6AF644A2"
+      },
+      "size_bytes": 5373,
+      "stored_at": "records/github/repos/isc-projects/bind9/commits/e43e4bd20a99860e79294afbcc9b75f01ff28c26/response.json",
+      "newly_stored": true,
+      "sha256": "a44dcb9d59afd0d83e60d580dbd8a3ad1433dafbdd46aa09a6d8808baa8b5a94"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory_unauthenticated",
+  "url": "https://api.github.com/advisories/GHSA-pwmg-mvjw-4m23",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:56:28Z",
+      "url": "https://api.github.com/advisories/GHSA-pwmg-mvjw-4m23",
+      "outcome": "fetched",
+      "status": 404,
+      "fetched_utc": "2026-11-12T23:56:28Z",
+      "final_url": "https://api.github.com/advisories/GHSA-pwmg-mvjw-4m23",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:56:28 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "60",
+        "X-RateLimit-Remaining": "46",
+        "X-RateLimit-Used": "14",
+        "X-RateLimit-Reset": "1794530729",
+        "X-GitHub-Request-Id": "B808:68277:1B1427D:545C34F:6AF6522C"
+      },
+      "size_bytes": 158,
+      "stored_at": "records/diagnostic/github/advisories-unauthenticated/GHSA-85fq-fc5f-7j7g/response.json",
+      "newly_stored": false,
+      "sha256": "2218b50c8a811e2f609d256cc18fa9a5c1ecabca78a58f10ea7977e8a8392684"
+    }
+  ]
+}

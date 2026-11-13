@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-f684-cpcq-j565"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-f684-cpcq-j565",
+      "https://github.com/openssl/openssl/commit/f4129fbe3cde786d363510069fe297234f99be8f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-45447"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

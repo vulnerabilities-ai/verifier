@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-hg75-4cmp-f367",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:48Z",
+      "url": "https://api.github.com/advisories/GHSA-hg75-4cmp-f367",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:48Z",
+      "final_url": "https://api.github.com/advisories/GHSA-hg75-4cmp-f367",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:49 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"98adfeddd89ada6fac9edb9bbb6e9a949f58e56126aa862201895d610ca1ada6\"",
+        "Last-Modified": "Mon, 27 Apr 2026 18:32:02 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4903",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "97",
+        "X-GitHub-Request-Id": "B80E:1158B1:9A5DEE:1E65106:6AF643F4"
+      },
+      "size_bytes": 2168,
+      "stored_at": "records/github/advisories/GHSA-hg75-4cmp-f367/response.json",
+      "newly_stored": true,
+      "sha256": "580a8cba34374d86cc5eb09749ec9c926d70fd309db2c8d4dcade1699be1551a"
+    }
+  ]
+}

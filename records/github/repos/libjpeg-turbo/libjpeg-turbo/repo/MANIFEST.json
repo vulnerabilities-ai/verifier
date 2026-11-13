@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/libjpeg-turbo/libjpeg-turbo",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:04Z",
+      "url": "https://api.github.com/repos/libjpeg-turbo/libjpeg-turbo",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:04Z",
+      "final_url": "https://api.github.com/repos/libjpeg-turbo/libjpeg-turbo",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:05 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9fd7f44987d2ae6e728c6dcb3088154d583dfc1f897f5bb62f3787895938e199\"",
+        "Last-Modified": "Thu, 12 Nov 2026 17:09:54 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4964",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "36",
+        "X-GitHub-Request-Id": "B80E:23F3F4:14EFCE1:414FD9A:6AF64350"
+      },
+      "size_bytes": 6817,
+      "stored_at": "records/github/repos/libjpeg-turbo/libjpeg-turbo/repo/response.json",
+      "newly_stored": true,
+      "sha256": "b7e673327f609ca9ff71e55f49dab09f719344f262206aa376ae540fe712578b"
+    }
+  ]
+}

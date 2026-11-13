@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/gpg/libgcrypt/commits/905e00f046a71e5670517779afaf85a354952832",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:39Z",
+      "url": "https://api.github.com/repos/gpg/libgcrypt/commits/905e00f046a71e5670517779afaf85a354952832",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:40Z",
+      "final_url": "https://api.github.com/repos/gpg/libgcrypt/commits/905e00f046a71e5670517779afaf85a354952832",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:41 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"b93f5f50f062ca353e3df5772b8fdec1754da659ae83ff333783e62b9bb2fb54\"",
+        "Last-Modified": "Mon, 13 Apr 2026 02:51:46 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4728",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "272",
+        "X-GitHub-Request-Id": "B808:2D62CE:2DAC9AB:8FE39F1:6AF644A0"
+      },
+      "size_bytes": 14247,
+      "stored_at": "records/github/repos/gpg/libgcrypt/commits/905e00f046a71e5670517779afaf85a354952832/response.json",
+      "newly_stored": true,
+      "sha256": "0823486c3e44a979cdd4272c88a499049f7876683ebd8c58987b674269b28f50"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-425r-vwq2-26qv",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:12Z",
+      "url": "https://api.github.com/advisories/GHSA-425r-vwq2-26qv",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:12Z",
+      "final_url": "https://api.github.com/advisories/GHSA-425r-vwq2-26qv",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:13 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8ce730cda2593dbd30c8c592bd5f8407470d08616e4c0aed486815c813d8d350\"",
+        "Last-Modified": "Tue, 10 Nov 2026 15:32:44 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4939",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "61",
+        "X-GitHub-Request-Id": "B80B:330D48:16856A3:46383F3:6AF643D0"
+      },
+      "size_bytes": 1507,
+      "stored_at": "records/github/advisories/GHSA-425r-vwq2-26qv/response.json",
+      "newly_stored": true,
+      "sha256": "4bc36358da9394814c90c26b7277f1430c7f238ea86dfc8727b9657d1a54089d"
+    }
+  ]
+}

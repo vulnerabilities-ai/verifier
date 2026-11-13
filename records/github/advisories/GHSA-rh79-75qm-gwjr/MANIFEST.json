@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-rh79-75qm-gwjr",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:15Z",
+      "url": "https://api.github.com/advisories/GHSA-rh79-75qm-gwjr",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:15Z",
+      "final_url": "https://api.github.com/advisories/GHSA-rh79-75qm-gwjr",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:16 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"5cf96878059799d2cbe25b93c0e8e345ad7b37c53d40a1f9b78684ea6661b135\"",
+        "Last-Modified": "Tue, 21 Jul 2026 21:00:53 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4876",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "124",
+        "X-GitHub-Request-Id": "B80E:23F3F4:153FF50:4249EED:6AF6440F"
+      },
+      "size_bytes": 15540,
+      "stored_at": "records/github/advisories/GHSA-rh79-75qm-gwjr/response.json",
+      "newly_stored": true,
+      "sha256": "adf6ed2bfa812314888b3319f7329365b60c695b2384d325ed9c41e60813c5c2"
+    }
+  ]
+}

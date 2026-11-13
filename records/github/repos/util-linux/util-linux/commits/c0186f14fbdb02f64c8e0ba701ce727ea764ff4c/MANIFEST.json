@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/util-linux/util-linux/commits/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:00:24Z",
+      "url": "https://api.github.com/repos/util-linux/util-linux/commits/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:00:25Z",
+      "final_url": "https://api.github.com/repos/util-linux/util-linux/commits/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:00:25 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"1a087c3e9307fc17322d5e7cfc2474889c83cdf623b54e1182347f62d446626c\"",
+        "Last-Modified": "Tue, 16 Jun 2026 08:53:52 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4623",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "377",
+        "X-GitHub-Request-Id": "B80A:4690:174425E:487F8C2:6AF64509"
+      },
+      "size_bytes": 8666,
+      "stored_at": "records/github/repos/util-linux/util-linux/commits/c0186f14fbdb02f64c8e0ba701ce727ea764ff4c/response.json",
+      "newly_stored": true,
+      "sha256": "191878d887d25c518d50c3ecbb05537f4bf5156ac55b8ea64008ac2f1f45b804"
+    }
+  ]
+}

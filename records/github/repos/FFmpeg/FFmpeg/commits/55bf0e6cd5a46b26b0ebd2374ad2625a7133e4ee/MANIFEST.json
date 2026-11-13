@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:57Z",
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:58Z",
+      "final_url": "https://api.github.com/repos/FFmpeg/FFmpeg/commits/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"fce973414cdeefae8dbe4da91ebca381a8fd2a1b408cbfc5d835995bf53f8b27\"",
+        "Last-Modified": "Sat, 14 Mar 2026 21:01:41 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4834",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "166",
+        "X-GitHub-Request-Id": "B80E:56673:1733C0E:48F2726:6AF6443A"
+      },
+      "size_bytes": 5247,
+      "stored_at": "records/github/repos/FFmpeg/FFmpeg/commits/55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee/response.json",
+      "newly_stored": true,
+      "sha256": "3e9e8d35479dc66f942b0f0585134348dc661fc1e6c09e13fbe9b495d6aaeca3"
+    }
+  ]
+}

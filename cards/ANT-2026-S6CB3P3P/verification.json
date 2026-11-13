@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/isc-projects/bind9/commit/e43e4bd20a99860e79294afbcc9b75f01ff28c26"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

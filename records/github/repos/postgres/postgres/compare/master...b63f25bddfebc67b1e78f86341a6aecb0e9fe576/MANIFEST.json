@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/postgres/postgres/compare/master...b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:59Z",
+      "url": "https://api.github.com/repos/postgres/postgres/compare/master...b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:00Z",
+      "final_url": "https://api.github.com/repos/postgres/postgres/compare/master...b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:00 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9bf08961689d4b27ac7c5e6cc4f30e9c242683225239f024d2817a2369646635\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:54:35 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4541",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "459",
+        "X-GitHub-Request-Id": "B80D:23F3F4:1730EE9:485A7E3:6AF648B0"
+      },
+      "size_bytes": 9226,
+      "stored_at": "records/github/repos/postgres/postgres/compare/master...b63f25bddfebc67b1e78f86341a6aecb0e9fe576/response.json",
+      "newly_stored": true,
+      "sha256": "5f2b69df6d6c24cea817a0ea1b1ea79f2fd91071386e155d297e924e5e1308ba"
+    }
+  ]
+}

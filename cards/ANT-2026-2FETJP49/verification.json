@@ -71,6 +71,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/randombit/botan/security/advisories/GHSA-v782-6fq4-q827",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-34580"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

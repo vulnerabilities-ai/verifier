@@ -73,6 +73,14 @@
         "https://github.com/advisories/GHSA-hg75-4cmp-f367"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-hg75-4cmp-f367",
+      "https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L640-L651",
+      "https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L647-L650",
+      "https://github.com/wolfSSL/wolfssl/blob/v5.9.1-stable/src/x509_str.c#L653-L672",
+      "https://github.com/wolfSSL/wolfssl/commit/e5ab7fa7457d82294bafcfb6c103a9e79b4aa213",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5501"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

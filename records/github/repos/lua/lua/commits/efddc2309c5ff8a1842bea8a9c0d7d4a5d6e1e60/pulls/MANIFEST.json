@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:59:05Z",
+      "url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:59:06Z",
+      "final_url": "https://api.github.com/repos/lua/lua/commits/efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:59:06 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e36b2f43b290a68a59d82b0c743e4ed0847615b9a462bba7dc1d85e8df81a0e7\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4702",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "298",
+        "X-GitHub-Request-Id": "B809:38E5BE:1F559A3:61A688B:6AF644BA"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

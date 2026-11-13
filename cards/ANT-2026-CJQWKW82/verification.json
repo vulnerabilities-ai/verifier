@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-hwfh-mh4f-m67f"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-hwfh-mh4f-m67f",
+      "https://github.com/postgres/postgres/commit/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-6479"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

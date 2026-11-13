@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/jetty/jetty.project",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:58Z",
+      "url": "https://api.github.com/repos/jetty/jetty.project",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:58Z",
+      "final_url": "https://api.github.com/repos/jetty/jetty.project",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"c7051193d8e0fe3c6ab2ceacec9bb1a0cc661ae1be55b8ae2c560f702ea797c3\"",
+        "Last-Modified": "Thu, 12 Nov 2026 13:01:06 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4970",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "30",
+        "X-GitHub-Request-Id": "B808:68277:150D60D:4191577:6AF6434A"
+      },
+      "size_bytes": 6519,
+      "stored_at": "records/github/repos/jetty/jetty.project/repo/response.json",
+      "newly_stored": true,
+      "sha256": "75d1e249b82c3d2298ce25fa31a89fe0d6cc6c0a2c7fbc81769bb5cecb38be38"
+    }
+  ]
+}

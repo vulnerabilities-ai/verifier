@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libjpeg-turbo/libjpeg-turbo/commit/0ff47f0b46924ea1aaf04092ba1d0c0f83f93b10"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

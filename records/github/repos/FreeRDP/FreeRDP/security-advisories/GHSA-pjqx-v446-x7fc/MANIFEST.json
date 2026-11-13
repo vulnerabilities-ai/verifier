@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-pjqx-v446-x7fc",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:48Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-pjqx-v446-x7fc",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:48Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-pjqx-v446-x7fc",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:49 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"a0953cb43d947e3a01a9b21aa16c8a2c80924b5091fe166b6b1d25acfd8827c0\"",
+        "Last-Modified": "Mon, 06 Jul 2026 08:44:13 GMT",
+        "X-GitHub-Request-Id": "B80B:B72EE:B4CF2A:238A42F:6AF6491C",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4875",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "125"
+      },
+      "size_bytes": 17618,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-pjqx-v446-x7fc/response.json",
+      "newly_stored": true,
+      "sha256": "3ff28c824d085b68e7bc7dc92d82dba34f817815924179d9dc1fe3780dcc1400"
+    }
+  ]
+}

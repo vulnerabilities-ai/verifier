@@ -66,6 +66,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FFmpeg/FFmpeg/commit/331b3e9dea484f4974bbff2596e6e31c3d5e4685"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

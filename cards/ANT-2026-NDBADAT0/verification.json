@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/Sentinel-One/purple-mcp/releases/tag/v0.7.0"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

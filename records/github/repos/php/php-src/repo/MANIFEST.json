@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/php/php-src",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:16Z",
+      "url": "https://api.github.com/repos/php/php-src",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:16Z",
+      "final_url": "https://api.github.com/repos/php/php-src",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:16 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e58f3a509d39ec9c06bbd5d3537b623b1ac8d23fadb4104ea6d4b50a21430bb9\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:10:33 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4952",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "48",
+        "X-GitHub-Request-Id": "B80D:23F3F4:14F4A6D:415EE66:6AF6435C"
+      },
+      "size_bytes": 5927,
+      "stored_at": "records/github/repos/php/php-src/repo/response.json",
+      "newly_stored": true,
+      "sha256": "38d4e2fd88cb01dfb9781a65a80e36974922059960e37c25baaa51d93073c268"
+    }
+  ]
+}

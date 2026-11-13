@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/freebsd/freebsd-src",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:52Z",
+      "url": "https://api.github.com/repos/freebsd/freebsd-src",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:52Z",
+      "final_url": "https://api.github.com/repos/freebsd/freebsd-src",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"04504da3f1e4314aec9a4a40c376e8f1a8239638c52b40a604656db2372a2829\"",
+        "Last-Modified": "Thu, 12 Nov 2026 21:10:05 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4976",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "24",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EB3528:5FAC8A2:6AF64344"
+      },
+      "size_bytes": 6366,
+      "stored_at": "records/github/repos/freebsd/freebsd-src/repo/response.json",
+      "newly_stored": true,
+      "sha256": "192a732aa98f6e28776e304182d13ca752f94f317957ec11ebb570c867aeb6f6"
+    }
+  ]
+}

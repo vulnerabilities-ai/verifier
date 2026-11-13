@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/wireshark/wireshark/commit/f9fdd24295456219f39be01beeaf734c2e3a8a2c",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-19694"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -42,6 +42,9 @@
         "https://github.com/advisories/GHSA-w52v-v783-gw97"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-w52v-v783-gw97"
+    ],
     "missing_parts": [
       "timeline",
       "severities"

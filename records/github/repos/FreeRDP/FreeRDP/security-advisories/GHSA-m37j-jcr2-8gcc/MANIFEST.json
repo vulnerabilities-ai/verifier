@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-m37j-jcr2-8gcc",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:45Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-m37j-jcr2-8gcc",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:45Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-m37j-jcr2-8gcc",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:46 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"977810c3d99b05511763d4f37f4edbcca029d69923be5057b908af559b386185\"",
+        "Last-Modified": "Mon, 20 Jul 2026 05:49:33 GMT",
+        "X-GitHub-Request-Id": "B80A:28C13F:B6ECBF:23EF98E:6AF64919",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4878",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "122"
+      },
+      "size_bytes": 8346,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-m37j-jcr2-8gcc/response.json",
+      "newly_stored": true,
+      "sha256": "49971559d76754366ba6e53ff3bf4b0ca33ed5d94738a4082155590e1b15f14e"
+    }
+  ]
+}

@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/mpv-player/mpv/commit/e757931859c9e0df7910ef39c1125b191367e060"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

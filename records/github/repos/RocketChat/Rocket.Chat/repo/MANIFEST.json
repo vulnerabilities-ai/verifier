@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/RocketChat/Rocket.Chat",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:40Z",
+      "url": "https://api.github.com/repos/RocketChat/Rocket.Chat",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:40Z",
+      "final_url": "https://api.github.com/repos/RocketChat/Rocket.Chat",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:40 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"4863b80b8354cd08dda59ac822ae44b1a9cdc906a4ed96ecb0cfa04609f64e96\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:50:20 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4990",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "10",
+        "X-GitHub-Request-Id": "B80A:4690:167EFD0:4619FEA:6AF64338"
+      },
+      "size_bytes": 6663,
+      "stored_at": "records/github/repos/RocketChat/Rocket.Chat/repo/response.json",
+      "newly_stored": true,
+      "sha256": "4b148a0db3680215be00e9ac08eff73ea310b3e1b693d150b9721a637c6ccd80"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-f684-cpcq-j565",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:39Z",
+      "url": "https://api.github.com/advisories/GHSA-f684-cpcq-j565",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:40Z",
+      "final_url": "https://api.github.com/advisories/GHSA-f684-cpcq-j565",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:41 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"42a88b8504ef7965aad6a30e7431a49383da2c998991be2319d8bd691f1b4488\"",
+        "Last-Modified": "Fri, 11 Sep 2026 15:32:18 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4911",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "89",
+        "X-GitHub-Request-Id": "B808:3DA0D0:9FB658:1F514C4:6AF643EC"
+      },
+      "size_bytes": 4547,
+      "stored_at": "records/github/advisories/GHSA-f684-cpcq-j565/response.json",
+      "newly_stored": true,
+      "sha256": "522051d0cff849f891b93bb467f64f31b2044a8ce5fa07c028f95ae35ae86f3b"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-crr4-7rm4-8gpw",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:35Z",
+      "url": "https://api.github.com/advisories/GHSA-crr4-7rm4-8gpw",
+      "outcome": "fetched",
+      "status": 403,
+      "fetched_utc": "2026-11-12T22:55:36Z",
+      "final_url": "https://api.github.com/advisories/GHSA-crr4-7rm4-8gpw",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:36 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4915",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "85",
+        "X-GitHub-Request-Id": "B80A:28C13F:991D70:1E10030:6AF643E8"
+      },
+      "size_bytes": 187,
+      "stored_at": "records/github/advisories/GHSA-44h9-v855-6rj3/response.json",
+      "newly_stored": false,
+      "sha256": "5b7155f12035b6da8992daa6bd200277b4744819f20e04ea8ca4a7c432bb325c"
+    }
+  ]
+}

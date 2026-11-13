@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/go-gitea/gitea",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:53Z",
+      "url": "https://api.github.com/repos/go-gitea/gitea",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:54Z",
+      "final_url": "https://api.github.com/repos/go-gitea/gitea",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:55 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"215a87e8381c138f8042815f93f700fef282f0341d3e6932ba57a231f056d4d6\"",
+        "Last-Modified": "Thu, 12 Nov 2026 20:58:04 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4974",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "26",
+        "X-GitHub-Request-Id": "B80C:36EA69:15B756C:43C3EF7:6AF64346"
+      },
+      "size_bytes": 6544,
+      "stored_at": "records/github/repos/go-gitea/gitea/repo/response.json",
+      "newly_stored": true,
+      "sha256": "1341fc9c7badfeff4ad80425c35e50f30dd26bcdee0c911c8702594aa2326764"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/openssh/openssh-portable",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:14Z",
+      "url": "https://api.github.com/repos/openssh/openssh-portable",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:14Z",
+      "final_url": "https://api.github.com/repos/openssh/openssh-portable",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:14 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"f69d7a51c1f340b500cbdbf3cc2e28264c22018233da6e5d5ab44441beb1359f\"",
+        "Last-Modified": "Thu, 12 Nov 2026 17:33:53 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4954",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "46",
+        "X-GitHub-Request-Id": "B80A:4690:168D622:46468D9:6AF6435A"
+      },
+      "size_bytes": 6562,
+      "stored_at": "records/github/repos/openssh/openssh-portable/repo/response.json",
+      "newly_stored": true,
+      "sha256": "ace5f3fa4c63abe9890c6e51b47d6ad22719d863f074668c6daf805ce6fb2be2"
+    }
+  ]
+}

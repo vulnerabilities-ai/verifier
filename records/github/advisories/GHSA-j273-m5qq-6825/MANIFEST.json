@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-j273-m5qq-6825",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:51Z",
+      "url": "https://api.github.com/advisories/GHSA-j273-m5qq-6825",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:51Z",
+      "final_url": "https://api.github.com/advisories/GHSA-j273-m5qq-6825",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:52 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8e9ebabd64f02aa795bcb32d05d81ddafe15e88653e4a3a05de961094d99215e\"",
+        "Last-Modified": "Fri, 27 Feb 2026 22:09:28 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4900",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "100",
+        "X-GitHub-Request-Id": "B80D:1645D6:944F01:1D158C0:6AF643F7"
+      },
+      "size_bytes": 13396,
+      "stored_at": "records/github/advisories/GHSA-j273-m5qq-6825/response.json",
+      "newly_stored": true,
+      "sha256": "860d2127f17662117fb0c3b81e1bfbc25a1af8c4abcdbceee02e7ea61f4f6bdf"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-m62j-63mf-xr95",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:56Z",
+      "url": "https://api.github.com/advisories/GHSA-m62j-63mf-xr95",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:57Z",
+      "final_url": "https://api.github.com/advisories/GHSA-m62j-63mf-xr95",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8ac9d6799fa9957c269535baecb1238966a8b6e56ec593a37a32bb2968392c97\"",
+        "Last-Modified": "Thu, 23 Jul 2026 12:32:45 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4894",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "106",
+        "X-GitHub-Request-Id": "B80C:1CE167:9539C1:1D5C82C:6AF643FD"
+      },
+      "size_bytes": 2157,
+      "stored_at": "records/github/advisories/GHSA-m62j-63mf-xr95/response.json",
+      "newly_stored": true,
+      "sha256": "220acdc96e09811b3c6b1ed18bbcbf850fe1b73588547fca6f102e0ac2c074b7"
+    }
+  ]
+}

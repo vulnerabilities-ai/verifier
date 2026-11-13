@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libtom/libtomcrypt/pull/726"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

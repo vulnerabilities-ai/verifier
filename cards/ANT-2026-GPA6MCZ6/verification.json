@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libvips/libvips/commit/aebac9b8593956bffbd1bcacc52d8acf7219815e"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

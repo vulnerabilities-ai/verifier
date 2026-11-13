@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/supabase/postgres/commit/e3c04b026d006d313ae535112a75fe99310d74be"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

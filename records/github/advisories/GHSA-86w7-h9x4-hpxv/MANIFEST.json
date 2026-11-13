@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-86w7-h9x4-hpxv",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:26Z",
+      "url": "https://api.github.com/advisories/GHSA-86w7-h9x4-hpxv",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:27Z",
+      "final_url": "https://api.github.com/advisories/GHSA-86w7-h9x4-hpxv",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:28 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ac43291baeb92cf343d0ce55535c4bb3355553ab2dbf9b7cfc3fbd8af91c8f5a\"",
+        "Last-Modified": "Wed, 01 Jul 2026 18:31:52 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4924",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "76",
+        "X-GitHub-Request-Id": "B808:3DA0D0:9F6825:1F422DD:6AF643DF"
+      },
+      "size_bytes": 2016,
+      "stored_at": "records/github/advisories/GHSA-86w7-h9x4-hpxv/response.json",
+      "newly_stored": true,
+      "sha256": "8e9d421d81c9665a5f1a26d1d4cd8070edf3ce4a46f0ed0acb972c998b9f9dee"
+    }
+  ]
+}

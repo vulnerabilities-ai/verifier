@@ -73,6 +73,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FFmpeg/FFmpeg/commit/39e1969303a0b9ec5fb5f5eb643bf7a5b69c0a89",
+      "https://github.com/FFmpeg/FFmpeg/releases/tag/n8.1"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },
