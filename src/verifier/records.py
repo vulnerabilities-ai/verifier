@@ -326,11 +326,44 @@ def choose_sample(finding_ids: list[str], must_include: str = "ANT-2026-87DJGDRB
     return chosen[:n]
 
 
+CONCLUSIVE = ("ok", "not_found", "github_refused_token")
+
+
+def _age_days(utc: str | None) -> float | None:
+    from datetime import datetime
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    try:
+        return (datetime.strptime(utc_now(), fmt) - datetime.strptime(utc, fmt)).total_seconds() / 86400
+    except (TypeError, ValueError):
+        return None
+
+
+def lookup_state(reader, rf: RecordFetcher, key: Key, refresh_days: float) -> str:
+    """'done' (conclusive answer, younger than refresh_days), 'due' (conclusive but older),
+    'rate_limited' (stopped by a rate limit last time) or 'unfinished' (never made, failed or
+    unreadable)."""
+    last = rf.last_attempt(key)
+    if last and last.get("outcome") == "rate_limited":
+        return "rate_limited"
+    j = reader.json_of(key, not_found=(404,))
+    if j["status"] not in CONCLUSIVE:
+        return "unfinished"
+    age = _age_days(j.get("as_of"))
+    return "done" if age is not None and age < refresh_days else "due"
+
+
+_STATE_ORDER = {"rate_limited": 0, "unfinished": 1, "due": 2}
+
+
 def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
-                sample_only: bool = False, unauth_rf: RecordFetcher | None = None) -> dict:
+                sample_only: bool = False, unauth_rf: RecordFetcher | None = None,
+                refresh_days: float = config.LOOKUP_REFRESH_DAYS) -> dict:
     """findings: finding ID -> {"cve_ids", "ghsa_ids", "fix_links", "advisory_links"}.
-    Looks up never-fetched and rate-limited keys first, then refreshes the rest.
+    Asks rate-limited lookups first, then unfinished ones, then those due for the weekly
+    refresh; lookups already answered within refresh_days are not asked again.
     Returns a tally; never raises."""
+    from .records_read import RecordReader
+    reader = RecordReader(root, rf.github_api, rf.nvd_api)
     ids = choose_sample(list(findings)) if sample_only else sorted(findings)
     planned: list[Key] = []
     seen = set()
@@ -347,21 +380,17 @@ def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
         for k in fix_keys(t, None, rf.github_api):
             add(k)
 
+    states = {k.path: lookup_state(reader, rf, k, refresh_days) for k in planned}
+    todo = [k for k in planned if states[k.path] != "done"]
+
     def priority(k):
-        last = rf.last_attempt(k)
         ok = rf.last_ok(k)
-        if last and last.get("outcome") == "rate_limited":
-            return (0, k.path)          # stopped by a rate limit last time: resume these first
-        if ok is None:
-            return (1, k.path)          # never fetched (or only failed)
-        if last and last.get("outcome") != "fetched":
-            return (2, k.path)          # failed last time
-        return (3, ok.get("fetched_utc") or "", k.path)  # refresh, oldest first
-    planned.sort(key=priority)
-    # repositories first within each priority group, so compares can follow
-    planned.sort(key=lambda k: (priority(k)[0], k.kind != "repo"))
-    for k in planned:
+        return (_STATE_ORDER[states[k.path]], k.kind != "repo",  # repositories first, so compares can follow
+                (ok or {}).get("fetched_utc") or "", k.path)
+    todo.sort(key=priority)
+    for k in todo:
         rf.fetch(k)
+    skipped = len(planned) - len(todo)
     # second pass: compare each fix commit with its repository's default branch
     for fid in ids:
         f = findings[fid]
@@ -372,10 +401,13 @@ def run_lookups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
             for k in fix_keys(t, branch, rf.github_api):
                 if k.kind == "compare" and k.path not in seen:
                     seen.add(k.path)
-                    rf.fetch(k)
-    unauth_tally = refused_followups(root, {i: findings[i] for i in ids}, rf, unauth_rf)
+                    if lookup_state(reader, rf, k, refresh_days) == "done":
+                        skipped += 1
+                    else:
+                        rf.fetch(k)
+    unauth_tally = refused_followups(root, {i: findings[i] for i in ids}, rf, unauth_rf, refresh_days)
     return {**rf.tally, "findings": len(ids), "sample_only": sample_only,
-            "sample_ids": ids if sample_only else None,
+            "sample_ids": ids if sample_only else None, "skipped_already_answered": skipped,
             "github_stopped": rf.github_stopped, "nvd_stopped": rf.nvd_stopped, "without_token": unauth_tally}
 
 
@@ -403,55 +435,82 @@ def _fresh(rf: RecordFetcher, key: Key, days: int) -> bool:
 
 
 def refused_followups(root: Path, findings: dict[str, dict], rf: RecordFetcher,
-                      unauth_rf: RecordFetcher | None = None) -> dict:
+                      unauth_rf: RecordFetcher | None = None,
+                      refresh_days: float = config.LOOKUP_REFRESH_DAYS) -> dict:
     """For GHSA IDs whose global-advisory lookup GitHub refused for the token (HTTP 403):
-    1. the repository advisory, with the token, for the repository the card links to;
-    2. WITHOUT the token, one request per 70 s, stopping at the first rate-limit answer and
-       resumed on the next run: the global request (to confirm there is no global entry), and
-       the repository advisory again where the token was refused there too."""
+    1. the repository advisory, with the token, for EVERY repository a card with that ID links
+       (several findings can share one GHSA ID; one card may link no repository, another may);
+    2. WITHOUT the token, one request per 70 s, within a time budget, stopping at the first
+       rate-limit answer: the global request (to confirm there is no global entry), and the
+       repository advisory again where the token was refused there too.
+    Requests without the token are ordered so each one moves a finding towards complete:
+    rate-limited ones first, then finding by finding, the findings needing the fewest requests
+    first. A request already answered (within its re-check period) is never made again."""
     from .records_read import RecordReader
     reader = RecordReader(root, rf.github_api, rf.nvd_api)
     unauth_rf = unauth_rf or unauthenticated_fetcher(root, rf)
-    refused, repo_of = [], {}
+    repos_of: dict[str, set] = {}
     for f in findings.values():
         repo = card_repository(f.get("fix_links", []), f.get("advisory_links", []))
         for g in f.get("ghsa_ids", []):
-            if reader.global_token_status(g) == "github_refused_token" and g not in repo_of:
-                refused.append(g)
-                repo_of[g] = repo
-    refused.sort()
-    # 1. repository advisories with the token (normal pacing)
+            if reader.global_token_status(g) == "github_refused_token":
+                repos_of.setdefault(g, set())
+                if repo:
+                    repos_of[g].add(repo)
+    refused = sorted(repos_of)
+    # 1. repository advisories with the token (normal pacing), unless already answered
+    with_token = 0
     for g in refused:
-        if repo_of[g]:
-            rf.fetch(repo_advisory_key(*repo_of[g], g, rf.github_api))
-    # 2. requests without the token, rate-limited first, then never made, then due again
-    todo = []
-    for g in refused:
+        for repo in sorted(repos_of[g]):
+            k = repo_advisory_key(*repo, g, rf.github_api)
+            if lookup_state(reader, rf, k, refresh_days) != "done":
+                rf.fetch(k)
+                with_token += 1
+    reader = RecordReader(root, rf.github_api, rf.nvd_api)  # read the answers just stored
+
+    # 2. requests without the token: what each finding still needs
+    def needed(g: str) -> list[Key]:
+        out = []
         k = global_unauth_key(g, rf.github_api)
         if not _fresh(unauth_rf, k, config.UNAUTH_RECHECK_DAYS):
-            todo.append(k)
-        if repo_of[g] and reader.repo_token_status(*repo_of[g], g) == "github_refused_token":
-            k2 = repo_advisory_key(*repo_of[g], g, rf.github_api, unauthenticated=True)
-            if not _fresh(unauth_rf, k2, config.UNAUTH_RECHECK_DAYS):
-                todo.append(k2)
+            out.append(k)
+        for repo in sorted(repos_of.get(g, ())):
+            if reader.repo_token_status(*repo, g) == "github_refused_token":
+                k2 = repo_advisory_key(*repo, g, rf.github_api, unauthenticated=True)
+                if not _fresh(unauth_rf, k2, config.UNAUTH_RECHECK_DAYS):
+                    out.append(k2)
+        return out
+    per_finding = []
+    for fid, f in sorted(findings.items()):
+        keys = [k for g in sorted(set(f.get("ghsa_ids", []))) if g in repos_of for k in needed(g)]
+        if keys:
+            per_finding.append((len(keys), fid, keys))
+    per_finding.sort(key=lambda x: (x[0], x[1]))  # fewest requests to complete first
+    todo, queued = [], set()
+    for _, _, keys in per_finding:
+        for k in keys:
+            if k.path not in queued:
+                queued.add(k.path)
+                todo.append(k)
 
-    def prio(k):
+    def was_rate_limited(k):
         last = unauth_rf.last_attempt(k)
-        return (0 if last and last.get("outcome") == "rate_limited" else 1 if not unauth_rf.last_ok(k) else 2, k.path)
-    todo.sort(key=prio)
-    start, last, made = rf.clock(), None, 0
+        return bool(last and last.get("outcome") == "rate_limited")
+    todo.sort(key=lambda k: 0 if was_rate_limited(k) else 1)  # stable: keeps the finding order
+    start, last, made, left = rf.clock(), None, 0, 0
     for k in todo:
         if unauth_rf.github_stopped:
-            unauth_rf.fetch(k)  # recorded as rate_limited, resumed first next run
+            unauth_rf.fetch(k)  # recorded as rate_limited, asked first next run
             continue
-        if rf.clock() - start > config.UNAUTH_BUDGET_SECONDS:
-            break  # the rest wait for the next run
-        if last is not None:
-            wait = config.UNAUTH_GAP_SECONDS - (rf.clock() - last)
-            if wait > 0:
-                rf.sleep(wait)
+        wait = max(0.0, config.UNAUTH_GAP_SECONDS - (rf.clock() - last)) if last is not None else 0.0
+        if rf.clock() + wait - start > config.UNAUTH_BUDGET_SECONDS:
+            left += 1  # the rest wait for the next run (no waiting past the budget)
+            continue
+        if wait > 0:
+            rf.sleep(wait)
         last = rf.clock()
         unauth_rf.fetch(k)
         made += 1
-    return {"refused_global": len(refused), "requests_made": made, "planned": len(todo),
+    return {"refused_global": len(refused), "repository_advisories_with_token": with_token,
+            "requests_made": made, "planned": len(todo), "left_for_next_run": left,
             "stopped": unauth_rf.github_stopped}
