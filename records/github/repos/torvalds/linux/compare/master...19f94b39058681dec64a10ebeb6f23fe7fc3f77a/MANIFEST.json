@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/torvalds/linux/compare/master...19f94b39058681dec64a10ebeb6f23fe7fc3f77a",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:20Z",
+      "url": "https://api.github.com/repos/torvalds/linux/compare/master...19f94b39058681dec64a10ebeb6f23fe7fc3f77a",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:20Z",
+      "final_url": "https://api.github.com/repos/torvalds/linux/compare/master...19f94b39058681dec64a10ebeb6f23fe7fc3f77a",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:22 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ecb0abf8d22aad2c9e341d0456a1d946a9ada10ca9686cc3522e9672342db6fb\"",
+        "Last-Modified": "Thu, 12 Nov 2026 20:26:14 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4580",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "420",
+        "X-GitHub-Request-Id": "B808:68277:17452FC:487A8AF:6AF64888"
+      },
+      "size_bytes": 8528,
+      "stored_at": "records/github/repos/torvalds/linux/compare/master...19f94b39058681dec64a10ebeb6f23fe7fc3f77a/response.json",
+      "newly_stored": true,
+      "sha256": "3774746f50410b7cd1f9bfc3b259dfcc069b71296c62279eca89ff6850f471c8"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/wolfSSL/wolfssl/compare/master...10953f021",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:27Z",
+      "url": "https://api.github.com/repos/wolfSSL/wolfssl/compare/master...10953f021",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:27Z",
+      "final_url": "https://api.github.com/repos/wolfSSL/wolfssl/compare/master...10953f021",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:28 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"22f0446f10b19e78cafbb904dc4f511d082367fbec01f6690fb6974055823b4a\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:56:38 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4454",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "546",
+        "X-GitHub-Request-Id": "B80C:1CE167:B184E7:22F61BA:6AF64907"
+      },
+      "size_bytes": 9543,
+      "stored_at": "records/github/repos/wolfSSL/wolfssl/compare/master...10953f021/response.json",
+      "newly_stored": true,
+      "sha256": "cd925e41a91bac3db3693d51a28ad88e0ff2eb0b3aa0221a8307c2529fb82c40"
+    }
+  ]
+}

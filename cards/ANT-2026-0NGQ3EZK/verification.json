@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/gpg/gnupg/commit/08611f5da8ad4b9cc80bb05f0f8610ec6baa6063"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

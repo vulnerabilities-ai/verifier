@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "pull",
+  "url": "https://api.github.com/repos/wolfSSL/wolfssl/pulls/10641",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:00:59Z",
+      "url": "https://api.github.com/repos/wolfSSL/wolfssl/pulls/10641",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:01:00Z",
+      "final_url": "https://api.github.com/repos/wolfSSL/wolfssl/pulls/10641",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "Date": "Thu, 12 Nov 2026 23:01:01 GMT",
+        "ETag": "\"e1926b880b24154b3b40ec6c4e683e8be111b2f9c6f806fb535a5affe8d683c6\"",
+        "Last-Modified": "Thu, 10 Sep 2026 16:35:24 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4588",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "412",
+        "X-GitHub-Request-Id": "B809:127836:1615B17:458F87D:6AF6452C"
+      },
+      "size_bytes": 19354,
+      "stored_at": "records/github/repos/wolfSSL/wolfssl/pulls/10641/response.json",
+      "newly_stored": true,
+      "sha256": "12ca55718658443e0577eb1e9f1da69acafd13884b0f16a3fa167f1d48a9723f"
+    }
+  ]
+}

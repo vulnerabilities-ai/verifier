@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "pull",
+  "url": "https://api.github.com/repos/RocketChat/Rocket.Chat/pulls/39492",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:07Z",
+      "url": "https://api.github.com/repos/RocketChat/Rocket.Chat/pulls/39492",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:08Z",
+      "final_url": "https://api.github.com/repos/RocketChat/Rocket.Chat/pulls/39492",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "Date": "Thu, 12 Nov 2026 22:58:08 GMT",
+        "ETag": "\"2dfc57a42d8afa005af1d8b357650fc31d2ddee6bfb47cab56ebcbdf3b1a68bd\"",
+        "Last-Modified": "Tue, 03 Nov 2026 21:41:10 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4764",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "236",
+        "X-GitHub-Request-Id": "B80B:146460:195B653:5108CA6:6AF64480"
+      },
+      "size_bytes": 23206,
+      "stored_at": "records/github/repos/RocketChat/Rocket.Chat/pulls/39492/response.json",
+      "newly_stored": true,
+      "sha256": "6cf46bb215fd3fab619e684d7fb545fa9bd84027f0902133a88295eefb1bc2e4"
+    }
+  ]
+}

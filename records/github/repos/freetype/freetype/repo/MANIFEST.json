@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/freetype/freetype",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:53Z",
+      "url": "https://api.github.com/repos/freetype/freetype",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:53Z",
+      "final_url": "https://api.github.com/repos/freetype/freetype",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"41a6457bfa5a5e711214ba1e2423ce719576449b448433720dcc62ed616d54af\"",
+        "Last-Modified": "Wed, 11 Nov 2026 23:20:24 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4975",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "25",
+        "X-GitHub-Request-Id": "B80A:4690:1684481:462A641:6AF64345"
+      },
+      "size_bytes": 6314,
+      "stored_at": "records/github/repos/freetype/freetype/repo/response.json",
+      "newly_stored": true,
+      "sha256": "f57f4eaff54120f0e89411dc62c4df3e32480ecb3f95862a940493bf0d2ef189"
+    }
+  ]
+}

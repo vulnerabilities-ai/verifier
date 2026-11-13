@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/dhis2/dhis2-core",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:49Z",
+      "url": "https://api.github.com/repos/dhis2/dhis2-core",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:49Z",
+      "final_url": "https://api.github.com/repos/dhis2/dhis2-core",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:50 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"40c72834c91d419e374daa3d9866d420652131af99f75268472b0ed2b915b6f9\"",
+        "Last-Modified": "Thu, 12 Nov 2026 14:08:18 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4980",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "20",
+        "X-GitHub-Request-Id": "B80B:330D48:1648E2B:457C38F:6AF64341"
+      },
+      "size_bytes": 6299,
+      "stored_at": "records/github/repos/dhis2/dhis2-core/repo/response.json",
+      "newly_stored": true,
+      "sha256": "222e17a54f898a4ebf5291c1fd435394c749c21341b69164d9861d86e770b11c"
+    }
+  ]
+}

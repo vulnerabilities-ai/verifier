@@ -66,6 +66,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/cloudfoundry/uaa/commit/65118219a21b39b6ed561712f83d460bea3a15f3"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

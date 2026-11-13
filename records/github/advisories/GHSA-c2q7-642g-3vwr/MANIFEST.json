@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-c2q7-642g-3vwr",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:32Z",
+      "url": "https://api.github.com/advisories/GHSA-c2q7-642g-3vwr",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:33Z",
+      "final_url": "https://api.github.com/advisories/GHSA-c2q7-642g-3vwr",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:34 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"45a1d18fc6c2a29a2a76b4c4eb310718453189a4f978ae82b8f99ba572fb7942\"",
+        "Last-Modified": "Wed, 22 Apr 2026 00:32:44 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4918",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "82",
+        "X-GitHub-Request-Id": "B80D:1645D6:93EA50:1D01C1F:6AF643E5"
+      },
+      "size_bytes": 1710,
+      "stored_at": "records/github/advisories/GHSA-c2q7-642g-3vwr/response.json",
+      "newly_stored": true,
+      "sha256": "f61cad0f485ce9d972da08761abc74de7da363cd472352568b1a67ec6e029de2"
+    }
+  ]
+}

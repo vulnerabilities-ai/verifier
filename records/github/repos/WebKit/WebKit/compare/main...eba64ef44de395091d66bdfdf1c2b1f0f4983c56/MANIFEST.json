@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/WebKit/WebKit/compare/main...eba64ef44de395091d66bdfdf1c2b1f0f4983c56",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:16:25Z",
+      "url": "https://api.github.com/repos/WebKit/WebKit/compare/main...eba64ef44de395091d66bdfdf1c2b1f0f4983c56",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:26Z",
+      "final_url": "https://api.github.com/repos/WebKit/WebKit/compare/main...eba64ef44de395091d66bdfdf1c2b1f0f4983c56",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:26 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"79f1117145d721f1a6738486914c0b94796030e6fe92b147f58f9346bf3c5754\"",
+        "Last-Modified": "Thu, 12 Nov 2026 23:09:34 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4516",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "484",
+        "X-GitHub-Request-Id": "B808:3DA0D0:BE0A81:2543F72:6AF648CA"
+      },
+      "size_bytes": 10647,
+      "stored_at": "records/github/repos/WebKit/WebKit/compare/main...eba64ef44de395091d66bdfdf1c2b1f0f4983c56/response.json",
+      "newly_stored": true,
+      "sha256": "a89629ddde28d4aeb9d6225741e3baf3018aaac901d251600c782b9429685090"
+    }
+  ]
+}

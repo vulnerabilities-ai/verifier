@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-6gff-7f37-2v35"
       ]
     },
+    "outside_links": [
+      "https://github.com/Cisco-Talos/clamav/commit/a0b1531c6368347a79c15fb69d508171c55cc8cf",
+      "https://github.com/advisories/GHSA-6gff-7f37-2v35",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-20215"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

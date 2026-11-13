@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/freetype/freetype/commit/67c52a0b68eaeb7ae1f2248202924883c4a232d0"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

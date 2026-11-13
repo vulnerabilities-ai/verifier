@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FreeRDP/FreeRDP/commit/caf653c0ba1c75ec8f298d1baa59770102a5d14c",
+      "https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-9g22-w2gr-vcmp",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-63652"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

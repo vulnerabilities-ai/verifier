@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/DanBloomberg/leptonica",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:33Z",
+      "url": "https://api.github.com/repos/DanBloomberg/leptonica",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:33Z",
+      "final_url": "https://api.github.com/repos/DanBloomberg/leptonica",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:33 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"2f8746bb09b8f7f96708423a14d053393c905317f94feb7ca188e90d515f7db2\"",
+        "Last-Modified": "Wed, 11 Nov 2026 23:40:27 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4997",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "3",
+        "X-GitHub-Request-Id": "B80A:4690:167C216:4611224:6AF64331"
+      },
+      "size_bytes": 5691,
+      "stored_at": "records/github/repos/DanBloomberg/leptonica/repo/response.json",
+      "newly_stored": true,
+      "sha256": "ebdbc425edc1e2e13855c34fcd054586aceca7e8d7aeb3ac1d7038d21e0dd6c8"
+    }
+  ]
+}

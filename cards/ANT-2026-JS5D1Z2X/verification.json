@@ -72,6 +72,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5295",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-6678"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

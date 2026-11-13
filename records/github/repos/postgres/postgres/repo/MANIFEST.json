@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/postgres/postgres",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:17Z",
+      "url": "https://api.github.com/repos/postgres/postgres",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:17Z",
+      "final_url": "https://api.github.com/repos/postgres/postgres",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:18 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"16263195d8d2e7c6c3b02bd9cb17b186685dfa432cba6c1679e1687ec5a269f4\"",
+        "Last-Modified": "Thu, 12 Nov 2026 21:59:51 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4951",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "49",
+        "X-GitHub-Request-Id": "B80B:330D48:1654C59:45A10D2:6AF6435D"
+      },
+      "size_bytes": 6421,
+      "stored_at": "records/github/repos/postgres/postgres/repo/response.json",
+      "newly_stored": true,
+      "sha256": "64b2de7eafb648baf44c3578e48ac9b726b712239ed27a73f65e4b5771593b52"
+    }
+  ]
+}

@@ -259,6 +259,27 @@
       "label": null
     },
     {
+      "name": "ghsa_ids",
+      "type": "object",
+      "meaning": "GHSA IDs on revealed findings: total, per global-database status (exists, not_in_global_database, ...), and per repository-advisory status for those looked up there.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fix_check_reasons",
+      "type": "object",
+      "meaning": "For findings whose fix_merged is not_checked: how many have each fix_check_reason.",
+      "source_field": null,
+      "label": null
+    },
+    {
+      "name": "fix_links_not_checked_by_type",
+      "type": "object",
+      "meaning": "How many findings have each fix_link_type_not_checked.",
+      "source_field": null,
+      "label": null
+    },
+    {
       "name": "cvss_scores_present",
       "type": "object",
       "meaning": "For each CVSS column, how many findings have a score (absent scores are empty, never 0.0).",

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/cloudfoundry/uaa/commits/65118219a21b39b6ed561712f83d460bea3a15f3",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:20Z",
+      "url": "https://api.github.com/repos/cloudfoundry/uaa/commits/65118219a21b39b6ed561712f83d460bea3a15f3",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:21Z",
+      "final_url": "https://api.github.com/repos/cloudfoundry/uaa/commits/65118219a21b39b6ed561712f83d460bea3a15f3",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:21 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"38fac6aaba7f2c36a10540acfd1e2c115b9d7939024c2b96e79e21e14c9e9109\"",
+        "Last-Modified": "Wed, 20 May 2026 17:12:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4749",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "251",
+        "X-GitHub-Request-Id": "B80D:FF026:17AD477:4AAE73D:6AF6448D"
+      },
+      "size_bytes": 6345,
+      "stored_at": "records/github/repos/cloudfoundry/uaa/commits/65118219a21b39b6ed561712f83d460bea3a15f3/response.json",
+      "newly_stored": true,
+      "sha256": "c2a2cb539355f362901e8ce856d271314a65302ae41db9eaa8a78fded574e9db"
+    }
+  ]
+}

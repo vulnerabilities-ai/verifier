@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/OSGeo/gdal/commit/79698857cb85daa32efe64bea7227dcc420f672a"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

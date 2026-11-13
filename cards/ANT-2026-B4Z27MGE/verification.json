@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/gpac/gpac/commit/5db36afe0f20a02ea2344d42521e687820096cf4"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

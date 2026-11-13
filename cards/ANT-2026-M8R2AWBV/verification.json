@@ -73,6 +73,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/torvalds/linux/commit/6b4f875aac34",
+      "https://github.com/torvalds/linux/commit/6b4f875aac344cdd52a1f34cc70ed2f874a65757"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

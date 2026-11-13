@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:59:26Z",
+      "url": "https://api.github.com/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:59:27Z",
+      "final_url": "https://api.github.com/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:59:27 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"bc883ef23ff91ef6e4deec82c7d946e7666259bcd5776414d92d061b0c73cc92\"",
+        "Last-Modified": "Mon, 11 May 2026 12:13:46 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4681",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "319",
+        "X-GitHub-Request-Id": "B80E:56673:176486A:498CB26:6AF644CF"
+      },
+      "size_bytes": 10744,
+      "stored_at": "records/github/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576/response.json",
+      "newly_stored": true,
+      "sha256": "b191bdef9306e3198dee4139b32096dfade2c6cfd501b8ce442b5cfc741f2fe0"
+    }
+  ]
+}

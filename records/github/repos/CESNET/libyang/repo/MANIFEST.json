@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/CESNET/libyang",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:32Z",
+      "url": "https://api.github.com/repos/CESNET/libyang",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:32Z",
+      "final_url": "https://api.github.com/repos/CESNET/libyang",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"a748656ffdb3096bd75e72148cc007ab9b1c91cc1163b01e7c76e6fdb6763a71\"",
+        "Last-Modified": "Tue, 03 Nov 2026 10:05:13 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4998",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "2",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EAA631:5F908CF:6AF64330"
+      },
+      "size_bytes": 6229,
+      "stored_at": "records/github/repos/CESNET/libyang/repo/response.json",
+      "newly_stored": true,
+      "sha256": "161a8d2e71d013a8b4601e690911e6e1539f62852f037df625bc7342982976fe"
+    }
+  ]
+}

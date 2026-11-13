@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-59q6-j4w8-8pjx",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:31Z",
+      "url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-59q6-j4w8-8pjx",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:31Z",
+      "final_url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-59q6-j4w8-8pjx",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"60bea1744d910bbcbcbb52ee402461b85665156957dec711b837ad43b700fbfe\"",
+        "Last-Modified": "Tue, 02 Jun 2026 20:38:08 GMT",
+        "X-GitHub-Request-Id": "B808:3DA0D0:BF9635:258FE44:6AF6490B",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4893",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "107"
+      },
+      "size_bytes": 2804,
+      "stored_at": "records/github/repos/OISF/suricata/security-advisories/GHSA-59q6-j4w8-8pjx/response.json",
+      "newly_stored": true,
+      "sha256": "280a0b6fb645f824f80ffdaf42e6c5edb4972e9d50a5966cea308ebf6b129cd6"
+    }
+  ]
+}

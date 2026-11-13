@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/langchain-ai/deepagentsjs/commit/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

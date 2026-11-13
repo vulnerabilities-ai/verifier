@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/wireshark/wireshark/compare/master...d50d557d84ddb546ca4a43f51034780e2493c409",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:13Z",
+      "url": "https://api.github.com/repos/wireshark/wireshark/compare/master...d50d557d84ddb546ca4a43f51034780e2493c409",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:13Z",
+      "final_url": "https://api.github.com/repos/wireshark/wireshark/compare/master...d50d557d84ddb546ca4a43f51034780e2493c409",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:13 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"5cf64986c32d8f951fc63779b04b8eed11991a6a95d109aacadaffeac8ea09ee\"",
+        "Last-Modified": "Thu, 12 Nov 2026 22:40:41 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4587",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "413",
+        "X-GitHub-Request-Id": "B808:68277:1741C51:486FDAA:6AF64881"
+      },
+      "size_bytes": 8964,
+      "stored_at": "records/github/repos/wireshark/wireshark/compare/master...d50d557d84ddb546ca4a43f51034780e2493c409/response.json",
+      "newly_stored": true,
+      "sha256": "c96aa21c488500224625832cc7f75527b17e0b41ef2f2e17317a42b40f3e76e7"
+    }
+  ]
+}

@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/DanBloomberg/leptonica/commit/a0ca522b7d48f471c6225b4a4dc0c63463f10843"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

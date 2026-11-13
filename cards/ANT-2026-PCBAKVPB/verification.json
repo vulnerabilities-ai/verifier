@@ -73,6 +73,10 @@
         "https://github.com/advisories/GHSA-m62j-63mf-xr95"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-m62j-63mf-xr95",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-4892"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

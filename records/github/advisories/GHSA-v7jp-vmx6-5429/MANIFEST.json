@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-v7jp-vmx6-5429",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:20Z",
+      "url": "https://api.github.com/advisories/GHSA-v7jp-vmx6-5429",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:21Z",
+      "final_url": "https://api.github.com/advisories/GHSA-v7jp-vmx6-5429",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:21 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"5d7217d43287ced8ecf4734550db2160344ca43cee08db001425d59292a473ec\"",
+        "Last-Modified": "Tue, 26 May 2026 15:32:17 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4870",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "130",
+        "X-GitHub-Request-Id": "B80D:23F3F4:15428CC:4252269:6AF64415"
+      },
+      "size_bytes": 2080,
+      "stored_at": "records/github/advisories/GHSA-v7jp-vmx6-5429/response.json",
+      "newly_stored": true,
+      "sha256": "8926c09d82b291a769071e57f8f4d3fbe60b23594788c1b3d106bba920b9d083"
+    }
+  ]
+}

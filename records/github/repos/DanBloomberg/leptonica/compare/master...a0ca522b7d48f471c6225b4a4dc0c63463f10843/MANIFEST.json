@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/DanBloomberg/leptonica/compare/master...a0ca522b7d48f471c6225b4a4dc0c63463f10843",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:27Z",
+      "url": "https://api.github.com/repos/DanBloomberg/leptonica/compare/master...a0ca522b7d48f471c6225b4a4dc0c63463f10843",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:28Z",
+      "final_url": "https://api.github.com/repos/DanBloomberg/leptonica/compare/master...a0ca522b7d48f471c6225b4a4dc0c63463f10843",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:28 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"c80a36199afbc8767904e2f867c8cdd753094382404f6de254a63e02acf7fd50\"",
+        "Last-Modified": "Fri, 06 Nov 2026 21:58:59 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4573",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "427",
+        "X-GitHub-Request-Id": "B80F:B7263:17BFC51:4A00FB8:6AF64890"
+      },
+      "size_bytes": 7744,
+      "stored_at": "records/github/repos/DanBloomberg/leptonica/compare/master...a0ca522b7d48f471c6225b4a4dc0c63463f10843/response.json",
+      "newly_stored": true,
+      "sha256": "ed01563da68ceb03ff518ef104777a28d7e688e82294ff78945688a718b87b49"
+    }
+  ]
+}

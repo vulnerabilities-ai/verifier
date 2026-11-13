@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/torvalds/linux/commit/07712db80857d5d09ae08f3df85a708ecfc3b61f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-43074"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/freetype/freetype/commits/238dd13d7d0f114d10ef7dc233538f4c2dea5405",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:31Z",
+      "url": "https://api.github.com/repos/freetype/freetype/commits/238dd13d7d0f114d10ef7dc233538f4c2dea5405",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:32Z",
+      "final_url": "https://api.github.com/repos/freetype/freetype/commits/238dd13d7d0f114d10ef7dc233538f4c2dea5405",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"4037a17d6586f2a28de20c733a3ed67f075c6e6b5ba4b1b69507bbb3a8f862a2\"",
+        "Last-Modified": "Sun, 22 Mar 2026 05:22:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4736",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "264",
+        "X-GitHub-Request-Id": "B80A:4690:171259A:47E465B:6AF64498"
+      },
+      "size_bytes": 6797,
+      "stored_at": "records/github/repos/freetype/freetype/commits/238dd13d7d0f114d10ef7dc233538f4c2dea5405/response.json",
+      "newly_stored": true,
+      "sha256": "8d4ac289f7f835297a33725138f22f7289faba8ea2e6a8acd918e5e0aa758d43"
+    }
+  ]
+}

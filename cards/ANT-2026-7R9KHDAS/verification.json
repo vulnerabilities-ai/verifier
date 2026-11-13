@@ -73,6 +73,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/cloudflare/circl/commit/846a67b9095e",
+      "https://github.com/cloudflare/circl/commit/846a67b9095e080facca2445176da3d086b027d8"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2/compare/master...601800edad0ab469af1e4bc9758dba1a732472d2",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:16:03Z",
+      "url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2/compare/master...601800edad0ab469af1e4bc9758dba1a732472d2",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:04Z",
+      "final_url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2/compare/master...601800edad0ab469af1e4bc9758dba1a732472d2",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:05 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"17946af4f081c8cc4799d25f8a6801acb6faa01a9701b0c976784cf0e65b4cce\"",
+        "Last-Modified": "Thu, 12 Nov 2026 20:54:56 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4537",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "463",
+        "X-GitHub-Request-Id": "B80A:4690:18EDD39:4DAEA65:6AF648B4"
+      },
+      "size_bytes": 10108,
+      "stored_at": "records/github/repos/openmrs/openmrs-module-fhir2/compare/master...601800edad0ab469af1e4bc9758dba1a732472d2/response.json",
+      "newly_stored": true,
+      "sha256": "a9ddf3e0ca94388f62d855b18b253f502eb28d7a4aa0c87fc44fe4c5683943ba"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-q3h9-m34w-h76f",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:50Z",
+      "url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-q3h9-m34w-h76f",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:51Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq/security-advisories/GHSA-q3h9-m34w-h76f",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:52 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"afaa1a9c07f2b0cf21b17b5d85f80d89edc345e09b0963bdc835959bb8e12323\"",
+        "Last-Modified": "Sun, 12 Apr 2026 23:28:04 GMT",
+        "X-GitHub-Request-Id": "B80A:28C13F:B70D80:23F6037:6AF6491F",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4872",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "128"
+      },
+      "size_bytes": 4949,
+      "stored_at": "records/github/repos/jqlang/jq/security-advisories/GHSA-q3h9-m34w-h76f/response.json",
+      "newly_stored": true,
+      "sha256": "663ba4efd456d5ca83b860837f641bc22b4189d7b466d842830eecd30b72e775"
+    }
+  ]
+}

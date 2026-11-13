@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-72j9-356v-88xq",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:32Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-72j9-356v-88xq",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:32Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-72j9-356v-88xq",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:33 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8e04bbf7436e2fb4e31a27c7b64eb34eefc7070726d0ea387527a819f0d86491\"",
+        "Last-Modified": "Fri, 17 Jul 2026 16:23:01 GMT",
+        "X-GitHub-Request-Id": "B80A:28C13F:B6A796:23E1F3E:6AF6490C",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4892",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "108"
+      },
+      "size_bytes": 19461,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-72j9-356v-88xq/response.json",
+      "newly_stored": true,
+      "sha256": "7d4992193b6bc379c7b2c78c5f5c12fd7422f1299895ec19d1c3f9e087df33f6"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/lua/lua/compare/master...efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:56Z",
+      "url": "https://api.github.com/repos/lua/lua/compare/master...efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:57Z",
+      "final_url": "https://api.github.com/repos/lua/lua/compare/master...efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:57 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"296226840be2416966888836a0fd1e51ac4cf0acf774445d5125724c75bfe4af\"",
+        "Last-Modified": "Fri, 16 Oct 2026 14:16:12 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4544",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "456",
+        "X-GitHub-Request-Id": "B80A:4690:18EAB75:4DA4F5B:6AF648AD"
+      },
+      "size_bytes": 7438,
+      "stored_at": "records/github/repos/lua/lua/compare/master...efddc2309c5ff8a1842bea8a9c0d7d4a5d6e1e60/response.json",
+      "newly_stored": true,
+      "sha256": "5c4e85dbd7ddbe131821b66f692cfc6ce8484bf7753b277aab3883fd5e2b44b4"
+    }
+  ]
+}

@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-47qf-hp3h-rwmm"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-47qf-hp3h-rwmm",
+      "https://github.com/wolfSSL/wolfssl/commit/13a016367",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5466"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

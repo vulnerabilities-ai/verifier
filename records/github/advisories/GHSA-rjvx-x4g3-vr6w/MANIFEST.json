@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-rjvx-x4g3-vr6w",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:16Z",
+      "url": "https://api.github.com/advisories/GHSA-rjvx-x4g3-vr6w",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:16Z",
+      "final_url": "https://api.github.com/advisories/GHSA-rjvx-x4g3-vr6w",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:17 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"4641806ab5eef0193e605c4c5ae4ab180a2aa2472d54a3a4a1be8ff0f12efbdf\"",
+        "Last-Modified": "Wed, 01 Jul 2026 18:32:03 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4875",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "125",
+        "X-GitHub-Request-Id": "B80A:4690:16D96E9:47321BD:6AF64410"
+      },
+      "size_bytes": 1978,
+      "stored_at": "records/github/advisories/GHSA-rjvx-x4g3-vr6w/response.json",
+      "newly_stored": true,
+      "sha256": "57dd592691e1c4f2952ca5e8279055b065b1fa129c16db2f642f67aaa1ef8922"
+    }
+  ]
+}

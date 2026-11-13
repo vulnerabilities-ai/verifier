@@ -77,6 +77,12 @@
         "https://github.com/advisories/GHSA-q349-x427-xg3w"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-q349-x427-xg3w",
+      "https://github.com/wolfSSL/wolfssl/commit/6bfb53f084a25198835a50796eca83f463a0e7be",
+      "https://github.com/wolfSSL/wolfssl/pull/10641",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-12340"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-mx4j-fjqx-f8qj"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-mx4j-fjqx-f8qj",
+      "https://github.com/wolfSSL/wolfssl/commit/d278da09dfa60237f246236f2c8acc5d11c5915a",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5447"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

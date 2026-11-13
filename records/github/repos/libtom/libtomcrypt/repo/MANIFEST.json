@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/libtom/libtomcrypt",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:06Z",
+      "url": "https://api.github.com/repos/libtom/libtomcrypt",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:06Z",
+      "final_url": "https://api.github.com/repos/libtom/libtomcrypt",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:07 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0e50b47822405e939e4a45a0f5d193255ac98f359e243c0494277f9d00c4531f\"",
+        "Last-Modified": "Tue, 10 Nov 2026 04:21:54 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4962",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "38",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EB98EB:5FC0046:6AF64352"
+      },
+      "size_bytes": 6537,
+      "stored_at": "records/github/repos/libtom/libtomcrypt/repo/response.json",
+      "newly_stored": true,
+      "sha256": "f3158f9d0e0106146dd2e04ff1bce5b20a9965e96c4eb6251293b7179ec29a35"
+    }
+  ]
+}

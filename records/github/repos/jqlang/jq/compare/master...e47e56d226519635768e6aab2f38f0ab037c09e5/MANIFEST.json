@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:16:07Z",
+      "url": "https://api.github.com/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:16:07Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:16:07 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"605df9237f875eb144dfdd9be3046db579948c673586dec1f2b91a1890e50e06\"",
+        "Last-Modified": "Mon, 02 Nov 2026 07:08:10 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4534",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "466",
+        "X-GitHub-Request-Id": "B80D:23F3F4:1733F8A:4864063:6AF648B7"
+      },
+      "size_bytes": 10017,
+      "stored_at": "records/github/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5/response.json",
+      "newly_stored": true,
+      "sha256": "a80fd0edb6825741159b4291c925cde1b52590e7f4cdc31271a76969444e58df"
+    }
+  ]
+}

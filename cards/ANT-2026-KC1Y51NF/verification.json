@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-wc3v-3457-c8cm"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-wc3v-3457-c8cm",
+      "https://github.com/openmeterio/openmeter/commit/6ce29e743165890c10346f4c71d5bf79f1ecaf6f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-8462"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -75,6 +75,9 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5194"
+    ],
     "missing_parts": [],
     "withheld_statement": "The preimage for this commitment is withheld because it references findings that are not yet disclosed. The commitment hash remains in the ledger and the full preimage will be published when the referenced findings are revealed."
   },

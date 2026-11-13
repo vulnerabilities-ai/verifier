@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-rqgv-grx4-xm6x",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:54Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-rqgv-grx4-xm6x",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:54Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-rqgv-grx4-xm6x",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:55 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"38a9c470895df83302fabb619a01a33fe0008e0ba366d32cafde34cb1a5e8a9b\"",
+        "Last-Modified": "Tue, 11 Aug 2026 19:45:57 GMT",
+        "X-GitHub-Request-Id": "B80B:B72EE:B4F119:2390F5E:6AF64922",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4869",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "131"
+      },
+      "size_bytes": 31488,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-rqgv-grx4-xm6x/response.json",
+      "newly_stored": true,
+      "sha256": "3774614c3966b2b9f0c6525f964be5a5d71446bc74772c3d0e99612463ccea23"
+    }
+  ]
+}

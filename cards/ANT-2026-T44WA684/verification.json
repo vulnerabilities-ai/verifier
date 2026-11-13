@@ -73,6 +73,10 @@
         "https://github.com/advisories/GHSA-x9h5-r9v2-vcww"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-x9h5-r9v2-vcww",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-33901"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

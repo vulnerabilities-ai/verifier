@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:39Z",
+      "url": "https://api.github.com/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:39Z",
+      "final_url": "https://api.github.com/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:40 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"23f59c6f84b6c6675ca6ac640f42062d45abc586742109e0ada14e70dc0816ac\"",
+        "Last-Modified": "Thu, 26 Mar 2026 07:33:44 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4852",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "148",
+        "X-GitHub-Request-Id": "B80B:146460:193B4D8:50A218E:6AF64427"
+      },
+      "size_bytes": 5261,
+      "stored_at": "records/github/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04/response.json",
+      "newly_stored": true,
+      "sha256": "0a9e437fb4d3a7eded559453edc700f9812dce7bcbf7dfad981983195ae3595a"
+    }
+  ]
+}

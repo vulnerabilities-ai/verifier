@@ -46,6 +46,9 @@
         "https://github.com/advisories/GHSA-xh8f-g2qw-gcm7"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-xh8f-g2qw-gcm7"
+    ],
     "missing_parts": [
       "timeline",
       "severities"

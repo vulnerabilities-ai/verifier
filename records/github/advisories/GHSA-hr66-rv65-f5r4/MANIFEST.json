@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-hr66-rv65-f5r4",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:49Z",
+      "url": "https://api.github.com/advisories/GHSA-hr66-rv65-f5r4",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:49Z",
+      "final_url": "https://api.github.com/advisories/GHSA-hr66-rv65-f5r4",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:50 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0e0a2f426593e5db439c98037fefc0f5d7442f49a4c8f2f44fcd1ae7524f5184\"",
+        "Last-Modified": "Thu, 28 May 2026 21:33:05 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4902",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "98",
+        "X-GitHub-Request-Id": "B80A:28C13F:996437:1E1DFF7:6AF643F5"
+      },
+      "size_bytes": 1637,
+      "stored_at": "records/github/advisories/GHSA-hr66-rv65-f5r4/response.json",
+      "newly_stored": true,
+      "sha256": "07ce33fceb002a3ddae11c977576bea20b72ef9f744313ee5ce97a862a7aa0b4"
+    }
+  ]
+}

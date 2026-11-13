@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-hfrj-29vh-pcf2",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:47Z",
+      "url": "https://api.github.com/advisories/GHSA-hfrj-29vh-pcf2",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:47Z",
+      "final_url": "https://api.github.com/advisories/GHSA-hfrj-29vh-pcf2",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:47 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"68aa2a0cbe6d51c2fb0f6638897a1ec23123d87b70d429bb67efe00e122d851b\"",
+        "Last-Modified": "Wed, 08 Jul 2026 21:30:38 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4904",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "96",
+        "X-GitHub-Request-Id": "B809:1158B1:9A585D:1E63F6F:6AF643F3"
+      },
+      "size_bytes": 1415,
+      "stored_at": "records/github/advisories/GHSA-hfrj-29vh-pcf2/response.json",
+      "newly_stored": true,
+      "sha256": "09afb7a69be03f3352e3fa23e816b6bd65f75c9bb88c31055c3525d3ed61d73c"
+    }
+  ]
+}

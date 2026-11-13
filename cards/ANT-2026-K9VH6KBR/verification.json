@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FreeRDP/FreeRDP/commit/27014741a8c22a34d3040c559c82f4ed82841bef",
+      "https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-pjqx-v446-x7fc",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-64620"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

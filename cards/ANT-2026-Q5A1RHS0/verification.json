@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/libssh2/libssh2/commit/5e4776146552d898b9c0e1b313cd093fa8dc92d0",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-66032"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

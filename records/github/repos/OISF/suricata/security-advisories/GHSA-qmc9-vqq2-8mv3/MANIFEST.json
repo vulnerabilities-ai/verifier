@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-qmc9-vqq2-8mv3",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:52Z",
+      "url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-qmc9-vqq2-8mv3",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:52Z",
+      "final_url": "https://api.github.com/repos/OISF/suricata/security-advisories/GHSA-qmc9-vqq2-8mv3",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"7d36c37a693021476696a300d8a5bf54c69e040dfd92c76f67538ce828afcb32\"",
+        "Last-Modified": "Tue, 02 Jun 2026 20:38:01 GMT",
+        "X-GitHub-Request-Id": "B80C:1CE167:B208BF:2310317:6AF64920",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4871",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "129"
+      },
+      "size_bytes": 2840,
+      "stored_at": "records/github/repos/OISF/suricata/security-advisories/GHSA-qmc9-vqq2-8mv3/response.json",
+      "newly_stored": true,
+      "sha256": "7627a0020c231571be0f26022895bd2339eb70b11129e3bb6a6926d71960b7a0"
+    }
+  ]
+}

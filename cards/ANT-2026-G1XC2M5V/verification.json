@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/dloebl/cgif/pull/84"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

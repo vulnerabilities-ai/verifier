@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/OISF/suricata/commit/2b20a436e7249e7eb688f0c9caf26ad9179fc680",
+      "https://github.com/OISF/suricata/security/advisories/GHSA-qmc9-vqq2-8mv3",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-45752"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

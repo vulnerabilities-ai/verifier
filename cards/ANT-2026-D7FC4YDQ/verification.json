@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/alanxz/rabbitmq-c/commit/4777d0b5c58cb02966a04a85832436bd66ed5d1f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-44236"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

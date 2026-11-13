@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/TryGhost/Ghost/commits/30868d632b2252b638bc8a4c8ebf73964592ed91/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:09Z",
+      "url": "https://api.github.com/repos/TryGhost/Ghost/commits/30868d632b2252b638bc8a4c8ebf73964592ed91/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:10Z",
+      "final_url": "https://api.github.com/repos/TryGhost/Ghost/commits/30868d632b2252b638bc8a4c8ebf73964592ed91/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:10 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9e9e4f13059da0672284b22d0ecd02f3ab2fee1575cc385816a495ce7c32768e\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4762",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "238",
+        "X-GitHub-Request-Id": "B808:2D62CE:2DA19DB:8FC17DA:6AF64482"
+      },
+      "size_bytes": 16851,
+      "stored_at": "records/github/repos/TryGhost/Ghost/commits/30868d632b2252b638bc8a4c8ebf73964592ed91/pulls/response.json",
+      "newly_stored": true,
+      "sha256": "139975ee59e4963d432f682ec4fc5711b3fce7858881b3060820ca33dadc1259"
+    }
+  ]
+}

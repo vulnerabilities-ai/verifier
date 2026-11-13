@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/gpg/gnupg",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:55Z",
+      "url": "https://api.github.com/repos/gpg/gnupg",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:55Z",
+      "final_url": "https://api.github.com/repos/gpg/gnupg",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:56 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e47e3cc30c4496da027d5ab4ba6cbc572c58cfaf808e1be2add9ae5dab4de7e6\"",
+        "Last-Modified": "Thu, 12 Nov 2026 09:51:26 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4973",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "27",
+        "X-GitHub-Request-Id": "B80B:330D48:164B689:4584105:6AF64347"
+      },
+      "size_bytes": 6140,
+      "stored_at": "records/github/repos/gpg/gnupg/repo/response.json",
+      "newly_stored": true,
+      "sha256": "6eb6819f49c5da76455c4c75305268217ac36d5a901651a485aa546cb1fd7181"
+    }
+  ]
+}

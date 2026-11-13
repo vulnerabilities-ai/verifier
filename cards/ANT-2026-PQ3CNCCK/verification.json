@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/firecracker-microvm/firecracker/security/advisories/GHSA-776c-mpj7-jm3r",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5747"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

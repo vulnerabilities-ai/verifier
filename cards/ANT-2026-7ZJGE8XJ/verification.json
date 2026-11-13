@@ -69,6 +69,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/user-attachments/files/26144279/poc.bin.gz",
+      "https://stackoverflow.com"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

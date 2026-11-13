@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-65xm-pfx9-g5p3"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-65xm-pfx9-g5p3",
+      "https://github.com/wolfSSL/wolfssl/commit/1823f2e9f",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5503"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

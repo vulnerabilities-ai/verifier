@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-hfrj-29vh-pcf2"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-hfrj-29vh-pcf2",
+      "https://github.com/wireshark/wireshark/commit/c9bd49828f4e9cd8c04f90aacb11e2238016bc31",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-15170"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

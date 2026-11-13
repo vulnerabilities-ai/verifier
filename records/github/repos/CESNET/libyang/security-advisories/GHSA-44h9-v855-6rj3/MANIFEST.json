@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/CESNET/libyang/security-advisories/GHSA-44h9-v855-6rj3",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:28Z",
+      "url": "https://api.github.com/repos/CESNET/libyang/security-advisories/GHSA-44h9-v855-6rj3",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:28Z",
+      "final_url": "https://api.github.com/repos/CESNET/libyang/security-advisories/GHSA-44h9-v855-6rj3",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:29 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"19e2345c127c27e2b9fb926a41e2289ddf08b1f7fd2d38bd6042cf5480cb7012\"",
+        "Last-Modified": "Thu, 02 Jul 2026 07:25:31 GMT",
+        "X-GitHub-Request-Id": "B809:1158B1:B81BEE:244986A:6AF64908",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4896",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "104"
+      },
+      "size_bytes": 19016,
+      "stored_at": "records/github/repos/CESNET/libyang/security-advisories/GHSA-44h9-v855-6rj3/response.json",
+      "newly_stored": true,
+      "sha256": "f3bc2a16b3ed37585ce386a0f450a37ff2cf97dbab345ba432dfbe33f37ff3a8"
+    }
+  ]
+}

@@ -75,6 +75,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/asterisk/asterisk/commit/7a1ffcdf38cc76d1c4eae51651667f3fd4548ab0",
+      "https://github.com/asterisk/asterisk/security/advisories/GHSA-589g-qgf8-m6mx",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-57191"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

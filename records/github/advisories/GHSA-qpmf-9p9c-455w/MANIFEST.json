@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-qpmf-9p9c-455w",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:56:13Z",
+      "url": "https://api.github.com/advisories/GHSA-qpmf-9p9c-455w",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:56:14Z",
+      "final_url": "https://api.github.com/advisories/GHSA-qpmf-9p9c-455w",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:56:15 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"6aeee3bd208c44a8e14634f7a40db8e41c3635d2d78a9c73002237e0fc581d72\"",
+        "Last-Modified": "Thu, 12 Nov 2026 12:31:32 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4877",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "123",
+        "X-GitHub-Request-Id": "B809:38E5BE:1F0E70E:60C7C97:6AF6440E"
+      },
+      "size_bytes": 2387,
+      "stored_at": "records/github/advisories/GHSA-qpmf-9p9c-455w/response.json",
+      "newly_stored": true,
+      "sha256": "551c23d0533480febfac6be3c973800ecd0ed2dc8db193d8ca0a93e6ee1f4f5d"
+    }
+  ]
+}

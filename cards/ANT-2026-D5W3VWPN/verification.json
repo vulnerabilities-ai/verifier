@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FreeRDP/FreeRDP/commit/680426e58a986b6fd0f1c352624f813708fc3432",
+      "https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-m37j-jcr2-8gcc",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-68579"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -75,6 +75,11 @@
         "https://github.com/advisories/GHSA-m77r-vqw2-hffx"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-m77r-vqw2-hffx",
+      "https://github.com/wolfSSL/wolfssl/commit/a88dd07c7",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-5500"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

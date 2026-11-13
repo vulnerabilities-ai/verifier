@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "pull",
+  "url": "https://api.github.com/repos/libexpat/libexpat/pulls/1272",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:54Z",
+      "url": "https://api.github.com/repos/libexpat/libexpat/pulls/1272",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:55Z",
+      "final_url": "https://api.github.com/repos/libexpat/libexpat/pulls/1272",
+      "headers": {
+        "Content-Type": "application/json; charset=utf-8",
+        "Date": "Thu, 12 Nov 2026 22:58:55 GMT",
+        "ETag": "\"8d7bc92696dcf600e137418629c2acd4361056ca2233f22a41dfacf45ea7f491\"",
+        "Last-Modified": "Sun, 01 Nov 2026 12:35:42 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4713",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "287",
+        "X-GitHub-Request-Id": "B809:127836:15ED00C:450E9E4:6AF644AF"
+      },
+      "size_bytes": 20249,
+      "stored_at": "records/github/repos/libexpat/libexpat/pulls/1272/response.json",
+      "newly_stored": true,
+      "sha256": "7c19aaf30b67631a0ebf312e93622bbe73f6e368322818400b6c65ee6e5b23fe"
+    }
+  ]
+}

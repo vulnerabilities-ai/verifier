@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/isc-projects/bind9",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:57Z",
+      "url": "https://api.github.com/repos/isc-projects/bind9",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:57Z",
+      "final_url": "https://api.github.com/repos/isc-projects/bind9",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"fd42bc6d988e7267d7b534d6cdd35f0e7f1d769b29c5d1a2698cb19f29d981a7\"",
+        "Last-Modified": "Thu, 12 Nov 2026 12:10:38 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4971",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "29",
+        "X-GitHub-Request-Id": "B80F:B7263:157470D:42DE580:6AF64349"
+      },
+      "size_bytes": 6550,
+      "stored_at": "records/github/repos/isc-projects/bind9/repo/response.json",
+      "newly_stored": true,
+      "sha256": "19b9e06fa9d1e28b2641258add3bd81c2250b025cc9ef9a093fb87a51fb9844c"
+    }
+  ]
+}

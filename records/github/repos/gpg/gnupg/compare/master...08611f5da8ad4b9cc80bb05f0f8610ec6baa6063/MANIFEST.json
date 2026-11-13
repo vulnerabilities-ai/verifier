@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/gpg/gnupg/compare/master...08611f5da8ad4b9cc80bb05f0f8610ec6baa6063",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:15Z",
+      "url": "https://api.github.com/repos/gpg/gnupg/compare/master...08611f5da8ad4b9cc80bb05f0f8610ec6baa6063",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:16Z",
+      "final_url": "https://api.github.com/repos/gpg/gnupg/compare/master...08611f5da8ad4b9cc80bb05f0f8610ec6baa6063",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:16 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"3e685f65fcb04ae762caf14fec381fbae2451de024841f57e516730b58ace647\"",
+        "Last-Modified": "Thu, 12 Nov 2026 01:22:58 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4584",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "416",
+        "X-GitHub-Request-Id": "B809:38E5BE:20FFED6:66DEC71:6AF64884"
+      },
+      "size_bytes": 12337,
+      "stored_at": "records/github/repos/gpg/gnupg/compare/master...08611f5da8ad4b9cc80bb05f0f8610ec6baa6063/response.json",
+      "newly_stored": true,
+      "sha256": "f3352cda9582956c5592c1ac66707aaec2d488756d39b216f84691c4f67e38c7"
+    }
+  ]
+}

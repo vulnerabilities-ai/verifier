@@ -70,6 +70,11 @@
         "https://github.com/advisories/GHSA-3q2h-7599-7r76"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-3q2h-7599-7r76",
+      "https://github.com/wireshark/wireshark/commit/39a3c437378890840e201d773ba52b2cdb762bc9",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-15165"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

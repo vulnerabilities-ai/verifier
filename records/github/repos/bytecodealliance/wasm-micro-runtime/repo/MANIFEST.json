@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:45Z",
+      "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:45Z",
+      "final_url": "https://api.github.com/repositories/184654298",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:46 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9f3bc3bee24cef2988a74b9de26b921b91d90cdf8ad8c64650e581394ce2fbf4\"",
+        "Last-Modified": "Thu, 12 Nov 2026 21:43:48 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4984",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "16",
+        "X-GitHub-Request-Id": "B809:38E5BE:1EB04A3:5FA31C7:6AF6433E"
+      },
+      "size_bytes": 7537,
+      "stored_at": "records/github/repos/bytecodealliance/wasm-micro-runtime/repo/response.json",
+      "newly_stored": true,
+      "sha256": "3131e57c8fcb4dba8ad698b53fb75c7d47323856cb28bd961dadf8b9614032e9"
+    }
+  ]
+}

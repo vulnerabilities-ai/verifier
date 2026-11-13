@@ -73,6 +73,12 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/dhis2/dhis2-core",
+      "https://github.com/dhis2/dhis2-core/commit/16cbb390a21391cc5f948092f06a52ce69a3274f",
+      "https://github.com/dhis2/dhis2-core/security/advisories/GHSA-pwmg-mvjw-4m23",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-55084"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

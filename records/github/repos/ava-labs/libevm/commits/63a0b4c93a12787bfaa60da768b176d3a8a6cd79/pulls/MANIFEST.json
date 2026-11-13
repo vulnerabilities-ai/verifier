@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/ava-labs/libevm/commits/63a0b4c93a12787bfaa60da768b176d3a8a6cd79/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:15Z",
+      "url": "https://api.github.com/repos/ava-labs/libevm/commits/63a0b4c93a12787bfaa60da768b176d3a8a6cd79/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:16Z",
+      "final_url": "https://api.github.com/repos/ava-labs/libevm/commits/63a0b4c93a12787bfaa60da768b176d3a8a6cd79/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:16 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"50832460db76074c76f2172f00e434e1ea50ae54f0d72c4443341fe130e42046\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4756",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "244",
+        "X-GitHub-Request-Id": "B80E:56673:174D787:4943C7E:6AF64488"
+      },
+      "size_bytes": 16090,
+      "stored_at": "records/github/repos/ava-labs/libevm/commits/63a0b4c93a12787bfaa60da768b176d3a8a6cd79/pulls/response.json",
+      "newly_stored": true,
+      "sha256": "1246c11bff69faac8d8dc9d0e4aac2c1f3b66d7d7c4c2cce2ec336e5ff90d6a5"
+    }
+  ]
+}

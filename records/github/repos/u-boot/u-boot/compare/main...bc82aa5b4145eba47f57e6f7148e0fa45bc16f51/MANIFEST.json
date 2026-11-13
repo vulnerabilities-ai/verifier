@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "compare",
+  "url": "https://api.github.com/repos/u-boot/u-boot/compare/main...bc82aa5b4145eba47f57e6f7148e0fa45bc16f51",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:15:31Z",
+      "url": "https://api.github.com/repos/u-boot/u-boot/compare/main...bc82aa5b4145eba47f57e6f7148e0fa45bc16f51",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:15:32Z",
+      "final_url": "https://api.github.com/repos/u-boot/u-boot/compare/main...bc82aa5b4145eba47f57e6f7148e0fa45bc16f51",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:15:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"36cc7e9762025ac266b4e2720eca8d74de6ec11463eb5abb30f2b526fb51c3c9\"",
+        "Last-Modified": "Thu, 12 Nov 2026 16:46:17 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4569",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "431",
+        "X-GitHub-Request-Id": "B809:38E5BE:2107392:66F5908:6AF64894"
+      },
+      "size_bytes": 9079,
+      "stored_at": "records/github/repos/u-boot/u-boot/compare/main...bc82aa5b4145eba47f57e6f7148e0fa45bc16f51/response.json",
+      "newly_stored": true,
+      "sha256": "fc076689bce3f36eb307280e54518fb1478c030e93f7a7572a315fe548b27477"
+    }
+  ]
+}

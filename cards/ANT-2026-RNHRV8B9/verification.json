@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/LibreOffice/core/commit/1db305f340787ab7e59d089e51ac9d6fc07c2715",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-63275"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

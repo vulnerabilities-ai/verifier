@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/WebKit/WebKit",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:41Z",
+      "url": "https://api.github.com/repos/WebKit/WebKit",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:42Z",
+      "final_url": "https://api.github.com/repos/WebKit/WebKit",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:42 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ac5f5a9b5c78a97144d6757a2fe6003c74af701d189422eaccee63d36c09387d\"",
+        "Last-Modified": "Thu, 12 Nov 2026 19:25:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4988",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "12",
+        "X-GitHub-Request-Id": "B80B:330D48:1645EA8:457311F:6AF6433A"
+      },
+      "size_bytes": 6067,
+      "stored_at": "records/github/repos/WebKit/WebKit/repo/response.json",
+      "newly_stored": true,
+      "sha256": "d48f977a6fc4f5821d736e2c65199c6d8a989e492489d197a9a68602cc6c447b"
+    }
+  ]
+}

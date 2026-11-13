@@ -71,6 +71,12 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://docs.syncthing.net/specs/globaldisco-v3.html",
+      "https://docs.syncthing.net/users/faq.html",
+      "https://docs.syncthing.net/users/stdiscosrv.html",
+      "https://github.com/syncthing/syncthing/commit/774aa11795a9edc904e8849e772a47804cf2aeb6"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

@@ -70,6 +70,11 @@
         "https://github.com/advisories/GHSA-xjvp-4fhw-gc47"
       ]
     },
+    "outside_links": [
+      "https://github.com/advisories/GHSA-xjvp-4fhw-gc47",
+      "https://github.com/opencontainers/runc/commit/864db8042dbb191028676f80addf8c35f348aee2",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-41579"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

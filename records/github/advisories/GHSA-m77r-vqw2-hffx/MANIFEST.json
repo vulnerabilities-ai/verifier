@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "advisory",
+  "url": "https://api.github.com/advisories/GHSA-m77r-vqw2-hffx",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:55:58Z",
+      "url": "https://api.github.com/advisories/GHSA-m77r-vqw2-hffx",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:55:58Z",
+      "final_url": "https://api.github.com/advisories/GHSA-m77r-vqw2-hffx",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:55:59 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"3bbf35149a3e253c5239e597be219b8bea384daf3a6e2acc16bbeb42175ff58f\"",
+        "Last-Modified": "Mon, 27 Apr 2026 18:32:02 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4893",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "107",
+        "X-GitHub-Request-Id": "B80B:B72EE:9782FF:1DC2046:6AF643FE"
+      },
+      "size_bytes": 1688,
+      "stored_at": "records/github/advisories/GHSA-m77r-vqw2-hffx/response.json",
+      "newly_stored": true,
+      "sha256": "5262b87e712185764a30695ad4178a5c435cbf3149efbcb2f246659c07791b6a"
+    }
+  ]
+}

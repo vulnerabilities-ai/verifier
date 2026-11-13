@@ -73,6 +73,11 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/FreeRDP/FreeRDP/commit/b05a9510787c83c87ffc5fa8d7cc9f06ed971695",
+      "https://github.com/FreeRDP/FreeRDP/security/advisories/GHSA-rqgv-grx4-xm6x",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-73241"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

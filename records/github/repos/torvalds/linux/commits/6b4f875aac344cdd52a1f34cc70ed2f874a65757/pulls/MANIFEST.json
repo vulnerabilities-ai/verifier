@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit_pulls",
+  "url": "https://api.github.com/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757/pulls",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:00:17Z",
+      "url": "https://api.github.com/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:00:18Z",
+      "final_url": "https://api.github.com/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757/pulls",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:00:18 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e36b2f43b290a68a59d82b0c743e4ed0847615b9a462bba7dc1d85e8df81a0e7\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4630",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "370",
+        "X-GitHub-Request-Id": "B809:38E5BE:1F74460:6206596:6AF64502"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/mm2/Little-CMS",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:53:08Z",
+      "url": "https://api.github.com/repos/mm2/Little-CMS",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:53:09Z",
+      "final_url": "https://api.github.com/repos/mm2/Little-CMS",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:53:09 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cb59cc658c827d5c0a76cfb09bc2d53c57f790270865fe32041efd3b4f4a6705\"",
+        "Last-Modified": "Wed, 11 Nov 2026 23:44:36 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4959",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "41",
+        "X-GitHub-Request-Id": "B80B:330D48:16514D8:4596716:6AF64355"
+      },
+      "size_bytes": 5183,
+      "stored_at": "records/github/repos/mm2/Little-CMS/repo/response.json",
+      "newly_stored": true,
+      "sha256": "61b6239b153992ade1519c056889326e479b84d392b6b04ca6f2494bc9f9a95e"
+    }
+  ]
+}

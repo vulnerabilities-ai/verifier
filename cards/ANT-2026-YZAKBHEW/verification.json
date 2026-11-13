@@ -73,6 +73,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/facebook/hermes/commit/cb8a9a3fa39f9165f6db93dcee871cfa625a9753"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

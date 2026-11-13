@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/twigphp/Twig/commits/3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:00:19Z",
+      "url": "https://api.github.com/repos/twigphp/Twig/commits/3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:00:19Z",
+      "final_url": "https://api.github.com/repos/twigphp/Twig/commits/3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:00:19 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ab670b2ed8a7fd210cd90b8b552089a8236e83f778df0746dce72e03eaecc0b9\"",
+        "Last-Modified": "Tue, 28 Apr 2026 10:59:06 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4629",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "371",
+        "X-GitHub-Request-Id": "B80A:4690:17412A0:4876547:6AF64503"
+      },
+      "size_bytes": 8689,
+      "stored_at": "records/github/repos/twigphp/Twig/commits/3fe13f98f890449af5e7f69f0404b59b8fb776ae/response.json",
+      "newly_stored": true,
+      "sha256": "4de7776a63cb166a1686ad58bc402fe69fa6a22ebbd2d3a84b1b8d4fbfdb37b1"
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:49Z",
+      "url": "https://api.github.com/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:49Z",
+      "final_url": "https://api.github.com/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:50 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"d6eeada1f9ed3155b00e73d9e1238125530464c67b24e46853d4ea65f80b66ee\"",
+        "Last-Modified": "Tue, 16 Jun 2026 15:13:35 GMT",
+        "X-GitHub-Request-Id": "B80E:1158B1:B88C3B:245FB11:6AF6491D",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4874",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "126"
+      },
+      "size_bytes": 4745,
+      "stored_at": "records/github/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23/response.json",
+      "newly_stored": true,
+      "sha256": "44639479c8cb354ee219823d99d22b4a1a99f2511dddf4695630acd7ff12ef2c"
+    }
+  ]
+}

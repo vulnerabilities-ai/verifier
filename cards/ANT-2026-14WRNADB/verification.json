@@ -73,6 +73,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/torvalds/linux/commit/5258572aa5fd (mainline 2026-03-18, Signed-off-by Nicholas Carlini, Acked-by Namjae Jeon)",
+      "https://github.com/torvalds/linux/commit/5258572aa5fd5a7ed01b123b28241e0281b6fb9b"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

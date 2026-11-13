@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "commit",
+  "url": "https://api.github.com/repos/libssh2/libssh2/commits/5e4776146552d898b9c0e1b313cd093fa8dc92d0",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:58:57Z",
+      "url": "https://api.github.com/repos/libssh2/libssh2/commits/5e4776146552d898b9c0e1b313cd093fa8dc92d0",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:58:58Z",
+      "final_url": "https://api.github.com/repos/libssh2/libssh2/commits/5e4776146552d898b9c0e1b313cd093fa8dc92d0",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:58:58 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cf1f908abb8471a1aefe9a595d6ddbbdd20a09667570616de5f9ff610bc1fb39\"",
+        "Last-Modified": "Thu, 02 Jul 2026 18:00:23 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4710",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "290",
+        "X-GitHub-Request-Id": "B80C:36CD3C:198B52B:515586A:6AF644B2"
+      },
+      "size_bytes": 5500,
+      "stored_at": "records/github/repos/libssh2/libssh2/commits/5e4776146552d898b9c0e1b313cd093fa8dc92d0/response.json",
+      "newly_stored": true,
+      "sha256": "449add864ae0be41acdd252cd80a6a92232ccc76ae49f8c4a29533801909f4c8"
+    }
+  ]
+}

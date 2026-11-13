@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo_advisory",
+  "url": "https://api.github.com/repos/mastodon/mastodon/security-advisories/GHSA-chgx-jx3p-rf73",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T23:17:39Z",
+      "url": "https://api.github.com/repos/mastodon/mastodon/security-advisories/GHSA-chgx-jx3p-rf73",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T23:17:39Z",
+      "final_url": "https://api.github.com/repos/mastodon/mastodon/security-advisories/GHSA-chgx-jx3p-rf73",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 23:17:40 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8cd2b3748adcdd6cffa9438ba43c7fb2079727080514e6754fd1f50c1b9a374e\"",
+        "Last-Modified": "Wed, 20 May 2026 14:16:02 GMT",
+        "X-GitHub-Request-Id": "B80C:1CE167:B1C40D:2302A4C:6AF64913",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4884",
+        "X-RateLimit-Reset": "1794527608",
+        "X-RateLimit-Used": "116"
+      },
+      "size_bytes": 4129,
+      "stored_at": "records/github/repos/mastodon/mastodon/security-advisories/GHSA-chgx-jx3p-rf73/response.json",
+      "newly_stored": true,
+      "sha256": "53494c2d95deae306151e632c40e9b943c04ce867fa38736d01ed28bb6f99d82"
+    }
+  ]
+}

@@ -73,6 +73,10 @@
       ],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/torvalds/linux/commit/19f94b39058681dec64a10ebeb6f23fe7fc3f77a",
+      "https://nvd.nist.gov/vuln/detail/CVE-2026-31554"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

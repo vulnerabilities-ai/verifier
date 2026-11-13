@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "source": "github",
+  "kind": "repo",
+  "url": "https://api.github.com/repos/asterisk/asterisk",
+  "attempts": [
+    {
+      "attempted_utc": "2026-11-12T22:52:42Z",
+      "url": "https://api.github.com/repos/asterisk/asterisk",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-12T22:52:43Z",
+      "final_url": "https://api.github.com/repos/asterisk/asterisk",
+      "headers": {
+        "Date": "Thu, 12 Nov 2026 22:52:43 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"58d0600c75348d44b5e7d7ec322dfbff663b8d50718adcf90778f5d011a5c928\"",
+        "Last-Modified": "Thu, 12 Nov 2026 20:51:36 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4987",
+        "X-RateLimit-Reset": "1794527551",
+        "X-RateLimit-Used": "13",
+        "X-GitHub-Request-Id": "B80D:23F3F4:14E72F2:4134E02:6AF6433B"
+      },
+      "size_bytes": 6294,
+      "stored_at": "records/github/repos/asterisk/asterisk/repo/response.json",
+      "newly_stored": true,
+      "sha256": "2da9714a76e7133675be425e56382a77ca1c8033df7de83559dcf0a3a1f27105"
+    }
+  ]
+}

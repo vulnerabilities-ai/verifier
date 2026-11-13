@@ -71,6 +71,9 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/php/php-src/commit/df1250dc64f53db849503618d2f911645cd43e3a"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },

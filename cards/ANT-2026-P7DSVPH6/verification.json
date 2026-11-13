@@ -66,6 +66,10 @@
       "nvd": [],
       "ghsa": []
     },
+    "outside_links": [
+      "https://github.com/bytecodealliance/wasm-micro-runtime/commit/1f98fb01d09b2ef5e49dc0be2e6006f962fd87f1",
+      "https://github.com/wasm-micro-runtime/wasm-micro-runtime/security/advisories/GHSA-wj3p-xhqm-pffc"
+    ],
     "missing_parts": [],
     "withheld_statement": null
   },
