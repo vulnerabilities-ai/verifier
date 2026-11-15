@@ -11,13 +11,13 @@ This document tells Claude Code what to build: a small, public GitHub repository
 3. Open data under CC BY 4.0 with pinned definitions, where every number is labeled Lab-reported, Corroborated or Independently verified.
 4. A human decision before anything critical is published.
 
-**Who does what.** Claude Code writes, tests and explains the code. Jon is not a developer, so Claude Code explains every step in plain language, does the work itself wherever it can, and never assumes terminal skill. Jon makes the decisions listed in section 10 and merges the weekly review pull request.
+**Who does what.** Claude Code writes, tests and explains the code. The maintainer is not a developer, so Claude Code explains every step in plain language, does the work itself wherever it can, and never assumes terminal skill. The maintainer makes the decisions listed in section 10 and merges the weekly review pull request.
 
 **Out of scope for v1.** Website pages (Claude Design builds them from this repository's data), the 14 hashes in Anthropic's April red-team post (an add-on for later), programs other than Anthropic's, and detecting which release first shipped a fix (phase 4).
 
 ## Your one-time setup
 
-These steps are for you, Jon, and take about 30 minutes in total. Menu names change, so if a screen looks different from what is written here, send a screenshot and ask.
+These steps are for you, the maintainer, and take about 30 minutes in total. Menu names change, so if a screen looks different from what is written here, send a screenshot and ask.
 
 1. **Create the GitHub organization, if you haven't yet.** Sign in to github.com with your own personal GitHub account (create one first if you don't have one). Use the role-based email only as the organization's contact email, never as a shared login, because GitHub accounts belong to one person. Click your profile picture (top right), choose Your organizations, then New organization. Pick the Free plan, choose a name (a placeholder is fine, and it can be renamed once the publishing entity is named), and make yourself the owner. Confirm two-factor authentication is on.
 2. **Open Claude Code.** Use the desktop app or the web version at claude.ai/code, whichever you prefer. Start a new project and say: "Build the pipeline in the attached spec." Attach this document, exported as Markdown, or paste it in.
@@ -87,7 +87,7 @@ cvd-verifier/
 | capture | Daily at an odd minute such as 06:23 UTC, and on demand | Fetch, hash, save to the Internet Archive, append to the capture log, commit | Directly to main, and only under captures/ |
 | verify | Weekly on Monday, and on demand | Rebuild data/ from the captures, fetch and verify new cards, reconcile with public records, write the report | A branch, then a pull request to main |
 
-**Keeping the schedule alive.** GitHub disables scheduled workflows in a public repository after 60 days with no repository activity. Claude Code must confirm whether the pipeline's own commits count as activity, and if they may not, add a monthly activity step. Because a disabled schedule cannot alert anyone, the README shows the date of the last capture, and Jon checks the Actions tab once a month (two minutes).
+**Keeping the schedule alive.** GitHub disables scheduled workflows in a public repository after 60 days with no repository activity. Claude Code must confirm whether the pipeline's own commits count as activity, and if they may not, add a monthly activity step. Because a disabled schedule cannot alert anyone, the README shows the date of the last capture, and the maintainer checks the Actions tab once a month (two minutes).
 
 **Run behavior.** Scheduled runs can start late, so the manifest records the actual fetch time and the pipeline never assumes the cron time. Runs must not overlap. Workflow permissions are the minimum needed: write access to contents and pull requests, and to issues for failure alerts.
 
@@ -95,11 +95,11 @@ cvd-verifier/
 
 These rules are exact so that anyone can reproduce a result. Each result is recorded with the inputs it used and the time it ran.
 
-**R1. Capture.** The base address is red.anthropic.com/2026/cvd/. Capture the dashboard page, data/payload.json, data/ledger.json, about/index.html and archive/index.html. Identify the pipeline with a clear User-Agent that names the project and a role-based contact address, keep to one request per second, and read robots.txt first. If it disallows any path, stop and ask Jon. Store the bytes exactly as served, then record the HTTP status, ETag, Last-Modified, final address, UTC fetch time and SHA-256. Ask the Internet Archive's Save Page Now to save the dashboard address and record the snapshot address it returns. The Archive may reuse a recent snapshot instead of making a new one (this happened on October 30), so record the returned timestamp as it is. Fail loudly on errors or empty files.
+**R1. Capture.** The base address is red.anthropic.com/2026/cvd/. Capture the dashboard page, data/payload.json, data/ledger.json, about/index.html and archive/index.html. Identify the pipeline with a clear User-Agent that names the project and a role-based contact address, keep to one request per second, and read robots.txt first. If it disallows any path, stop and ask the maintainer. Store the bytes exactly as served, then record the HTTP status, ETag, Last-Modified, final address, UTC fetch time and SHA-256. Ask the Internet Archive's Save Page Now to save the dashboard address and record the snapshot address it returns. The Archive may reuse a recent snapshot instead of making a new one (this happened on October 30), so record the returned timestamp as it is. Fail loudly on errors or empty files.
 
 **R2. Commitment hash.** For each ledger entry whose reveal tier is revealed, fetch red.anthropic.com/2026/cvd/findings/ followed by the ANT ID and save the raw page. Extract the preimage from the download link's data address (percent-decoded UTF-8), and fall back to the visible preimage text, re-serialized canonically. Canonical form means sorted keys, no whitespace between tokens, UTF-8, and non-ASCII characters left unescaped (escaping them changes the hash). Compute the SHA-3-512 digest and compare it with the ledger hash and with the provenance hash printed on the card. Record raw-bytes match, canonical-rebuild match and the outcome: match, mismatch or unavailable.
 
-**R3. Public identifiers.** For every CVE and GHSA ID on a card or ledger entry, query GitHub's advisory API and NVD. Record whether the ID exists, its published and updated dates, severity, CVSS version and score, CWE, review status, references and credits. Compare with the ledger's project and bug class, and record differences without judging them. Use the workflow's built-in GitHub token, and ask Jon for a free NVD key if rate limits require one (confirm current limits). Cache every response with its fetch time.
+**R3. Public identifiers.** For every CVE and GHSA ID on a card or ledger entry, query GitHub's advisory API and NVD. Record whether the ID exists, its published and updated dates, severity, CVSS version and score, CWE, review status, references and credits. Compare with the ledger's project and bug class, and record differences without judging them. Use the workflow's built-in GitHub token, and ask the maintainer for a free NVD key if rate limits require one (confirm current limits). Cache every response with its fetch time.
 
 **R4. Fix merged.** From the card's upstream fix commit and the advisory's pull request link, ask GitHub whether the commit exists, and whether the pull request is merged, with its merge date and base branch. Fix merged means the fix commit or its pull request is merged into the project's default branch, dated by its merge time. If the project is not on GitHub, record "not checked" with the address.
 
@@ -115,7 +115,7 @@ These rules are exact so that anyone can reproduce a result. Each result is reco
 
 Published files live in data/, versioned and licensed CC BY 4.0, each with a schema file that defines every column. A sixth file, summary.json (JSON only), holds one row of derived counts for the Ledger and Commitments pages: commitments by tier, revealed, withdrawn and their reasons, checked so far, fixed itemized, and the itemized share of reported. The exact columns of every file are defined in the data contract in Design handoff R-B (file 02), and where it differs from the table below, the contract wins.
 
-**Program-neutral column names (approved by Jon, November 5).** Published data uses neutral names so other programs can be added later, and every published file except the programs file has a program column (value anthropic-cvd for this program). Anthropic's own field names stay exactly as they are in raw captures, cards and preimages, because the committed bytes must never change: the preimage contains ant\_id and claude\_severity, and the hash covers them. The pipeline maps source fields to published columns when it builds data/:
+**Program-neutral column names (approved by the maintainer, November 5).** Published data uses neutral names so other programs can be added later, and every published file except the programs file has a program column (value anthropic-cvd for this program). Anthropic's own field names stay exactly as they are in raw captures, cards and preimages, because the committed bytes must never change: the preimage contains ant\_id and claude\_severity, and the hash covers them. The pipeline maps source fields to published columns when it builds data/:
 
 | Anthropic's source field | Published column |
 | --- | --- |
@@ -171,7 +171,7 @@ These are facts found in the October 30 capture of the October 2 snapshot (revis
 9. Preimages contain non-ASCII characters (an arrow in reproduction steps), and the committed bytes leave them unescaped.
 10. Anthropic keeps three dated snapshots at snapshots/2026-05-22-1027, snapshots/2026-08-26-1155 and snapshots/2026-10-02-1947. Capture all three on the first run as a backfill, under captures/anthropic-archive/.
 
-**Golden fixtures (Jon's manual capture, October 30)**
+**Golden fixtures (the maintainer's manual capture, October 30)**
 
 | File | SHA-256 |
 | --- | --- |
@@ -198,13 +198,13 @@ These are facts found in the October 30 capture of the October 2 snapshot (revis
 
 - Use the wording "The dashboard states X. Public records show Y." Never infer intent, competence or motive.
 - Flag every difference from a lab's figure as needs-human-review, with its evidence bundle and as-of dates and links.
-- The pipeline never contacts anyone. Jon decides on right of reply.
+- The pipeline never contacts anyone. The maintainer decides on right of reply.
 - Corrections go in CORRECTIONS.md, dated. Published data is never changed silently, and git history keeps every version.
 
 **Conflict controls**
 
 - Claude Code, an Anthropic model, writes this code. Every determination comes from deterministic code with tests. Model-written text is limited to drafting plain-language summaries in the report, and is marked as such.
-- An optional cross-check module sends a non-Anthropic model the evidence bundle only, with no browsing, and logs the model name and version. The checker may not come from the party whose program is being checked (no Gemini on Google programs, no Grok on xAI's). It stays off until Jon chooses a provider.
+- An optional cross-check module sends a non-Anthropic model the evidence bundle only, with no browsing, and logs the model name and version. The checker may not come from the party whose program is being checked (no Gemini on Google programs, no Grok on xAI's). It stays off until the maintainer chooses a provider.
 - CONFLICTS.md lists every tool used, including Claude Code and the cross-check model, and every relationship, from the day it begins.
 
 **Security**
@@ -218,20 +218,20 @@ These are facts found in the October 30 capture of the October 2 snapshot (revis
 
 ## Build phases and acceptance tests
 
-Build in this order. Each phase ends only when its acceptance tests pass, and Claude Code explains what it did to Jon in plain language at the end of each phase.
+Build in this order. Each phase ends only when its acceptance tests pass, and Claude Code explains what it did to the maintainer in plain language at the end of each phase.
 
 | Phase | What gets built | Acceptance tests |
 | --- | --- | --- |
 | 1. Capture (week 1) | capture.yml, the manifest, Internet Archive receipts, the capture log, the backfill of Anthropic's three archived snapshots, the README with the last-capture date, the golden fixtures, and the headline parser | A manual run succeeds. A second run the same day adds a log row and no duplicate files. The manifest hashes match the files. The fixtures parse to the expected numbers. A deliberately broken address opens an issue instead of a silent failure |
 | 2. Ledger and cards (weeks 2 to 3) | The ledger diff and events, the first-seen log, card fetching and R2, verification.json, and the first versions of snapshots, commitments, events and gaps | The fixtures reproduce every expected number in section 7. R2 returns a match for ANT-2026-87DJGDRB. All 237 revealed cards are fetched and the outcomes are tallied and reported. A test proves non-ASCII characters are not escaped. A test covers each known quirk |
-| 3. Reconciliation and review (weeks 3 to 5) | R3, R4, R5 and R7, the weekly review pull request and report, publishing of data/ (the method is for Jon to choose in section 10), and the cross-check module, off by default | ANT-2026-87DJGDRB matches its expected result. One full review pull request is generated. A wording test fails the build if the report contains "overdue", "late", "violation" or any statement of intent |
+| 3. Reconciliation and review (weeks 3 to 5) | R3, R4, R5 and R7, the weekly review pull request and report, publishing of data/ (the method is for the maintainer to choose in section 10), and the cross-check module, off by default | ANT-2026-87DJGDRB matches its expected result. One full review pull request is generated. A wording test fails the build if the report contains "overdue", "late", "violation" or any statement of intent |
 | 4. Later | Detecting which release first shipped a fix, the April post's 14 hashes, other programs with checkable numbers, JSON feeds for the website, the cross-check provider | Specified when each is chosen |
 
 **Done for v1** means the archive has run daily for 14 days without a gap, verification.csv has been published once through a merged pull request, and METHODOLOGY.md, CONFLICTS.md and CORRECTIONS.md exist.
 
-## Decisions for Jon, and appendix
+## Decisions for the maintainer, and appendix
 
-Claude Code should ask Jon for these when it reaches them, in plain language, and never guess.
+Claude Code should ask the maintainer for these when it reaches them, in plain language, and never guess.
 
 - [ ] The organization and repository name (a placeholder until the publishing entity is named). I recommend a program-neutral name so other programs can be added later
 - [ ] A role-based contact address for the User-Agent, the repository and failure emails

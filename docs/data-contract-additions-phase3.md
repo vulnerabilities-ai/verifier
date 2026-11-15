@@ -130,7 +130,7 @@ This file has the R-B fields. Additions and clarifications:
 ## 5. programs (CSV + JSON; R-E file 02)
 
 - **Columns:** as in R-E: `program`, `name`, `operator`, `status`, `per_finding_record`, `publishes_summary`, `as_of`.
-- **Today:** Jon's seven rows.
+- **Today:** the maintainer's seven rows.
 - **How it is kept:** by hand in `data/programs-manual.csv`. The build fills in only anthropic-cvd's `status` ("Dashboard last updated YYYY-MM-DD (revision N)") and `as_of` from the latest snapshot, so they never go stale.
 - **Not published:** `programs-manual.csv` is the hand-kept source. Pages read `programs.json`.
 

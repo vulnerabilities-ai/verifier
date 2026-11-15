@@ -16,7 +16,7 @@ BREAK_AS_OF = "2026-08-26"
 BREAK_NOTE = ("First snapshot after the program's August 26, 2026 update: dates change from Pacific time to "
               "UTC, and the card label 'Reported to tracker' becomes 'Discovered or logged'. Values before "
               "and after this point are not directly comparable.")
-MANUAL_NOTE = ("Jon's manual capture on 2026-10-30; time of day not recorded, so capture_utc is the "
+MANUAL_NOTE = ("Our manual capture on 2026-10-30; time of day not recorded, so capture_utc is the "
                "end-of-day bound.")
 BACKFILL_NOTE = ("Copy of the program's own archived snapshot, copied by us at capture_utc; not evidence of when "
                  "we first saw anything.")

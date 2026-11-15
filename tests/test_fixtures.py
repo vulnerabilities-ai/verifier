@@ -1,4 +1,4 @@
-"""Golden fixtures: Jon's manual capture of October 30, 2026 (spec section 7)."""
+"""Golden fixtures: the maintainer's manual capture of October 30, 2026 (spec section 7)."""
 
 import hashlib
 import json

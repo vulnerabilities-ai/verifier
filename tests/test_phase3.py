@@ -458,7 +458,7 @@ class PublishedPhase3(Phase3Case):
 
 
 class FullyChecked(Phase3Case):
-    """Jon, 2026-11-10: fully checked = hash conclusive AND identifiers confirmed or none
+    """The maintainer, 2026-11-10: fully checked = hash conclusive AND identifiers confirmed or none
     AND fix_merged determined. A finding whose fix was not checked never counts."""
 
     def test_rule(self):

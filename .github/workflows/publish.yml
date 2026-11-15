@@ -1,5 +1,5 @@
 # Publish the reviewed data after each merge to main.
-# Plain-language summary: when data/ changes on main (that is, after Jon merges
+# Plain-language summary: when data/ changes on main (that is, after the maintainer merges
 # a review pull request), this copies data/ to the GitHub Pages site, the
 # public mirror and citation address, and builds site-data.zip: the same files,
 # laid out like the website's data folder, with a SHA-256 manifest. The zip is

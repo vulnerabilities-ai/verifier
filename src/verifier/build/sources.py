@@ -16,10 +16,10 @@ from pathlib import Path
 from ..later_receipts import RECEIPT_TYPES, day_manifests, final_raw_result, run_items
 from ..store import Archive
 
-# Jon's manual capture: no time of day was recorded (decision of 2026-11-10).
+# The maintainer's manual capture: no time of day was recorded (decision of 2026-11-10).
 MANUAL_DAY = "2026-10-30"
 MANUAL_BOUND_UTC = "2026-10-30T23:59:59Z"
-MANUAL_BASIS = ("manual capture by Jon on 2026-10-30; time not recorded and not independently "
+MANUAL_BASIS = ("manual capture by us on 2026-10-30; time not recorded and not independently "
                 "timestamped; the value is the latest possible time that day. The earliest "
                 "independent evidence is the repository's first commit on 2026-11-08.")
 
@@ -35,7 +35,7 @@ class Run:
     manual: bool = False
 
     def fetched(self, name: str) -> str:
-        """Fetch time of a file; Jon's manual day uses the end-of-day bound."""
+        """Fetch time of a file; the maintainer's manual day uses the end-of-day bound."""
         if self.manual:
             return MANUAL_BOUND_UTC
         return self.files[name]["fetched_utc"]
@@ -71,7 +71,7 @@ class Sources:
                     continue
                 manual = files["ledger.json"].get("fetched_utc") is None
                 if manual and day != MANUAL_DAY:
-                    raise ValueError(f"{rel}: a run without fetch times other than Jon's manual capture")
+                    raise ValueError(f"{rel}: a run without fetch times other than the maintainer's manual capture")
                 runs.append(Run(day, r.get("run_id"), rel, files, r.get("internet_archive"),
                                 [n for n in notes if n.get("run_id") == r.get("run_id")], manual))
         return runs

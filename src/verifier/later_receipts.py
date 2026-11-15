@@ -185,7 +185,7 @@ def days_without_receipt(archive: Archive) -> int:
     for _, rel in reversed(day_manifests(archive)):
         m = archive.load_json(rel)
         if not any(isinstance(r.get("internet_archive"), dict) for r in m.get("runs", [])):
-            continue  # e.g. Jon's manual fixture day: no Archive request was made
+            continue  # e.g. the maintainer's manual fixture day: no Archive request was made
         if day_has_receipt(m):
             break
         streak += 1

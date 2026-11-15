@@ -27,7 +27,7 @@ class CaptureError(Exception):
 
 
 class RobotsDisallowed(CaptureError):
-    """robots.txt disallows a path we need. Stop and ask Jon."""
+    """robots.txt disallows a path we need. Stop and ask the maintainer."""
 
 
 def utc_now() -> str:
@@ -127,7 +127,7 @@ class Fetcher:
         if credential_destinations is None:
             credential_destinations = frozenset(f"https://{h}" for h in CREDENTIAL_HOSTS)
         self.credential_destinations = frozenset(credential_destinations)
-        # Hosts whose robots.txt is not read: only the documented APIs Jon exempted
+        # Hosts whose robots.txt is not read: only the documented APIs the maintainer exempted
         # (config.API_ROBOTS_EXEMPT), and only on fetchers made for those lookups.
         self.robots_exempt_hosts = frozenset(h.lower() for h in robots_exempt_hosts)
         self.redirects = CredentialSafeRedirectHandler(self.credential_destinations)
@@ -206,7 +206,7 @@ class Fetcher:
         if disallowed:
             raise RobotsDisallowed(
                 "robots.txt disallows: " + ", ".join(disallowed)
-                + ". The pipeline stopped. Jon must decide how to proceed.")
+                + ". The pipeline stopped. The maintainer must decide how to proceed.")
         return {h: r.as_dict() for h, (_, r) in self._robots.items()}
 
     def robots_summary(self) -> dict[str, dict]:
@@ -219,6 +219,6 @@ class Fetcher:
             return self._raw_get(url, timeout, method=method, data=data, headers=headers)
         rp, result = self._robots_for(url)
         if not rp.can_fetch(config.UA_TOKEN, url):
-            raise RobotsDisallowed(f"robots.txt disallows {url}. Jon must decide how to proceed.")
+            raise RobotsDisallowed(f"robots.txt disallows {url}. The maintainer must decide how to proceed.")
         result.checked_urls.setdefault(url, True)
         return self._raw_get(url, timeout, method=method, data=data, headers=headers)

@@ -12,7 +12,7 @@ Listed from the day each begins. Most recent changes at the top of each section.
 | GitHub REST API (advisories, repositories, commits, pull requests) | GitHub (Microsoft) | Rules R3 and R4, with the workflow's built-in token | 2026-11-10 |
 | NVD CVE API 2.0 | NIST | Rule R3, without an API key. This product uses data from the NVD API but is not endorsed or certified by the NVD | 2026-11-10 |
 | GitHub Pages | GitHub (Microsoft) | Public mirror of the merged data/ | 2026-11-10 |
-| Cross-check model | Not chosen | Off until Jon chooses a provider. The module (`src/verifier/crosscheck.py`) sends nothing and uses no secret. The checker may not come from the party whose program is being checked | — |
+| Cross-check model | Not chosen | Off until the maintainer chooses a provider. The module (`src/verifier/crosscheck.py`) sends nothing and uses no secret. The checker may not come from the party whose program is being checked | — |
 
 ## The Anthropic conflict, and how it is controlled
 

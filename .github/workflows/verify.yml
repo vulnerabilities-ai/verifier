@@ -4,8 +4,8 @@
 # each commitment hash (rule R2), looks up public records (rules R3 and R4:
 # GitHub Advisory Database, NVD, GitHub commits and pull requests), rebuilds
 # the published tables in data/, writes the weekly report, and opens or
-# updates ONE pull request for Jon to review. Nothing about a specific finding
-# reaches main until Jon merges that pull request.
+# updates ONE pull request for the maintainer to review. Nothing about a specific finding
+# reaches main until the maintainer merges that pull request.
 # "sample_only" runs the lookups for 5 findings only (wolfSSL first), so the
 # real response shapes can be checked before a full run.
 name: Verify
@@ -156,10 +156,10 @@ jobs:
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           if [ "${EXIT_CODE:-}" = "3" ]; then
             title="Verify stopped: robots.txt disallows a path (decision needed)"
-            next="A robots.txt file now disallows a finding-card page. The pipeline stopped and will not fetch it. Jon decides what to do next."
+            next="A robots.txt file now disallows a finding-card page. The pipeline stopped and will not fetch it. The maintainer decides what to do next."
           else
             title="Verify failed"
-            next="The weekly verification did not complete. Forward the GitHub email to Jon, or ask Claude Code to look at the run."
+            next="The weekly verification did not complete. Forward the GitHub email to the maintainer, or ask Claude Code to look at the run."
           fi
           body=$(printf '%s\n\n**Run:** %s\n\n_Opened automatically by the verify workflow._' "${next}" "${run_url}")
           existing=$(gh issue list --repo "${GITHUB_REPOSITORY}" --state open --limit 100 \

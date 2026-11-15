@@ -1,4 +1,4 @@
-"""Published column names (program-neutral, approved by Jon on November 5, 2026).
+"""Published column names (program-neutral, approved by the maintainer on November 5, 2026).
 
 Anthropic's own field names stay exactly as they are in raw captures, cards and
 preimages, because the committed bytes must never change. Anything published

@@ -10,7 +10,7 @@ Sources:
 - NVD CVE API 2.0 (services.nvd.nist.gov): no key; one request every 8 seconds, and on
   HTTP 429 a 35-second wait and up to 3 retries before recording rate_limited.
 
-Both are documented APIs exempt from the robots.txt check (Jon, 2026-11-10);
+Both are documented APIs exempt from the robots.txt check (the maintainer, 2026-11-10);
 every other host keeps it. Nothing here ever aborts a run: a failure is
 recorded as an attempt with its reason, and GitHub's rate limit stops further
 GitHub calls cleanly, recording "rate_limited" so the next run resumes.

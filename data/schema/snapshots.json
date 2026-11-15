@@ -17,7 +17,7 @@
     {
       "name": "capture_utc",
       "type": "time",
-      "meaning": "When we captured the dashboard page for this snapshot (first capture containing it). For backfill rows, when we copied the program's archived snapshot. For Jon's manual capture of 2026-10-30, the end-of-day bound 2026-10-30T23:59:59Z.",
+      "meaning": "When we captured the dashboard page for this snapshot (first capture containing it). For backfill rows, when we copied the program's archived snapshot. For our manual capture of 2026-10-30, the end-of-day bound 2026-10-30T23:59:59Z.",
       "source_field": null,
       "label": "Independently verified"
     },
