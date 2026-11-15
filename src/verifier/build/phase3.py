@@ -226,7 +226,7 @@ def verification_rows(root: Path, revealed_entries: dict[str, dict], checks: dic
     return rows
 
 
-# "Fully checked" (Jon, 2026-11-10): the hash check is conclusive, the identifiers are
+# "Fully checked" (the maintainer, 2026-11-10): the hash check is conclusive, the identifiers are
 # confirmed or there are none, AND the fix's merge status was actually determined.
 IDS_CONCLUSIVE = frozenset({"verified", "not_applicable"})
 FIX_CONCLUSIVE = frozenset({"yes", "no"})
@@ -457,7 +457,7 @@ PROGRAM_COLUMNS = ["program", "name", "operator", "status", "per_finding_record"
 
 
 def programs_rows(root: Path, snapshots: list[dict]) -> list[dict]:
-    """Jon's hand-kept rows, with anthropic-cvd's status and as_of from the latest snapshot."""
+    """The maintainer's hand-kept rows, with anthropic-cvd's status and as_of from the latest snapshot."""
     text = (Path(root) / "data" / "programs-manual.csv").read_text(encoding="utf-8")
     rows = [dict(r) for r in csv.DictReader(io.StringIO(text))]
     if [list(r) for r in rows][:1] and list(rows[0]) != PROGRAM_COLUMNS:

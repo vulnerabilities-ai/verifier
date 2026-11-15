@@ -39,12 +39,12 @@ No new columns. Two existing columns now carry real values.
 
 - **`first_seen_by_us`** is the fetch time of `ledger.json` in our earliest daily capture that contains the hash. Copies of the program's own archive never count.
   - The 752 hashes first seen in revision 40 show their November 8, 2026 time.
-  - The 6,597 hashes in Jon's manual capture of October 30, 2026 show `2026-10-30T23:59:59Z`. This is the latest possible time that day, because the time of day was not recorded. No earlier time is ever used.
+  - The 6,597 hashes in the maintainer's manual capture of October 30, 2026 show `2026-10-30T23:59:59Z`. This is the latest possible time that day, because the time of day was not recorded. No earlier time is ever used.
 - **`first_seen_basis`** explains the value in plain words. It also gives the earliest independent evidence available when the data was built:
   - the GitHub commit time of the capture that first contained the hash;
   - the Internet Archive snapshot of `ledger.json`, when one exists. If the Archive's raw copy is identical to ours after decompression, the text says "the Internet Archive's copy is identical to ours after decompression (gzip)" (gzip or another named method). Only if our check of the Archive's raw copy is unavailable, or shows a real or undiagnosed mismatch, does the text say the byte comparison is unresolved. Page guidance: show these words as written. Present an identical-after-decompression copy as matching evidence, not as a difference.
 - **Text for the October 30 hashes.** It begins with exactly this sentence:
-  > manual capture by Jon on 2026-10-30; time not recorded and not independently timestamped; the value is the latest possible time that day. The earliest independent evidence is the repository's first commit on 2026-11-08.
+  > manual capture by us on 2026-10-30; time not recorded and not independently timestamped; the value is the latest possible time that day. The earliest independent evidence is the repository's first commit on 2026-11-08.
 
 **Page guidance:** show `first_seen_basis` next to the first-seen value (a tooltip or footnote is fine). Never shorten it to a bare date.
 

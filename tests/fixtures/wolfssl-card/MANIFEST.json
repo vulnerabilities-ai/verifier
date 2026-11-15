@@ -5,7 +5,7 @@
   "about": "Raw copies of this finding's card, exactly as served. Never edited; a changed card is stored as a new, time-suffixed copy. Fetches are only ever appended.",
   "fetches": [
     {
-      "source": "manual copy by Jon, saved with the October 30, 2026 fixtures; fetch time, address and headers not recorded",
+      "source": "manual copy by the maintainer, saved with the October 30, 2026 fixtures; fetch time, address and headers not recorded",
       "fetched_utc": null,
       "url": null,
       "final_url": null,
@@ -20,7 +20,7 @@
   "unavailable": [],
   "preimages": [
     {
-      "source": "manual copy by Jon (the card's \"download preimage.json\" file)",
+      "source": "manual copy by the maintainer (the card's \"download preimage.json\" file)",
       "extracted_from": null,
       "method": "manual download",
       "size_bytes": 1398,

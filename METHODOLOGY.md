@@ -16,7 +16,7 @@ Pinned definitions for this repository. They are copied from the build spec (`do
 - **Conduct.**
   - The pipeline identifies itself with the User-Agent `vulnerabilities.ai-verifier/1.0 (+https://github.com/vulnerabilities-ai/verifier; verifier@vulnerabilities.ai)`.
   - It waits at least one second between requests to the same host.
-  - It reads robots.txt for every host it touches before fetching anything: red.anthropic.com, www.anthropic.com (the monthly policy copy) and web.archive.org (Save Page Now). If any robots.txt disallows a path the run needs, the run stops before fetching and opens an issue for Jon to decide. A missing robots.txt (HTTP 404) means everything is allowed. A robots.txt that cannot be read (a server error) stops the run.
+  - It reads robots.txt for every host it touches before fetching anything: red.anthropic.com, www.anthropic.com (the monthly policy copy) and web.archive.org (Save Page Now). If any robots.txt disallows a path the run needs, the run stops before fetching and opens an issue for the maintainer to decide. A missing robots.txt (HTTP 404) means everything is allowed. A robots.txt that cannot be read (a server error) stops the run.
 - **What is recorded.** The bytes are stored exactly as served. For each file, MANIFEST.json records:
   - the requested and final address and the HTTP status;
   - the ETag, Last-Modified and Content-Type, plus all response headers;
@@ -77,7 +77,7 @@ Once a month, the pipeline saves a dated copy of `https://www.anthropic.com/coor
 - Anthropic's own dates (for example `committed_at`), which are Lab-reported;
 - the cron time a run was scheduled for.
 
-Our archive begins with Jon's manual capture on October 30, 2026, whose exact fetch time and headers were not recorded.
+Our archive begins with a manual capture on October 30, 2026, whose exact fetch time and headers were not recorded.
 
 ## Phase 2: tables, cards and rule R2
 
@@ -141,12 +141,12 @@ When a finding card says the preimage is withheld (a paragraph the program marks
     - no card is available.
   - The summary and the weekly report count findings per reason and per link kind.
   - We do not infer a fix commit from a GitHub advisory's or NVD record's references, or from a commit the card does not give as its fix: such a link may be the fix, a related change or something else, and reading it as the fix would be a guess.
-- **Storage.** Raw responses are kept under `records/` exactly as received, with every attempt in a MANIFEST. `records/README.md` names each source and its published terms. Jon will have counsel confirm those terms.
-- **Exemption from robots.txt (Jon's decision, 2026-11-10).** Exactly two documented APIs are exempt: `api.github.com` and `services.nvd.nist.gov`. Their robots.txt files are written for web crawlers, not for API clients, so the pipeline follows their published API rules instead:
+- **Storage.** Raw responses are kept under `records/` exactly as received, with every attempt in a MANIFEST. `records/README.md` names each source and its published terms. The maintainer will have counsel confirm those terms.
+- **Exemption from robots.txt (the maintainer's decision, 2026-11-10).** Exactly two documented APIs are exempt: `api.github.com` and `services.nvd.nist.gov`. Their robots.txt files are written for web crawlers, not for API clients, so the pipeline follows their published API rules instead:
   - GitHub is used with the workflow's built-in token, within its rate limits;
-  - NVD is used at one request every 8 seconds, without a key unless Jon approves one. NVD limits by address, and GitHub's runner addresses are shared, so on HTTP 429 the pipeline waits 35 seconds and retries up to 3 times before recording `rate_limited`. Rate-limited lookups go first on the next run. (The first full run met 429s at 5 requests per 30 seconds; Jon changed this on 2026-11-12.)
+  - NVD is used at one request every 8 seconds, without a key unless the maintainer approves one. NVD limits by address, and GitHub's runner addresses are shared, so on HTTP 429 the pipeline waits 35 seconds and retries up to 3 times before recording `rate_limited`. Rate-limited lookups go first on the next run. (The first full run met 429s at 5 requests per 30 seconds; the maintainer changed this on 2026-11-12.)
   - both receive the identifying User-Agent;
-  - no new secret is used without asking Jon.
+  - no new secret is used without asking the maintainer.
 
   Every other host (red.anthropic.com, www.anthropic.com, the Internet Archive) keeps the robots.txt check, and a test proves it.
 - **GitHub refusing the token.** Some global advisories return HTTP 403 with the message "Resource not accessible by integration", while thousands of requests remain, so it is not a rate limit. This is recorded as `github_refused_token`, with GitHub's exact message. It does not stop other lookups, and a finding with it is not fully checked. The Verify workflow's `diagnose_403` input runs a diagnostic for up to 5 such IDs ("auto" picks the first 5 in sorted order). For each, it tries the same request without the Authorization header, one per 70 seconds and stopping at the first rate-limit response, and the repository advisory endpoint (`/repos/{owner}/{repo}/security-advisories/{ghsa_id}`) with the token. Raw responses go under `records/diagnostic/`, and outcomes go into a report on the `review/diagnose-403` branch. It uses only api.github.com, with no new host and no new secret.
@@ -245,7 +245,7 @@ Model, firm and maintainer severities come from the card. GitHub's stated severi
 
 ## Published column names
 
-Published data uses program-neutral names (approved by Jon on November 5, 2026), and every published file except `programs` starts with a `program` column (`anthropic-cvd` for this program). Anthropic's own field names stay unchanged in raw captures, cards and preimages, because the committed bytes must never change.
+Published data uses program-neutral names (approved by the maintainer on November 5, 2026), and every published file except `programs` starts with a `program` column (`anthropic-cvd` for this program). Anthropic's own field names stay unchanged in raw captures, cards and preimages, because the committed bytes must never change.
 
 | Anthropic's source field | Published column |
 | --- | --- |

@@ -38,7 +38,7 @@
     {
       "name": "first_seen_by_us",
       "type": "time",
-      "meaning": "Our earliest daily capture containing the hash (its ledger.json fetch time). For Jon's manual capture, the end-of-day bound 2026-10-30T23:59:59Z. Backfill copies never count.",
+      "meaning": "Our earliest daily capture containing the hash (its ledger.json fetch time). For our manual capture, the end-of-day bound 2026-10-30T23:59:59Z. Backfill copies never count.",
       "source_field": null,
       "label": "Independently verified"
     },

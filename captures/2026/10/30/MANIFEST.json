@@ -2,11 +2,11 @@
   "schema_version": 1,
   "program": "anthropic-cvd",
   "date_utc": "2026-10-30",
-  "about": "Golden fixtures: Jon's manual capture on October 30, 2026, of Anthropic's October 2 snapshot (revision 35). Saved by hand, so the exact fetch time, HTTP status and response headers were not recorded. These SHA-256 values match the spec's golden fixtures table.",
+  "about": "Golden fixtures: the maintainer's manual capture on October 30, 2026, of Anthropic's October 2 snapshot (revision 35). Saved by hand, so the exact fetch time, HTTP status and response headers were not recorded. These SHA-256 values match the spec's golden fixtures table.",
   "runs": [
     {
       "run_id": "manual-2026-10-30",
-      "trigger": "manual capture by Jon (browser save)",
+      "trigger": "manual capture by the maintainer (browser save)",
       "started_utc": null,
       "finished_utc": null,
       "base_url": "https://red.anthropic.com/2026/cvd/",

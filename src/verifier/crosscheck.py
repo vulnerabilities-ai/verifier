@@ -1,4 +1,4 @@
-"""Optional cross-check by a non-Anthropic model. OFF until Jon chooses a provider.
+"""Optional cross-check by a non-Anthropic model. OFF until the maintainer chooses a provider.
 
 When enabled, it would send a model ONLY the evidence bundle for an item that
 needs human review (no browsing), and log the model's name and version. The
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-PROVIDER: str | None = None  # set only after Jon chooses one
+PROVIDER: str | None = None  # set only after the maintainer chooses one
 
 # provider -> operator, used to refuse a checker from the checked program's party
 PROVIDER_OPERATORS = {"gemini": "Google", "grok": "xAI", "claude": "Anthropic", "gpt": "OpenAI"}

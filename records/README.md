@@ -4,7 +4,7 @@ Public-record responses used for rules R3 (identifiers) and R4 (fix merged), kep
 
 These records are kept as evidence for the checks. They are not republished as a feature. The published tables in `data/` carry only the derived facts (exists or not, dates, severity, CVSS, CWE, merge status and time, links).
 
-**Terms: to be confirmed.** Jon will have counsel confirm the terms below before the records or anything derived from them is relied on. The links point to each source's own published terms. The short descriptions are a plain summary, not legal advice.
+**Terms: to be confirmed.** The maintainer will have counsel confirm the terms below before the records or anything derived from them is relied on. The links point to each source's own published terms. The short descriptions are a plain summary, not legal advice.
 
 ## Where each kind of record comes from
 
@@ -28,7 +28,7 @@ These records are kept as evidence for the checks. They are not republished as a
 ### National Vulnerability Database (NVD), NIST
 
 - **Folders:** `nvd/cves/`.
-- **Source:** the NVD CVE API 2.0 (`https://services.nvd.nist.gov/rest/json/cves/2.0`). We use it without an API key, at one request every 8 seconds. On HTTP 429 (NVD limits by address, and GitHub's runner addresses are shared) we wait 35 seconds and retry up to 3 times, then record `rate_limited` and resume it first on the next run. A key would be used only after Jon approves one.
+- **Source:** the NVD CVE API 2.0 (`https://services.nvd.nist.gov/rest/json/cves/2.0`). We use it without an API key, at one request every 8 seconds. On HTTP 429 (NVD limits by address, and GitHub's runner addresses are shared) we wait 35 seconds and retry up to 3 times, then record `rate_limited` and resume it first on the next run. A key would be used only after the maintainer approves one.
 - **Terms NVD publishes:** https://nvd.nist.gov/developers/terms-of-use. NVD asks products that use its API to carry this notice, which we repeat: *This product uses data from the NVD API but is not endorsed or certified by the NVD.*
 
 ### GitHub commits, pull requests and repositories
@@ -45,7 +45,7 @@ These records are kept as evidence for the checks. They are not republished as a
 
 ## How the lookups behave
 
-- **robots.txt.** The two APIs above are exempt from the robots.txt check (Jon's decision of 2026-11-10), because their robots.txt files are written for web crawlers. We follow their published API rules instead. Every other host the pipeline touches keeps the robots.txt check.
+- **robots.txt.** The two APIs above are exempt from the robots.txt check (the maintainer's decision of 2026-11-10), because their robots.txt files are written for web crawlers. We follow their published API rules instead. Every other host the pipeline touches keeps the robots.txt check.
 - **Rate limits.** When GitHub's rate limit runs low, lookups stop cleanly and the rest are recorded as `rate_limited`. The next run starts with those.
 - **Token refused.** GitHub sometimes answers HTTP 403 "Resource not accessible by integration" for a global advisory. This is not a rate limit. The response is kept as received, and the lookup is recorded as `github_refused_token` with that exact message.
 - **Unusual responses.** A response that cannot be read is kept as received, and the check records `lookup_unreadable` with the reason.

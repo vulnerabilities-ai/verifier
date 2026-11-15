@@ -20,7 +20,7 @@ SNAPSHOT_META = {
     "program": _PROGRAM[1:],
     "capture_utc": ("time", "When we captured the dashboard page for this snapshot (first capture containing it). "
                     "For backfill rows, when we copied the program's archived snapshot. "
-                    "For Jon's manual capture of 2026-10-30, the end-of-day bound 2026-10-30T23:59:59Z.", None, IV),
+                    "For our manual capture of 2026-10-30, the end-of-day bound 2026-10-30T23:59:59Z.", None, IV),
     "source_sha256": ("string", "SHA-256 of the captured dashboard page (index.html for backfill rows).", None, IV),
     "as_of_utc": ("time", "The 'last updated' time the program shows, to the second.", "as_of", LR),
     "revision": ("integer", "The program's revision number.", "revision", LR),
@@ -60,7 +60,7 @@ COMMITMENT_META = [
     ("hash", "string", "The SHA-3-512 commitment hash.", "hash", IV),
     ("hash_short", "string", "First 12 characters of the hash.", "hash", None),
     ("committed_at", "date", "The commitment date, from the program's ledger.", "committed_at", LR),
-    ("first_seen_by_us", "time", "Our earliest daily capture containing the hash (its ledger.json fetch time). For Jon's "
+    ("first_seen_by_us", "time", "Our earliest daily capture containing the hash (its ledger.json fetch time). For our "
      "manual capture, the end-of-day bound 2026-10-30T23:59:59Z. Backfill copies never count.", None, IV),
     ("first_seen_basis", "string", "How to read first_seen_by_us, including the earliest independent evidence available when the "
      "data was built: the GitHub commit time of that capture, and the Internet Archive receipt for ledger.json when one exists.", None, None),

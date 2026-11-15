@@ -107,13 +107,13 @@ jobs:
             next="The daily captures are fine, but the Internet Archive has not given a receipt for 3 days in a row. Our own archive is unaffected. Later runs keep checking and will append any receipts they find. Ask Claude Code to look if this continues."
           elif [ "${EXIT_CODE:-}" = "3" ]; then
             title="Capture stopped: robots.txt disallows a path (decision needed)"
-            next="A robots.txt file now disallows a page the pipeline needs. The pipeline stopped and will not fetch it. Jon decides what to do next."
+            next="A robots.txt file now disallows a page the pipeline needs. The pipeline stopped and will not fetch it. The maintainer decides what to do next."
           elif [ -n "${TEST_BASE_URL:-}" ]; then
             title="Capture failed (deliberate test)"
             next="This was a deliberate test with a broken address. Nothing was stored except a log row marked failed-test. Close this issue once checked."
           else
             title="Capture failed"
-            next="The daily capture did not complete. Forward the GitHub email to Jon, or ask Claude Code to look at the run."
+            next="The daily capture did not complete. Forward the GitHub email to the maintainer, or ask Claude Code to look at the run."
           fi
           summary=$(cat "${RUNNER_TEMP}/summary.txt" 2>/dev/null || echo "No summary was written; see the run log.")
           body=$(printf '%s\n\n**Run:** %s\n**Time (UTC):** %s\n\n```\n%s\n```\n\n_Opened automatically by the capture workflow._' \

@@ -148,7 +148,7 @@ class CaptureTests(CaptureCase):
         self.site.routes["/robots.txt"] = (200, b"User-agent: *\nDisallow: /2026/cvd/data/\n", {})
         out = self.capture()
         self.assert_failed_cleanly(out, "stopped-robots", EXIT_ROBOTS)
-        self.assertIn("Jon", out.messages[0])
+        self.assertIn("The maintainer", out.messages[0])
         self.assertEqual(self.site.paths(), ["/robots.txt"])
 
     def test_robots_disallow_archive_save(self):
