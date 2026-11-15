@@ -29,3 +29,5 @@ None to date.
 ## Relationships
 
 None to date.
+
+Researchers and analysts. We have no agreement, payment, or referral or revenue arrangement with any researcher or analyst whose work we cite. They publish their own analyses of the programs we track, and where we cite them, we attribute them. Conversations that did not lead to an arrangement are not listed.
