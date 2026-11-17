@@ -55,6 +55,30 @@ def days(a: str | None, b: str | None) -> int | None:
     return (y - x).days if x and y else None
 
 
+DATED_BEFORE_TEXT = "dated before the earlier-named event"
+INTERVAL_NOTE = "Observed intervals, not compliance determinations."
+
+
+def interval_comparison(values: list[int | None], reference_days: int | None) -> dict:
+    """Counts for one interval. Signed day counts are kept per finding; here:
+    with_dates: findings with both dates (missing ones are not counted anywhere);
+    within_from_zero: 0 up to and including the reference;
+    above: more than the reference;
+    dated_before_earlier_named_event: below 0 (the later-named date is earlier);
+    within: kept for compatibility, everything at or under the reference, including the
+    intervals dated before the earlier-named event.
+    within_from_zero + above + dated_before_earlier_named_event == with_dates.
+    With no reference (report to fix merge), only with_dates and the dated-before count."""
+    vals = [x for x in values if x is not None]
+    out = {"reference_days": reference_days, "with_dates": len(vals)}
+    if reference_days is not None:
+        out.update(within=sum(1 for x in vals if x <= reference_days),
+                   above=sum(1 for x in vals if x > reference_days),
+                   within_from_zero=sum(1 for x in vals if 0 <= x <= reference_days))
+    out["dated_before_earlier_named_event"] = sum(1 for x in vals if x < 0)
+    return out
+
+
 PENDING = ("rate_limited", "github_refused_token", "lookup_unreadable", "network_error", "no_repository_known",
            "not_checked")
 ABSENT = ("not_found", "not_in_global_database")  # a source that was read and has no entry
@@ -383,13 +407,8 @@ def summary_row(snapshots: list[dict], commitments: list[dict], gaps: list[dict]
     tiers = Counter(r["tier"] for r in commitments)
     committed = sorted(r["committed_at"] for r in commitments if r["committed_at"])
     revealed = s["revealed_entries"]
-    intervals = {}
-    for k, limit in POLICY.items():
-        vals = [r[k] for r in ver if r[k] is not None]
-        intervals[k] = {"reference_days": limit, "with_dates": len(vals),
-                        "within": sum(1 for x in vals if x <= limit), "above": sum(1 for x in vals if x > limit)}
-    merge_vals = [r["days_report_to_merge"] for r in ver if r["days_report_to_merge"] is not None]
-    intervals["days_report_to_merge"] = {"reference_days": None, "with_dates": len(merge_vals)}
+    intervals = {k: interval_comparison([r[k] for r in ver], limit) for k, limit in POLICY.items()}
+    intervals["days_report_to_merge"] = interval_comparison([r["days_report_to_merge"] for r in ver], None)
     by_flag, by_status = wview("by_flag"), wview("by_status")
     row = {
         "program": PROGRAM, "capture_utc": s["capture_utc"], "as_of_utc": s["as_of_utc"],

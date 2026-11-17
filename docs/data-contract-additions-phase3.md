@@ -120,12 +120,13 @@ This file has the R-B fields. Additions and clarifications:
 | `fix_merged`, `ids_exist`, `lookups` | Counts of verification rows per value. `lookups` counts `no_identifiers` separately from `ok`. | |
 | `fix_check_reasons` | **New.** For findings whose `fix_merged` is `not_checked`: how many have each `fix_check_reason` (the plain reason text is the key). | `{"the card links no fix commit or pull request (the card has no outside links)": 28}` |
 | `fix_links_not_checked_by_type` | **New.** How many findings have each `fix_link_type_not_checked`. | `{"GitHub release tag": 4, "GitHub repository advisory": 3, "NVD page": 2}` |
-| `interval_comparisons` | For each interval, the reference in days, the rows with both dates, and counts `within` (at or under) and `above` the reference. | |
+| `interval_comparisons` | For each interval, the reference in days (`reference_days`), the rows with both dates (`with_dates`), and counts. **New:** `within_from_zero` (0 days up to and including the reference) and `dated_before_earlier_named_event` (fewer than 0 days: dated before the earlier-named event). `within_from_zero` + `above` + `dated_before_earlier_named_event` = `with_dates`. `within` is kept for compatibility: at or under the reference, including the intervals dated before the earlier-named event. Report to fix merge has no reference, so only `with_dates` and **new** `dated_before_earlier_named_event`. | `{"reference_days": 45, "with_dates": 229, "within": 46, "above": 183, "within_from_zero": 45, "dated_before_earlier_named_event": 1}` |
 | `policy_source` | Our dated copy of the policy page the references come from. | |
 
 **More on `interval_comparisons`:**
 - **The references:** 90 for report to patch, 45 for patch to reveal (both from the policy), and 135 for report to reveal (from the program's April post).
-- **Descriptive only.** Use "within" and "above". Never "overdue", "late" or "violation".
+- **Descriptive only.** Use "within", "above" and "dated before the earlier-named event", with the note "Observed intervals, not compliance determinations." Never "overdue", "late", "violation", "early" or "error", and do not give a reason why a pair of dates is in that order.
+- **Show `within_from_zero`, not `within`.** `within` is kept only for compatibility.
 
 ## 5. programs (CSV + JSON; R-E file 02)
 
