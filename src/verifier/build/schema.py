@@ -341,8 +341,12 @@ SUMMARY_FIELDS = [
     ("cvss_scores_present", "object", "For each CVSS column, how many findings have a score (absent scores are "
      "empty, never 0.0)."),
     ("interval_comparisons", "object", "For each interval: the reference in days (90 report-to-patch and 45 "
-     "patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates, and counts "
-     "within (at or under) and above. Descriptive only."),
+     "patch-to-reveal from the policy; 135 report-to-reveal from the April post), rows with both dates "
+     "(with_dates), and counts. within_from_zero: 0 days up to and including the reference. above: more than the "
+     "reference. dated_before_earlier_named_event: dated before the earlier-named event (fewer than 0 days). "
+     "These three add up to with_dates. within: kept for compatibility; at or under the reference, including the "
+     "intervals dated before the earlier-named event. Report to fix merge has no reference: only with_dates and "
+     "dated_before_earlier_named_event. Observed intervals, not compliance determinations."),
     ("policy_source", "string", "Our dated copy of the policy page the references come from."),
     ("archive_began", "date", "The first day of our archive."),
 ]

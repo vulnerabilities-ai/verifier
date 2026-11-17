@@ -34,6 +34,14 @@ BANNED = [
 ]
 _PATTERNS = [(re.compile(p, re.I), word) for p, word in BANNED]
 
+# Extra words banned only in the interval section of the weekly report (observed intervals,
+# not compliance determinations). Whole words only: "earlier-named" passes.
+INTERVAL_BANNED = [
+    (r"\bearly\b", "early"),
+    (r"\berror\b", "error"),
+]
+_INTERVAL_PATTERNS = [(re.compile(p, re.I), word) for p, word in INTERVAL_BANNED]
+
 QUOTE_FIELDS = frozenset({"withheld_statement"})
 
 
@@ -41,20 +49,22 @@ class WordingError(Exception):
     pass
 
 
-def find(text: str) -> list[str]:
-    """Banned terms in our own text. Lines starting with '>' are verbatim quotations."""
+def find(text: str, intervals: bool = False) -> list[str]:
+    """Banned terms in our own text. Lines starting with '>' are verbatim quotations.
+    intervals=True also applies the interval-section words (early, error)."""
     hits = []
+    patterns = _PATTERNS + (_INTERVAL_PATTERNS if intervals else [])
     for line in (text or "").splitlines():
         if line.lstrip().startswith(">"):
             continue
-        for pat, word in _PATTERNS:
+        for pat, word in patterns:
             if pat.search(line):
                 hits.append(f"'{word}' in: {line.strip()[:160]}")
     return hits
 
 
-def check_text(text: str, where: str) -> None:
-    hits = find(text)
+def check_text(text: str, where: str, intervals: bool = False) -> None:
+    hits = find(text, intervals)
     if hits:
         raise WordingError(f"Wording guard ({where}): " + "; ".join(hits))
 

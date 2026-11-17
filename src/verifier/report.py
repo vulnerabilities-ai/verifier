@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .later_receipts import _checks, day_manifests, final_raw_result, run_items
 from .store import Archive
+from .build.phase3 import DATED_BEFORE_TEXT, INTERVAL_NOTE
 from .wording import check_text
 
 REPORT_HEADING = "## Needs human review"
@@ -57,6 +58,28 @@ def ghsa_line(summary: dict) -> str:
             f"{repo.get('no_repository_known', 0)}, not readable: {repo.get('lookup_unreadable', 0)}.")
 
 
+def interval_section(summary: dict) -> list[str]:
+    """The interval lines of the weekly report, checked by the wording guard including the
+    interval-only words. Observed intervals, not compliance determinations."""
+    ic = summary["interval_comparisons"]
+    L = ["Intervals from the cards' dates (rule R5; descriptive only):", ""]
+    names = {"days_report_to_patch": "report to patch", "days_patch_to_reveal": "patch to reveal",
+             "days_report_to_reveal": "report to reveal"}
+    for k, label in names.items():
+        c = ic[k]
+        L.append(f"- {label}: {c['with_dates']} findings with both dates; {c['within_from_zero']} within "
+                 f"{c['reference_days']} days, {c['above']} above {c['reference_days']} days, "
+                 f"{c['dated_before_earlier_named_event']} {DATED_BEFORE_TEXT}.")
+    m = ic["days_report_to_merge"]
+    L += [f"- report to fix merge: {m['with_dates']} findings with both dates; "
+          f"{m['dated_before_earlier_named_event']} {DATED_BEFORE_TEXT}.",
+          f"- {INTERVAL_NOTE}",
+          f"- Reference days come from {summary['policy_source'] or 'the policy page (no dated copy yet)'} "
+          "and, for 135 days, from the program's April post.", ""]
+    check_text("\n".join(L), "weekly report, intervals", intervals=True)
+    return L
+
+
 def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
     root = Path(root)
     snaps, gaps = _rows(root, "snapshots"), _rows(root, "gaps")
@@ -95,17 +118,7 @@ def weekly_report(root: Path, run_date: str, sample: bool = False) -> str:
          f"- Fully checked: {summary['checked_n']} of {summary['checked_of']}. A finding is fully checked when "
          "its hash check is conclusive (match, mismatch or preimage withheld), its identifiers are confirmed in "
          "public records or it has none, and whether its fix was merged has been determined.", ""]
-    ic = summary["interval_comparisons"]
-    L += ["Intervals from the cards' dates (rule R5; descriptive only):", ""]
-    names = {"days_report_to_patch": "report to patch", "days_patch_to_reveal": "patch to reveal",
-             "days_report_to_reveal": "report to reveal"}
-    for k, label in names.items():
-        c = ic[k]
-        L.append(f"- {label}: {c['with_dates']} findings with both dates; {c['within']} within "
-                 f"{c['reference_days']} days, {c['above']} above {c['reference_days']} days.")
-    L += [f"- report to fix merge: {ic['days_report_to_merge']['with_dates']} findings with both dates.",
-          f"- Reference days come from {summary['policy_source'] or 'the policy page (no dated copy yet)'} "
-          "and, for 135 days, from the program's April post.", ""]
+    L += interval_section(summary)
 
     items = []
     if summary["program_revealed_count"] != summary["revealed"]:

@@ -190,7 +190,12 @@ A finding whose fix was not checked (`not_checked`, including findings whose car
   - 90 days for report to patch, and 45 days for patch to reveal, from the policy page (our monthly dated copy is cited);
   - 135 days for report to reveal, from the program's April post.
 
-  The comparison is published only as counts "within" (at or under) and "above". It is descriptive only: no finding is ever labelled overdue or in violation.
+  The comparison is published only as counts, per interval:
+  - within the reference: 0 days up to and including the reference (`within_from_zero`);
+  - above the reference (`above`);
+  - dated before the earlier-named event: fewer than 0 days (`dated_before_earlier_named_event`).
+
+  These three add up to the findings with both dates. A finding missing either date is not counted. The signed day count for each finding is published unchanged. The older count `within` (at or under the reference, including the intervals dated before the earlier-named event) is kept for compatibility. Report to fix merge has no reference, so only its findings with both dates and those dated before the earlier-named event are counted. These are observed intervals, not compliance determinations: no finding is ever labelled overdue or in violation.
 
 ### CVSS scores: by version and by source
 
