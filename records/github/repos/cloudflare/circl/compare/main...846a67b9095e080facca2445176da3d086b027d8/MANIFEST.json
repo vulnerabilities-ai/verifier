@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/cloudflare/circl/compare/main...846a67b9095e080facca2445176da3d086b027d8/response.json",
       "newly_stored": true,
       "sha256": "8ca4437dcc8af21d44d69b627e7dcee44a0de95d2962d24aca6b76a028b17be9"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:42:43Z",
+      "url": "https://api.github.com/repos/cloudflare/circl/compare/main...846a67b9095e080facca2445176da3d086b027d8",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:42:43Z",
+      "final_url": "https://api.github.com/repos/cloudflare/circl/compare/main...846a67b9095e080facca2445176da3d086b027d8",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:42:44 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"a3c38d86789b78ec2c527e5f0a944bc7dd7cbd2a05ec6a4e7102c8779d8f3716\"",
+        "Last-Modified": "Mon, 16 Nov 2026 23:15:35 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4559",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "441",
+        "X-GitHub-Request-Id": "B554:9364D:2BF20D:8DE7E6:6B022C73"
+      },
+      "size_bytes": 7295,
+      "stored_at": "records/github/repos/cloudflare/circl/compare/main...846a67b9095e080facca2445176da3d086b027d8/response.T234243Z.json",
+      "newly_stored": true,
+      "sha256": "c63a92052ad93390d00c89cce7ad4fe3db96e2d8f35b0211c6bd745abfc1bd6f"
     }
   ]
 }

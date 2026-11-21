@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5/response.json",
       "newly_stored": true,
       "sha256": "a80fd0edb6825741159b4291c925cde1b52590e7f4cdc31271a76969444e58df"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:09Z",
+      "url": "https://api.github.com/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:09Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:10 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0997cf85cbfb7182c618695becb6d499f18535a7035d68e3f356062d15deb4e4\"",
+        "Last-Modified": "Mon, 02 Nov 2026 07:08:10 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4534",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "466",
+        "X-GitHub-Request-Id": "3472:38ED23:320329C:A0CF677:6B022C8D"
+      },
+      "size_bytes": 10017,
+      "stored_at": "records/github/repos/jqlang/jq/compare/master...e47e56d226519635768e6aab2f38f0ab037c09e5/response.json",
+      "newly_stored": false,
+      "sha256": "a80fd0edb6825741159b4291c925cde1b52590e7f4cdc31271a76969444e58df"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/mm2/Little-CMS/compare/master...ba0c2b4f92872b914d4e9036f123a50063f58c89/response.json",
       "newly_stored": true,
       "sha256": "dfa6b103a6edf885374e21848a423738b3cd80453b00c3c6bbe09ee673d8528f"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:42:23Z",
+      "url": "https://api.github.com/repos/mm2/Little-CMS/compare/master...ba0c2b4f92872b914d4e9036f123a50063f58c89",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:42:23Z",
+      "final_url": "https://api.github.com/repos/mm2/Little-CMS/compare/master...ba0c2b4f92872b914d4e9036f123a50063f58c89",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:42:24 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"bfa2359404657bc39f0f1f32a1dcea6e492f5204239c917a3b0f8e86f60697db\"",
+        "Last-Modified": "Wed, 18 Nov 2026 09:25:42 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4579",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "421",
+        "X-GitHub-Request-Id": "F9AB:2824A2:2CAC19:903B58:6B022C5F"
+      },
+      "size_bytes": 7461,
+      "stored_at": "records/github/repos/mm2/Little-CMS/compare/master...ba0c2b4f92872b914d4e9036f123a50063f58c89/response.T234223Z.json",
+      "newly_stored": true,
+      "sha256": "d2a5a62c16d002e2d4749ff4cabbc770b7c3caa38a705199793569cd8042be25"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/supabase/supabase/compare/master...b1531545fbb4247d37e538e8bc1dbf6bf3df3871/response.json",
       "newly_stored": true,
       "sha256": "d79c5f5380c7f60cf67ff89475848f400a60a7746188a492f12fd561852b6d49"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:35Z",
+      "url": "https://api.github.com/repos/supabase/supabase/compare/master...b1531545fbb4247d37e538e8bc1dbf6bf3df3871",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:35Z",
+      "final_url": "https://api.github.com/repos/supabase/supabase/compare/master...b1531545fbb4247d37e538e8bc1dbf6bf3df3871",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:35 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"717b2036ef51591066f510c47ee7b51c704b23d246b91c108f4c604d9dce3c83\"",
+        "Last-Modified": "Sat, 21 Nov 2026 01:14:12 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4509",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "491",
+        "X-GitHub-Request-Id": "B4C6:1E1ECE:2D3592:91A8CD:6B022CA7"
+      },
+      "size_bytes": 10543,
+      "stored_at": "records/github/repos/supabase/supabase/compare/master...b1531545fbb4247d37e538e8bc1dbf6bf3df3871/response.T234335Z.json",
+      "newly_stored": true,
+      "sha256": "7781a6bca940d48e2f7d76d99c77df0f82f7b92b389f9402d9c9232a136c7cc4"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/dloebl/cgif/repo/response.json",
       "newly_stored": true,
       "sha256": "8ce9a86de782f89b9acc18e0cc246860d28ed42581055f405b89d3ef57c19d6a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:36Z",
+      "url": "https://api.github.com/repos/dloebl/cgif",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:36Z",
+      "final_url": "https://api.github.com/repos/dloebl/cgif",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:37 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"223b5ee6e62720dac623b09d6a08e104450c1ec82ddbc0999ef833f80ea99d0a\"",
+        "Last-Modified": "Sun, 15 Nov 2026 07:37:41 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4979",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "21",
+        "X-GitHub-Request-Id": "5858:5D3AE:30DC12D:9D2891D:6B022708"
+      },
+      "size_bytes": 5103,
+      "stored_at": "records/github/repos/dloebl/cgif/repo/response.T231936Z.json",
+      "newly_stored": true,
+      "sha256": "7a88c9a1200e500885dfd3229e98c8e723f72fa83509028fd979e663954d93e2"
     }
   ]
 }

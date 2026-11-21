@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/DanBloomberg/leptonica/repo/response.json",
       "newly_stored": true,
       "sha256": "ebdbc425edc1e2e13855c34fcd054586aceca7e8d7aeb3ac1d7038d21e0dd6c8"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:19Z",
+      "url": "https://api.github.com/repos/DanBloomberg/leptonica",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:19Z",
+      "final_url": "https://api.github.com/repos/DanBloomberg/leptonica",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:20 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"3d1adb764ba29350901c1478b0d1ee8bfd418d97467bcf037a83b8f7c45d2214\"",
+        "Last-Modified": "Thu, 19 Nov 2026 19:50:49 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4997",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "3",
+        "X-GitHub-Request-Id": "1A5F:1FA5:1F61F69:654B72F:6B0226F7"
+      },
+      "size_bytes": 5691,
+      "stored_at": "records/github/repos/DanBloomberg/leptonica/repo/response.T231919Z.json",
+      "newly_stored": true,
+      "sha256": "ab88b58aeaa53ca68235538630ecc2610de2e4b56155002528d5b8655afdb84b"
     }
   ]
 }

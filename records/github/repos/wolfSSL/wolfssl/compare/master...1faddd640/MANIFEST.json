@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/wolfSSL/wolfssl/compare/master...1faddd640/response.json",
       "newly_stored": true,
       "sha256": "a5ea22b74635920ec579aafab09bbcf9b77eff42f311087493e4a6e00a87e2dd"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:52Z",
+      "url": "https://api.github.com/repos/wolfSSL/wolfssl/compare/master...1faddd640",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:53Z",
+      "final_url": "https://api.github.com/repos/wolfSSL/wolfssl/compare/master...1faddd640",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"529bf9bf233d6a6ee7e130ade4df10e51eb57138e6994976576093ec6c5abcfa\"",
+        "Last-Modified": "Sat, 21 Nov 2026 21:38:06 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4490",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "510",
+        "X-GitHub-Request-Id": "9510:177251:2C1F49:8DF772:6B022CB9"
+      },
+      "size_bytes": 9166,
+      "stored_at": "records/github/repos/wolfSSL/wolfssl/compare/master...1faddd640/response.T234353Z.json",
+      "newly_stored": true,
+      "sha256": "2fa5516e60b35e91baac059e9a9c0422a4afc567c36eb6402c6547a07eedc1fc"
     }
   ]
 }

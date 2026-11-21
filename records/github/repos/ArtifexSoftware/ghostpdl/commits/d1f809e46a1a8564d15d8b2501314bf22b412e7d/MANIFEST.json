@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/ArtifexSoftware/ghostpdl/commits/d1f809e46a1a8564d15d8b2501314bf22b412e7d/response.json",
       "newly_stored": true,
       "sha256": "a8825fe95c1884bc29923ed64b3b31561ce388075df380fb852d08fc8864848e"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:23:21Z",
+      "url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl/commits/d1f809e46a1a8564d15d8b2501314bf22b412e7d",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:23:21Z",
+      "final_url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl/commits/d1f809e46a1a8564d15d8b2501314bf22b412e7d",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:23:22 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"5f52f8c11e38491c07a01fe8b06c26a390d600c0e797569689a74b7344620914\"",
+        "Last-Modified": "Fri, 22 May 2026 07:04:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4856",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "144",
+        "X-GitHub-Request-Id": "1A85:327ABA:F67C2D:30B9279:6B0227E9"
+      },
+      "size_bytes": 4913,
+      "stored_at": "records/github/repos/ArtifexSoftware/ghostpdl/commits/d1f809e46a1a8564d15d8b2501314bf22b412e7d/response.json",
+      "newly_stored": false,
+      "sha256": "a8825fe95c1884bc29923ed64b3b31561ce388075df380fb852d08fc8864848e"
     }
   ]
 }

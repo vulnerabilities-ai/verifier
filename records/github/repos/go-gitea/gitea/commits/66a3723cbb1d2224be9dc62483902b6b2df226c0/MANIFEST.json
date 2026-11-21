@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/go-gitea/gitea/commits/66a3723cbb1d2224be9dc62483902b6b2df226c0/response.json",
       "newly_stored": true,
       "sha256": "066c355905d62783d9920cf31ffc64680f39a0c2055776a991b2e49b8e229ee3"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:21Z",
+      "url": "https://api.github.com/repos/go-gitea/gitea/commits/66a3723cbb1d2224be9dc62483902b6b2df226c0",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:21Z",
+      "final_url": "https://api.github.com/repos/go-gitea/gitea/commits/66a3723cbb1d2224be9dc62483902b6b2df226c0",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:22 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e673ab85b21a4149a99e4d018e81ff54a6c2e7141b13a32ee17623d276694a9e\"",
+        "Last-Modified": "Thu, 09 Jul 2026 21:43:08 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4732",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "268",
+        "X-GitHub-Request-Id": "B17B:110F9:1E5BDB:62658F:6B022861"
+      },
+      "size_bytes": 11781,
+      "stored_at": "records/github/repos/go-gitea/gitea/commits/66a3723cbb1d2224be9dc62483902b6b2df226c0/response.json",
+      "newly_stored": false,
+      "sha256": "066c355905d62783d9920cf31ffc64680f39a0c2055776a991b2e49b8e229ee3"
     }
   ]
 }

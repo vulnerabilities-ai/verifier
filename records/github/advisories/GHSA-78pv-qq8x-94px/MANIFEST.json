@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-78pv-qq8x-94px/response.json",
       "newly_stored": true,
       "sha256": "0048e12e5df33371c560de71007f6ece217c3d5f8f0b84e5196ee3d1b80973fb"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:10Z",
+      "url": "https://api.github.com/advisories/GHSA-78pv-qq8x-94px",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:22:10Z",
+      "final_url": "https://api.github.com/advisories/GHSA-78pv-qq8x-94px",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:11 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"78e78e529a2bc49840ffefa869b6ca692a22fdd9937bbb20f4f99ab3349b8eb8\"",
+        "Last-Modified": "Thu, 23 Apr 2026 06:30:28 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4927",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "73",
+        "X-GitHub-Request-Id": "109A:2F5302:30B9FB9:9CD4ECB:6B0227A2"
+      },
+      "size_bytes": 1482,
+      "stored_at": "records/github/advisories/GHSA-78pv-qq8x-94px/response.T232210Z.json",
+      "newly_stored": true,
+      "sha256": "d8ae5f639c30e471f70156b16f977892ead5bfbd9989f5e2bf45cf6745ce0120"
     }
   ]
 }

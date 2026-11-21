@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/mpv-player/mpv/repo/response.json",
       "newly_stored": true,
       "sha256": "a68ddd7bf648c0732d9cb8777de8d4cf00fb3fb0e4e874be93d7ed87f020cbd5"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:56Z",
+      "url": "https://api.github.com/repos/mpv-player/mpv",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:56Z",
+      "final_url": "https://api.github.com/repos/mpv-player/mpv",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:57 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"bf108e7038e2688eeabdb29b860dc765b782b62ac452e610d32e5b6fa765bfb1\"",
+        "Last-Modified": "Sat, 21 Nov 2026 22:39:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4958",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "42",
+        "X-GitHub-Request-Id": "E976:327ABA:F19C32:2FC448C:6B02271C"
+      },
+      "size_bytes": 6209,
+      "stored_at": "records/github/repos/mpv-player/mpv/repo/response.T231956Z.json",
+      "newly_stored": true,
+      "sha256": "04b6ab6c853eed924e4959a6fac053e4dc3c666d92bdf0df2fb039fa6a45c8bc"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/openmrs/openmrs-module-fhir2/repo/response.json",
       "newly_stored": true,
       "sha256": "dfdcd6946f44ab14ad8ba688f3316041ecaec3bb709ce673d7d0e07d5c8635a1"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:59Z",
+      "url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:59Z",
+      "final_url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:20:00 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"519d9e1ea3df539a8c66738f7bfa4b045228647fcfeb61bfa769a4fc56c108e0\"",
+        "Last-Modified": "Thu, 12 Nov 2026 11:08:40 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4955",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "45",
+        "X-GitHub-Request-Id": "89CE:37FD72:E15A9E:2D3D603:6B02271F"
+      },
+      "size_bytes": 6752,
+      "stored_at": "records/github/repos/openmrs/openmrs-module-fhir2/repo/response.T231959Z.json",
+      "newly_stored": true,
+      "sha256": "9c2b94b1d0e6cd861d3987ab53c316ff94bf811b542bd349be74040cc7eae908"
     }
   ]
 }

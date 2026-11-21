@@ -25,6 +25,28 @@
       "stored_at": "records/github/repos/langchain-ai/deepagentsjs/commits/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe/pulls/response.json",
       "newly_stored": true,
       "sha256": "67b1eed4fbe29da1c5299102d943f98f4d2753286afc1b95593594a0da0ed5fa"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:34Z",
+      "url": "https://api.github.com/repos/langchain-ai/deepagentsjs/commits/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:34Z",
+      "final_url": "https://api.github.com/repos/langchain-ai/deepagentsjs/commits/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:35 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"862615e3624d1d786ff0bf5494cf026d3666b24b8f966bd35aaae108c3e3ce54\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4719",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "281",
+        "X-GitHub-Request-Id": "AD44:AA7B5:1DB321:60193F:6B02286E"
+      },
+      "size_bytes": 20081,
+      "stored_at": "records/github/repos/langchain-ai/deepagentsjs/commits/5d266a213d8d3d15c2281e2e00ab71ee30ca3ffe/pulls/response.T232534Z.json",
+      "newly_stored": true,
+      "sha256": "49cc734ac618466e12a232704745cfa85a2b0141b092729a03bb7a8bfe937fd8"
     }
   ]
 }

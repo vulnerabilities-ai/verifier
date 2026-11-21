@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04/response.json",
       "newly_stored": true,
       "sha256": "0a9e437fb4d3a7eded559453edc700f9812dce7bcbf7dfad981983195ae3595a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:23:25Z",
+      "url": "https://api.github.com/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:23:25Z",
+      "final_url": "https://api.github.com/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:23:26 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"d351aecd291e499ed30b9ccc7cd241ae7f925483e243eb9f9d1db231eed1e3e3\"",
+        "Last-Modified": "Thu, 26 Mar 2026 07:33:44 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4852",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "148",
+        "X-GitHub-Request-Id": "3D9C:1F64:5921894:11B6D84E:6B0227ED"
+      },
+      "size_bytes": 5261,
+      "stored_at": "records/github/repos/CESNET/libyang/commits/54c3276d871023da266d4ed3ceaee7e8d71d0b04/response.json",
+      "newly_stored": false,
+      "sha256": "0a9e437fb4d3a7eded559453edc700f9812dce7bcbf7dfad981983195ae3595a"
     }
   ]
 }

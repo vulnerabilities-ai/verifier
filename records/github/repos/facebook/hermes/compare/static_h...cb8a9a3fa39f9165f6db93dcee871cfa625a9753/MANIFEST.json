@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/facebook/hermes/compare/static_h...cb8a9a3fa39f9165f6db93dcee871cfa625a9753/response.json",
       "newly_stored": true,
       "sha256": "d412fa4ef86c73c780c3082b8eb9d461fbe766f582071dc224aceff2b3e3a714"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:22Z",
+      "url": "https://api.github.com/repos/facebook/hermes/compare/static_h...cb8a9a3fa39f9165f6db93dcee871cfa625a9753",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:23Z",
+      "final_url": "https://api.github.com/repositories/154201259/compare/static_h...cb8a9a3fa39f9165f6db93dcee871cfa625a9753",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:23 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9eea4f61d8fd29702b289523219ae7893909367465de698a86034d31a5aaa643\"",
+        "Last-Modified": "Sat, 21 Nov 2026 18:15:16 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4459",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "541",
+        "X-GitHub-Request-Id": "C6A0:1C17BD:110807B:35B4DE0:6B022CD7"
+      },
+      "size_bytes": 9046,
+      "stored_at": "records/github/repos/facebook/hermes/compare/static_h...cb8a9a3fa39f9165f6db93dcee871cfa625a9753/response.T234423Z.json",
+      "newly_stored": true,
+      "sha256": "dc0e646fb49b0d1b7c0d88f55ee71cc601de76739fcb6bd3de5e7b42c1aaa5b1"
     }
   ]
 }

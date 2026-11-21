@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-mx4j-fjqx-f8qj/response.json",
       "newly_stored": true,
       "sha256": "3717d5791374e7e53bf671a42b4fc6a6bb64baef30f2be12f1c5628e4978069a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:50Z",
+      "url": "https://api.github.com/advisories/GHSA-mx4j-fjqx-f8qj",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:22:50Z",
+      "final_url": "https://api.github.com/advisories/GHSA-mx4j-fjqx-f8qj",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:51 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"fc2073c48dd90b4390023df62a4b2b38066e0a31ddf295b2f138f3a6e100af9e\"",
+        "Last-Modified": "Wed, 29 Apr 2026 18:32:37 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4887",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "113",
+        "X-GitHub-Request-Id": "A281:4D49F:3193BBD:9F3C06B:6B0227CA"
+      },
+      "size_bytes": 1638,
+      "stored_at": "records/github/advisories/GHSA-mx4j-fjqx-f8qj/response.json",
+      "newly_stored": false,
+      "sha256": "3717d5791374e7e53bf671a42b4fc6a6bb64baef30f2be12f1c5628e4978069a"
     }
   ]
 }

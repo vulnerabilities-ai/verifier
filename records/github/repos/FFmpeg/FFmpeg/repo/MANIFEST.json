@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/FFmpeg/FFmpeg/repo/response.json",
       "newly_stored": true,
       "sha256": "4ab6feddeab83ae7d69a37e0aa616bae2d177e84359c4518d06aaba5097b4c65"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:20Z",
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:20Z",
+      "final_url": "https://api.github.com/repos/FFmpeg/FFmpeg",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:21 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"65460296407c57108cf073e8f3dfca34d443a9ed33ce4a5a8b95661a96946cbe\"",
+        "Last-Modified": "Sat, 21 Nov 2026 23:14:26 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4996",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "4",
+        "X-GitHub-Request-Id": "16E7:1F70:2355682:7261C85:6B0226F8"
+      },
+      "size_bytes": 6149,
+      "stored_at": "records/github/repos/FFmpeg/FFmpeg/repo/response.T231920Z.json",
+      "newly_stored": true,
+      "sha256": "620e7e9f48b53bf8ca17ab9398acbd55809461e988a7c7b211299bdc95c9b0fe"
     }
   ]
 }

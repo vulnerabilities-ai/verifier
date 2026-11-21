@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/util-linux/util-linux/compare/master...c0186f14fbdb02f64c8e0ba701ce727ea764ff4c/response.json",
       "newly_stored": true,
       "sha256": "d4e9def9ab370f54e9ab18acc985a43d8142a95f9690ee31ae34fc595dc510bb"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:26Z",
+      "url": "https://api.github.com/repos/util-linux/util-linux/compare/master...c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:27Z",
+      "final_url": "https://api.github.com/repos/util-linux/util-linux/compare/master...c0186f14fbdb02f64c8e0ba701ce727ea764ff4c",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:27 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"f5689c427c690029c7814cd79a970d53aeee272d6bea6f1631b41799dd09ca43\"",
+        "Last-Modified": "Thu, 19 Nov 2026 12:58:14 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4455",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "545",
+        "X-GitHub-Request-Id": "BD32:1EC9:1CD11D:62DD03:6B022CDB"
+      },
+      "size_bytes": 8451,
+      "stored_at": "records/github/repos/util-linux/util-linux/compare/master...c0186f14fbdb02f64c8e0ba701ce727ea764ff4c/response.T234427Z.json",
+      "newly_stored": true,
+      "sha256": "c7ff213f1ac5bf1c06e3e53369b25112218a948607405f63bd9b402444a9d743"
     }
   ]
 }

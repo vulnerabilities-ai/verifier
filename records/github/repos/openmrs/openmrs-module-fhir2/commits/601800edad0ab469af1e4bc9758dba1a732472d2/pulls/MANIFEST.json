@@ -25,6 +25,28 @@
       "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
       "newly_stored": false,
       "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:26:01Z",
+      "url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2/commits/601800edad0ab469af1e4bc9758dba1a732472d2/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:26:01Z",
+      "final_url": "https://api.github.com/repos/openmrs/openmrs-module-fhir2/commits/601800edad0ab469af1e4bc9758dba1a732472d2/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:26:02 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"048b79b79681896aabf629b06994b9db337861dae4455b92d45d557cbbd65965\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4692",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "308",
+        "X-GitHub-Request-Id": "1F59:4625B:1EB8D4:632F1F:6B022889"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ]
 }

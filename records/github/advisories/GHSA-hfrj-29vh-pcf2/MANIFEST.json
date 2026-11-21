@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-hfrj-29vh-pcf2/response.json",
       "newly_stored": true,
       "sha256": "09afb7a69be03f3352e3fa23e816b6bd65f75c9bb88c31055c3525d3ed61d73c"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:33Z",
+      "url": "https://api.github.com/advisories/GHSA-hfrj-29vh-pcf2",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:22:33Z",
+      "final_url": "https://api.github.com/advisories/GHSA-hfrj-29vh-pcf2",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:34 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"550effc33ee472c53b94f91404e3648e9615ff8a0b2ea46f8b13e4932bcfba1e\"",
+        "Last-Modified": "Wed, 08 Jul 2026 21:30:38 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4904",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "96",
+        "X-GitHub-Request-Id": "C892:F65E2:78060C3:18004161:6B0227B9"
+      },
+      "size_bytes": 1415,
+      "stored_at": "records/github/advisories/GHSA-hfrj-29vh-pcf2/response.json",
+      "newly_stored": false,
+      "sha256": "09afb7a69be03f3352e3fa23e816b6bd65f75c9bb88c31055c3525d3ed61d73c"
     }
   ]
 }

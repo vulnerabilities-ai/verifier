@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/wireshark/wireshark/compare/master...d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8/response.json",
       "newly_stored": true,
       "sha256": "45eb8219a866bd7361d4dea41103c16a15fc3f408e2b97e97045a1a52e46508f"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:17Z",
+      "url": "https://api.github.com/repos/wireshark/wireshark/compare/master...d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:17Z",
+      "final_url": "https://api.github.com/repos/wireshark/wireshark/compare/master...d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:18 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ba7e2ed3622504a69abd8540bfcab7d20059680474bb611ef81e00bab4d960e0\"",
+        "Last-Modified": "Sat, 21 Nov 2026 22:03:30 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4526",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "474",
+        "X-GitHub-Request-Id": "A0ED:26DA1D:2C8569:905D18:6B022C95"
+      },
+      "size_bytes": 7710,
+      "stored_at": "records/github/repos/wireshark/wireshark/compare/master...d43d89d201b18f1c6d77460e52b4e6b5a4ec68f8/response.T234317Z.json",
+      "newly_stored": true,
+      "sha256": "a080abf8a889c6cca870471e054cd6cbf37f962ec6218dd9b4291a2bb3cd501d"
     }
   ]
 }

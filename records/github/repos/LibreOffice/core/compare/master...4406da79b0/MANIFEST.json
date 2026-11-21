@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/LibreOffice/core/compare/master...4406da79b0/response.json",
       "newly_stored": true,
       "sha256": "71deef38bbea910389d412b5e8f241ba60815f33f418af4b78dc720badf6b258"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:04Z",
+      "url": "https://api.github.com/repos/LibreOffice/core/compare/master...4406da79b0",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:04Z",
+      "final_url": "https://api.github.com/repos/LibreOffice/core/compare/master...4406da79b0",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:05 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"83d4a0b2da30db99b24d750608b2da76c1eb35d8dc4b43aebfb8ede0248be459\"",
+        "Last-Modified": "Sat, 21 Nov 2026 17:53:22 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4539",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "461",
+        "X-GitHub-Request-Id": "C397:1DC3E7:30DD9E6:9D17A32:6B022C88"
+      },
+      "size_bytes": 8208,
+      "stored_at": "records/github/repos/LibreOffice/core/compare/master...4406da79b0/response.T234304Z.json",
+      "newly_stored": true,
+      "sha256": "d899d61857a20839bfd597fd8234c7b4252d567669156f8e6683bf657820c783"
     }
   ]
 }

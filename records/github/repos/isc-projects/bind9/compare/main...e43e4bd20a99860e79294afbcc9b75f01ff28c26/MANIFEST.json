@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/isc-projects/bind9/compare/main...e43e4bd20a99860e79294afbcc9b75f01ff28c26/response.json",
       "newly_stored": true,
       "sha256": "85ff6274fc59b10f1ca2e2d988f22fd18680919c8e382f6b983b06e58df9b05e"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:55Z",
+      "url": "https://api.github.com/repos/isc-projects/bind9/compare/main...e43e4bd20a99860e79294afbcc9b75f01ff28c26",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:56Z",
+      "final_url": "https://api.github.com/repos/isc-projects/bind9/compare/main...e43e4bd20a99860e79294afbcc9b75f01ff28c26",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:56 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9e936cb01f716bb070e11ccc39a48f9b5c276d3253509d495bb423eae80ecdc6\"",
+        "Last-Modified": "Thu, 19 Nov 2026 17:59:00 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4487",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "513",
+        "X-GitHub-Request-Id": "0A37:293770:2D9C91:9345E0:6B022CBC"
+      },
+      "size_bytes": 7939,
+      "stored_at": "records/github/repos/isc-projects/bind9/compare/main...e43e4bd20a99860e79294afbcc9b75f01ff28c26/response.T234356Z.json",
+      "newly_stored": true,
+      "sha256": "f39e7bf64ee6f23b4bdf1671ecaa084a450b85ad4731e2de21d97785b557ecbc"
     }
   ]
 }

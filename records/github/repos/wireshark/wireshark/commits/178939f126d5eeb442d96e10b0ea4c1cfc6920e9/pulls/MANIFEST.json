@@ -25,6 +25,28 @@
       "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
       "newly_stored": false,
       "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:27:13Z",
+      "url": "https://api.github.com/repos/wireshark/wireshark/commits/178939f126d5eeb442d96e10b0ea4c1cfc6920e9/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:27:13Z",
+      "final_url": "https://api.github.com/repos/wireshark/wireshark/commits/178939f126d5eeb442d96e10b0ea4c1cfc6920e9/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:27:14 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"048b79b79681896aabf629b06994b9db337861dae4455b92d45d557cbbd65965\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4620",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "380",
+        "X-GitHub-Request-Id": "7405:17D9D5:FAA80C:319B11C:6B0228D1"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ]
 }

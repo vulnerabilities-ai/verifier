@@ -25,6 +25,28 @@
       "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
       "newly_stored": false,
       "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:16Z",
+      "url": "https://api.github.com/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:16Z",
+      "final_url": "https://api.github.com/repos/freebsd/freebsd-src/commits/143293c14f8de00c6d3de88cd23fc224e7014206/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:17 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"048b79b79681896aabf629b06994b9db337861dae4455b92d45d557cbbd65965\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4737",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "263",
+        "X-GitHub-Request-Id": "0D89:26DA1D:1D978E:5FFD11:6B02285C"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ]
 }

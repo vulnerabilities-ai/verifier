@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/openssl/openssl/compare/master...f4129fbe3cde786d363510069fe297234f99be8f/response.json",
       "newly_stored": true,
       "sha256": "ca39709686e338dbd14f3b1bf302ba67a85a917342d471b2c0603eca871d1a37"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:42:53Z",
+      "url": "https://api.github.com/repos/openssl/openssl/compare/master...f4129fbe3cde786d363510069fe297234f99be8f",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:42:53Z",
+      "final_url": "https://api.github.com/repos/openssl/openssl/compare/master...f4129fbe3cde786d363510069fe297234f99be8f",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:42:54 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"6ed640e842896d5d26638489bf56cbcc05c0195badd25aa6fb64d41d834dfadb\"",
+        "Last-Modified": "Sat, 21 Nov 2026 14:47:58 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4549",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "451",
+        "X-GitHub-Request-Id": "7D6C:27BB0:27E3AC:80B3A3:6B022C7D"
+      },
+      "size_bytes": 7609,
+      "stored_at": "records/github/repos/openssl/openssl/compare/master...f4129fbe3cde786d363510069fe297234f99be8f/response.T234253Z.json",
+      "newly_stored": true,
+      "sha256": "cf09546d1af712679a2e78b72a9607debe4e8e7dfbb4c864227b086e8179abec"
     }
   ]
 }

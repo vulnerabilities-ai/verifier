@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/jqlang/jq/commits/e47e56d226519635768e6aab2f38f0ab037c09e5/response.json",
       "newly_stored": true,
       "sha256": "9ee97828e1ce02394f4b5122d4fb587af2ac1af6811321e249cefcc29c2bb23c"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:31Z",
+      "url": "https://api.github.com/repos/jqlang/jq/commits/e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:31Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq/commits/e47e56d226519635768e6aab2f38f0ab037c09e5",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e1f22fc8d0a8992aa28d44f98d375caf1d4183b11fd76b22404e724b34a8df11\"",
+        "Last-Modified": "Sun, 12 Apr 2026 23:27:16 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4722",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "278",
+        "X-GitHub-Request-Id": "9979:1AB29A:1B9767:598B67:6B02286B"
+      },
+      "size_bytes": 5295,
+      "stored_at": "records/github/repos/jqlang/jq/commits/e47e56d226519635768e6aab2f38f0ab037c09e5/response.json",
+      "newly_stored": false,
+      "sha256": "9ee97828e1ce02394f4b5122d4fb587af2ac1af6811321e249cefcc29c2bb23c"
     }
   ]
 }

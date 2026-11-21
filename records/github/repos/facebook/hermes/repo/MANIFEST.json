@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/facebook/hermes/repo/response.json",
       "newly_stored": true,
       "sha256": "2eccd11001f0d62e3cc4badd9a66a0a4169e754b7be8c4f0a9c1aac756b09dfa"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:37Z",
+      "url": "https://api.github.com/repos/facebook/hermes",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:37Z",
+      "final_url": "https://api.github.com/repositories/154201259",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:38 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"67b39147292dbb7ab121f9bbcc8f4e87daf390c6dcea4f5d89b5a894bce05e82\"",
+        "Last-Modified": "Sat, 21 Nov 2026 23:07:05 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4977",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "23",
+        "X-GitHub-Request-Id": "1DE7:2E6C6:30B5F89:9C92EDF:6B02270A"
+      },
+      "size_bytes": 5924,
+      "stored_at": "records/github/repos/facebook/hermes/repo/response.T231937Z.json",
+      "newly_stored": true,
+      "sha256": "6381b26e97bf46f2792a3855aba442e55c198df62b360f6c411f6e337ef16503"
     }
   ]
 }

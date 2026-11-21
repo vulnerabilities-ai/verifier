@@ -26,6 +26,29 @@
       "stored_at": "records/diagnostic/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v/response.json",
       "newly_stored": false,
       "sha256": "cb7a4232557634a70cac796e2fb8e9b9d2eee6888f0e3ec8ff56d032bb07269f"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:59Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:45:00Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:45:00 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"59fc8e1794c04904cfd672550a9983a46fce037140c2aece0c33a32c2758b77a\"",
+        "Last-Modified": "Tue, 11 Aug 2026 19:48:48 GMT",
+        "X-GitHub-Request-Id": "3B2A:5803:7624CED:17746BA0:6B022CFC",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4863",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "137"
+      },
+      "size_bytes": 21220,
+      "stored_at": "records/diagnostic/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-vv64-95pc-vj9v/response.json",
+      "newly_stored": false,
+      "sha256": "cb7a4232557634a70cac796e2fb8e9b9d2eee6888f0e3ec8ff56d032bb07269f"
     }
   ]
 }

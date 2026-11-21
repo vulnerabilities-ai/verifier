@@ -25,6 +25,28 @@
       "stored_at": "records/github/repos/libarchive/libarchive/commits/750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4/pulls/response.json",
       "newly_stored": true,
       "sha256": "6b7f0eeba97c268ec7e8f8ca68184d31864e22b569a27040cd02cbdabc2da6dc"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:36Z",
+      "url": "https://api.github.com/repos/libarchive/libarchive/commits/750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:36Z",
+      "final_url": "https://api.github.com/repos/libarchive/libarchive/commits/750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:37 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"234888358f1444fd75b856b1b8c7d37e7e419fd00b4ce4830cd18827c34aaa04\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4717",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "283",
+        "X-GitHub-Request-Id": "75B4:2824A2:1DD437:603957:6B022870"
+      },
+      "size_bytes": 16830,
+      "stored_at": "records/github/repos/libarchive/libarchive/commits/750e8d7b25deeb67a976ab0c9f482ec1d2ac68a4/pulls/response.T232536Z.json",
+      "newly_stored": true,
+      "sha256": "d9288213cda46fd8d5629a609adbd9b22161aa8f3ffe262cf5cd1cde27f51685"
     }
   ]
 }

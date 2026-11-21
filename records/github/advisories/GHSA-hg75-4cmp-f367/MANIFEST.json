@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-hg75-4cmp-f367/response.json",
       "newly_stored": true,
       "sha256": "580a8cba34374d86cc5eb09749ec9c926d70fd309db2c8d4dcade1699be1551a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:34Z",
+      "url": "https://api.github.com/advisories/GHSA-hg75-4cmp-f367",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:22:34Z",
+      "final_url": "https://api.github.com/advisories/GHSA-hg75-4cmp-f367",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:35 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"29644ced33e4ef9f5e4c55b515e26191472a7534ccb4ff8b820e59a2705fa845\"",
+        "Last-Modified": "Mon, 27 Apr 2026 18:32:02 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4903",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "97",
+        "X-GitHub-Request-Id": "EBB6:2B26EE:E6180F:2DAC52E:6B0227BA"
+      },
+      "size_bytes": 2168,
+      "stored_at": "records/github/advisories/GHSA-hg75-4cmp-f367/response.json",
+      "newly_stored": false,
+      "sha256": "580a8cba34374d86cc5eb09749ec9c926d70fd309db2c8d4dcade1699be1551a"
     }
   ]
 }

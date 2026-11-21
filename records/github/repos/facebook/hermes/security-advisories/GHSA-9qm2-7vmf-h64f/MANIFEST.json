@@ -24,6 +24,27 @@
       "stored_at": "records/diagnostic/github/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f/response.json",
       "newly_stored": false,
       "sha256": "0b57ad5216c075ad3fdabec93fd0757933ff8af45cb5b9c6ad8b2616b9930e39"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:38Z",
+      "url": "https://api.github.com/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f",
+      "outcome": "fetched",
+      "status": 403,
+      "fetched_utc": "2026-11-21T23:44:39Z",
+      "final_url": "https://api.github.com/repositories/154201259/security-advisories/GHSA-9qm2-7vmf-h64f",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:39 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-GitHub-Request-Id": "6A5B:3651F7:F44B5C:3083A85:6B022CE7",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4885",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "115"
+      },
+      "size_bytes": 195,
+      "stored_at": "records/diagnostic/github/repos/facebook/hermes/security-advisories/GHSA-9qm2-7vmf-h64f/response.json",
+      "newly_stored": false,
+      "sha256": "0b57ad5216c075ad3fdabec93fd0757933ff8af45cb5b9c6ad8b2616b9930e39"
     }
   ]
 }

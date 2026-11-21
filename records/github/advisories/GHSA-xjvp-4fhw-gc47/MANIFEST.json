@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-xjvp-4fhw-gc47/response.json",
       "newly_stored": true,
       "sha256": "4c47e1c1fc7a750b2d39a5961e51ceccf1589aaa62a3dc500cd2fdb846415f79"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:23:18Z",
+      "url": "https://api.github.com/advisories/GHSA-xjvp-4fhw-gc47",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:23:18Z",
+      "final_url": "https://api.github.com/advisories/GHSA-xjvp-4fhw-gc47",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:23:19 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"420394a4b06464e2c6d22e2c9e5b1387885739f30169ea215280edd5fc9fe781\"",
+        "Last-Modified": "Mon, 22 Jun 2026 20:01:36 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4859",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "141",
+        "X-GitHub-Request-Id": "3C8C:22D964:8633C3C:1A826F1E:6B0227E6"
+      },
+      "size_bytes": 10067,
+      "stored_at": "records/github/advisories/GHSA-xjvp-4fhw-gc47/response.json",
+      "newly_stored": false,
+      "sha256": "4c47e1c1fc7a750b2d39a5961e51ceccf1589aaa62a3dc500cd2fdb846415f79"
     }
   ]
 }

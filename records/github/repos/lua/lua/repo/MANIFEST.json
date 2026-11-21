@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/lua/lua/repo/response.json",
       "newly_stored": true,
       "sha256": "bf981dff4e273e6daec779307665970a81c0e05e2d34ec2fcccd6c3fc5e919f5"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:54Z",
+      "url": "https://api.github.com/repos/lua/lua",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:54Z",
+      "final_url": "https://api.github.com/repos/lua/lua",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:55 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ec59e85a92e91baf70ec83bc0cc4dad1f8995da04aea04b9c5e443eaade68bd7\"",
+        "Last-Modified": "Sat, 21 Nov 2026 12:53:45 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4960",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "40",
+        "X-GitHub-Request-Id": "EC71:1F64:58DB99D:11A8EFEC:6B02271A"
+      },
+      "size_bytes": 5737,
+      "stored_at": "records/github/repos/lua/lua/repo/response.T231954Z.json",
+      "newly_stored": true,
+      "sha256": "6f396507f3b7a411505bceeef52a757461a9d14a9aa742bc56643368f164b18a"
     }
   ]
 }
