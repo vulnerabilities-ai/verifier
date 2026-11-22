@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/twigphp/Twig/compare/3.x...3fe13f98f890449af5e7f69f0404b59b8fb776ae/response.json",
       "newly_stored": true,
       "sha256": "76f12ae4f4731d5713ea9ba911810279b14788405027a58013fdfd64e95fa103"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:42:24Z",
+      "url": "https://api.github.com/repos/twigphp/Twig/compare/3.x...3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:42:24Z",
+      "final_url": "https://api.github.com/repos/twigphp/Twig/compare/3.x...3fe13f98f890449af5e7f69f0404b59b8fb776ae",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:42:25 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"9d3836f93c355645eec617047d33c47ce833aa734f8b7cd1388718080cdc9eae\"",
+        "Last-Modified": "Wed, 18 Nov 2026 07:30:45 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4578",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "422",
+        "X-GitHub-Request-Id": "2805:26CCDA:2CA007:9053C5:6B022C60"
+      },
+      "size_bytes": 11562,
+      "stored_at": "records/github/repos/twigphp/Twig/compare/3.x...3fe13f98f890449af5e7f69f0404b59b8fb776ae/response.T234224Z.json",
+      "newly_stored": true,
+      "sha256": "f1f1974bd26a64eb34f9a1d3e87c286a57ae381139c962d5673a103a152dd397"
     }
   ]
 }

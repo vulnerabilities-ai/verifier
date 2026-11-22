@@ -113,10 +113,10 @@ anthropic-cvd,2026-08,nvd_cna_v31,high,8
 anthropic-cvd,2026-08,nvd_cna_v31,low,2
 anthropic-cvd,2026-08,nvd_cna_v31,medium,8
 anthropic-cvd,2026-08,nvd_cna_v31,not_available,119
-anthropic-cvd,2026-08,nvd_cna_v40,high,8
+anthropic-cvd,2026-08,nvd_cna_v40,high,9
 anthropic-cvd,2026-08,nvd_cna_v40,low,1
 anthropic-cvd,2026-08,nvd_cna_v40,medium,7
-anthropic-cvd,2026-08,nvd_cna_v40,not_available,122
+anthropic-cvd,2026-08,nvd_cna_v40,not_available,121
 anthropic-cvd,2026-09,model,high,23
 anthropic-cvd,2026-09,firm,high,23
 anthropic-cvd,2026-09,maintainer,-,11

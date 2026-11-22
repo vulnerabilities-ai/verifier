@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/jqlang/jq/repo/response.json",
       "newly_stored": true,
       "sha256": "e627f06a69513ddb9f76fe0fc56594f90b7edb5e883e99d7b070d4541d33e4a3"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:45Z",
+      "url": "https://api.github.com/repos/jqlang/jq",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:45Z",
+      "final_url": "https://api.github.com/repos/jqlang/jq",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:46 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"47030bd345aedbf021a51b939632a7e999dfd7df25a74b4f170d1b9a2e81404d\"",
+        "Last-Modified": "Sat, 21 Nov 2026 22:48:46 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4969",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "31",
+        "X-GitHub-Request-Id": "D814:5827A:DA05D2:2B5751B:6B022711"
+      },
+      "size_bytes": 5807,
+      "stored_at": "records/github/repos/jqlang/jq/repo/response.T231945Z.json",
+      "newly_stored": true,
+      "sha256": "c214a4c34088b651efbfc20df259f8a8ddfdc422db8464d06c0bfbe9c913dc33"
     }
   ]
 }

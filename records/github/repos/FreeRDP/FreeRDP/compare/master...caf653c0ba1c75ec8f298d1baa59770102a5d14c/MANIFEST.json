@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/FreeRDP/FreeRDP/compare/master...caf653c0ba1c75ec8f298d1baa59770102a5d14c/response.json",
       "newly_stored": true,
       "sha256": "dedfe1dc2a517932f61129d78a08cf4ab2b9c8211810e3d7e4efc593ef528b3c"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:24Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/compare/master...caf653c0ba1c75ec8f298d1baa59770102a5d14c",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:25Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/compare/master...caf653c0ba1c75ec8f298d1baa59770102a5d14c",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:25 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"e8b5882fea363f41b57c9b63369c0394cc78e18e3a4952cd957beea21f674c9d\"",
+        "Last-Modified": "Sat, 21 Nov 2026 19:12:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4457",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "543",
+        "X-GitHub-Request-Id": "9946:31C41E:60CD4D6:133BEDF9:6B022CD9"
+      },
+      "size_bytes": 9989,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/compare/master...caf653c0ba1c75ec8f298d1baa59770102a5d14c/response.T234425Z.json",
+      "newly_stored": true,
+      "sha256": "1a79905841a68f5765aff2c936a258be1d5e67f35d27ead2f6cca32da48d99fe"
     }
   ]
 }

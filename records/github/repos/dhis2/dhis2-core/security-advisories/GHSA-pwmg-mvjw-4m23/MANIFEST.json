@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23/response.json",
       "newly_stored": true,
       "sha256": "44639479c8cb354ee219823d99d22b4a1a99f2511dddf4695630acd7ff12ef2c"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:52Z",
+      "url": "https://api.github.com/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:53Z",
+      "final_url": "https://api.github.com/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:53 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"03f35836ce17088f1893b49be337ebc28c9f22732749c5fa52f61a3fec9a3885\"",
+        "Last-Modified": "Tue, 16 Jun 2026 15:13:35 GMT",
+        "X-GitHub-Request-Id": "7E39:22ED1A:107D8BA:344971E:6B022CF5",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4871",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "129"
+      },
+      "size_bytes": 4745,
+      "stored_at": "records/github/repos/dhis2/dhis2-core/security-advisories/GHSA-pwmg-mvjw-4m23/response.json",
+      "newly_stored": false,
+      "sha256": "44639479c8cb354ee219823d99d22b4a1a99f2511dddf4695630acd7ff12ef2c"
     }
   ]
 }

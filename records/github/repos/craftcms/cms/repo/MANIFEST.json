@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/craftcms/cms/repo/response.json",
       "newly_stored": true,
       "sha256": "ade516545ff7f828a559a4a516f8eab55588a28041b22a70952aebff54d18433"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:34Z",
+      "url": "https://api.github.com/repos/craftcms/cms",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:34Z",
+      "final_url": "https://api.github.com/repos/craftcms/cms",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:35 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"1589c44115025d2f50781e2219f417f6e2cb068d54ce7870114c68fa87964d3c\"",
+        "Last-Modified": "Sat, 21 Nov 2026 12:11:16 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4981",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "19",
+        "X-GitHub-Request-Id": "65AB:D1C41:3039280:9B7AE8E:6B022706"
+      },
+      "size_bytes": 6139,
+      "stored_at": "records/github/repos/craftcms/cms/repo/response.T231934Z.json",
+      "newly_stored": true,
+      "sha256": "84a11dd1f4060c3106cad23396e6f9935b807d05e7f2a9c332dab6ad9b6ee3f5"
     }
   ]
 }

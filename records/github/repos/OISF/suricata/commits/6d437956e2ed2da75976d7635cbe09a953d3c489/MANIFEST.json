@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/OISF/suricata/commits/6d437956e2ed2da75976d7635cbe09a953d3c489/response.json",
       "newly_stored": true,
       "sha256": "e39018c3d78690483579a7d83f4eaff5a768f3e82ce38bf29cdf24b95042eec4"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:24:27Z",
+      "url": "https://api.github.com/repos/OISF/suricata/commits/6d437956e2ed2da75976d7635cbe09a953d3c489",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:24:27Z",
+      "final_url": "https://api.github.com/repos/OISF/suricata/commits/6d437956e2ed2da75976d7635cbe09a953d3c489",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:24:28 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"876a889f19aea446a03e8ce59661c3181ab44c97ad0050c9ef7dcdf863d9011b\"",
+        "Last-Modified": "Mon, 18 May 2026 05:41:33 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4790",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "210",
+        "X-GitHub-Request-Id": "5473:1FA5:1FB884B:66601C1:6B02282B"
+      },
+      "size_bytes": 5458,
+      "stored_at": "records/github/repos/OISF/suricata/commits/6d437956e2ed2da75976d7635cbe09a953d3c489/response.json",
+      "newly_stored": false,
+      "sha256": "e39018c3d78690483579a7d83f4eaff5a768f3e82ce38bf29cdf24b95042eec4"
     }
   ]
 }

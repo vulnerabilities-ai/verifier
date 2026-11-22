@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v/response.json",
       "newly_stored": true,
       "sha256": "6e97dc68edd14ef40bb045d237c735215e3c03c201dfa88e82d181ae42a75e2f"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:43Z",
+      "url": "https://api.github.com/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:44Z",
+      "final_url": "https://api.github.com/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:44 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"25de93f461981accef4e16ed7d0e0d9833b4104a864791a857dd2fc58148f38f\"",
+        "Last-Modified": "Tue, 09 Jun 2026 00:52:05 GMT",
+        "X-GitHub-Request-Id": "89C2:7C26B:106B280:3412B6D:6B022CEC",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4880",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "120"
+      },
+      "size_bytes": 9596,
+      "stored_at": "records/github/repos/alanxz/rabbitmq-c/security-advisories/GHSA-jh48-qjf5-fx5v/response.json",
+      "newly_stored": false,
+      "sha256": "6e97dc68edd14ef40bb045d237c735215e3c03c201dfa88e82d181ae42a75e2f"
     }
   ]
 }

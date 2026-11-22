@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/php/php-src/commits/df1250dc64f53db849503618d2f911645cd43e3a/response.json",
       "newly_stored": true,
       "sha256": "2716aa58c2e80db7d7e09c0cd5e4feb8750f3f6b23386caee3a6e73b55afa545"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:26:10Z",
+      "url": "https://api.github.com/repos/php/php-src/commits/df1250dc64f53db849503618d2f911645cd43e3a",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:26:10Z",
+      "final_url": "https://api.github.com/repos/php/php-src/commits/df1250dc64f53db849503618d2f911645cd43e3a",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:26:11 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"de7f2fec5d2fb337d3fdff8ffe74beed2dbcae1ff73bb3662e129c7645e078f1\"",
+        "Last-Modified": "Sun, 21 Jun 2026 16:29:31 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4683",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "317",
+        "X-GitHub-Request-Id": "EFA9:39B1FB:1CCB6B:5D298E:6B022892"
+      },
+      "size_bytes": 7779,
+      "stored_at": "records/github/repos/php/php-src/commits/df1250dc64f53db849503618d2f911645cd43e3a/response.json",
+      "newly_stored": false,
+      "sha256": "2716aa58c2e80db7d7e09c0cd5e4feb8750f3f6b23386caee3a6e73b55afa545"
     }
   ]
 }

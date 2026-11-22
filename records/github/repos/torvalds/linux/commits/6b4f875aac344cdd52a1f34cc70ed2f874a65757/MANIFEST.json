@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757/response.json",
       "newly_stored": true,
       "sha256": "19c19f40b99f6cbadc15adc4cd7ed313bd936a9692591a549a45cf34648a3007"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:27:02Z",
+      "url": "https://api.github.com/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:27:02Z",
+      "final_url": "https://api.github.com/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:27:03 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"8d0753a50b8a6bc194f7703cb282d368fbdcde096eb2cf368dcb06ca17bbd3c5\"",
+        "Last-Modified": "Mon, 23 Feb 2026 03:27:33 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4631",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "369",
+        "X-GitHub-Request-Id": "3B2C:CEF2E:7CD0F13:18B4A9CB:6B0228C6"
+      },
+      "size_bytes": 5326,
+      "stored_at": "records/github/repos/torvalds/linux/commits/6b4f875aac344cdd52a1f34cc70ed2f874a65757/response.json",
+      "newly_stored": false,
+      "sha256": "19c19f40b99f6cbadc15adc4cd7ed313bd936a9692591a549a45cf34648a3007"
     }
   ]
 }

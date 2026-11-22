@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/FFmpeg/FFmpeg/compare/master...55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee/response.json",
       "newly_stored": true,
       "sha256": "b9a29972179d3ea34ed82de0896f9959c70353dd8995931296a4720b7b355fe1"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:42:59Z",
+      "url": "https://api.github.com/repos/FFmpeg/FFmpeg/compare/master...55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:42:59Z",
+      "final_url": "https://api.github.com/repos/FFmpeg/FFmpeg/compare/master...55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:00 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"d3757fa01d39c97f34a9620bd7876ac241838a9463c8da49afcac712fae77a52\"",
+        "Last-Modified": "Sat, 21 Nov 2026 23:30:36 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4543",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "457",
+        "X-GitHub-Request-Id": "9BD2:3A8D84:32BFF2B:A345493:6B022C83"
+      },
+      "size_bytes": 8168,
+      "stored_at": "records/github/repos/FFmpeg/FFmpeg/compare/master...55bf0e6cd5a46b26b0ebd2374ad2625a7133e4ee/response.T234259Z.json",
+      "newly_stored": true,
+      "sha256": "21c9b4cbeac1284d61fd3afdadfa8368c0c0b48275931863a42faf4b99e757b8"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/util-linux/util-linux/repo/response.json",
       "newly_stored": true,
       "sha256": "a8524021bc9220619358495158ad2e493181a318a247f10f5a4468e2d8180e26"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:20:11Z",
+      "url": "https://api.github.com/repos/util-linux/util-linux",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:20:11Z",
+      "final_url": "https://api.github.com/repos/util-linux/util-linux",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:20:12 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"72149190c3e2646d992475a15cbb8db558bb4f01511abd946000a5fe0ee5bc60\"",
+        "Last-Modified": "Sat, 21 Nov 2026 00:16:04 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4943",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "57",
+        "X-GitHub-Request-Id": "8B6D:21901B:E8CC9F:2E39671:6B02272B"
+      },
+      "size_bytes": 6477,
+      "stored_at": "records/github/repos/util-linux/util-linux/repo/response.T232011Z.json",
+      "newly_stored": true,
+      "sha256": "68206d0214b4f3c07c8f18311e3671028c89443e430b035748fa1a0889b9906c"
     }
   ]
 }

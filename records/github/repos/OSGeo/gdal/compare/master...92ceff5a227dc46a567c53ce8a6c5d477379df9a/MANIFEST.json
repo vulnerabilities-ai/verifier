@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/OSGeo/gdal/compare/master...92ceff5a227dc46a567c53ce8a6c5d477379df9a/response.json",
       "newly_stored": true,
       "sha256": "68533f3ed2b1b09dccd01a90ec90753074f208b27a8e8548dac858ae18487ff4"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:47Z",
+      "url": "https://api.github.com/repos/OSGeo/gdal/compare/master...92ceff5a227dc46a567c53ce8a6c5d477379df9a",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:48Z",
+      "final_url": "https://api.github.com/repos/OSGeo/gdal/compare/master...92ceff5a227dc46a567c53ce8a6c5d477379df9a",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:48 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"6a02c2254e0bd36b7e16a499ba886a23aa0092730c8cd34c5e085fd15edc093f\"",
+        "Last-Modified": "Fri, 20 Nov 2026 22:15:27 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4495",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "505",
+        "X-GitHub-Request-Id": "7C39:16D7FC:2E4F82:9514D8:6B022CB4"
+      },
+      "size_bytes": 9102,
+      "stored_at": "records/github/repos/OSGeo/gdal/compare/master...92ceff5a227dc46a567c53ce8a6c5d477379df9a/response.T234348Z.json",
+      "newly_stored": true,
+      "sha256": "caf891ea94641c802e83138535cc07b8126917f7d5f991cb61a5ec4d573bcc45"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f/response.json",
       "newly_stored": true,
       "sha256": "5ea91221046623d3af2b1635c71ce82d13ecbee8eb765b8abf5bb581ccf0347e"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:15Z",
+      "url": "https://api.github.com/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:15Z",
+      "final_url": "https://api.github.com/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:16 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"295750a78fe30fa3b2f48fe358a97a20075cb986d05b73c180c551b4fb1cd10c\"",
+        "Last-Modified": "Fri, 20 Nov 2026 14:38:08 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4528",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "472",
+        "X-GitHub-Request-Id": "3AE1:38ED23:3204CF8:A0D4AB3:6B022C93"
+      },
+      "size_bytes": 9493,
+      "stored_at": "records/github/repos/dhis2/dhis2-core/compare/master...16cbb390a21391cc5f948092f06a52ce69a3274f/response.T234315Z.json",
+      "newly_stored": true,
+      "sha256": "7c484a067811bd019f2efabbce0e1a56e385dc9a13c79d4e188de87edb79fe39"
     }
   ]
 }

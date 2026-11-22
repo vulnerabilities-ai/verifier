@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-vgv9-mv66-mpc7/response.json",
       "newly_stored": true,
       "sha256": "4efc2a6373568ed585a45b6fe26cd0cb18c8c7f26cef6dc082228b2c4bf4f9d9"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:23:10Z",
+      "url": "https://api.github.com/advisories/GHSA-vgv9-mv66-mpc7",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:23:10Z",
+      "final_url": "https://api.github.com/advisories/GHSA-vgv9-mv66-mpc7",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:23:11 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"1a64f6fccf7b3106794f324b41039f3788a3bc87589220aacac8a4488047de98\"",
+        "Last-Modified": "Wed, 29 Apr 2026 18:31:32 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4867",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "133",
+        "X-GitHub-Request-Id": "293B:212A0D:DBE6E7:2BBC436:6B0227DE"
+      },
+      "size_bytes": 2113,
+      "stored_at": "records/github/advisories/GHSA-vgv9-mv66-mpc7/response.json",
+      "newly_stored": false,
+      "sha256": "4efc2a6373568ed585a45b6fe26cd0cb18c8c7f26cef6dc082228b2c4bf4f9d9"
     }
   ]
 }

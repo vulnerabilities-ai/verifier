@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/cloudfoundry/uaa/compare/develop...65118219a21b39b6ed561712f83d460bea3a15f3/response.json",
       "newly_stored": true,
       "sha256": "7085cab80735b3d5eb64f1e6e5e0097292bb3c0bcea51b932d604cfe0df6e1d4"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:56Z",
+      "url": "https://api.github.com/repos/cloudfoundry/uaa/compare/develop...65118219a21b39b6ed561712f83d460bea3a15f3",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:57Z",
+      "final_url": "https://api.github.com/repos/cloudfoundry/uaa/compare/develop...65118219a21b39b6ed561712f83d460bea3a15f3",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:57 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cec43dbbbb7beaf74cfd8d4b53d45f2c92acb2889e11b17e0de02159bf6cc194\"",
+        "Last-Modified": "Fri, 20 Nov 2026 15:22:45 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4486",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "514",
+        "X-GitHub-Request-Id": "1938:1BC178:2C2087:8E7A75:6B022CBD"
+      },
+      "size_bytes": 7190,
+      "stored_at": "records/github/repos/cloudfoundry/uaa/compare/develop...65118219a21b39b6ed561712f83d460bea3a15f3/response.T234357Z.json",
+      "newly_stored": true,
+      "sha256": "b2301e26f170707a91e8c010d2c1e6173eeb30456dd8762e6ce072605ab437db"
     }
   ]
 }

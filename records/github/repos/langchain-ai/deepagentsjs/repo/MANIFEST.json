@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/langchain-ai/deepagentsjs/repo/response.json",
       "newly_stored": true,
       "sha256": "06c8a672099a6c7abe43314f964622a5ca432b066e29e72cc3c35b72ab0b3058"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:46Z",
+      "url": "https://api.github.com/repos/langchain-ai/deepagentsjs",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:46Z",
+      "final_url": "https://api.github.com/repos/langchain-ai/deepagentsjs",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:47 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ee8a022414c60085db51b57c2a8235adc693dbd52124afb6156603a9f640dbf1\"",
+        "Last-Modified": "Fri, 20 Nov 2026 07:12:28 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4968",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "32",
+        "X-GitHub-Request-Id": "7FE1:1FD61B:E94C0D:2E47351:6B022712"
+      },
+      "size_bytes": 6758,
+      "stored_at": "records/github/repos/langchain-ai/deepagentsjs/repo/response.T231946Z.json",
+      "newly_stored": true,
+      "sha256": "8c4a2f45da0e98f495eb436504d7c9e8ec9fcae9588011f265e7d001c571b759"
     }
   ]
 }

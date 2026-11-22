@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/openssh/openssh-portable/compare/master...073faa6beceea162eeeb7963c7352a6c851e507a/response.json",
       "newly_stored": true,
       "sha256": "cf27977b913bd18ab4df768c0081c31fecf070b011fce3c5f37c5a8455b01406"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:01Z",
+      "url": "https://api.github.com/repos/openssh/openssh-portable/compare/master...073faa6beceea162eeeb7963c7352a6c851e507a",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:02Z",
+      "final_url": "https://api.github.com/repos/openssh/openssh-portable/compare/master...073faa6beceea162eeeb7963c7352a6c851e507a",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:02 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"094c7347b7e5ae2cd1b3d93f97414a505f7196fe0708399610cf1011b215c5bb\"",
+        "Last-Modified": "Wed, 18 Nov 2026 09:46:43 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4481",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "519",
+        "X-GitHub-Request-Id": "D69E:25851C:2D1FB2:917DD5:6B022CC2"
+      },
+      "size_bytes": 9441,
+      "stored_at": "records/github/repos/openssh/openssh-portable/compare/master...073faa6beceea162eeeb7963c7352a6c851e507a/response.T234402Z.json",
+      "newly_stored": true,
+      "sha256": "6d4fdbe0b732147a333063829b24effb796521481f75160ba765595d8d175ecf"
     }
   ]
 }

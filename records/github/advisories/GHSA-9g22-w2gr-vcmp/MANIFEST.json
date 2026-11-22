@@ -24,6 +24,27 @@
       "stored_at": "records/github/advisories/GHSA-44h9-v855-6rj3/response.json",
       "newly_stored": false,
       "sha256": "5b7155f12035b6da8992daa6bd200277b4744819f20e04ea8ca4a7c432bb325c"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:16Z",
+      "url": "https://api.github.com/advisories/GHSA-9g22-w2gr-vcmp",
+      "outcome": "fetched",
+      "status": 403,
+      "fetched_utc": "2026-11-21T23:22:16Z",
+      "final_url": "https://api.github.com/advisories/GHSA-9g22-w2gr-vcmp",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:17 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4921",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "79",
+        "X-GitHub-Request-Id": "9BCC:393076:DFE065:2C99246:6B0227A8"
+      },
+      "size_bytes": 187,
+      "stored_at": "records/github/advisories/GHSA-44h9-v855-6rj3/response.json",
+      "newly_stored": false,
+      "sha256": "5b7155f12035b6da8992daa6bd200277b4744819f20e04ea8ca4a7c432bb325c"
     }
   ]
 }

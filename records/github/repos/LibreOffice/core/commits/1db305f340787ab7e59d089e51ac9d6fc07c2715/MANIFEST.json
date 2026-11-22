@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/LibreOffice/core/commits/1db305f340787ab7e59d089e51ac9d6fc07c2715/response.json",
       "newly_stored": true,
       "sha256": "1f0637d39d40bbcfaaa20fca08364a672a826b7d02ca092f5aa57c87bdcce311"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:24:13Z",
+      "url": "https://api.github.com/repos/LibreOffice/core/commits/1db305f340787ab7e59d089e51ac9d6fc07c2715",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:24:13Z",
+      "final_url": "https://api.github.com/repos/LibreOffice/core/commits/1db305f340787ab7e59d089e51ac9d6fc07c2715",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:24:14 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"f172aff6f69d5261ee2df890b1f6c7d46eb1c73264840fb12397664948fec950\"",
+        "Last-Modified": "Mon, 06 Jul 2026 11:20:38 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4804",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "196",
+        "X-GitHub-Request-Id": "AB27:668C4:2E07A71:9437F98:6B02281D"
+      },
+      "size_bytes": 4674,
+      "stored_at": "records/github/repos/LibreOffice/core/commits/1db305f340787ab7e59d089e51ac9d6fc07c2715/response.json",
+      "newly_stored": false,
+      "sha256": "1f0637d39d40bbcfaaa20fca08364a672a826b7d02ca092f5aa57c87bdcce311"
     }
   ]
 }

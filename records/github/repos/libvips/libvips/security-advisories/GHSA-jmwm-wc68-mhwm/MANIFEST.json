@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/libvips/libvips/security-advisories/GHSA-jmwm-wc68-mhwm/response.json",
       "newly_stored": true,
       "sha256": "c108eb92ca569754c08a3669f126d2d6deca1df762cf9e57119aed0910cdf32a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:44Z",
+      "url": "https://api.github.com/repos/libvips/libvips/security-advisories/GHSA-jmwm-wc68-mhwm",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:45Z",
+      "final_url": "https://api.github.com/repos/libvips/libvips/security-advisories/GHSA-jmwm-wc68-mhwm",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:45 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"cccc59933aab2006e7324ecf971cf137fa73650c76d8cda47b37b9bce534c8ef\"",
+        "Last-Modified": "Fri, 17 Jul 2026 10:30:05 GMT",
+        "X-GitHub-Request-Id": "591E:36B600:107E260:344BFBE:6B022CED",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4879",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "121"
+      },
+      "size_bytes": 3742,
+      "stored_at": "records/github/repos/libvips/libvips/security-advisories/GHSA-jmwm-wc68-mhwm/response.json",
+      "newly_stored": false,
+      "sha256": "c108eb92ca569754c08a3669f126d2d6deca1df762cf9e57119aed0910cdf32a"
     }
   ]
 }

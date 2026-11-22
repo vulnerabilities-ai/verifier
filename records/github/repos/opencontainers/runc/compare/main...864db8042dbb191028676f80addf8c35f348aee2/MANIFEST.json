@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/opencontainers/runc/compare/main...864db8042dbb191028676f80addf8c35f348aee2/response.json",
       "newly_stored": true,
       "sha256": "ca02a62d1d9a542e62c2b1595fe9e380afb4520abcc7820f6977d0731d84c30d"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:43:38Z",
+      "url": "https://api.github.com/repos/opencontainers/runc/compare/main...864db8042dbb191028676f80addf8c35f348aee2",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:43:39Z",
+      "final_url": "https://api.github.com/repos/opencontainers/runc/compare/main...864db8042dbb191028676f80addf8c35f348aee2",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:43:39 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"fa38551b98c0a6875e793568c00939440df96f06e321196943475501137ec01e\"",
+        "Last-Modified": "Sat, 21 Nov 2026 22:28:44 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4505",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "495",
+        "X-GitHub-Request-Id": "36FA:10EE93:2DF0DB:945433:6B022CAB"
+      },
+      "size_bytes": 11223,
+      "stored_at": "records/github/repos/opencontainers/runc/compare/main...864db8042dbb191028676f80addf8c35f348aee2/response.T234339Z.json",
+      "newly_stored": true,
+      "sha256": "753a22432daca853c37d6b5751ecead270c1f8e988f847f9e962c408a29ba3ac"
     }
   ]
 }

@@ -25,6 +25,28 @@
       "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
       "newly_stored": false,
       "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:14Z",
+      "url": "https://api.github.com/repos/facebook/hermes/commits/cb8a9a3fa39f9165f6db93dcee871cfa625a9753/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:14Z",
+      "final_url": "https://api.github.com/repositories/154201259/commits/cb8a9a3fa39f9165f6db93dcee871cfa625a9753/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:15 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"048b79b79681896aabf629b06994b9db337861dae4455b92d45d557cbbd65965\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4739",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "261",
+        "X-GitHub-Request-Id": "A9F0:16D7FC:1DAE69:5FA095:6B02285B"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ]
 }

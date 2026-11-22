@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/ArtifexSoftware/ghostpdl/repo/response.json",
       "newly_stored": true,
       "sha256": "1b9b76ed6a8d557c680a1b5cebc997ecdd149ee7f86e3bf6c4eeaeb9a4bb90d1"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:17Z",
+      "url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:17Z",
+      "final_url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:18 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"02a57b6f52ea50bae284bbb26266b1be2dc2514d2679d14c4e1a36102852a8d8\"",
+        "Last-Modified": "Fri, 20 Nov 2026 03:10:39 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4999",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "1",
+        "X-GitHub-Request-Id": "B12A:2E6C6:30B07DA:9C812CA:6B0226F5"
+      },
+      "size_bytes": 6774,
+      "stored_at": "records/github/repos/ArtifexSoftware/ghostpdl/repo/response.T231917Z.json",
+      "newly_stored": true,
+      "sha256": "629984ecccc2a629d41f3e64bf401d95879a3bd9741c9cc7e6daff79cc072dce"
     }
   ]
 }

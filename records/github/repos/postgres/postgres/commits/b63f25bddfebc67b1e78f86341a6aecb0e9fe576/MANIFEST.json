@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576/response.json",
       "newly_stored": true,
       "sha256": "b191bdef9306e3198dee4139b32096dfade2c6cfd501b8ce442b5cfc741f2fe0"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:26:12Z",
+      "url": "https://api.github.com/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:26:12Z",
+      "final_url": "https://api.github.com/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:26:13 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0198e6998df2d54894503fcd438bff7cdf14f1e7dc928713035506f73d0f7731\"",
+        "Last-Modified": "Mon, 11 May 2026 12:13:46 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4681",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "319",
+        "X-GitHub-Request-Id": "2DAA:4D59:1A8EE8:5575EE:6B022894"
+      },
+      "size_bytes": 10744,
+      "stored_at": "records/github/repos/postgres/postgres/commits/b63f25bddfebc67b1e78f86341a6aecb0e9fe576/response.json",
+      "newly_stored": false,
+      "sha256": "b191bdef9306e3198dee4139b32096dfade2c6cfd501b8ce442b5cfc741f2fe0"
     }
   ]
 }

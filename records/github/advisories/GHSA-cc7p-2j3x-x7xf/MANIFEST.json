@@ -26,6 +26,29 @@
       "stored_at": "records/github/advisories/GHSA-cc7p-2j3x-x7xf/response.json",
       "newly_stored": true,
       "sha256": "7d8ba2e6b2b0919a78f3f15f76780077c1a40d17338b3fc66a8821a82b0d8b67"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:22:20Z",
+      "url": "https://api.github.com/advisories/GHSA-cc7p-2j3x-x7xf",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:22:20Z",
+      "final_url": "https://api.github.com/advisories/GHSA-cc7p-2j3x-x7xf",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:22:21 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"dcff1f6c1343a4f5f40a087363f69ab0f23952057e447842ea0c9924097800a3\"",
+        "Last-Modified": "Wed, 07 Oct 2026 06:59:19 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4917",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "83",
+        "X-GitHub-Request-Id": "A06C:5803:746574E:171B6F6C:6B0227AC"
+      },
+      "size_bytes": 5775,
+      "stored_at": "records/github/advisories/GHSA-cc7p-2j3x-x7xf/response.json",
+      "newly_stored": false,
+      "sha256": "7d8ba2e6b2b0919a78f3f15f76780077c1a40d17338b3fc66a8821a82b0d8b67"
     }
   ]
 }

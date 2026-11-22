@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/freetype/freetype/repo/response.json",
       "newly_stored": true,
       "sha256": "f57f4eaff54120f0e89411dc62c4df3e32480ecb3f95862a940493bf0d2ef189"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:39Z",
+      "url": "https://api.github.com/repos/freetype/freetype",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:39Z",
+      "final_url": "https://api.github.com/repos/freetype/freetype",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:40 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"0d787391f0a4d066d533942fef36494d1d385ea6a1137d0765e2574d102b8a62\"",
+        "Last-Modified": "Thu, 19 Nov 2026 21:23:52 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4975",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "25",
+        "X-GitHub-Request-Id": "2F29:2C691F:2FA13C0:9968E52:6B02270B"
+      },
+      "size_bytes": 6314,
+      "stored_at": "records/github/repos/freetype/freetype/repo/response.T231939Z.json",
+      "newly_stored": true,
+      "sha256": "845286d37e9c82f8c453de9818470dd3452754e435425509a9e2c889196ee4e4"
     }
   ]
 }

@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/bytecodealliance/wasm-micro-runtime/security-advisories/GHSA-wj3p-xhqm-pffc/response.json",
       "newly_stored": true,
       "sha256": "72242e18028fdc4329bb89c99ecc0d57fd30f0188867377cfca84bdbe448f38e"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:45:00Z",
+      "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime/security-advisories/GHSA-wj3p-xhqm-pffc",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:45:01Z",
+      "final_url": "https://api.github.com/repositories/184654298/security-advisories/GHSA-wj3p-xhqm-pffc",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:45:01 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"40e6935e3f57bcdd52775020c7908048269139e5b6168aa4c4bb43dff01f402a\"",
+        "Last-Modified": "Thu, 16 Jul 2026 13:47:23 GMT",
+        "X-GitHub-Request-Id": "6C76:2136E2:7FC3D74:1959CB5A:6B022CFD",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4861",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "139"
+      },
+      "size_bytes": 22195,
+      "stored_at": "records/github/repos/bytecodealliance/wasm-micro-runtime/security-advisories/GHSA-wj3p-xhqm-pffc/response.json",
+      "newly_stored": false,
+      "sha256": "72242e18028fdc4329bb89c99ecc0d57fd30f0188867377cfca84bdbe448f38e"
     }
   ]
 }

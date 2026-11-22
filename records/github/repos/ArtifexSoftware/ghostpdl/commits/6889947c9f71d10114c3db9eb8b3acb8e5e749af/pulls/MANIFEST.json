@@ -25,6 +25,28 @@
       "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
       "newly_stored": false,
       "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:23:20Z",
+      "url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl/commits/6889947c9f71d10114c3db9eb8b3acb8e5e749af/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:23:20Z",
+      "final_url": "https://api.github.com/repos/ArtifexSoftware/ghostpdl/commits/6889947c9f71d10114c3db9eb8b3acb8e5e749af/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:23:21 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"048b79b79681896aabf629b06994b9db337861dae4455b92d45d557cbbd65965\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4857",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "143",
+        "X-GitHub-Request-Id": "42F2:1210C1:767711D:176DA6A0:6B0227E8"
+      },
+      "size_bytes": 2,
+      "stored_at": "records/github/advisories-by-cve/CVE-2026-32316/response.json",
+      "newly_stored": false,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
     }
   ]
 }

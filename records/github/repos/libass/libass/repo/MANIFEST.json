@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/libass/libass/repo/response.json",
       "newly_stored": true,
       "sha256": "0a7344d62c5e6a371348e7be0b177492ecead58bbe0966229e32160793c837a7"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:48Z",
+      "url": "https://api.github.com/repos/libass/libass",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:48Z",
+      "final_url": "https://api.github.com/repos/libass/libass",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:49 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"acfce3ff23f73f9a34114bbdf2031124d496296ec1b1beda3701e1c2375c408e\"",
+        "Last-Modified": "Sat, 21 Nov 2026 23:11:49 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4966",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "34",
+        "X-GitHub-Request-Id": "4FAA:327ABA:F16B5A:2FBA87C:6B022714"
+      },
+      "size_bytes": 6248,
+      "stored_at": "records/github/repos/libass/libass/repo/response.T231948Z.json",
+      "newly_stored": true,
+      "sha256": "07764e54d529769de7f0a055ee94fdb2193ddd080e0617868ea3819087bd32a3"
     }
   ]
 }

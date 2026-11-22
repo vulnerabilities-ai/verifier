@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/libexpat/libexpat/repo/response.json",
       "newly_stored": true,
       "sha256": "a4bc7dc10799077cb20dfade95ee1cb6afebda7f01b80af79ba3eafe27ea43ba"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:49Z",
+      "url": "https://api.github.com/repos/libexpat/libexpat",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:49Z",
+      "final_url": "https://api.github.com/repos/libexpat/libexpat",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:50 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"2a0557aaad8c94369d54352c62c532046b5f2895e1a738af831e56a20050a4f7\"",
+        "Last-Modified": "Sat, 21 Nov 2026 05:33:29 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4965",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "35",
+        "X-GitHub-Request-Id": "5B0C:CEF2E:7C3690D:18962C2F:6B022715"
+      },
+      "size_bytes": 6483,
+      "stored_at": "records/github/repos/libexpat/libexpat/repo/response.T231949Z.json",
+      "newly_stored": true,
+      "sha256": "8ee546e2107923e430e58e020a8f72971f116a29c695f914910f1a4e0840cd19"
     }
   ]
 }

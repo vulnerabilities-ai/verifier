@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/libarchive/libarchive/repo/response.json",
       "newly_stored": true,
       "sha256": "a83e83cc8372bce38e1c5c022652e6cde99a415d9695a3ee8ce9e467515ff160"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:47Z",
+      "url": "https://api.github.com/repos/libarchive/libarchive",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:47Z",
+      "final_url": "https://api.github.com/repos/libarchive/libarchive",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:48 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ed727fb9f303bae2ea461e09ac1afbb605419697d69c57e75d5a7b760fdba5a1\"",
+        "Last-Modified": "Sat, 21 Nov 2026 17:03:45 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4967",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "33",
+        "X-GitHub-Request-Id": "F252:3195A8:61DDC06:136C00A8:6B022713"
+      },
+      "size_bytes": 6604,
+      "stored_at": "records/github/repos/libarchive/libarchive/repo/response.T231947Z.json",
+      "newly_stored": true,
+      "sha256": "d4760c45aa48d4a2d8e9dbe537428ba0801b354a32cc3991eb28e47c5cc0b430"
     }
   ]
 }

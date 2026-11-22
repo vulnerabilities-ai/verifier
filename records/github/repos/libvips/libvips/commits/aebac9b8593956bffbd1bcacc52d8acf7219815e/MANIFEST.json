@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/libvips/libvips/commits/aebac9b8593956bffbd1bcacc52d8acf7219815e/response.json",
       "newly_stored": true,
       "sha256": "138137b1affd774ca1390461a4feb6c53528fcc402956d0b95cae2547e37aa5a"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:48Z",
+      "url": "https://api.github.com/repos/libvips/libvips/commits/aebac9b8593956bffbd1bcacc52d8acf7219815e",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:48Z",
+      "final_url": "https://api.github.com/repos/libvips/libvips/commits/aebac9b8593956bffbd1bcacc52d8acf7219815e",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:49 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"20d6e45349d813bf3e42bc68e46e2706db9efe590d14cc2a6e1da223220b8252\"",
+        "Last-Modified": "Sun, 17 May 2026 14:33:05 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4705",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "295",
+        "X-GitHub-Request-Id": "331C:39B1FB:1C7E50:5C3081:6B02287C"
+      },
+      "size_bytes": 7792,
+      "stored_at": "records/github/repos/libvips/libvips/commits/aebac9b8593956bffbd1bcacc52d8acf7219815e/response.json",
+      "newly_stored": false,
+      "sha256": "138137b1affd774ca1390461a4feb6c53528fcc402956d0b95cae2547e37aa5a"
     }
   ]
 }

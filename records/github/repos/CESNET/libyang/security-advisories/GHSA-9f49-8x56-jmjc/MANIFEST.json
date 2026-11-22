@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/CESNET/libyang/security-advisories/GHSA-9f49-8x56-jmjc/response.json",
       "newly_stored": true,
       "sha256": "d76fa44b025f6ca377a153d4ac7d0730181877c0642d598774996d22c2993071"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:36Z",
+      "url": "https://api.github.com/repos/CESNET/libyang/security-advisories/GHSA-9f49-8x56-jmjc",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:37Z",
+      "final_url": "https://api.github.com/repos/CESNET/libyang/security-advisories/GHSA-9f49-8x56-jmjc",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:37 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ac53fb2b0d803596c9238e2c282e81c383dbc354e970bd1a82056c75089d0db5\"",
+        "Last-Modified": "Thu, 26 Mar 2026 08:17:42 GMT",
+        "X-GitHub-Request-Id": "D9BB:212A0D:F2E63E:304EA04:6B022CE5",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4888",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "112"
+      },
+      "size_bytes": 5316,
+      "stored_at": "records/github/repos/CESNET/libyang/security-advisories/GHSA-9f49-8x56-jmjc/response.json",
+      "newly_stored": false,
+      "sha256": "d76fa44b025f6ca377a153d4ac7d0730181877c0642d598774996d22c2993071"
     }
   ]
 }

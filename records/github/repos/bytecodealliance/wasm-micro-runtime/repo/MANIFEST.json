@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/bytecodealliance/wasm-micro-runtime/repo/response.json",
       "newly_stored": true,
       "sha256": "3131e57c8fcb4dba8ad698b53fb75c7d47323856cb28bd961dadf8b9614032e9"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:19:31Z",
+      "url": "https://api.github.com/repos/bytecodealliance/wasm-micro-runtime",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:19:31Z",
+      "final_url": "https://api.github.com/repositories/184654298",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:19:32 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"08c71dabdeb7bea78a04cbc657e97f3558dae3205554839bd33b96e9a48ed2be\"",
+        "Last-Modified": "Sat, 21 Nov 2026 18:51:59 GMT",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4984",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "16",
+        "X-GitHub-Request-Id": "A98D:312A1A:2F8AEB3:99186E1:6B022704"
+      },
+      "size_bytes": 7537,
+      "stored_at": "records/github/repos/bytecodealliance/wasm-micro-runtime/repo/response.T231931Z.json",
+      "newly_stored": true,
+      "sha256": "838ae6c8613620ffe13064649efa315d698482b68bf89ac862915f047c86f97d"
     }
   ]
 }

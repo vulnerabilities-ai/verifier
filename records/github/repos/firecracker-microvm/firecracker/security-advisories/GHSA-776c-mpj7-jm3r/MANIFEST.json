@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/firecracker-microvm/firecracker/security-advisories/GHSA-776c-mpj7-jm3r/response.json",
       "newly_stored": true,
       "sha256": "15268064d97ee3bb6308f7ddb77ca40cddb3e06a8af5b55d0aa0f88034128572"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:33Z",
+      "url": "https://api.github.com/repos/firecracker-microvm/firecracker/security-advisories/GHSA-776c-mpj7-jm3r",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:34Z",
+      "final_url": "https://api.github.com/repos/firecracker-microvm/firecracker/security-advisories/GHSA-776c-mpj7-jm3r",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:34 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"ac0cedc7146bfc983858b58ce0204c249c748c16855dbd8564305c57ba5fb085\"",
+        "Last-Modified": "Tue, 07 Apr 2026 23:18:46 GMT",
+        "X-GitHub-Request-Id": "B08F:1F64:5AB2A65:1206885C:6B022CE2",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4891",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "109"
+      },
+      "size_bytes": 4693,
+      "stored_at": "records/github/repos/firecracker-microvm/firecracker/security-advisories/GHSA-776c-mpj7-jm3r/response.json",
+      "newly_stored": false,
+      "sha256": "15268064d97ee3bb6308f7ddb77ca40cddb3e06a8af5b55d0aa0f88034128572"
     }
   ]
 }

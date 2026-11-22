@@ -25,6 +25,28 @@
       "stored_at": "records/github/repos/cloudflare/circl/commits/846a67b9095e080facca2445176da3d086b027d8/pulls/response.json",
       "newly_stored": true,
       "sha256": "b508c122892c4dae6ebd7051f885cb99ef2df9939b30e1b094d0c727f2f85bbd"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:25:05Z",
+      "url": "https://api.github.com/repos/cloudflare/circl/commits/846a67b9095e080facca2445176da3d086b027d8/pulls",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:25:05Z",
+      "final_url": "https://api.github.com/repos/cloudflare/circl/commits/846a67b9095e080facca2445176da3d086b027d8/pulls",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:25:06 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"6762b49ac9e5e69431edd64b562a527d1eb52cfabd30e6f759018dbc42986f10\"",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4750",
+        "X-RateLimit-Reset": "1795306757",
+        "X-RateLimit-Used": "250",
+        "X-GitHub-Request-Id": "5A36:187782:1E40F6:6225DB:6B022851"
+      },
+      "size_bytes": 17587,
+      "stored_at": "records/github/repos/cloudflare/circl/commits/846a67b9095e080facca2445176da3d086b027d8/pulls/response.T232505Z.json",
+      "newly_stored": true,
+      "sha256": "650eb1bfd7b10a3355e801105a1f4ae3655ee5a03268cc6a3e8529bc8de53e8e"
     }
   ]
 }

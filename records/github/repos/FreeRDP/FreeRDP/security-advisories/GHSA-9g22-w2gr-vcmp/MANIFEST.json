@@ -26,6 +26,29 @@
       "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-9g22-w2gr-vcmp/response.json",
       "newly_stored": true,
       "sha256": "1b991ef33b192d1c28b127e64ab6c9f2bf58c38e9c58b0c00f4373b1718e49fc"
+    },
+    {
+      "attempted_utc": "2026-11-21T23:44:37Z",
+      "url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-9g22-w2gr-vcmp",
+      "outcome": "fetched",
+      "status": 200,
+      "fetched_utc": "2026-11-21T23:44:38Z",
+      "final_url": "https://api.github.com/repos/FreeRDP/FreeRDP/security-advisories/GHSA-9g22-w2gr-vcmp",
+      "headers": {
+        "Date": "Sat, 21 Nov 2026 23:44:38 GMT",
+        "Content-Type": "application/json; charset=utf-8",
+        "ETag": "\"81b73f07eee69bd54536a4956d479d23aa5daa9dbd4d70537a248cdd4588ced9\"",
+        "Last-Modified": "Fri, 17 Jul 2026 16:27:23 GMT",
+        "X-GitHub-Request-Id": "DA98:3166D5:62A12B5:1397C6AD:6B022CE6",
+        "X-RateLimit-Limit": "5000",
+        "X-RateLimit-Remaining": "4887",
+        "X-RateLimit-Reset": "1795306814",
+        "X-RateLimit-Used": "113"
+      },
+      "size_bytes": 19701,
+      "stored_at": "records/github/repos/FreeRDP/FreeRDP/security-advisories/GHSA-9g22-w2gr-vcmp/response.json",
+      "newly_stored": false,
+      "sha256": "1b991ef33b192d1c28b127e64ab6c9f2bf58c38e9c58b0c00f4373b1718e49fc"
     }
   ]
 }
