@@ -19,7 +19,8 @@ from datetime import date, timedelta
 
 from . import config
 from .archive_org import ArchiveClient
-from .net import utc_now
+from .archive_diag import diagnose
+from .net import sha256_hex, utc_now
 from .store import Archive
 
 # Note types written from now on. Notes written before 2026-11-10 used the
@@ -150,6 +151,62 @@ def _mismatches_without_diagnostic(m: dict, notes: list[dict]):
             yield n.get("run_id"), n.get("name"), ts, f"appended note ({kind})"
 
 
+def _diagnosed(notes: list[dict], rid, name, ts) -> bool:
+    """True when a diagnostic note for this receipt reached the Archive's copy. A diagnostic
+    that could not fetch it (result 'unavailable', e.g. a timeout) does not count, so it is
+    tried again."""
+    return any(n.get("note_type") == NOTE_DIAG and n.get("run_id") == rid and n.get("name") == name
+               and n.get("snapshot_timestamp") == ts
+               and (n.get("raw_check") or {}).get("result") not in (None, "unavailable")
+               for n in notes)
+
+
+def _raw_sha_of(m: dict, rid, name, ts) -> tuple[str | None, str | None]:
+    """(raw_sha256, raw_url) of the recorded mismatch for this receipt."""
+    for r, nm, t, rc, where, ntype in _checks(m):
+        if r == rid and nm == name and t == ts and rc.get("result") == "mismatch" and rc.get("raw_sha256"):
+            return rc["raw_sha256"], rc.get("raw_url")
+    return None, None
+
+
+def stored_copy_diagnoses(archive: Archive, m: dict) -> list[dict]:
+    """Diagnostic notes, made without any request to the Archive, for recorded mismatches whose
+    Archive bytes (the same SHA-256 as recorded in the mismatch) are already stored under
+    captures/archive-raw/, for example from a later receipt of another snapshot. Equal SHA-256
+    means equal bytes, so the stored copy is the Archive's copy for this receipt."""
+    notes = m.get("appended_notes", [])
+    items = {(run.get("run_id"), i["name"]): i for run in m.get("runs", []) for i in run_items(run)}
+    blobs = None
+    new, seen = [], set()
+    for rid, name, ts, where in _mismatches_without_diagnostic(m, notes):
+        key = (rid, name, ts)
+        if key in seen or not ts or (rid, name) not in items or _diagnosed(notes, rid, name, ts):
+            continue
+        seen.add(key)
+        raw_sha, raw_url = _raw_sha_of(m, rid, name, ts)
+        if not raw_sha:
+            continue
+        blobs = blobs if blobs is not None else archive.known_blobs()
+        theirs_rel, ours_rel = blobs.get(raw_sha), blobs.get(items[(rid, name)]["our_sha256"])
+        if not theirs_rel or not ours_rel or not archive.exists(theirs_rel) or not archive.exists(ours_rel):
+            continue
+        theirs, ours = archive.read_bytes(theirs_rel), archive.read_bytes(ours_rel)
+        if sha256_hex(theirs) != raw_sha:
+            continue
+        d = {**diagnose(ours, theirs), "our_copy": ours_rel,
+             "archive_copy": {"stored_at": theirs_rel, "sha256": raw_sha,
+                              "basis": "already stored with the same SHA-256 as this receipt's Archive copy; "
+                                       "no new request to the Archive"}}
+        check = {"raw_url": raw_url, "checked_utc": utc_now(), "raw_sha256": raw_sha,
+                 "result": "match_after_decoding" if d["identical_after_decoding"] else "mismatch",
+                 "diagnostic": d}
+        if d["identical_after_decoding"]:
+            check["decoding_method"] = d["decoding_method"]
+        new.append({"note_type": NOTE_DIAG, "appended_utc": utc_now(), "run_id": rid, "name": name,
+                    "snapshot_timestamp": ts, "mismatch_recorded_in": where, "raw_check": check})
+    return new
+
+
 def _diagnose_earlier_mismatches(m: dict, notes: list[dict], client: ArchiveClient,
                                  skip_run_id: str | None) -> list[dict]:
     if client.on_mismatch is None:
@@ -159,9 +216,7 @@ def _diagnose_earlier_mismatches(m: dict, notes: list[dict], client: ArchiveClie
     for rid, name, ts, where in _mismatches_without_diagnostic(m, notes):
         key = (rid, name, ts)
         if (rid == skip_run_id or key in seen or not ts or (rid, name) not in items
-                or any(n.get("note_type") == NOTE_DIAG and n.get("run_id") == rid
-                       and n.get("name") == name and n.get("snapshot_timestamp") == ts
-                       for n in notes)):
+                or _diagnosed(notes, rid, name, ts)):
             continue
         seen.add(key)
         item = items[(rid, name)]
@@ -247,10 +302,16 @@ def reclassification_notes(m: dict) -> list[dict]:
 
 
 def reclassify_all(archive: Archive) -> list[dict]:
-    """Append reclassification notes to every day's manifest that needs them (no network)."""
+    """For every day's manifest, whatever its age, and with no network: diagnose recorded
+    mismatches from Archive copies already stored, then append reclassification notes."""
     appended = []
     for _, rel in day_manifests(archive):
         m = archive.load_json(rel)
+        diag = stored_copy_diagnoses(archive, m)
+        if diag:
+            append_notes(archive, rel, diag)
+            appended += diag
+            m = archive.load_json(rel)
         new = reclassification_notes(m)
         if new:
             append_notes(archive, rel, new)
