@@ -442,6 +442,76 @@
       "decoding_method": "gzip",
       "based_on": "appended note (diagnostic note)",
       "reason": "The diagnostic found the Internet Archive's copy identical to ours after decompression (gzip). The earlier record says 'mismatch' and is kept as written."
+    },
+    {
+      "note_type": "archive-raw-diagnostic",
+      "appended_utc": "2026-11-23T08:04:01Z",
+      "run_id": "42776268283-1",
+      "name": "dashboard.html",
+      "snapshot_timestamp": "20261110073502",
+      "mismatch_recorded_in": "run record",
+      "raw_check": {
+        "raw_url": "https://web.archive.org/web/20261110073502id_/https://red.anthropic.com/2026/cvd/",
+        "checked_utc": "2026-11-23T08:04:01Z",
+        "raw_sha256": "88c5464fb37b8245701a34bb7b6e5898e13ea9f9585611b23eafdcfa4d7ff50c",
+        "result": "match_after_decoding",
+        "diagnostic": {
+          "diagnosed_utc": "2026-11-23T08:04:01Z",
+          "our_size": 124896,
+          "archive_size": 21450,
+          "first_difference_offset": 0,
+          "our_parses_as_json": false,
+          "archive_parses_as_json": false,
+          "json_semantically_identical": null,
+          "identical_ignoring_line_endings": false,
+          "identical_ignoring_whitespace": false,
+          "identical_after_decoding": true,
+          "decoding_method": "gzip",
+          "difference_summary": "encoding_only (gzip)",
+          "our_copy": "captures/2026/11/08/dashboard.html",
+          "archive_copy": {
+            "stored_at": "captures/archive-raw/2026/11/11/dashboard.20261111041608.id_.html",
+            "sha256": "88c5464fb37b8245701a34bb7b6e5898e13ea9f9585611b23eafdcfa4d7ff50c",
+            "basis": "already stored with the same SHA-256 as this receipt's Archive copy; no new request to the Archive"
+          }
+        },
+        "decoding_method": "gzip"
+      }
+    },
+    {
+      "note_type": "archive-raw-diagnostic",
+      "appended_utc": "2026-11-23T08:04:01Z",
+      "run_id": "42776268283-1",
+      "name": "payload.json",
+      "snapshot_timestamp": "20261109204517",
+      "mismatch_recorded_in": "run record",
+      "raw_check": {
+        "raw_url": "https://web.archive.org/web/20261109204517id_/https://red.anthropic.com/2026/cvd/data/payload.json",
+        "checked_utc": "2026-11-23T08:04:01Z",
+        "raw_sha256": "df30b081ac19030c18028fbb7462f56332fc479fe509442e63694a707927d64f",
+        "result": "match_after_decoding",
+        "diagnostic": {
+          "diagnosed_utc": "2026-11-23T08:04:01Z",
+          "our_size": 6409686,
+          "archive_size": 723090,
+          "first_difference_offset": 0,
+          "our_parses_as_json": true,
+          "archive_parses_as_json": false,
+          "json_semantically_identical": null,
+          "identical_ignoring_line_endings": false,
+          "identical_ignoring_whitespace": false,
+          "identical_after_decoding": true,
+          "decoding_method": "gzip",
+          "difference_summary": "encoding_only (gzip)",
+          "our_copy": "captures/2026/11/08/payload.json",
+          "archive_copy": {
+            "stored_at": "captures/archive-raw/2026/11/11/payload.20261109204517.id_.json",
+            "sha256": "df30b081ac19030c18028fbb7462f56332fc479fe509442e63694a707927d64f",
+            "basis": "already stored with the same SHA-256 as this receipt's Archive copy; no new request to the Archive"
+          }
+        },
+        "decoding_method": "gzip"
+      }
     }
   ]
 }
