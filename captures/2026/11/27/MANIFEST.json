@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "program": "anthropic-cvd",
+  "date_utc": "2026-11-27",
+  "about": "Raw files exactly as served. Each run lists what was fetched. When bytes were identical to a copy already in the archive, stored_at points to that copy instead of saving a duplicate.",
+  "runs": [
+    {
+      "run_id": "45960555692-1",
+      "trigger": "schedule",
+      "started_utc": "2026-11-27T07:44:41Z",
+      "finished_utc": "2026-11-27T07:44:47Z",
+      "base_url": "https://red.anthropic.com/2026/cvd/",
+      "user_agent": "vulnerabilities.ai-verifier/1.0.0 (+https://github.com/vulnerabilities-ai/verifier; verifier@vulnerabilities.ai)",
+      "robots": {
+        "red.anthropic.com": {
+          "robots_url": "https://red.anthropic.com/robots.txt",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:42Z",
+          "sha256": "ad2b664bf483f10ee3ef55e60e0c6877925cc908c62cc17138594e84a8cbc494",
+          "checked": {
+            "https://red.anthropic.com/2026/cvd/": true,
+            "https://red.anthropic.com/2026/cvd/data/payload.json": true,
+            "https://red.anthropic.com/2026/cvd/data/ledger.json": true,
+            "https://red.anthropic.com/2026/cvd/about/index.html": true,
+            "https://red.anthropic.com/2026/cvd/archive/index.html": true
+          }
+        },
+        "web.archive.org": {
+          "robots_url": "https://web.archive.org/robots.txt",
+          "status": 404,
+          "fetched_utc": "2026-11-27T07:44:42Z",
+          "sha256": null,
+          "checked": {
+            "https://web.archive.org/save": true,
+            "https://web.archive.org/save/status/job": true,
+            "https://web.archive.org/web/20260101000000id_/https://red.anthropic.com/2026/cvd/": true,
+            "https://web.archive.org/web/20260101000000id_/https://red.anthropic.com/2026/cvd/data/payload.json": true,
+            "https://web.archive.org/web/20260101000000id_/https://red.anthropic.com/2026/cvd/data/ledger.json": true
+          }
+        },
+        "archive.org": {
+          "robots_url": "https://archive.org/robots.txt",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:42Z",
+          "sha256": "83e00f46c71e9fa872694af73fa9c15a615b9052b2f10820a3d146bc506c6161",
+          "checked": {
+            "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20260101000000": true,
+            "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2Fdata%2Fpayload.json&timestamp=20260101000000": true,
+            "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2Fdata%2Fledger.json&timestamp=20260101000000": true
+          }
+        }
+      },
+      "files": [
+        {
+          "name": "dashboard.html",
+          "url": "https://red.anthropic.com/2026/cvd/",
+          "final_url": "https://red.anthropic.com/2026/cvd/",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:43Z",
+          "etag": null,
+          "last_modified": null,
+          "content_type": "text/html; charset=utf-8",
+          "size_bytes": 124896,
+          "sha256": "a7b8618612754ef94b08a43a1bf67a59305576bed9a587604526ee91edd182db",
+          "headers": {
+            "Date": "Fri, 27 Nov 2026 07:44:43 GMT",
+            "Content-Type": "text/html; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+            "Connection": "close",
+            "x-content-type-options": "nosniff",
+            "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=xNw5smL2im2TEeafFtnlOqQ8yWv%2BiXAzngUI%2B2sp2fUWAOEYNj7r0bEyXsfmEdgr%2BtfkqXh3amIM40mn1YNar5p5o7lnld9HqNlbTIOTzW76qFh7SJs2ZK%2BfBPrsOF1xCi2%2BZA%3D%3D\"}]}",
+            "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "Server": "cloudflare",
+            "cf-cache-status": "DYNAMIC",
+            "CF-RAY": "a60f825d09f60be5-IAD",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "stored_at": "captures/2026/11/08/dashboard.html",
+          "newly_stored": false
+        },
+        {
+          "name": "payload.json",
+          "url": "https://red.anthropic.com/2026/cvd/data/payload.json",
+          "final_url": "https://red.anthropic.com/2026/cvd/data/payload.json",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:44Z",
+          "etag": "\"ee3bb1fd3a6b13ca6d0e76955c3ccfe1\"",
+          "last_modified": null,
+          "content_type": "application/json",
+          "size_bytes": 6409686,
+          "sha256": "9c28aaedc9b15fc495281ff5b837b369992df7084d8112642549be3215618536",
+          "headers": {
+            "Date": "Fri, 27 Nov 2026 07:44:44 GMT",
+            "Content-Type": "application/json",
+            "Content-Length": "6409686",
+            "Connection": "close",
+            "x-content-type-options": "nosniff",
+            "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=jzSqEwqknlFS1Gwg4tvjCFSTfM2MGRksKu6B72nK%2FMxIm1rgSty7MxeBrx6Qz9SC4y8esKzTHkubYWoDTKhGLAzqLHEN6%2FR1mcXbL1TlDW1KolqXsXo2bnuydKlrJeq%2FA49BzQ%3D%3D\"}]}",
+            "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "ETag": "\"ee3bb1fd3a6b13ca6d0e76955c3ccfe1\"",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "Server": "cloudflare",
+            "cf-cache-status": "DYNAMIC",
+            "CF-RAY": "a60f82634a541972-IAD",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "stored_at": "captures/2026/11/08/payload.json",
+          "newly_stored": false
+        },
+        {
+          "name": "ledger.json",
+          "url": "https://red.anthropic.com/2026/cvd/data/ledger.json",
+          "final_url": "https://red.anthropic.com/2026/cvd/data/ledger.json",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:45Z",
+          "etag": "\"cc21cb6431cd80f5df64be9e2e59af99\"",
+          "last_modified": null,
+          "content_type": "application/json",
+          "size_bytes": 5665438,
+          "sha256": "33524eaeea981fe88cfac5d581d80fa38da9aff3250db093a48c105c75a5430b",
+          "headers": {
+            "Date": "Fri, 27 Nov 2026 07:44:45 GMT",
+            "Content-Type": "application/json",
+            "Content-Length": "5665438",
+            "Connection": "close",
+            "x-content-type-options": "nosniff",
+            "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=y5uux1B7uUWTLwsM1EskJ78YE4lvu%2FMwRvZv9%2BHQhbMCqf0%2B1PD1gOq7F9GpMIeeaVb758MmkhEknHNfNoyYP8IjnFwOiMgLBevrnGDyM0X9AETwOr3M2F321fGkhN%2BTzGQ29Q%3D%3D\"}]}",
+            "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "ETag": "\"cc21cb6431cd80f5df64be9e2e59af99\"",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "Server": "cloudflare",
+            "cf-cache-status": "DYNAMIC",
+            "CF-RAY": "a60f82698e842c79-IAD",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "stored_at": "captures/2026/11/08/ledger.json",
+          "newly_stored": false
+        },
+        {
+          "name": "about.html",
+          "url": "https://red.anthropic.com/2026/cvd/about/index.html",
+          "final_url": "https://red.anthropic.com/2026/cvd/about/",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:46Z",
+          "etag": null,
+          "last_modified": null,
+          "content_type": "text/html; charset=utf-8",
+          "size_bytes": 10650,
+          "sha256": "e3876e9168bd878d8ab1eb4a1ac6de789ff95a7f18b0893122da7045a8a29278",
+          "headers": {
+            "Date": "Fri, 27 Nov 2026 07:44:46 GMT",
+            "Content-Type": "text/html; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+            "Connection": "close",
+            "x-content-type-options": "nosniff",
+            "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=MAAFL4%2Fk%2Bho3egN6QKYtU10YbYdUY83tIxUfmtBDEQZEK95cdWJJs2goIReBVpakZSn62PkgqsBbHRD1jU%2FmToQqn%2Bcro6SamKnhzXF6Z1Sm0m%2FVRgzF%2BqvrPn2nkZ10q6rfQQ%3D%3D\"}]}",
+            "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "Server": "cloudflare",
+            "cf-cache-status": "DYNAMIC",
+            "CF-RAY": "a60f82700c16cff8-IAD",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "stored_at": "captures/2026/11/08/about.html",
+          "newly_stored": false
+        },
+        {
+          "name": "archive.html",
+          "url": "https://red.anthropic.com/2026/cvd/archive/index.html",
+          "final_url": "https://red.anthropic.com/2026/cvd/archive/",
+          "status": 200,
+          "fetched_utc": "2026-11-27T07:44:47Z",
+          "etag": null,
+          "last_modified": null,
+          "content_type": "text/html; charset=utf-8",
+          "size_bytes": 2502,
+          "sha256": "59a946afb21df151169fd4d6014f9c44dabde335c032f53e5cd1906dc292a283",
+          "headers": {
+            "Date": "Fri, 27 Nov 2026 07:44:47 GMT",
+            "Content-Type": "text/html; charset=utf-8",
+            "Transfer-Encoding": "chunked",
+            "Connection": "close",
+            "x-content-type-options": "nosniff",
+            "Report-To": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=xkdBS%2F%2BgVI92gwhbi25kpmjsLzhqx0PokJr4qn4JKcRQ0xYQp0jTuMyVNP5lpStIrtauqvogZ1Wxmyp1Ajmc6FwQ9YWU%2FsPqTwNRptAX3iisbzk2H%2BVe7%2BRb3KSTzDunNz%2FGHw%3D%3D\"}]}",
+            "Nel": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}",
+            "Access-Control-Allow-Origin": "*",
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "referrer-policy": "strict-origin-when-cross-origin",
+            "Server": "cloudflare",
+            "cf-cache-status": "DYNAMIC",
+            "CF-RAY": "a60f82762d6f9167-IAD",
+            "alt-svc": "h3=\":443\"; ma=86400"
+          },
+          "stored_at": "captures/2026/11/08/archive.html",
+          "newly_stored": false
+        }
+      ],
+      "internet_archive": {
+        "mode": "authenticated",
+        "ok": false,
+        "receipts": 2,
+        "pending": [
+          "dashboard.html"
+        ],
+        "items": [
+          {
+            "name": "dashboard.html",
+            "url": "https://red.anthropic.com/2026/cvd/",
+            "our_fetched_utc": "2026-11-27T07:44:43Z",
+            "our_sha256": "a7b8618612754ef94b08a43a1bf67a59305576bed9a587604526ee91edd182db",
+            "status": "pending",
+            "attempts": [
+              {
+                "requested_utc": "2026-11-27T07:44:47Z",
+                "mode": "authenticated",
+                "outcome": "error",
+                "error": "Could not reach https://web.archive.org/save/status/spn2-94bd0f25bd2104f3ddab87546dbaa55959353505: TimeoutError: timed out"
+              },
+              {
+                "requested_utc": "2026-11-27T07:50:34Z",
+                "mode": "authenticated",
+                "outcome": "error",
+                "error": "Could not reach https://web.archive.org/save/status/spn2-94bd0f25bd2104f3ddab87546dbaa55959353505: TimeoutError: timed out"
+              },
+              {
+                "requested_utc": "2026-11-27T07:54:56Z",
+                "mode": "authenticated",
+                "outcome": "error",
+                "error": "Could not reach https://web.archive.org/save/status/spn2-94bd0f25bd2104f3ddab87546dbaa55959353505: TimeoutError: timed out"
+              },
+              {
+                "requested_utc": "2026-11-27T08:06:17Z",
+                "mode": "authenticated",
+                "outcome": "error",
+                "error": "Could not reach https://web.archive.org/save/status/spn2-94bd0f25bd2104f3ddab87546dbaa55959353505: TimeoutError: timed out"
+              }
+            ],
+            "availability_checks": [
+              {
+                "checked_utc": "2026-11-27T07:45:58Z",
+                "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20261127074443",
+                "our_fetched_utc": "2026-11-27T07:44:43Z",
+                "status": 200,
+                "closest_timestamp": "20261117090636",
+                "closest_url": "http://web.archive.org/web/20261117090636/https://red.anthropic.com/2026/cvd/",
+                "closest_status": "200",
+                "result": "none_after_our_fetch",
+                "seconds_after_our_fetch": -859087
+              },
+              {
+                "checked_utc": "2026-11-27T07:51:55Z",
+                "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20261127074443",
+                "our_fetched_utc": "2026-11-27T07:44:43Z",
+                "status": 200,
+                "closest_timestamp": "20261117090636",
+                "closest_url": "http://web.archive.org/web/20261117090636/https://red.anthropic.com/2026/cvd/",
+                "closest_status": "200",
+                "result": "none_after_our_fetch",
+                "seconds_after_our_fetch": -859087
+              },
+              {
+                "checked_utc": "2026-11-27T07:56:17Z",
+                "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20261127074443",
+                "our_fetched_utc": "2026-11-27T07:44:43Z",
+                "status": 200,
+                "closest_timestamp": "20261117090636",
+                "closest_url": "http://web.archive.org/web/20261117090636/https://red.anthropic.com/2026/cvd/",
+                "closest_status": "200",
+                "result": "none_after_our_fetch",
+                "seconds_after_our_fetch": -859087
+              },
+              {
+                "checked_utc": "2026-11-27T08:07:48Z",
+                "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2F&timestamp=20261127074443",
+                "our_fetched_utc": "2026-11-27T07:44:43Z",
+                "status": 200,
+                "closest_timestamp": "20261117090636",
+                "closest_url": "http://web.archive.org/web/20261117090636/https://red.anthropic.com/2026/cvd/",
+                "closest_status": "200",
+                "result": "none_after_our_fetch",
+                "seconds_after_our_fetch": -859087
+              }
+            ]
+          },
+          {
+            "name": "ledger.json",
+            "url": "https://red.anthropic.com/2026/cvd/data/ledger.json",
+            "our_fetched_utc": "2026-11-27T07:44:45Z",
+            "our_sha256": "33524eaeea981fe88cfac5d581d80fa38da9aff3250db093a48c105c75a5430b",
+            "status": "receipt",
+            "attempts": [
+              {
+                "requested_utc": "2026-11-27T07:46:00Z",
+                "mode": "authenticated",
+                "outcome": "snapshot",
+                "job_id": "spn2-0c08cf86f1745413f470b7059e6de2243af9f091",
+                "snapshot_timestamp": "20261127074709"
+              }
+            ],
+            "availability_checks": [],
+            "receipt": {
+              "source": "save-page-now",
+              "snapshot_timestamp": "20261127074709",
+              "snapshot_timestamp_utc": "2026-11-27T07:47:09Z",
+              "snapshot_url": "https://web.archive.org/web/20261127074709/https://red.anthropic.com/2026/cvd/data/ledger.json",
+              "seconds_after_our_fetch": 144,
+              "raw_check": {
+                "raw_url": "https://web.archive.org/web/20261127074709id_/https://red.anthropic.com/2026/cvd/data/ledger.json",
+                "checked_utc": "2026-11-27T07:47:19Z",
+                "status": 200,
+                "final_url": "https://web.archive.org/web/20261127074709id_/https://red.anthropic.com/2026/cvd/data/ledger.json",
+                "raw_sha256": "1619ecea6f28ce03895369455e606aca30e2c76e9c2e487d99fcc3feabdb9eb5",
+                "result": "match_after_decoding",
+                "diagnostic": {
+                  "diagnosed_utc": "2026-11-27T07:47:23Z",
+                  "our_size": 5665438,
+                  "archive_size": 632006,
+                  "first_difference_offset": 0,
+                  "our_parses_as_json": true,
+                  "archive_parses_as_json": false,
+                  "json_semantically_identical": null,
+                  "identical_ignoring_line_endings": false,
+                  "identical_ignoring_whitespace": false,
+                  "identical_after_decoding": true,
+                  "decoding_method": "gzip",
+                  "difference_summary": "encoding_only (gzip)",
+                  "our_copy": "captures/2026/11/08/ledger.json",
+                  "saved_copy": {
+                    "stored_at": "captures/archive-raw/2026/11/27/ledger.20261127074709.id_.json",
+                    "sha256": "1619ecea6f28ce03895369455e606aca30e2c76e9c2e487d99fcc3feabdb9eb5"
+                  }
+                },
+                "decoding_method": "gzip"
+              }
+            }
+          },
+          {
+            "name": "payload.json",
+            "url": "https://red.anthropic.com/2026/cvd/data/payload.json",
+            "our_fetched_utc": "2026-11-27T07:44:44Z",
+            "our_sha256": "9c28aaedc9b15fc495281ff5b837b369992df7084d8112642549be3215618536",
+            "status": "receipt",
+            "attempts": [
+              {
+                "requested_utc": "2026-11-27T07:47:23Z",
+                "mode": "authenticated",
+                "outcome": "error",
+                "error": "Could not reach https://web.archive.org/save/status/spn2-eb79dcbbfd7619fe2f0eff097f68cb94b44c204d: TimeoutError: timed out"
+              }
+            ],
+            "availability_checks": [
+              {
+                "checked_utc": "2026-11-27T07:48:34Z",
+                "query": "https://archive.org/wayback/available?url=https%3A%2F%2Fred.anthropic.com%2F2026%2Fcvd%2Fdata%2Fpayload.json&timestamp=20261127074444",
+                "our_fetched_utc": "2026-11-27T07:44:44Z",
+                "status": 200,
+                "closest_timestamp": "20261127074724",
+                "closest_url": "http://web.archive.org/web/20261127074724/https://red.anthropic.com/2026/cvd/data/payload.json",
+                "closest_status": "200",
+                "result": "found_after_our_fetch",
+                "seconds_after_our_fetch": 160
+              }
+            ],
+            "receipt": {
+              "source": "availability-api",
+              "snapshot_timestamp": "20261127074724",
+              "snapshot_timestamp_utc": "2026-11-27T07:47:24Z",
+              "snapshot_url": "https://web.archive.org/web/20261127074724/https://red.anthropic.com/2026/cvd/data/payload.json",
+              "seconds_after_our_fetch": 160,
+              "raw_check": {
+                "raw_url": "https://web.archive.org/web/20261127074724id_/https://red.anthropic.com/2026/cvd/data/payload.json",
+                "checked_utc": "2026-11-27T07:48:34Z",
+                "result": "unavailable",
+                "error": "Could not reach https://web.archive.org/web/20261127074724id_/https://red.anthropic.com/2026/cvd/data/payload.json: TimeoutError: timed out"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
