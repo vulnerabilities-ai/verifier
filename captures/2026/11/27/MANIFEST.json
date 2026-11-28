@@ -387,5 +387,42 @@
         ]
       }
     }
+  ],
+  "appended_notes": [
+    {
+      "note_type": "later-raw-check",
+      "appended_utc": "2026-11-28T07:39:47Z",
+      "run_id": "45960555692-1",
+      "name": "payload.json",
+      "raw_check": {
+        "raw_url": "https://web.archive.org/web/20261127074724id_/https://red.anthropic.com/2026/cvd/data/payload.json",
+        "checked_utc": "2026-11-28T07:39:45Z",
+        "status": 200,
+        "final_url": "https://web.archive.org/web/20261128024103id_/https://red.anthropic.com/2026/cvd/data/payload.json",
+        "raw_sha256": "ff13482698e8efed3f858c197a44ede8350b8922a289c1a748d94d42c9d6457f",
+        "result": "match_after_decoding",
+        "diagnostic": {
+          "diagnosed_utc": "2026-11-28T07:39:47Z",
+          "our_size": 6409686,
+          "archive_size": 723276,
+          "first_difference_offset": 0,
+          "our_parses_as_json": true,
+          "archive_parses_as_json": false,
+          "json_semantically_identical": null,
+          "identical_ignoring_line_endings": false,
+          "identical_ignoring_whitespace": false,
+          "identical_after_decoding": true,
+          "decoding_method": "gzip",
+          "difference_summary": "encoding_only (gzip)",
+          "our_copy": "captures/2026/11/08/payload.json",
+          "saved_copy": {
+            "stored_at": "captures/archive-raw/2026/11/28/payload.20261128073930.id_.json",
+            "sha256": "ff13482698e8efed3f858c197a44ede8350b8922a289c1a748d94d42c9d6457f"
+          }
+        },
+        "decoding_method": "gzip",
+        "note": "The Archive served its copy dated 20261128024103 instead."
+      }
+    }
   ]
 }
